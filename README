@@ -1,0 +1,303 @@
+TODO:
+-> main
+	^ command line args
+	^ remove input.c, it's kinda stupid
+-> playback
+	^ pingpong loop, note off loop ending
+	^ test instrument types
+	^ test portamento
+-> tracker
+	^ click across pattern bounds
+	^ redo mode 0 input, probably should be modal? not sure
+	^ edit step
+	^ use the return key to open the file browser instead of the 'o' key
+-> instruments
+	^ test retaining relative instrument params after processing
+	^ test spleeter macro
+	^ midi type
+	^ option to (un)link fader channels
+-> effects
+	^ search the plugin list
+	^ instantiate plugins per instrument, and only on playback
+	^ apply plugins to instruments as per the mixing rules
+	^ temporary mixing rule macro
+
+some eq10q mono plugins segfault on load, not sure why
+reduce setting instrumentindex to 0 unnecessarily
+
+
+can i properly index a VERY long sample with multiple channels and still fit in the uint limit?
+
+
+MACROS
+* either 2 char macros or 1 short macro
+* colour macroc and macrov differently
+* maybe both macrovs have the same colour?
+
+tracker:
+>  00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D   0E
+>
+>       <CHANNEL 01>     <CHANNEL 02>     <CHANNEL 03>     <CHANNEL 04>
+> 00 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+> 01   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 02   ... .. A17 Ba4   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 03   ... ..  L1c44    ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 04 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+> 05   ... 00 1a8 280   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 06   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 07   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 08 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+> 09   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 0a   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 0b   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 0c * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+>       Offset:  O00     Offset:  O00     Offset:  O00     Offset:  O00
+
+
+
+
+SCREENS
+1.) patterns
+2.) instruments
+3.) effects
+
+PATTERNS
+A tracker view, for sequencing patterns.
+special notes:
+	^^^: note cut (immediately stop the playing channel)
+	===: note off (stop loop points, let sounds finish)
+
+INSTRUMENTS
+A no interpolation sampler.
+Sample data can be loaded from a file or recorded in.
+They're copied into the module, any changes won't affect the sample on disk.
+TODO: sample compression
+options:
+	non-destructive:
+		+ tuning
+		+ trimming (start and end pos)
+		+ looping (start and end pos)
+	destructive:
+		+ amplify (brick of cocaine type beat)
+		+ time-stretch (if `akaizer` is in $PATH)
+		+ split stems into new instruments (if `spleeter` is in $PATH)
+		+ signed/unsigned conversion (funny sound)
+		+ apply trimming
+		+ resample / decimate
+		+ invert phase
+	adsr envelopes:
+		+ volume
+		- filter
+		? panning
+		? pitch
+	other:
+		+ output group
+
+
+┌───────── <- [INSTRUMENT 00] -> ─────────┐
+│                                         │
+│   type: [0]                             │
+│                                         │
+│┌──────── [sampler (no sample)] ────────┐│
+││ REC                                   ││
+││           C5 rate: [00000000]         ││
+││                                       ││
+││    trim     start: [00000000]    0%   ││
+││    ----       end: [00000000]    0%   ││
+││                                       ││
+││    loop     start: [00000000]    0%   ││
+││    ----       end: [00000000]    0%   ││
+││                                       ││
+││    volume        a:[00]  d:[00]       ││
+││    ------        s:[FF]  r:[00]       ││
+││                                       ││
+││    grains    mix: [00] length: [00]   ││
+│└───────────────────────────────────────┘│
+│  fader: [FF][FF]    sends  effect: [0]  │
+│                     -----     mix: [0]  │
+└─────────────────────────────────────────┘
+
+ ┌─────────── [unnamed synth] ───────────┐
+ │ osc1: [    sine]  sub:    [    sine]  │
+ │ det:[00] fm:[00]  gain:[00] oct:[-0]  │
+ │                                       │
+ │ osc2:[triangle]  g:[00] a:[00] d:[00] │
+ │ tune:[+00]       amp  > s:[FF] r:[00] │
+ │                                       │
+ │ lfo1:[triangle]  g:[00] a:[00] d:[00] │
+ │ spd:[80] g:[80]  fltr > s:[FF] r:[00] │
+ │ type:  [filter]  frq:[00]  res:[00]   │
+ │                  trk:[00] type:[LP12] │
+ │ lfo2:[triangle]                       │
+ │ spd:[80] g:[80]  num:  [1]   det:[00] │
+ │ type:  [filter]  phase:[00] sprd:[00] │
+ └───────────────────────────────────────┘
+
+
+instrument keybinds:
+	meta: (instrument indices at the top)
+		a  : add an empty instrument in the current slot
+		d  : delete the focused instrument and yank it into the buffer
+		y  : yank the focused instrument into the buffer
+		p  : put the buffer over the focused instrument
+	sample data:
+		o  : open a sample from disk
+		?  : toggle external recording
+		?  : toggle loopback recording (will record from the main outputs)
+
+		m  : amplify
+		a  : akaizer (time stretch / pitch shift)
+		l  : lame (mp3 compression, for the artifacts only)
+		p  : spleeter (stems split)
+		t  : apply trimming
+		c  : signed unsigned conversion
+		r  : resample
+		i  : invert phase
+
+
+EFFECTS:
+
+┌─────────── <- [EFFECT 4] -> ────────────┐
+│                                         │
+│           [no effect loaded]            │
+│                                         │
+└─────────────────────────────────────────┘
+┌─────────── <- [EFFECT 0] -> ────────────┐
+│                                         │
+│         [ACE Expander (stereo)]         │
+│                                         │
+│    Sidechain                    [ ]     │
+│    Enable                       [X]     │
+│    Attack             [   0.100 ms]     │
+│    Release            [   104.0 ms]     │
+│    Knee               [   8.000 dB]     │
+│    Ratio              [      1.768]     │
+│    Threshold          [ -60.000 dB]     │
+│    Makeup             [   0.000 dB]     │
+└─────────────────────────────────────────┘
+┌─────────── <- [EFFECT 1] -> ────────────┐
+│                                         │
+│             [MDA Bandisto]              │
+│                                         │
+│          Listen     [     Out]          │
+│          L <> M     [   0.400]          │
+│          M <> H     [   0.454]          │
+│          L Dist     [   0.433]          │
+│          M Dist     [   0.639]          │
+│          H Dist     [   0.840]          │
+│          L Out      [   0.500]          │
+│          M Out      [   0.529]          │
+│          H Out      [   0.701]          │
+│          Mode       [ Bipolar]          │
+└─────────────────────────────────────────┘
+┌─────────── <- [EFFECT 2] -> ────────────┐
+│                                         │
+│           [Micro Delay Line]            │
+│                                         │
+│      Delay Time     [  46 frames]       │
+└─────────────────────────────────────────┘
+┌─────────── <- [EFFECT 3] -> ────────────┐
+│                                         │
+│             [EQ10Q Stereo]              │
+│                                         │
+│    Input Gain           [ -6.600 db]    │
+│    Output Gain          [  0.600 db]    │
+│    Filter 1 Gain        [ -3.642 db]    │
+│    Filter 2 Gain        [  1.713 db]    │
+│    Filter 3 Gain        [  2.335 db]    │
+│    Filter 4 Gain        [  3.295 db]    │
+│    Filter 5 Gain        [  4.645 db]    │
+│    Filter 6 Gain        [ -4.045 db]    │
+│    Filter 7 Gain        [  1.978 db]    │
+│    Filter 8 Gain        [ -6.600 db]    │
+│    Filter 9 Gain        [  6.333 db]    │
+│    Filter 10 Gain       [ -5.867 db]    │
+│    Filter 1 Freq        [  235.1 Hz]    │
+│    Filter 2 Freq        [  286.4 Hz]    │
+│    Filter 3 Freq        [   64.2 Hz]    │
+│    Filter 4 Freq        [ 7905.2 Hz]    │
+│    Filter 5 Freq        [ 1981.9 Hz]    │
+│    Filter 6 Freq        [ 4689.9 Hz]    │
+│    Filter 7 Freq        [ 2516.0 Hz]    │
+│    Filter 8 Freq        [ 4381.9 Hz]    │
+│    Filter 9 Freq        [19222.3 Hz]    │
+│    Filter 10 Freq       [11852.8 Hz]    │
+│    Filter 1 Q           [     0.494]    │
+│    Filter 2 Q           [     0.807]    │
+│    Filter 3 Q           [     0.235]    │
+│    Filter 4 Q           [     3.380]    │
+│    Filter 5 Q           [     0.451]    │
+│    Filter 6 Q           [     1.633]    │
+│    Filter 7 Q           [     1.160]    │
+│    Filter 8 Q           [     6.319]    │
+│    Filter 9 Q           [     0.720]    │
+│    Filter 10 Q          [     4.813]    │
+│    Filter 1 Type        [        11]    │
+│    Filter 2 Type        [        11]    │
+│    Filter 3 Type        [        11]    │
+│    Filter 4 Type        [        11]    │
+│    Filter 5 Type        [        11]    │
+│    Filter 6 Type        [        11]    │
+│    Filter 7 Type        [        11]    │
+│    Filter 8 Type        [        11]    │
+│    Filter 9 Type        [        11]    │
+│    Filter 10 Type       [        11]    │
+│    Filter 1 Enable      [         1]    │
+│    Filter 2 Enable      [         5]    │
+│    Filter 3 Enable      [         1]    │
+│    Filter 4 Enable      [         1]    │
+│    Filter 5 Enable      [         1]    │
+│    Filter 6 Enable      [         5]    │
+│    Filter 7 Enable      [         5]    │
+│    Filter 8 Enable      [         1]    │
+│    Filter 9 Enable      [         1]    │
+│    Filter 10 Enable     [         1]    │
+└─────────────────────────────────────────┘
+
+
+song keybinds:
+
+tracker keybinds:
+	edit: (channel indices at the top)
+		a : add a channel after the selected one
+		y : yank the selected channel into the buffer
+		d : delete the selected channel and yank it into the buffer
+		D : delete from the selected channel to the end
+		p : put the buffer after the selected channel, shift channels
+		P : put the buffer before the selected channel, shift channels
+	insert: (focuses the pattern data)
+		^v: enter visual block mode, actions will affect all selected fields
+		^a: increment
+		^x: decrement
+		^i: interpolate
+		^[: exit instert mode
+	visual: (focuses the pattern data)
+		^[: exit visual block mode
+
+
+
+MACROS:
+// Pxx: portamento to target
+	the note field sets the target
+	xx is the portamento speed
+// Mxy: channel multiplier
+	x is the volume for the left channel
+	y is the volume for the right channel
+// Rxx: s&h retrigger
+	xx is the number of slices in the row
+	xx == 0||1 does nothing
+	->	will ratchet the current point in the sample
+		and continue as if nothing happened after the row
+	->	audio rate
+// Sxy: note delay and cut
+		x is the delay before triggering
+		x only applies if the note field is populated
+		y is the delay before cutting
+		y == 0 will NOT cut, use ^^^ for this
+// Oxx: offset
+	start the triggered sample at xx 255ths through
+	no effect if the note field is empty
+
+
+
+vim: wrap
