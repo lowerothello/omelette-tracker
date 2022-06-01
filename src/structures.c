@@ -35,6 +35,7 @@ typedef struct
 {
 	char mute; /* saved to disk */
 	uint32_t samplepointer; /* progress through the sample */
+	uint32_t sampleoffset; /* point to base samplepointer off of */
 	uint8_t envelopepointer;
 	uint32_t envelopesamples; /* progress through envelopepointer steps */
 	char envelopestage; /* 0:off 1:attack 2:decay 3:sustain 4:release */
@@ -239,7 +240,7 @@ typedef struct
 		void (*input)(int *);
 		void (*process)(instrument *, channel *,
 				sample_t *, sample_t *);
-		void (*offset)(instrument *, channel *);
+		uint32_t (*offset)(instrument *, channel *, int);
 		uint8_t (*getOffset)(instrument *, channel *);
 		void (*changeType)(instrument *);
 		void (*loadSample)(instrument *, SF_INFO);

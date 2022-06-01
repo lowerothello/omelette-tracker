@@ -603,6 +603,7 @@ short samplerMouseToIndex(int y, int x)
 }
 
 /* must be realtime safe */
+/* don't change cv->samplepointer! */
 void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 {
 	if (cv->r.note == 254) /* skip note cut */
@@ -617,56 +618,6 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 
 	sampler_state *ss = iv->state;
 
-	if (cv->envelopestage == 1) // attack
-	{
-		if (ss->volume.a)
-		{
-			if (cv->envelopesamples > ENVELOPE_ATTACK * samplerate)
-			{
-				cv->envelopesamples = 0;
-				cv->envelopepointer++;
-			}
-			if (cv->envelopepointer < ss->volume.a)
-			{
-				if (ss->volume.d) /* raise up to sustain if there's no decay stage */
-					gain = ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.a;
-				else
-					gain = ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.a * ss->volume.s / 255.0;
-			} else { cv->envelopestage++;  cv->envelopepointer = 0; }
-		} else { cv->envelopestage++;  cv->envelopepointer = 0; }
-	}
-	if (cv->envelopestage == 2) // decay
-	{
-		if (ss->volume.d && ss->volume.s < 255)
-		{
-			if (cv->envelopesamples > ENVELOPE_DECAY * samplerate)
-			{
-				cv->envelopesamples = 0;
-				cv->envelopepointer++;
-			}
-			if (cv->envelopepointer < ss->volume.d)
-				gain = 1.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.d * (1.0 - ss->volume.s / 255.0);
-			else { cv->envelopestage++; cv->envelopepointer = 0; }
-		} else { cv->envelopestage++; cv->envelopepointer = 0; }
-	}
-	if (cv->envelopestage == 3) // sustain
-		gain = ss->volume.s / 255.0;
-	if (cv->envelopestage == 4) // release
-	{
-		if (ss->volume.r)
-		{
-			if (cv->envelopesamples > ENVELOPE_RELEASE * samplerate)
-			{
-				cv->envelopesamples = 0;
-				cv->envelopepointer++;
-			}
-			if (cv->envelopepointer < ss->volume.r)
-				gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
-			else cv->r.note = 0;
-		} else cv->r.note = 0;
-	}
-	cv->envelopesamples++;
-
 	if (ss->length > 0)
 	{
 		/* 61 is C-5 */
@@ -675,39 +626,105 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 		else
 			pitchedpointer = (float)cv->samplepointer / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
 
+
+		/* trim/loop */
 		if (ss->trim[0] < ss->trim[1])
-		{ // forwards
-			// TODO: trigger release envelope
+		{ /* forwards */
+			pitchedpointer = ss->trim[0] + cv->sampleoffset + pitchedpointer;
+
+			if (ss->loop[0] || ss->loop[1])
+			{ /* if there is a loop range */
+				if (ss->loop[0] < ss->loop[1])
+					while (pitchedpointer >= ss->loop[1])
+						pitchedpointer -= ss->loop[1] - ss->loop[0];
+				/* TODO: pingpong loop */
+			}
+
+			/* trigger the release envelope */
+			if (cv->envelopestage < 4
+					&& ss->loop[1] ? ss->trim[1] < ss->loop[1] : 1
+					&& pitchedpointer > ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * (float)samplerate))
+			{
+				cv->envelopestage = 4;
+				/* cv->envelopepointer = 0;
+				cv->envelopesamples = 0; */
+			}
+
+			/* cut if the pointer is ever past trim[1] */
 			if (pitchedpointer >= ss->trim[1])
-			{
-				if (ss->loop[0] && ss->loop[1])
-				{
-					if (ss->loop[0] < ss->loop[1])
-					{ // forwards loop
-						cv->samplepointer = ss->trim[0];
-					} else
-					{ // TODO: pingpong loop
-						cv->samplepointer = ss->trim[1];
-					}
-				} else cv->r.note = 0;
-			}
+				cv->r.note = 0;
 		} else
-		{ // backwards
-			// TODO: trigger release envelope
-			if (pitchedpointer <= ss->trim[1])
-			{
-				if (ss->loop[0] && ss->loop[1])
-				{
-					if (ss->loop[0] > ss->loop[1])
-					{ // forwards loop
-						cv->samplepointer = ss->trim[0];
-					} else
-					{ // TODO: pingpong loop
-						cv->samplepointer = ss->trim[1];
-					}
-				} else cv->r.note = 0;
+		{ /* backwards */
+			pitchedpointer = ss->trim[1] - cv->sampleoffset - pitchedpointer;
+
+			if (ss->loop[0] || ss->loop[1])
+			{ /* if there is a loop range */
+				if (ss->loop[0] > ss->loop[1])
+					while (pitchedpointer <= ss->loop[1])
+						pitchedpointer += ss->loop[0] - ss->loop[1];
+				/* TODO: pingpong loop */
 			}
+
+			/* trigger the release envelope */
+			if (ss->trim[1] > ss->loop[1] && ss->trim[1] + ss->volume.r * ENVELOPE_RELEASE * samplerate > pitchedpointer)
+			{
+				cv->envelopestage = 4;
+				cv->envelopepointer = 0;
+				cv->envelopesamples = 0;
+			}
+
+			/* cut if the pointer is ever past trim[1] */
+			if (pitchedpointer <= ss->trim[1])
+				cv->r.note = 0;
 		}
+
+
+		/* envelope */
+		if (cv->envelopestage == 1) // attack
+		{
+			if (ss->volume.a)
+			{
+				if (cv->envelopesamples > ENVELOPE_ATTACK * samplerate)
+				{
+					cv->envelopesamples = 0;
+					cv->envelopepointer++;
+				}
+				if (cv->envelopepointer < ss->volume.a)
+				{
+					if (ss->volume.d) /* raise up to sustain if there's no decay stage */
+						gain = ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.a;
+					else
+						gain = ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.a * ss->volume.s / 255.0;
+				} else { cv->envelopestage++;  cv->envelopepointer = 0; }
+			} else { cv->envelopestage++;  cv->envelopepointer = 0; }
+		}
+		if (cv->envelopestage == 2) // decay
+		{
+			if (ss->volume.d && ss->volume.s < 255)
+			{
+				if (cv->envelopesamples > ENVELOPE_DECAY * samplerate)
+				{
+					cv->envelopesamples = 0;
+					cv->envelopepointer++;
+				}
+				if (cv->envelopepointer < ss->volume.d)
+					gain = 1.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.d * (1.0 - ss->volume.s / 255.0);
+				else { cv->envelopestage++; cv->envelopepointer = 0; }
+			} else { cv->envelopestage++; cv->envelopepointer = 0; }
+		}
+		if (cv->envelopestage == 3) // sustain
+			gain = ss->volume.s / 255.0;
+		if (cv->envelopestage == 4) // release
+		{
+			if (cv->envelopesamples > ENVELOPE_RELEASE * samplerate)
+			{
+				cv->envelopesamples = 0;
+				cv->envelopepointer++;
+			}
+			gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
+		}
+		cv->envelopesamples++;
+
 
 		if (cv->r.note)
 		{
@@ -722,24 +739,19 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 				else
 					*r = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * gain;
 			}
-
-			if (ss->trim[0] < ss->trim[1])
-				cv->samplepointer++;
-			else
-				cv->samplepointer--;
 		}
+	} else
+	{
+		*l = 0.0;
+		*r = 0.0;
 	}
 }
 
 /* must be realtime safe */
-void samplerOffset(instrument *iv, channel *cv)
+uint32_t samplerOffset(instrument *iv, channel *cv, int m)
 {
 	sampler_state *ss = iv->state;
-	int i = ifMacro(cv->r, 'O');
-	if (i > -1)
-		cv->samplepointer = ss->trim[0] + i / 255.0 * (ss->trim[1] - ss->trim[0]);
-	else
-		cv->samplepointer = ss->trim[0];
+	return m / 255.0 * (max32(ss->trim[0], ss->trim[1]) - min32(ss->trim[0], ss->trim[1]));
 }
 
 
@@ -747,7 +759,14 @@ uint8_t samplerGetOffset(instrument *iv, channel *cv)
 {
 	if (!cv->r.note) return 0;
 	sampler_state *ss = iv->state;
-	return (cv->samplepointer - ss->trim[0]) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
+
+	uint32_t pitchedpointer;
+	if (cv->rtrigsamples > 0)
+		pitchedpointer = (float)(cv->rtrigpointer + (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples) / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
+	else
+		pitchedpointer = (float)cv->samplepointer / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
+
+	return (pitchedpointer - ss->trim[0] - cv->sampleoffset) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
 }
 
 /* called when instrument iv's type is changed to this file's */

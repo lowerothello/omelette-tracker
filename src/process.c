@@ -34,7 +34,11 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 {
 	/* process the type */
 	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+	{
 		t->f[iv->type].process(iv, cv, p->s->effectoutl, p->s->effectoutr);
+p->dirty = 1;
+		cv->samplepointer++;
+	}
 
 	/* process the effect sends */
 	for (int j = 0; j < 16; j++)
@@ -45,8 +49,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 			lilv_instance_run(iv->plugininstance[j], 1); // TODO: call this bufferwise
 		}
 
-	pb.outl[fptr] += *p->s->effectoutl * (iv->fader[0] / 256.0);
-	pb.outr[fptr] += *p->s->effectoutr * (iv->fader[1] / 256.0);
+	pb.outl[fptr] += *p->s->effectoutl * (iv->fader[0] / 256.0) * ((cv->gain>>4) / 16.0);
+	pb.outr[fptr] += *p->s->effectoutr * (iv->fader[1] / 256.0) * ((cv->gain%16) / 16.0);
 }
 
 int process(jack_nframes_t nfptr, void *arg)
@@ -79,6 +83,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			}
 		case 3: // start sample preview
 			p->w->previewchannel.samplepointer = 0;
+			p->w->previewchannel.gain = 255;
+			p->w->previewchannel.sampleoffset = 0;
 			p->w->previewchannel.envelopepointer = 0;
 			p->w->previewchannel.envelopesamples = 0;
 			p->w->previewchannel.envelopestage = 1;
@@ -97,7 +103,6 @@ int process(jack_nframes_t nfptr, void *arg)
 			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 				playChannel(fptr, p, pb, &p->w->previewchannel,
 						p->s->instrumentv[p->s->instrumenti[p->w->previewchannel.r.inst]]);
-			p->w->previewchanneltrigger = 0;
 			break;
 	}
 
@@ -180,10 +185,6 @@ int process(jack_nframes_t nfptr, void *arg)
 					r = p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr];
 					cv = &p->s->channelv[c];
 
-					m = ifMacro(r, 'M');
-					if (m >= 0) // volume
-						cv->gain = m;
-
 					if (r.note)
 					{
 						m = ifMacro(r, 'P');
@@ -196,18 +197,27 @@ int process(jack_nframes_t nfptr, void *arg)
 							cv->r.inst = r.inst;
 							cv->r.note = r.note;
 							cv->samplepointer = 0;
+							cv->gain = 255;
+							cv->sampleoffset = 0;
 							cv->envelopepointer = 0;
 							cv->envelopesamples = 0;
 							cv->envelopestage = 1;
 						}
 					}
 
+					m = ifMacro(r, 'M');
+					if (m >= 0) // volume
+						cv->gain = m;
+
 					m = ifMacro(r, 'O');
 					if (m >= 0) // offset
 					{
 						iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 						if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
-							t->f[iv->type].offset(iv, cv);
+						{
+							cv->sampleoffset = t->f[iv->type].offset(iv, cv, m);
+							cv->samplepointer = 0;
+						}
 					}
 
 					m = ifMacro(r, '1');

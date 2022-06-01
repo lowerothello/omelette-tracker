@@ -300,4 +300,16 @@ MACROS:
 
 
 
+sampler trim/loop cases
+t1  l1  l2
+t1  l2  l1
+
+l1  t1  l2
+l2  t1  l1
+
+t1  t2
+
++ the inverse of all of these
+
+
 vim: wrap
