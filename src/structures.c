@@ -36,13 +36,11 @@ typedef struct
 	char mute; /* saved to disk */
 	uint32_t samplepointer; /* progress through the sample */
 	uint32_t sampleoffset; /* point to base samplepointer off of */
-	uint8_t envelopepointer;
-	uint32_t envelopesamples; /* progress through envelopepointer steps */
-	char envelopestage; /* 0:off 1:attack 2:decay 3:sustain 4:release */
+	uint32_t releasepointer; /* 0 for no release, where releasing started */
 	uint8_t gain; /* two 4bit uints, one for each channel */
 	row r;
-	float cents; /* used for portamento, always between -50 and +50 */
-	uint8_t portamentostart, portamentoend;
+	float cents; /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
+	uint8_t portamento; /* portamento target, 255 for off */
 	uint16_t rtrigsamples; /* samples per retrigger */
 	uint32_t rtrigpointer; /* sample ptr to ratchet back to */
 	uint8_t effectholdinst; /* 255 for no hold */
@@ -237,7 +235,7 @@ typedef struct
 		void (*adjustRight)(instrument *, short);
 		short (*mouseToIndex)(int, int);
 		void (*input)(int *);
-		void (*process)(instrument *, channel *,
+		void (*process)(instrument *, channel *, uint32_t,
 				sample_t *, sample_t *);
 		uint32_t (*offset)(instrument *, channel *, int);
 		uint8_t (*getOffset)(instrument *, channel *);

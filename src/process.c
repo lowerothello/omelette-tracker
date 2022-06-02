@@ -35,7 +35,12 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	/* process the type */
 	if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 	{
-		t->f[iv->type].process(iv, cv, p->s->effectoutl, p->s->effectoutr);
+		if (cv->rtrigsamples > 0)
+			t->f[iv->type].process(iv, cv, cv->rtrigpointer + (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples,
+					p->s->effectoutl, p->s->effectoutr);
+		else
+			t->f[iv->type].process(iv, cv, cv->samplepointer,
+					p->s->effectoutl, p->s->effectoutr);
 		cv->samplepointer++;
 	} else
 	{
@@ -95,12 +100,11 @@ int process(jack_nframes_t nfptr, void *arg)
 				break;
 			}
 		case 3: // start sample preview
+			p->w->previewchannel.portamento = 0;
 			p->w->previewchannel.samplepointer = 0;
 			p->w->previewchannel.gain = 255;
 			p->w->previewchannel.sampleoffset = 0;
-			p->w->previewchannel.envelopepointer = 0;
-			p->w->previewchannel.envelopesamples = 0;
-			p->w->previewchannel.envelopestage = 1;
+			p->w->previewchannel.releasepointer = 0;
 			p->w->previewchanneltrigger++;
 			break;
 		case 5: // unload sample
@@ -201,9 +205,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					if (r.note) switch (r.note)
 					{
 						case 255:
-							cv->envelopepointer = 0;
-							cv->envelopesamples = 0;
-							cv->envelopestage = 4;
+							cv->releasepointer = cv->samplepointer;
 							break;
 						case 254:
 							iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
@@ -213,7 +215,7 @@ int process(jack_nframes_t nfptr, void *arg)
 								for (uint16_t i = 0; i < cv->rampmax; i++)
 								{
 									if (!cv->r.note) break;
-									t->f[iv->type].process(iv, cv,
+									t->f[iv->type].process(iv, cv, cv->samplepointer,
 											&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 									cv->samplepointer++;
 								}
@@ -224,10 +226,8 @@ int process(jack_nframes_t nfptr, void *arg)
 						default:
 							m = ifMacro(r, 'P');
 							if (m >= 0) // portamento
-							{
-								cv->portamentostart = cv->r.note;
-								cv->portamentoend = r.note;
-							} else
+								cv->portamento = r.note;
+							else
 							{
 								if (cv->r.note) /* old note, ramp it out */
 								{
@@ -238,7 +238,7 @@ int process(jack_nframes_t nfptr, void *arg)
 										for (uint16_t i = 0; i < cv->rampmax; i++)
 										{
 											if (!cv->r.note) break;
-											t->f[iv->type].process(iv, cv,
+											t->f[iv->type].process(iv, cv, cv->samplepointer,
 													&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 											cv->samplepointer++;
 										}
@@ -247,12 +247,11 @@ int process(jack_nframes_t nfptr, void *arg)
 								}
 								cv->r.inst = r.inst;
 								cv->r.note = r.note;
+								cv->portamento = 0;
 								cv->samplepointer = 0;
 								cv->gain = 255;
 								cv->sampleoffset = 0;
-								cv->envelopepointer = 0;
-								cv->envelopesamples = 0;
-								cv->envelopestage = 1;
+								cv->releasepointer = 0;
 							}
 							break;
 					}
@@ -271,6 +270,13 @@ int process(jack_nframes_t nfptr, void *arg)
 							cv->samplepointer = 0;
 						}
 					}
+
+					m = ifMacro(r, 'R');
+					if (m >= 1) // retrigger
+					{
+						cv->rtrigpointer = cv->samplepointer;
+						cv->rtrigsamples = p->s->spr / m;
+					} else cv->rtrigsamples = 0;
 
 					m = ifMacro(r, '1');
 					if (m >= 0) // effect mix
@@ -319,10 +325,13 @@ int process(jack_nframes_t nfptr, void *arg)
 				cv = &p->s->channelv[c];
 				iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 
+				if (cv->portamento)
+				{
+					// cv->cents += PORTAMENTO_SEMITONES * cv->portamento;
+				}
 				/* m = ifMacro(cv->r, 'P');
 				if (m >= 0) // portamento
 				{
-					cv->portamentostart = cv->r.note;
 					cv->portamentoend = r.note;
 				} */
 

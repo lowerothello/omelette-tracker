@@ -5,10 +5,9 @@ void drawDummy(instrument *iv, uint8_t index, unsigned short x, unsigned short y
 }
 
 /* must be realtime safe */
-void dummyProcess(instrument *iv, channel *cv, sample_t *l, sample_t *r)
+void dummyProcess(instrument *iv, channel *cv, uint32_t pointer, sample_t *l, sample_t *r)
 {
-	cv->samplepointer++;
-	return;
+	DEBUG=pointer;
 }
 
 void dummyInit(int index)

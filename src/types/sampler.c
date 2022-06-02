@@ -232,11 +232,10 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	if (iv->samplelength == 0) return 0; /* no sample data */
 
-	uint32_t ptr;
-	uint32_t c;
-	for (ptr = 0; ptr < iv->samplelength; ptr++)
+	int c;
+	for (uint32_t ptr = 0; ptr < iv->samplelength; ptr++)
 	{
-		c = ((uint32_t)iv->sampledata[ptr] * strtol(buffer, NULL, 0)) / 100;
+		c = ((int)iv->sampledata[ptr] * (float)strtol(buffer, NULL, 0)) / 100.0;
 		if      (c > SHRT_MAX) iv->sampledata[ptr] = SHRT_MAX;
 		else if (c < SHRT_MIN) iv->sampledata[ptr] = SHRT_MIN;
 		else                   iv->sampledata[ptr] = c;
@@ -602,9 +601,9 @@ short samplerMouseToIndex(int y, int x)
 	}
 }
 
-/* must be realtime safe */
-/* don't change cv->samplepointer! */
-void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
+/* must be realtime safe          */
+/* must accept arbitrary pointers */
+void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, float *r)
 {
 	if (cv->r.note == 254) /* skip note cut */
 	{
@@ -614,7 +613,7 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 		return;
 	}
 
-	float gain = 1.0;
+	float gain;
 	uint32_t pitchedpointer;
 
 	sampler_state *ss = iv->state;
@@ -622,10 +621,10 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 	if (ss->length > 0)
 	{
 		/* 61 is C-5 */
-		if (cv->rtrigsamples > 0)
-			pitchedpointer = (float)(cv->rtrigpointer + (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples) / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
-		else
-			pitchedpointer = (float)cv->samplepointer / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
+		/* if (cv->rtrigsamples > 0)
+			pitchedpointer = (float)(cv->rtrigpointer + (pointer - cv->rtrigpointer) % cv->rtrigsamples) / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
+		else */
+		pitchedpointer = (float)(pointer + cv->sampleoffset) / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + (1 * cv->cents));
 
 
 		/* trim/loop */
@@ -642,14 +641,9 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 			}
 
 			/* trigger the release envelope */
-			if (cv->envelopestage < 4
-					&& ((ss->loop[1] && ss->trim[1] < ss->loop[1]) || !ss->loop[1])
-					&& pitchedpointer > ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * (float)samplerate))
-			{
-				cv->envelopestage = 4;
-				cv->envelopepointer = 0;
-				cv->envelopesamples = 0;
-			}
+			if (((ss->loop[1] && ss->trim[1] < ss->loop[1]) || !ss->loop[1])
+					&& pitchedpointer > ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * samplerate))
+				cv->releasepointer = pointer;
 
 			/* cut if the pointer is ever past trim[1] */
 			if (pitchedpointer >= ss->trim[1])
@@ -667,14 +661,9 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 			}
 
 			/* trigger the release envelope */
-			if (cv->envelopestage < 4
-					&& ((ss->loop[1] && ss->trim[1] > ss->loop[1]) || !ss->loop[1])
-					&& pitchedpointer < ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * (float)samplerate))
-			{
-				cv->envelopestage = 4;
-				cv->envelopepointer = 0;
-				cv->envelopesamples = 0;
-			}
+			if (((ss->loop[1] && ss->trim[1] > ss->loop[1]) || !ss->loop[1])
+					&& pitchedpointer < ss->trim[1] + (ss->volume.r * ENVELOPE_RELEASE * samplerate))
+				cv->releasepointer = pointer;
 
 			/* cut if the pointer is ever past trim[1] */
 			if (pitchedpointer <= ss->trim[1])
@@ -683,56 +672,34 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 
 
 		/* envelope */
-		if (cv->envelopestage == 1) // attack
-		{
-			if (ss->volume.a)
-			{
-				if (cv->envelopesamples > ENVELOPE_ATTACK * samplerate)
-				{
-					cv->envelopesamples = 0;
-					cv->envelopepointer++;
-				}
-				if (cv->envelopepointer < ss->volume.a)
-				{
-					if (ss->volume.d) /* raise up to sustain if there's no decay stage */
-						gain = ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.a;
-					else
-						gain = ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.a * ss->volume.s / 255.0;
-				} else { cv->envelopestage++;  cv->envelopepointer = 0; }
-			} else { cv->envelopestage++;  cv->envelopepointer = 0; }
-		}
-		if (cv->envelopestage == 2) // decay
-		{
-			if (ss->volume.d && ss->volume.s < 255)
-			{
-				if (cv->envelopesamples > ENVELOPE_DECAY * samplerate)
-				{
-					cv->envelopesamples = 0;
-					cv->envelopepointer++;
-				}
-				if (cv->envelopepointer < ss->volume.d)
-					gain = 1.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.d * (1.0 - ss->volume.s / 255.0);
-				else { cv->envelopestage++; cv->envelopepointer = 0; }
-			} else { cv->envelopestage++; cv->envelopepointer = 0; }
-		}
-		if (cv->envelopestage == 3) // sustain
-			gain = ss->volume.s / 255.0;
-		if (cv->envelopestage == 4) // release
+		if (cv->releasepointer && cv->releasepointer < pointer) // release
 		{
 			if (ss->volume.r)
 			{
-// DEBUG=cv->envelopepointer;
-				if (cv->envelopesamples > ENVELOPE_RELEASE * samplerate)
-				{
-					cv->envelopesamples = 0;
-					cv->envelopepointer++;
-				}
-				if (cv->envelopepointer < ss->volume.r)
-					gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
+				uint32_t releaselength = ss->volume.r * ENVELOPE_RELEASE * samplerate;
+				if (pointer - cv->releasepointer < releaselength)
+					// gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
+					gain = 1.0 - (float)(pointer - cv->releasepointer) / (float)releaselength * ss->volume.s / 255.0;
 				else cv->r.note = 0;
 			} else cv->r.note = 0;
+		} else
+		{
+			uint32_t attacklength = ss->volume.a * ENVELOPE_ATTACK * samplerate;
+			uint32_t decaylength = ss->volume.d * ENVELOPE_DECAY * samplerate;
+			if (pointer < attacklength) // attack
+			{
+				gain = (float)pointer / (float)attacklength;
+				/* raise up to sustain if there's no decay stage */
+				if (!ss->volume.d) gain *= ss->volume.s / 255.0;
+			} else if (ss->volume.s < 255 && pointer < attacklength + decaylength) // decay
+			{
+				gain = 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - ss->volume.s / 255.0);
+				// gain = 1.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.d * (1.0 - ss->volume.s / 255.0);
+			} else // sustain
+			{
+				gain = ss->volume.s / 255.0;
+			}
 		}
-		cv->envelopesamples++;
 
 
 		if (cv->r.note)
