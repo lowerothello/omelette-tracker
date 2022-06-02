@@ -47,6 +47,10 @@ typedef struct
 	uint32_t rtrigpointer; /* sample ptr to ratchet back to */
 	uint8_t effectholdinst; /* 255 for no hold */
 	uint8_t effectholdindex;
+
+	uint16_t rampindex; /* progress through the ramp buffer, rampmax if not ramping */
+	uint16_t rampmax; /* length of the ramp buffer */
+	float *rampbuffer; /* samples to ramp out */
 } channel;
 
 typedef struct
@@ -98,11 +102,6 @@ typedef struct
 	lv2audio *audiov;
 } effect;
 
-typedef struct
-{
-	row r[256];
-} single_channel;
-
 #define PLAYING_STOP 0
 #define PLAYING_START 1
 #define PLAYING_CONT 2
@@ -125,7 +124,7 @@ typedef struct
 
 	uint8_t channelc; /* channel count */
 	channel channelv[64]; /* channel values */
-	single_channel *channelbuffer[256]; /* channel yank buffer */
+	row *channelbuffer[64]; /* channel yank buffer */
 	char channelbuffermute;
 
 	uint8_t songi[256]; /* song list backref, links to patterns */
@@ -242,6 +241,7 @@ typedef struct
 				sample_t *, sample_t *);
 		uint32_t (*offset)(instrument *, channel *, int);
 		uint8_t (*getOffset)(instrument *, channel *);
+		void (*ramp)(instrument *, channel *);
 		void (*changeType)(instrument *);
 		void (*loadSample)(instrument *, SF_INFO);
 		void (*exportSample)(instrument *, SF_INFO *);
@@ -472,45 +472,54 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 	}
 }
 
+void _addChannel(channel *cv)
+{
+	cv->rampmax = samplerate / 1000 * RAMP_MS;
+	cv->rampindex = cv->rampmax;
+	cv->rampbuffer = malloc(sizeof(float) * cv->rampmax);
+}
 int addChannel(song *s, uint8_t index)
 {
-	if (index > 64 || index < 0) return 1; /* invalid index */
-	if (s->channelc >= 64) return 1; /* out of space */
-
+	_addChannel(&s->channelv[s->channelc]); /* allocate memory */
 	if (s->channelc > 0) /* contiguity */
 		for (uint8_t i = s->channelc; i >= index; i--)
 		{
 			for (uint8_t p = 1; p < s->patternc; p++)
-			{
 				memcpy(s->patternv[p]->rowv[i + 1],
-					s->patternv[p]->rowv[i + 0],
+					s->patternv[p]->rowv[i],
 					sizeof(row) * 256);
-			}
-			s->channelv[i + 1].mute = s->channelv[i + 0].mute;
+			s->channelv[i + 1].mute = s->channelv[i].mute;
 		}
 
 	s->channelv[index].mute = 0;
+
 	for (uint8_t p = 1; p < s->patternc; p++)
+	{
 		memset(s->patternv[p]->rowv[index], 0, sizeof(row) * 256);
+		for (short r = 0; r < 256; r++) s->patternv[p]->rowv[index][r].inst = 255;
+	}
 
 	s->channelc++;
 	return 0;
 }
 int delChannel(song *s, uint8_t index)
 {
-	if (index > s->channelc - 1 || index < 0) return 1; /* invalid index */
-
 	uint8_t i;
 	uint8_t p;
 	/* if there's only one channel then clear it */
 	if (s->channelc == 1)
 	{
 		for (p = 1; p < s->patternc; p++)
-			memset(&s->patternv[p]->rowv[0],
+		{
+			memset(s->patternv[p]->rowv,
 				0, sizeof(row) * 256);
+			for (short r = 0; r < 256; r++)
+				s->patternv[p]->rowv[0][r].inst = 255;
+		}
 		s->channelv[s->channelc].mute = 0;
 	} else
 	{
+		free(s->channelv[index].rampbuffer);
 		for (i = index; i < s->channelc; i++)
 		{
 			for (p = 1; p < s->patternc; p++)
@@ -528,28 +537,23 @@ int delChannel(song *s, uint8_t index)
 }
 int yankChannel(song *s, uint8_t index)
 {
-	if (index < 0 || index >= s->channelc) return 1; /* index out of range */
-
-	uint8_t i;
-	for (i = 0; i < s->patternc - 1; i++)
-	{
+	for (uint8_t i = 0; i < s->patternc; i++)
 		if (s->channelbuffer[i])
-			memcpy(s->channelbuffer[i]->r,
+		{
+			DEBUG=8;
+			memcpy(s->channelbuffer[i],
 				s->patternv[i]->rowv[index],
 				sizeof(row) * 256);
-	}
+		}
 	s->channelbuffermute = s->channelv[index].mute;
 	return 0;
 }
 int putChannel(song *s, uint8_t index)
 {
-	if (index < 0 || index >= s->channelc) return 1; /* index out of range */
-
-	uint8_t i;
-	for (i = 0; i < s->patternc - 1; i++)
+	for (uint8_t i = 0; i < s->patternc; i++)
 		if (s->channelbuffer[i])
 			memcpy(s->patternv[i]->rowv[index],
-				s->channelbuffer[i]->r,
+				s->channelbuffer[i],
 				sizeof(row) * 256);
 	s->channelv[index].mute = s->channelbuffermute;
 	return 0;
@@ -562,9 +566,9 @@ int putChannel(song *s, uint8_t index)
 /* memory for addPattern */
 int _addPattern(song *s, uint8_t realindex)
 {
-	s->channelbuffer[realindex] = calloc(1, sizeof(single_channel));
+	s->channelbuffer[realindex] = calloc(256, sizeof(row));
 	s->patternv[realindex] = calloc(1, sizeof(pattern));
-	if (s->channelbuffer[realindex] == NULL || s->patternv[realindex] == NULL)
+	if (!s->channelbuffer[realindex] || !s->patternv[realindex])
 		return 1;
 	for (short c = 0; c < 64; c++)
 		for (short r = 0; r < 256; r++)
@@ -1054,6 +1058,9 @@ void delSong(song *s)
 	free(s->effectoutl);
 	free(s->effectoutr);
 
+	for (int i = 0; i < s->channelc; i++)
+		free(s->channelv[i].rampbuffer);
+
 	for (int i = 1; i < s->patternc; i++)
 		free(s->patternv[i]);
 
@@ -1238,6 +1245,8 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 	s->patternc = fgetc(fp);
 	s->instrumentc = fgetc(fp);
 	s->channelc = fgetc(fp);
+	for (int i = 0; i < s->channelc; i++)
+		_addChannel(&s->channelv[i]);
 	s->rowhighlight = fgetc(fp);
 
 	fseek(fp, 0x10, SEEK_SET);

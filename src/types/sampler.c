@@ -608,6 +608,7 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 {
 	if (cv->r.note == 254) /* skip note cut */
 	{
+		cv->r.note = 0;
 		*l = 0.0;
 		*r = 0.0;
 		return;
@@ -630,7 +631,7 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 		/* trim/loop */
 		if (ss->trim[0] < ss->trim[1])
 		{ /* forwards */
-			pitchedpointer = ss->trim[0] + cv->sampleoffset + pitchedpointer;
+			pitchedpointer = ss->trim[0] + pitchedpointer;
 
 			if (ss->loop[0] || ss->loop[1])
 			{ /* if there is a loop range */
@@ -642,12 +643,12 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 
 			/* trigger the release envelope */
 			if (cv->envelopestage < 4
-					&& ss->loop[1] ? ss->trim[1] < ss->loop[1] : 1
+					&& ((ss->loop[1] && ss->trim[1] < ss->loop[1]) || !ss->loop[1])
 					&& pitchedpointer > ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * (float)samplerate))
 			{
 				cv->envelopestage = 4;
-				/* cv->envelopepointer = 0;
-				cv->envelopesamples = 0; */
+				cv->envelopepointer = 0;
+				cv->envelopesamples = 0;
 			}
 
 			/* cut if the pointer is ever past trim[1] */
@@ -655,7 +656,7 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 				cv->r.note = 0;
 		} else
 		{ /* backwards */
-			pitchedpointer = ss->trim[1] - cv->sampleoffset - pitchedpointer;
+			pitchedpointer = ss->trim[1] - pitchedpointer;
 
 			if (ss->loop[0] || ss->loop[1])
 			{ /* if there is a loop range */
@@ -666,7 +667,9 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 			}
 
 			/* trigger the release envelope */
-			if (ss->trim[1] > ss->loop[1] && ss->trim[1] + ss->volume.r * ENVELOPE_RELEASE * samplerate > pitchedpointer)
+			if (cv->envelopestage < 4
+					&& ((ss->loop[1] && ss->trim[1] > ss->loop[1]) || !ss->loop[1])
+					&& pitchedpointer < ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * (float)samplerate))
 			{
 				cv->envelopestage = 4;
 				cv->envelopepointer = 0;
@@ -716,12 +719,18 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 			gain = ss->volume.s / 255.0;
 		if (cv->envelopestage == 4) // release
 		{
-			if (cv->envelopesamples > ENVELOPE_RELEASE * samplerate)
+			if (ss->volume.r)
 			{
-				cv->envelopesamples = 0;
-				cv->envelopepointer++;
-			}
-			gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
+// DEBUG=cv->envelopepointer;
+				if (cv->envelopesamples > ENVELOPE_RELEASE * samplerate)
+				{
+					cv->envelopesamples = 0;
+					cv->envelopepointer++;
+				}
+				if (cv->envelopepointer < ss->volume.r)
+					gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
+				else cv->r.note = 0;
+			} else cv->r.note = 0;
 		}
 		cv->envelopesamples++;
 
@@ -751,7 +760,7 @@ void samplerProcess(instrument *iv, channel *cv, float *l, float *r)
 uint32_t samplerOffset(instrument *iv, channel *cv, int m)
 {
 	sampler_state *ss = iv->state;
-	return m / 255.0 * (max32(ss->trim[0], ss->trim[1]) - min32(ss->trim[0], ss->trim[1]));
+	return ss->trim[0] + m / 255.0 * (ss->trim[1] - ss->trim[0]);
 }
 
 
@@ -759,14 +768,11 @@ uint8_t samplerGetOffset(instrument *iv, channel *cv)
 {
 	if (!cv->r.note) return 0;
 	sampler_state *ss = iv->state;
+	return (cv->samplepointer - ss->trim[0]) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
+}
 
-	uint32_t pitchedpointer;
-	if (cv->rtrigsamples > 0)
-		pitchedpointer = (float)(cv->rtrigpointer + (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples) / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
-	else
-		pitchedpointer = (float)cv->samplepointer / (float)samplerate * ss->c5rate * powf(M_12_ROOT_2, (short)cv->r.note - 61 + 1 * cv->cents);
-
-	return (pitchedpointer - ss->trim[0] - cv->sampleoffset) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
+void samplerRamp(instrument *iv, channel *cv)
+{
 }
 
 /* called when instrument iv's type is changed to this file's */
@@ -836,6 +842,7 @@ void samplerInit(int index)
 	t->f[index].process = &samplerProcess;
 	t->f[index].offset = &samplerOffset;
 	t->f[index].getOffset = &samplerGetOffset;
+	t->f[index].ramp = &samplerRamp;
 	t->f[index].changeType = &samplerChangeType;
 	t->f[index].loadSample = &samplerLoadSample;
 	t->f[index].exportSample = &samplerExportSample;

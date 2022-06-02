@@ -185,24 +185,33 @@ int process(jack_nframes_t nfptr, void *arg)
 					r = p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr];
 					cv = &p->s->channelv[c];
 
-					if (r.note)
+					if (r.note) switch (r.note)
 					{
-						m = ifMacro(r, 'P');
-						if (m >= 0) // portamento
-						{
-							cv->portamentostart = cv->r.note;
-							cv->portamentoend = r.note;
-						} else
-						{
-							cv->r.inst = r.inst;
-							cv->r.note = r.note;
-							cv->samplepointer = 0;
-							cv->gain = 255;
-							cv->sampleoffset = 0;
+						case 255:
 							cv->envelopepointer = 0;
 							cv->envelopesamples = 0;
-							cv->envelopestage = 1;
-						}
+							cv->envelopestage = 4;
+							break;
+						case 254:
+							break;
+						default:
+							m = ifMacro(r, 'P');
+							if (m >= 0) // portamento
+							{
+								cv->portamentostart = cv->r.note;
+								cv->portamentoend = r.note;
+							} else
+							{
+								cv->r.inst = r.inst;
+								cv->r.note = r.note;
+								cv->samplepointer = 0;
+								cv->gain = 255;
+								cv->sampleoffset = 0;
+								cv->envelopepointer = 0;
+								cv->envelopesamples = 0;
+								cv->envelopestage = 1;
+							}
+							break;
 					}
 
 					m = ifMacro(r, 'M');
