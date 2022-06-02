@@ -771,10 +771,6 @@ uint8_t samplerGetOffset(instrument *iv, channel *cv)
 	return (cv->samplepointer - ss->trim[0]) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
 }
 
-void samplerRamp(instrument *iv, channel *cv)
-{
-}
-
 /* called when instrument iv's type is changed to this file's */
 void samplerChangeType(instrument *iv)
 {
@@ -842,7 +838,6 @@ void samplerInit(int index)
 	t->f[index].process = &samplerProcess;
 	t->f[index].offset = &samplerOffset;
 	t->f[index].getOffset = &samplerGetOffset;
-	t->f[index].ramp = &samplerRamp;
 	t->f[index].changeType = &samplerChangeType;
 	t->f[index].loadSample = &samplerLoadSample;
 	t->f[index].exportSample = &samplerExportSample;

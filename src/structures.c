@@ -241,7 +241,6 @@ typedef struct
 				sample_t *, sample_t *);
 		uint32_t (*offset)(instrument *, channel *, int);
 		uint8_t (*getOffset)(instrument *, channel *);
-		void (*ramp)(instrument *, channel *);
 		void (*changeType)(instrument *);
 		void (*loadSample)(instrument *, SF_INFO);
 		void (*exportSample)(instrument *, SF_INFO *);
@@ -476,7 +475,7 @@ void _addChannel(channel *cv)
 {
 	cv->rampmax = samplerate / 1000 * RAMP_MS;
 	cv->rampindex = cv->rampmax;
-	cv->rampbuffer = malloc(sizeof(float) * cv->rampmax);
+	cv->rampbuffer = malloc(sizeof(float) * cv->rampmax * 2); /* *2 for stereo */
 }
 int addChannel(song *s, uint8_t index)
 {

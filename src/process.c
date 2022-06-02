@@ -33,11 +33,24 @@ void changeBpm(song *s, uint16_t newbpm)
 void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, instrument *iv)
 {
 	/* process the type */
-	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+	if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 	{
 		t->f[iv->type].process(iv, cv, p->s->effectoutl, p->s->effectoutr);
-p->dirty = 1;
 		cv->samplepointer++;
+	} else
+	{
+		*p->s->effectoutl = 0.0;
+		*p->s->effectoutr = 0.0;
+	}
+
+	/* mix in ramp data */
+	if (cv->rampindex < cv->rampmax)
+	{
+		float rampgain = 1.0 - (float)cv->rampindex / (float)cv->rampmax;
+		*p->s->effectoutl += cv->rampbuffer[cv->rampindex * 2 + 0] * rampgain;
+		*p->s->effectoutr += cv->rampbuffer[cv->rampindex * 2 + 1] * rampgain;
+
+		cv->rampindex++;
 	}
 
 	/* process the effect sends */
@@ -193,6 +206,20 @@ int process(jack_nframes_t nfptr, void *arg)
 							cv->envelopestage = 4;
 							break;
 						case 254:
+							iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+							if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+							{
+								/* freewheel to fill up the ramp buffer, potential speed issues? */
+								for (uint16_t i = 0; i < cv->rampmax; i++)
+								{
+									if (!cv->r.note) break;
+									t->f[iv->type].process(iv, cv,
+											&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+									cv->samplepointer++;
+								}
+								cv->rampindex = 0;
+							}
+							cv->r.note = 0;
 							break;
 						default:
 							m = ifMacro(r, 'P');
@@ -202,6 +229,22 @@ int process(jack_nframes_t nfptr, void *arg)
 								cv->portamentoend = r.note;
 							} else
 							{
+								if (cv->r.note) /* old note, ramp it out */
+								{
+									iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+									if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+									{
+										/* freewheel to fill up the ramp buffer, potential speed issues? */
+										for (uint16_t i = 0; i < cv->rampmax; i++)
+										{
+											if (!cv->r.note) break;
+											t->f[iv->type].process(iv, cv,
+													&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+											cv->samplepointer++;
+										}
+										cv->rampindex = 0;
+									}
+								}
 								cv->r.inst = r.inst;
 								cv->r.note = r.note;
 								cv->samplepointer = 0;
@@ -274,19 +317,16 @@ int process(jack_nframes_t nfptr, void *arg)
 			for (uint8_t c = 0; c < p->s->channelc; c++)
 			{
 				cv = &p->s->channelv[c];
-
 				iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-				if (iv && cv->r.note)
-				{
-					/* m = ifMacro(cv->r, 'P');
-					if (m >= 0) // portamento
-					{
-						cv->portamentostart = cv->r.note;
-						cv->portamentoend = r.note;
-					} */
 
-					playChannel(fptr, p, pb, cv, iv);
-				}
+				/* m = ifMacro(cv->r, 'P');
+				if (m >= 0) // portamento
+				{
+					cv->portamentostart = cv->r.note;
+					cv->portamentoend = r.note;
+				} */
+
+				playChannel(fptr, p, pb, cv, iv);
 			}
 
 
