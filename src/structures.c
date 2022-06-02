@@ -41,6 +41,7 @@ typedef struct
 	row r;
 	float cents; /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
 	uint8_t portamento; /* portamento target, 255 for off */
+	uint8_t portamentospeed; /* portamento m */
 	uint16_t rtrigsamples; /* samples per retrigger */
 	uint32_t rtrigpointer; /* sample ptr to ratchet back to */
 	uint8_t effectholdinst; /* 255 for no hold */

@@ -71,6 +71,39 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	pb.outr[fptr] += *p->s->effectoutr * (iv->fader[1] / 256.0) * ((cv->gain%16) / 16.0);
 }
 
+void bendUp(channel *cv)
+{
+	cv->cents += PORTAMENTO_SEMITONES * cv->portamentospeed;
+	while (cv->cents > 0.5)
+	{
+		cv->cents -= 1.0;
+		cv->r.note++;
+	}
+	if (cv->r.note >= cv->portamento && cv->cents >= 0.0)
+	{
+		cv->cents = 0.0;
+		cv->r.note = cv->portamento;
+		cv->portamento = 0;
+	}
+}
+
+void bendDown(channel *cv)
+{
+	cv->cents -= PORTAMENTO_SEMITONES * cv->portamentospeed;
+	while (cv->cents < 0.5)
+	{
+		cv->cents += 1.0;
+		cv->r.note--;
+	}
+	if (cv->r.note <= cv->portamento && cv->cents <= 0.0)
+	{
+		cv->cents = 0.0;
+		cv->r.note = cv->portamento;
+		cv->portamento = 0;
+	}
+}
+
+
 int process(jack_nframes_t nfptr, void *arg)
 {
 	playbackinfo *p = arg;
@@ -102,6 +135,7 @@ int process(jack_nframes_t nfptr, void *arg)
 		case 3: // start sample preview
 			p->w->previewchannel.portamento = 0;
 			p->w->previewchannel.samplepointer = 0;
+			p->w->previewchannel.cents = 0.0;
 			p->w->previewchannel.gain = 255;
 			p->w->previewchannel.sampleoffset = 0;
 			p->w->previewchannel.releasepointer = 0;
@@ -226,8 +260,10 @@ int process(jack_nframes_t nfptr, void *arg)
 						default:
 							m = ifMacro(r, 'P');
 							if (m >= 0) // portamento
+							{
 								cv->portamento = r.note;
-							else
+								cv->portamentospeed = m;
+							} else
 							{
 								if (cv->r.note) /* old note, ramp it out */
 								{
@@ -249,6 +285,7 @@ int process(jack_nframes_t nfptr, void *arg)
 								cv->r.note = r.note;
 								cv->portamento = 0;
 								cv->samplepointer = 0;
+								cv->cents = 0.0;
 								cv->gain = 255;
 								cv->sampleoffset = 0;
 								cv->releasepointer = 0;
@@ -327,13 +364,18 @@ int process(jack_nframes_t nfptr, void *arg)
 
 				if (cv->portamento)
 				{
-					// cv->cents += PORTAMENTO_SEMITONES * cv->portamento;
+					if (cv->r.note == cv->portamento)
+					{ /* fine bend */
+						if (cv->cents < 0.0) bendUp(cv);
+						else                 bendDown(cv);
+					} else if (cv->r.note < cv->portamento)
+					{ /* bend up */
+						bendUp(cv);
+					} else
+					{ /* bend down */
+						bendDown(cv);
+					}
 				}
-				/* m = ifMacro(cv->r, 'P');
-				if (m >= 0) // portamento
-				{
-					cv->portamentoend = r.note;
-				} */
 
 				playChannel(fptr, p, pb, cv, iv);
 			}

@@ -34,7 +34,7 @@
 #define RAMP_MS 20 /* only up to about 300 is safe */
                    /* any higher risks overflows   */
 
-#define PORTAMENTO_SEMITONES 0.003 /* max speed: ~1oct a row */
+#define PORTAMENTO_SEMITONES 0.00003 /* max speed: ~1oct a row */
 
 #define TICKS_PER_ROW 16
 
