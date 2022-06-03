@@ -349,7 +349,7 @@ void inputSongHex(char value)
 	prunePattern(s->songi[w->songfx], w->songfx);
 	if (s->songi[w->songfx] == 255)
 		s->songi[w->songfx] = 0;
-	updateField(&w->fieldpointer, 2, (uint32_t *)&s->songi[w->songfx], value);
+	updateField(w->fieldpointer, 2, (uint32_t *)&s->songi[w->songfx], value);
 	if (s->songi[w->songfx] == 255)
 		s->songi[w->songfx] = 254;
 	addPattern(s, w, s->songi[w->songfx], 0);
@@ -360,11 +360,11 @@ void inputPatternHex(row *r, char value) /* TODO: don't base off of trackerfx */
 	{
 		case 1:
 			if (r->inst == 255) r->inst = 0;
-			updateField(&w->fieldpointer, 2, (uint32_t *)&r->inst, value);
+			updateField(w->fieldpointer, 2, (uint32_t *)&r->inst, value);
 			if (r->inst == 255) r->inst = 254;
 			break;
-		case 3: updateField(&w->fieldpointer, 2, (uint32_t *)&r->macrov[0], value); break;
-		case 5: updateField(&w->fieldpointer, 2, (uint32_t *)&r->macrov[1], value); break;
+		case 3: updateField(w->fieldpointer, 2, (uint32_t *)&r->macrov[0], value); break;
+		case 5: updateField(w->fieldpointer, 2, (uint32_t *)&r->macrov[1], value); break;
 	}
 }
 uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
@@ -466,7 +466,6 @@ int trackerInput(int input)
 					switch (getchar())
 					{
 						case 'A': /* up arrow */
-							w->fieldpointer = 0;
 							if (w->mode == 1 || s->songi[w->songfx] == 255) break;
 							w->trackerfy--;
 							if (w->trackerfy < 0)
@@ -480,7 +479,6 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case 'B': /* down arrow */
-							w->fieldpointer = 0;
 							if (w->mode == 1) { w->mode = 0; redraw(); break; }
 							if (s->songi[w->songfx] == 255) break;
 							w->trackerfy++;
@@ -495,18 +493,31 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case 'D': /* left arrow */
-							w->fieldpointer = 0;
 							switch (w->mode)
 							{
 								case 0:
-								if (s->songi[w->songfx] == 255) break;
-									w->trackerfx--;
+									if (s->songi[w->songfx] == 255) break;
+
+									if (w->fieldpointer) w->fieldpointer--;
+									else
+									{
+										w->trackerfx--;
+										switch (w->trackerfx)
+										{
+											case 0: case 2: case 4: /* 1 cell wide */
+												w->fieldpointer = 0; break;
+											case 1: case 3: case 5: /* 2 cells wide */
+												w->fieldpointer = 1; break;
+										}
+									}
+
 									if (w->trackerfx < 0)
 									{
 										if (w->channel > 0)
 										{
 											w->channel--;
 											w->trackerfx = ROW_FIELDS - 1;
+											w->fieldpointer = 1;
 										} else w->trackerfx = 0;
 									}
 									break;
@@ -519,19 +530,34 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case 'C': /* right arrow */
-							w->fieldpointer = 0;
 							switch (w->mode)
 							{
 								case 0:
 									if (s->songi[w->songfx] == 255) break;
-									w->trackerfx++;
+
+									switch (w->trackerfx)
+									{
+										case 0: case 2: case 4: /* 1 cell wide */
+											w->trackerfx++;
+											break;
+										case 1: case 3: case 5: /* 2 cells wide */
+											if (w->fieldpointer) { w->trackerfx++; w->fieldpointer = 0; }
+											else                   w->fieldpointer++;
+											break;
+									}
+
 									if (w->trackerfx > ROW_FIELDS - 1)
 									{
 										if (w->channel < s->channelc - 1)
 										{
 											w->channel++;
 											w->trackerfx = 0;
-										} else w->trackerfx = ROW_FIELDS - 1;
+											w->fieldpointer = 0;
+										} else
+										{
+											w->trackerfx = ROW_FIELDS - 1;
+											w->fieldpointer = 1;
+										}
 									}
 									break;
 								case 1:
@@ -555,7 +581,6 @@ int trackerInput(int input)
 									stopPlayback();
 									break;
 								case ';': /* mod+arrow */
-									w->fieldpointer = 0;
 									switch (getchar())
 									{
 										case '5': /* ctrl+arrow */
@@ -584,35 +609,14 @@ int trackerInput(int input)
 							}
 							break;
 						case 'H': /* home */
+							w->trackerfx = 0;
 							w->fieldpointer = 0;
-							if (s->patterni[s->songi[w->songfx]])
-							{
-								if (w->trackerfy == 0 && w->songfx > 0 && s->songi[w->songfx - 1] != 255)
-								{
-									w->songfx--;
-									w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-								} else w->trackerfy = 0;
-								redraw();
-							}
+							redraw();
 							break;
 						case '4': /* end */
-							w->fieldpointer = 0;
 							getchar(); /* burn through the tilde */
-							if (s->patterni[s->songi[w->songfx]])
-							{
-								if (w->trackerfy == s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
-								{
-									if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
-									{
-										w->trackerfy = 0;
-										w->songfx++;
-									} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-								} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-								redraw();
-							}
 							break;
 						case '5': /* page up */
-							w->fieldpointer = 0;
 							getchar(); /* burn through the tilde */
 							if (s->songi[w->songfx] == 255) break;
 							w->trackerfy -= s->rowhighlight;
@@ -627,7 +631,6 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case '6': /* page down */
-							w->fieldpointer = 0;
 							getchar(); /* burn through the tilde */
 							if (s->songi[w->songfx] == 255) break;
 							w->trackerfy += s->rowhighlight;
@@ -642,7 +645,6 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case 'M': /* mouse */
-							w->fieldpointer = 0;
 							int button = getchar();
 							int x = getchar() - 32;
 							int y = getchar() - 32;
@@ -726,12 +728,15 @@ int trackerInput(int input)
 										{ /* middle */
 											w->channel = w->channeloffset + (x - w->trackercelloffset - LINENO_COLS + 2) / ROW_COLS;
 											unsigned char modulo = (x - w->trackercelloffset - LINENO_COLS) % ROW_COLS;
-											if (modulo < 3 || modulo > 14) w->trackerfx = 0;
-											else if (modulo < 6)           w->trackerfx = 1;
-											else if (modulo < 8)           w->trackerfx = 2;
-											else if (modulo < 10)          w->trackerfx = 3;
-											else if (modulo < 12)          w->trackerfx = 4;
-											else                           w->trackerfx = 5;
+											if (modulo < 3 || modulo > 14) { w->trackerfx = 0; w->fieldpointer = 0; }
+											else if (modulo < 5)           { w->trackerfx = 1; w->fieldpointer = 0; }
+											else if (modulo < 6)           { w->trackerfx = 1; w->fieldpointer = 1; }
+											else if (modulo < 8)           { w->trackerfx = 2; w->fieldpointer = 0; }
+											else if (modulo < 9)           { w->trackerfx = 3; w->fieldpointer = 0; }
+											else if (modulo < 10)          { w->trackerfx = 3; w->fieldpointer = 1; }
+											else if (modulo < 12)          { w->trackerfx = 4; w->fieldpointer = 0; }
+											else if (modulo < 13)          { w->trackerfx = 5; w->fieldpointer = 0; }
+											else                           { w->trackerfx = 5; w->fieldpointer = 1; }
 										}
 									}
 
@@ -884,22 +889,22 @@ int trackerInput(int input)
 											r->inst = 255;
 											w->fieldpointer = 0;
 											break;
-										case '0':           inputPatternHex(r, 0);  break;
-										case '1':           inputPatternHex(r, 1);  break;
-										case '2':           inputPatternHex(r, 2);  break;
-										case '3':           inputPatternHex(r, 3);  break;
-										case '4':           inputPatternHex(r, 4);  break;
-										case '5':           inputPatternHex(r, 5);  break;
-										case '6':           inputPatternHex(r, 6);  break;
-										case '7':           inputPatternHex(r, 7);  break;
-										case '8':           inputPatternHex(r, 8);  break;
-										case '9':           inputPatternHex(r, 9);  break;
-										case 'A': case 'a': inputPatternHex(r, 10); break;
-										case 'B': case 'b': inputPatternHex(r, 11); break;
-										case 'C': case 'c': inputPatternHex(r, 12); break;
-										case 'D': case 'd': inputPatternHex(r, 13); break;
-										case 'E': case 'e': inputPatternHex(r, 14); break;
-										case 'F': case 'f': inputPatternHex(r, 15); break;
+										case '0':           inputPatternHex(r, 0);  w->fieldpointer = !w->fieldpointer; break;
+										case '1':           inputPatternHex(r, 1);  w->fieldpointer = !w->fieldpointer; break;
+										case '2':           inputPatternHex(r, 2);  w->fieldpointer = !w->fieldpointer; break;
+										case '3':           inputPatternHex(r, 3);  w->fieldpointer = !w->fieldpointer; break;
+										case '4':           inputPatternHex(r, 4);  w->fieldpointer = !w->fieldpointer; break;
+										case '5':           inputPatternHex(r, 5);  w->fieldpointer = !w->fieldpointer; break;
+										case '6':           inputPatternHex(r, 6);  w->fieldpointer = !w->fieldpointer; break;
+										case '7':           inputPatternHex(r, 7);  w->fieldpointer = !w->fieldpointer; break;
+										case '8':           inputPatternHex(r, 8);  w->fieldpointer = !w->fieldpointer; break;
+										case '9':           inputPatternHex(r, 9);  w->fieldpointer = !w->fieldpointer; break;
+										case 'A': case 'a': inputPatternHex(r, 10); w->fieldpointer = !w->fieldpointer; break;
+										case 'B': case 'b': inputPatternHex(r, 11); w->fieldpointer = !w->fieldpointer; break;
+										case 'C': case 'c': inputPatternHex(r, 12); w->fieldpointer = !w->fieldpointer; break;
+										case 'D': case 'd': inputPatternHex(r, 13); w->fieldpointer = !w->fieldpointer; break;
+										case 'E': case 'e': inputPatternHex(r, 14); w->fieldpointer = !w->fieldpointer; break;
+										case 'F': case 'f': inputPatternHex(r, 15); w->fieldpointer = !w->fieldpointer; break;
 									}
 									break;
 								case 2: /* macro 1 */
@@ -929,22 +934,22 @@ int trackerInput(int input)
 												r->macroc[0] = 0;
 												w->fieldpointer = 0;
 												break;
-											case '0':           inputPatternHex(r, 0);   break;
-											case '1':           inputPatternHex(r, 1);   break;
-											case '2':           inputPatternHex(r, 2);   break;
-											case '3':           inputPatternHex(r, 3);   break;
-											case '4':           inputPatternHex(r, 4);   break;
-											case '5':           inputPatternHex(r, 5);   break;
-											case '6':           inputPatternHex(r, 6);   break;
-											case '7':           inputPatternHex(r, 7);   break;
-											case '8':           inputPatternHex(r, 8);   break;
-											case '9':           inputPatternHex(r, 9);   break;
-											case 'A': case 'a': inputPatternHex(r, 10);  break;
-											case 'B': case 'b': inputPatternHex(r, 11);  break;
-											case 'C': case 'c': inputPatternHex(r, 12);  break;
-											case 'D': case 'd': inputPatternHex(r, 13);  break;
-											case 'E': case 'e': inputPatternHex(r, 14);  break;
-											case 'F': case 'f': inputPatternHex(r, 15);  break;
+											case '0':           inputPatternHex(r, 0);  w->fieldpointer = !w->fieldpointer; break;
+											case '1':           inputPatternHex(r, 1);  w->fieldpointer = !w->fieldpointer; break;
+											case '2':           inputPatternHex(r, 2);  w->fieldpointer = !w->fieldpointer; break;
+											case '3':           inputPatternHex(r, 3);  w->fieldpointer = !w->fieldpointer; break;
+											case '4':           inputPatternHex(r, 4);  w->fieldpointer = !w->fieldpointer; break;
+											case '5':           inputPatternHex(r, 5);  w->fieldpointer = !w->fieldpointer; break;
+											case '6':           inputPatternHex(r, 6);  w->fieldpointer = !w->fieldpointer; break;
+											case '7':           inputPatternHex(r, 7);  w->fieldpointer = !w->fieldpointer; break;
+											case '8':           inputPatternHex(r, 8);  w->fieldpointer = !w->fieldpointer; break;
+											case '9':           inputPatternHex(r, 9);  w->fieldpointer = !w->fieldpointer; break;
+											case 'A': case 'a': inputPatternHex(r, 10); w->fieldpointer = !w->fieldpointer; break;
+											case 'B': case 'b': inputPatternHex(r, 11); w->fieldpointer = !w->fieldpointer; break;
+											case 'C': case 'c': inputPatternHex(r, 12); w->fieldpointer = !w->fieldpointer; break;
+											case 'D': case 'd': inputPatternHex(r, 13); w->fieldpointer = !w->fieldpointer; break;
+											case 'E': case 'e': inputPatternHex(r, 14); w->fieldpointer = !w->fieldpointer; break;
+											case 'F': case 'f': inputPatternHex(r, 15); w->fieldpointer = !w->fieldpointer; break;
 										}
 									else
 									{
@@ -979,22 +984,22 @@ int trackerInput(int input)
 												r->macroc[1] = 0;
 												w->fieldpointer = 0;
 												break;
-											case '0':           inputPatternHex(r, 0);   break;
-											case '1':           inputPatternHex(r, 1);   break;
-											case '2':           inputPatternHex(r, 2);   break;
-											case '3':           inputPatternHex(r, 3);   break;
-											case '4':           inputPatternHex(r, 4);   break;
-											case '5':           inputPatternHex(r, 5);   break;
-											case '6':           inputPatternHex(r, 6);   break;
-											case '7':           inputPatternHex(r, 7);   break;
-											case '8':           inputPatternHex(r, 8);   break;
-											case '9':           inputPatternHex(r, 9);   break;
-											case 'A': case 'a': inputPatternHex(r, 10);  break;
-											case 'B': case 'b': inputPatternHex(r, 11);  break;
-											case 'C': case 'c': inputPatternHex(r, 12);  break;
-											case 'D': case 'd': inputPatternHex(r, 13);  break;
-											case 'E': case 'e': inputPatternHex(r, 14);  break;
-											case 'F': case 'f': inputPatternHex(r, 15);  break;
+											case '0':           inputPatternHex(r, 0);  w->fieldpointer = !w->fieldpointer; break;
+											case '1':           inputPatternHex(r, 1);  w->fieldpointer = !w->fieldpointer; break;
+											case '2':           inputPatternHex(r, 2);  w->fieldpointer = !w->fieldpointer; break;
+											case '3':           inputPatternHex(r, 3);  w->fieldpointer = !w->fieldpointer; break;
+											case '4':           inputPatternHex(r, 4);  w->fieldpointer = !w->fieldpointer; break;
+											case '5':           inputPatternHex(r, 5);  w->fieldpointer = !w->fieldpointer; break;
+											case '6':           inputPatternHex(r, 6);  w->fieldpointer = !w->fieldpointer; break;
+											case '7':           inputPatternHex(r, 7);  w->fieldpointer = !w->fieldpointer; break;
+											case '8':           inputPatternHex(r, 8);  w->fieldpointer = !w->fieldpointer; break;
+											case '9':           inputPatternHex(r, 9);  w->fieldpointer = !w->fieldpointer; break;
+											case 'A': case 'a': inputPatternHex(r, 10); w->fieldpointer = !w->fieldpointer; break;
+											case 'B': case 'b': inputPatternHex(r, 11); w->fieldpointer = !w->fieldpointer; break;
+											case 'C': case 'c': inputPatternHex(r, 12); w->fieldpointer = !w->fieldpointer; break;
+											case 'D': case 'd': inputPatternHex(r, 13); w->fieldpointer = !w->fieldpointer; break;
+											case 'E': case 'e': inputPatternHex(r, 14); w->fieldpointer = !w->fieldpointer; break;
+											case 'F': case 'f': inputPatternHex(r, 15); w->fieldpointer = !w->fieldpointer; break;
 										}
 									else
 									{

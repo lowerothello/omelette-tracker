@@ -56,13 +56,9 @@ void previewNote(uint8_t note, uint8_t inst)
 }
 
 
-void updateField(signed char *fieldpointer, char fieldsize, uint32_t *value, char modifier)
+void updateField(signed char fieldpointer, char fieldsize, uint32_t *value, char modifier)
 {
-	uint32_t multiplier = fieldsize - 1 - *fieldpointer;
-	if (*fieldpointer > fieldsize - 2)
-	{
-		*fieldpointer = 0;
-	} else (*fieldpointer)++;
+	uint32_t multiplier = fieldsize - 1 - fieldpointer;
 	uint32_t oldDigit, newDigit;
 	if (*value > 0)
 		oldDigit = pow32(16, multiplier) * hexDigit32(*value, multiplier);

@@ -1,8 +1,9 @@
-void incSamplerFieldPointer(signed char *fieldpointer, short index)
+void samplerIncFieldPointer(signed char *fieldpointer, short index)
 {
 	(*fieldpointer)++;
 	switch (index)
 	{
+		case 0:                         *fieldpointer = 0; break;
 		case 1:  if (*fieldpointer > 7) *fieldpointer = 0; break;
 		case 2:  if (*fieldpointer > 7) *fieldpointer = 0; break;
 		case 3:  if (*fieldpointer > 7) *fieldpointer = 0; break;
@@ -11,12 +12,13 @@ void incSamplerFieldPointer(signed char *fieldpointer, short index)
 		default: if (*fieldpointer > 1) *fieldpointer = 0; break;
 	}
 }
-void decSamplerFieldPointer(signed char *fieldpointer, short index)
+void samplerDecFieldPointer(signed char *fieldpointer, short index)
 {
 	(*fieldpointer)--;
 	if (*fieldpointer < 0)
 		switch (index)
 		{
+			case 0:  *fieldpointer = 0; break;
 			case 1:  *fieldpointer = 7; break;
 			case 2:  *fieldpointer = 7; break;
 			case 3:  *fieldpointer = 7; break;
@@ -30,16 +32,17 @@ void inputSamplerHex(signed char *fieldpointer, short index, instrument *iv, cha
 	sampler_state *ss = iv->state;
 	switch (index)
 	{
-		case 1: updateField(fieldpointer, 8, (uint32_t *)&ss->c5rate, value); break;
-		case 2: updateField(fieldpointer, 8, (uint32_t *)&ss->trim[0], value); if (ss->trim[0] > ss->length) ss->trim[0] = ss->length; break;
-		case 3: updateField(fieldpointer, 8, (uint32_t *)&ss->trim[1], value); if (ss->trim[1] > ss->length) ss->trim[1] = ss->length; break;
-		case 4: updateField(fieldpointer, 8, (uint32_t *)&ss->loop[0], value); if (ss->loop[0] > ss->length) ss->loop[0] = ss->length; break;
-		case 5: updateField(fieldpointer, 8, (uint32_t *)&ss->loop[1], value); if (ss->loop[1] > ss->length) ss->loop[1] = ss->length; break;
-		case 6: updateField(fieldpointer, 2, (uint32_t *)&ss->volume.a, value); break;
-		case 7: updateField(fieldpointer, 2, (uint32_t *)&ss->volume.d, value); break;
-		case 8: updateField(fieldpointer, 2, (uint32_t *)&ss->volume.s, value); break;
-		case 9: updateField(fieldpointer, 2, (uint32_t *)&ss->volume.r, value); break;
+		case 1: updateField(*fieldpointer, 8, (uint32_t *)&ss->c5rate, value); break;
+		case 2: updateField(*fieldpointer, 8, (uint32_t *)&ss->trim[0], value); if (ss->trim[0] > ss->length) ss->trim[0] = ss->length; break;
+		case 3: updateField(*fieldpointer, 8, (uint32_t *)&ss->trim[1], value); if (ss->trim[1] > ss->length) ss->trim[1] = ss->length; break;
+		case 4: updateField(*fieldpointer, 8, (uint32_t *)&ss->loop[0], value); if (ss->loop[0] > ss->length) ss->loop[0] = ss->length; break;
+		case 5: updateField(*fieldpointer, 8, (uint32_t *)&ss->loop[1], value); if (ss->loop[1] > ss->length) ss->loop[1] = ss->length; break;
+		case 6: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.a, value); break;
+		case 7: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.d, value); break;
+		case 8: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.s, value); break;
+		case 9: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.r, value); break;
 	}
+	samplerIncFieldPointer(fieldpointer, index);
 }
 
 void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short y, short *cursor, unsigned char fieldpointer)
@@ -122,10 +125,6 @@ void samplerAdjustUp(instrument *iv, short index)
 			ss->loop[1] += ss->length / 10.0;
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
-		case 6: ss->volume.a+=16; break;
-		case 7: ss->volume.d+=16; break;
-		case 8: ss->volume.s+=16; break;
-		case 9: ss->volume.r+=16; break;
 	}
 }
 void samplerAdjustDown(instrument *iv, short index)
@@ -155,10 +154,6 @@ void samplerAdjustDown(instrument *iv, short index)
 			ss->loop[1] -= ss->length / 10.0;
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
-		case 6: ss->volume.a-=16; break;
-		case 7: ss->volume.d-=16; break;
-		case 8: ss->volume.s-=16; break;
-		case 9: ss->volume.r-=16; break;
 	}
 }
 void samplerAdjustLeft(instrument *iv, short index)
@@ -188,10 +183,10 @@ void samplerAdjustLeft(instrument *iv, short index)
 			ss->loop[1] -= ss->length / 100.0;
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
-		case 6: ss->volume.a-=4; break;
-		case 7: ss->volume.d-=4; break;
-		case 8: ss->volume.s-=4; break;
-		case 9: ss->volume.r-=4; break;
+		case 6: ss->volume.a--; break;
+		case 7: ss->volume.d--; break;
+		case 8: ss->volume.s--; break;
+		case 9: ss->volume.r--; break;
 	}
 }
 void samplerAdjustRight(instrument *iv, short index)
@@ -216,10 +211,10 @@ void samplerAdjustRight(instrument *iv, short index)
 			ss->loop[1] += ss->length / 100.0;
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
-		case 6: ss->volume.a+=4; break;
-		case 7: ss->volume.d+=4; break;
-		case 8: ss->volume.s+=4; break;
-		case 9: ss->volume.r+=4; break;
+		case 6: ss->volume.a++; break;
+		case 7: ss->volume.d++; break;
+		case 8: ss->volume.s++; break;
+		case 9: ss->volume.r++; break;
 	}
 }
 
@@ -572,12 +567,6 @@ void samplerInput(int *input)
 				case 'D': case 'd': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 13);  break;
 				case 'E': case 'e': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 14);  break;
 				case 'F': case 'f': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 15);  break;
-				case 32: /* space */
-					incSamplerFieldPointer(&w->fieldpointer, w->instrumentindex);
-					break;
-				case 127: /* backspace */
-					decSamplerFieldPointer(&w->fieldpointer, w->instrumentindex);
-					break;
 			}
 			redraw();
 			break;
@@ -800,6 +789,8 @@ void samplerInit(int index)
 	t->f[index].adjustDown = &samplerAdjustDown;
 	t->f[index].adjustLeft = &samplerAdjustLeft;
 	t->f[index].adjustRight = &samplerAdjustRight;
+	t->f[index].incFieldPointer = &samplerIncFieldPointer;
+	t->f[index].decFieldPointer = &samplerDecFieldPointer;
 	t->f[index].mouseToIndex = &samplerMouseToIndex;
 	t->f[index].input = &samplerInput;
 	t->f[index].process = &samplerProcess;

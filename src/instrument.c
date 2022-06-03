@@ -38,7 +38,7 @@ void instrumentRedraw(void)
 		unsigned short x, y;
 		x = w->instrumentcelloffset;
 		y = w->instrumentrowoffset;
-		printf("\033[%d;%dH┌───────── <- [INSTRUMENT %02X] -> ─────────┐", y - 1, x, w->instrument);
+		printf("\033[%d;%dH┌───────── <- [INSTRUMENT %02x] -> ─────────┐", y - 1, x, w->instrument);
 		for (int i = 0; i < INSTRUMENT_BODY_ROWS; i++)
 			printf("\033[%d;%dH│                                         │", y + i, x);
 		printf("\033[%d;%dH└─────────────────────────────────────────┘", y + INSTRUMENT_BODY_ROWS, x);
@@ -50,19 +50,19 @@ void instrumentRedraw(void)
 		} else
 		{
 			instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-			printf("\033[%d;%dH   type: [%02X]                            ", y + 1, x + 1, iv->type);
+			printf("\033[%d;%dH   type: [%02x]                            ", y + 1, x + 1, iv->type);
 
 			printf("\033[%d;%dH┌───────────────────────────────────────┐", y + 3, x + 1);
 			for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
 				printf("\033[%d;%dH│                                       │", y + 4 + i, x + 1);
 			printf("\033[%d;%dH└───────────────────────────────────────┘", y + INSTRUMENT_TYPE_ROWS + 4, x + 1);
 
-			printf("\033[%d;%dH  fader: [%02X][%02X]    sends  effect: [%X] ", y + INSTRUMENT_TYPE_ROWS + 5, x + 1, iv->fader[0], iv->fader[1], w->instrumentsend);
-			printf("\033[%d;%dH                     -----     mix: [%X] ", y + INSTRUMENT_TYPE_ROWS + 6, x + 1, iv->send[w->instrumentsend]);
+			printf("\033[%d;%dH  fader: [%02x%02x]      sends  effect: [%x] ", y + INSTRUMENT_TYPE_ROWS + 5, x + 1, iv->fader[0], iv->fader[1], w->instrumentsend);
+			printf("\033[%d;%dH                     -----     mix: [%x] ", y + INSTRUMENT_TYPE_ROWS + 6, x + 1, iv->send[w->instrumentsend]);
 			/* if (w->instrumentrecv > INST_REC_LOCK_OK && w->instrumentreci == s->instrumenti[w->instrument])
 				printf("\033[%d;%dH\033[6mREC\033[m", y + 0, x + 2); */
 
-			if (w->popup == 1 && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw != NULL)
+			if (w->popup == 1 && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
 				t->f[iv->type].draw(iv, w->instrument, x + 2, y + 4, &w->instrumentindex, w->fieldpointer);
 
 			switch (w->instrumentindex)
@@ -77,10 +77,8 @@ void instrumentRedraw(void)
 					if      (w->instrumentindex == tic + 0)
 						printf("\033[%d;%dH", y + INSTRUMENT_TYPE_ROWS + 5, x + 11 + w->fieldpointer);
 					else if (w->instrumentindex == tic + 1)
-						printf("\033[%d;%dH", y + INSTRUMENT_TYPE_ROWS + 5, x + 15 + w->fieldpointer);
-					else if (w->instrumentindex == tic + 2)
 						printf("\033[%d;%dH", y + INSTRUMENT_TYPE_ROWS + 5, x + 38);
-					else if (w->instrumentindex == tic + 3)
+					else if (w->instrumentindex == tic + 2)
 						printf("\033[%d;%dH", y + INSTRUMENT_TYPE_ROWS + 6, x + 38);
 					break;
 			}
@@ -105,7 +103,7 @@ void instrumentRedraw(void)
 			unsigned short ya;
 			char testdirpath[NAME_MAX + 1];
 			DIR *testdir;
-			while (dirent != NULL)
+			while (dirent)
 			{
 				if (strcmp(dirent->d_name, ".") && strcmp(dirent->d_name, ".."))
 				{
@@ -145,31 +143,18 @@ void instrumentAdjustUp(instrument *iv, short index)
 {
 	switch (index)
 	{
-		case MIN_INSTRUMENT_INDEX: break;
-		case MIN_INSTRUMENT_INDEX + 1:
-			if (iv->lock == INST_REC_LOCK_OK) iv->type+=0x10;
-			break;
+		case MIN_INSTRUMENT_INDEX:      break;
+		case MIN_INSTRUMENT_INDEX + 1:  break;
 		default:
 			unsigned short tic = 0; /* type index count */
 			if (iv->type < INSTRUMENT_TYPE_COUNT)
 				tic = t->f[iv->type].indexc;
 
-			if      (index == tic + 0)
-				iv->fader[0]+=0x10;
-			else if (index == tic + 1)
-				iv->fader[1]+=0x10;
-			else if (index == tic + 2)
+			if (index == tic + 0)
 			{
-				w->instrumentsend++;
-				if (w->instrumentsend > 15)
-					w->instrumentsend = 0;
-			}
-			else if (index == tic + 3)
-			{
-				iv->send[w->instrumentsend]++;
-				if (iv->send[w->instrumentsend] > 15)
-					iv->send[w->instrumentsend] = 0;
-			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustUp != NULL)
+				iv->fader[0]++;
+				iv->fader[1]++;
+			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustUp)
 				t->f[iv->type].adjustUp(iv, index);
 			break;
 	}
@@ -178,31 +163,18 @@ void instrumentAdjustDown(instrument *iv, short index)
 {
 	switch (index)
 	{
-		case MIN_INSTRUMENT_INDEX: break;
-		case MIN_INSTRUMENT_INDEX + 1:
-			if (iv->lock == INST_REC_LOCK_OK) iv->type-=16;
-			break;
+		case MIN_INSTRUMENT_INDEX:      break;
+		case MIN_INSTRUMENT_INDEX + 1:  break;
 		default:
 			unsigned short tic = 0; /* type index count */
 			if (iv->type < INSTRUMENT_TYPE_COUNT)
 				tic = t->f[iv->type].indexc;
 
-			if      (index == tic + 0)
-				iv->fader[0]-=0x10;
-			else if (index == tic + 1)
-				iv->fader[1]-=0x10;
-			else if (index == tic + 2)
+			if (index == tic + 0)
 			{
-				w->instrumentsend--;
-				if (w->instrumentsend < 0)
-					w->instrumentsend = 15;
-			}
-			else if (index == tic + 3)
-			{
-				iv->send[w->instrumentsend]--;
-				if (iv->send[w->instrumentsend] < 0)
-					iv->send[w->instrumentsend] = 15;
-			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustDown != NULL)
+				iv->fader[0]--;
+				iv->fader[1]--;
+			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustDown)
 				t->f[iv->type].adjustDown(iv, index);
 			break;
 	}
@@ -226,22 +198,23 @@ void instrumentAdjustLeft(instrument *iv, short index)
 			if (iv->type < INSTRUMENT_TYPE_COUNT)
 				tic = t->f[iv->type].indexc;
 
-			if      (index == tic + 0)
-				iv->fader[0]-=0x01;
-			else if (index == tic + 1)
-				iv->fader[1]-=0x01;
-			else if (index == tic + 2)
+			if (index == tic + 0)
+			{
+				if (iv->fader[1] > iv->fader[0])
+					iv->fader[0]++;
+				else
+					iv->fader[1]--;
+			} else if (index == tic + 1)
 			{
 				w->instrumentsend--;
 				if (w->instrumentsend < 0)
 					w->instrumentsend = 15;
-			}
-			else if (index == tic + 3)
+			} else if (index == tic + 2)
 			{
 				iv->send[w->instrumentsend]--;
 				if (iv->send[w->instrumentsend] < 0)
 					iv->send[w->instrumentsend] = 15;
-			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustLeft != NULL)
+			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustLeft)
 				t->f[iv->type].adjustLeft(iv, index);
 			break;
 	}
@@ -265,29 +238,30 @@ void instrumentAdjustRight(instrument *iv, short index)
 			if (iv->type < INSTRUMENT_TYPE_COUNT)
 				tic = t->f[iv->type].indexc;
 
-			if      (index == tic + 0)
-				iv->fader[0]+=0x01;
-			else if (index == tic + 1)
-				iv->fader[1]+=0x01;
-			else if (index == tic + 2)
+			if (index == tic + 0)
+			{
+				if (iv->fader[0] > iv->fader[1])
+					iv->fader[1]++;
+				else
+					iv->fader[0]--;
+			} else if (index == tic + 1)
 			{
 				w->instrumentsend++;
 				if (w->instrumentsend > 15)
 					w->instrumentsend = 0;
-			}
-			else if (index == tic + 3)
+			} else if (index == tic + 2)
 			{
 				iv->send[w->instrumentsend]++;
 				if (iv->send[w->instrumentsend] > 15)
 					iv->send[w->instrumentsend] = 0;
-			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustRight != NULL)
+			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustRight)
 				t->f[iv->type].adjustRight(iv, index);
 			break;
 	}
 }
 short instrumentMouseToIndex(instrument *iv, int y, int x)
 {
-	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex != NULL)
+	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex)
 		return t->f[iv->type].mouseToIndex(y, x);
 	return 0; /* failsafe */
 }
@@ -297,7 +271,7 @@ int getSubdir(char *newpath)
 	struct dirent *dirent = readdir(w->dir);
 	unsigned int dirc = 0;
 	DIR *testdir;
-	while (dirent != NULL)
+	while (dirent)
 	{
 		if (strcmp(dirent->d_name, ".") && strcmp(dirent->d_name, ".."))
 		{
@@ -359,6 +333,7 @@ int instrumentInput(int input)
 							break;
 						case '[':
 							instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
+							unsigned short tic = 0; /* type index count */
 							switch (getchar())
 							{
 								case 'A': /* up arrow */
@@ -366,10 +341,23 @@ int instrumentInput(int input)
 										instrumentAdjustUp(iv, w->instrumentindex);
 									else
 									{
-										w->fieldpointer = 0;
 										w->instrumentindex--;
 										if (w->instrumentindex < MIN_INSTRUMENT_INDEX)
 											w->instrumentindex = MIN_INSTRUMENT_INDEX;
+
+										/* ensure fieldpointer is still in range */
+										if (w->instrumentindex == tic)
+										{ if (w->fieldpointer > 3) w->fieldpointer = 3; }
+										else if (w->instrumentindex > tic)
+											w->fieldpointer = 0;
+										else if (w->instrumentindex > MIN_INSTRUMENT_INDEX + 1
+												&& iv && iv->type < INSTRUMENT_TYPE_COUNT
+												&& t->f[iv->type].incFieldPointer
+												&& t->f[iv->type].decFieldPointer)
+										{
+											t->f[iv->type].incFieldPointer(&w->fieldpointer, w->instrumentindex);
+											t->f[iv->type].decFieldPointer(&w->fieldpointer, w->instrumentindex);
+										}
 									}
 									redraw();
 									break;
@@ -378,23 +366,75 @@ int instrumentInput(int input)
 										instrumentAdjustDown(iv, w->instrumentindex);
 									else
 									{
-										w->fieldpointer = 0;
 										if (s->instrumenti[w->instrument] != 0)
 											w->instrumentindex++;
-										unsigned short tic = 0; /* type index count */
 										if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
 											tic = t->f[iv->type].indexc;
-										if (w->instrumentindex > tic + 3)
-											w->instrumentindex = tic + 3;
+										if (w->instrumentindex > tic + 2)
+											w->instrumentindex = tic + 2;
+
+										/* ensure fieldpointer is still in range */
+										if (w->instrumentindex == tic)
+										{ if (w->fieldpointer > 3) w->fieldpointer = 3; }
+										else if (w->instrumentindex > tic)
+											w->fieldpointer = 0;
+										else if (w->instrumentindex > MIN_INSTRUMENT_INDEX + 1
+												&& iv && iv->type < INSTRUMENT_TYPE_COUNT
+												&& t->f[iv->type].incFieldPointer
+												&& t->f[iv->type].decFieldPointer)
+										{
+											t->f[iv->type].incFieldPointer(&w->fieldpointer, w->instrumentindex);
+											t->f[iv->type].decFieldPointer(&w->fieldpointer, w->instrumentindex);
+										}
 									}
 									redraw();
 									break;
 								case 'D': /* left arrow */
-									instrumentAdjustLeft(iv, w->instrumentindex);
+									if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
+										tic = t->f[iv->type].indexc;
+
+									if (w->instrumentindex == MIN_INSTRUMENT_INDEX || w->mode > 1) /* adjust */
+										instrumentAdjustLeft(iv, w->instrumentindex);
+									else if (w->instrumentindex == tic)
+									{
+										if (w->fieldpointer == 0)
+											w->fieldpointer = 3;
+										else w->fieldpointer--;
+									} else switch (w->instrumentindex)
+									{
+										case MIN_INSTRUMENT_INDEX + 1:
+											w->fieldpointer = !w->fieldpointer;
+											break;
+										default:
+											if (iv && iv->type < INSTRUMENT_TYPE_COUNT
+													&& t->f[iv->type].decFieldPointer)
+												t->f[iv->type].decFieldPointer(&w->fieldpointer, w->instrumentindex);
+											break;
+									}
 									redraw();
 									break;
 								case 'C': /* right arrow */
-									instrumentAdjustRight(iv, w->instrumentindex);
+									if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
+										tic = t->f[iv->type].indexc;
+
+									if (w->instrumentindex == MIN_INSTRUMENT_INDEX || w->mode > 1) /* adjust */
+										instrumentAdjustRight(iv, w->instrumentindex);
+									else if (w->instrumentindex == tic)
+									{
+										w->fieldpointer++;
+										if (w->fieldpointer > 3)
+											w->fieldpointer = 0;
+									} else switch (w->instrumentindex)
+									{
+										case MIN_INSTRUMENT_INDEX + 1:
+											w->fieldpointer = !w->fieldpointer;
+											break;
+										default:
+											if (iv && iv->type < INSTRUMENT_TYPE_COUNT
+													&& t->f[iv->type].incFieldPointer)
+												t->f[iv->type].incFieldPointer(&w->fieldpointer, w->instrumentindex);
+											break;
+									}
 									redraw();
 									break;
 								case '1': /* mod+arrow / f5 - f8 */
@@ -422,7 +462,7 @@ int instrumentInput(int input)
 								case '4': /* end */
 									getchar(); /* burn through the tilde */
 									unsigned short tic = 0; /* type index count */
-									if (iv->type < INSTRUMENT_TYPE_COUNT)
+									if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
 										tic = t->f[iv->type].indexc;
 									w->instrumentindex = tic + 3;
 									break;
@@ -466,19 +506,17 @@ int instrumentInput(int input)
 											{
 												unsigned short tic = 0; /* type index count */
 												iv = s->instrumentv[s->instrumenti[w->instrument]];
-												if (iv->type < INSTRUMENT_TYPE_COUNT)
+												if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
 													tic = t->f[iv->type].indexc;
 
-												if (x - w->instrumentcelloffset - 2 < 12)
+												if (x - w->instrumentcelloffset - 2 < 20)
 													w->instrumentindex = tic + 0;
-												else if (x - w->instrumentcelloffset - 2 < 20)
-													w->instrumentindex = tic + 1;
 												else
 												{
 													if (y > w->instrumentrowoffset + INSTRUMENT_TYPE_ROWS + 5)
-														w->instrumentindex = tic + 3;
-													else
 														w->instrumentindex = tic + 2;
+													else
+														w->instrumentindex = tic + 1;
 												}
 											} else
 											{
@@ -542,8 +580,135 @@ int instrumentInput(int input)
 									redraw();
 									break;
 								default:
-									instrument *iv;
-									switch (w->instrumentindex)
+									instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
+									unsigned short tic = 0; /* type index count */
+									if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
+										tic = t->f[iv->type].indexc;
+
+									if (w->instrumentindex == tic)
+									{
+										switch (input)
+										{
+											case 1: /* ^a */
+												iv->fader[0]++;
+												iv->fader[1]++;
+												break;
+											case 24: /* ^x */
+												iv->fader[0]--;
+												iv->fader[1]--;
+												break;
+											default: /* 2 stages cos each half of the field points to a different memory address */
+												if (w->fieldpointer < 2)
+													switch (input)
+													{
+														case '0':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 0);  break;
+														case '1':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 1);  break;
+														case '2':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 2);  break;
+														case '3':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 3);  break;
+														case '4':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 4);  break;
+														case '5':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 5);  break;
+														case '6':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 6);  break;
+														case '7':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 7);  break;
+														case '8':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 8);  break;
+														case '9':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 9);  break;
+														case 'A': case 'a': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 10); break;
+														case 'B': case 'b': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 11); break;
+														case 'C': case 'c': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 12); break;
+														case 'D': case 'd': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 13); break;
+														case 'E': case 'e': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 14); break;
+														case 'F': case 'f': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 15); break;
+													}
+												else
+													switch (input)
+													{
+														case '0':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 0);  break;
+														case '1':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 1);  break;
+														case '2':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 2);  break;
+														case '3':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 3);  break;
+														case '4':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 4);  break;
+														case '5':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 5);  break;
+														case '6':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 6);  break;
+														case '7':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 7);  break;
+														case '8':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 8);  break;
+														case '9':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 9);  break;
+														case 'A': case 'a': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 10); break;
+														case 'B': case 'b': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 11); break;
+														case 'C': case 'c': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 12); break;
+														case 'D': case 'd': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 13); break;
+														case 'E': case 'e': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 14); break;
+														case 'F': case 'f': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 15); break;
+													}
+												w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0;
+												break;
+										}
+										redraw();
+									} else if (w->instrumentindex == tic + 1)
+									{
+										switch (input)
+										{
+											case 1: /* ^a */
+												w->instrumentsend++;
+												if (w->instrumentsend > 15)
+													w->instrumentsend = 0;
+												break;
+											case 24: /* ^x */
+												w->instrumentsend--;
+												if (w->instrumentsend < 0)
+													w->instrumentsend = 15;
+												break;
+											case '0':           w->instrumentsend = 0;  break;
+											case '1':           w->instrumentsend = 1;  break;
+											case '2':           w->instrumentsend = 2;  break;
+											case '3':           w->instrumentsend = 3;  break;
+											case '4':           w->instrumentsend = 4;  break;
+											case '5':           w->instrumentsend = 5;  break;
+											case '6':           w->instrumentsend = 6;  break;
+											case '7':           w->instrumentsend = 7;  break;
+											case '8':           w->instrumentsend = 8;  break;
+											case '9':           w->instrumentsend = 9;  break;
+											case 'A': case 'a': w->instrumentsend = 10; break;
+											case 'B': case 'b': w->instrumentsend = 11; break;
+											case 'C': case 'c': w->instrumentsend = 12; break;
+											case 'D': case 'd': w->instrumentsend = 13; break;
+											case 'E': case 'e': w->instrumentsend = 14; break;
+											case 'F': case 'f': w->instrumentsend = 15; break;
+										}
+										redraw();
+									} else if (w->instrumentindex == tic + 2)
+									{
+										if (!s->instrumenti[w->instrument]) break;
+										iv = s->instrumentv[s->instrumenti[w->instrument]];
+										switch (input)
+										{
+											case 1: /* ^a */
+												iv->send[w->instrumentsend]++;
+												if (iv->send[w->instrumentsend] > 15)
+													iv->send[w->instrumentsend] = 0;
+												break;
+											case 24: /* ^x */
+												iv->send[w->instrumentsend]--;
+												if (iv->send[w->instrumentsend] < 0)
+													iv->send[w->instrumentsend] = 15;
+												break;
+											case '0':           iv->send[w->instrumentsend] = 0;  break;
+											case '1':           iv->send[w->instrumentsend] = 1;  break;
+											case '2':           iv->send[w->instrumentsend] = 2;  break;
+											case '3':           iv->send[w->instrumentsend] = 3;  break;
+											case '4':           iv->send[w->instrumentsend] = 4;  break;
+											case '5':           iv->send[w->instrumentsend] = 5;  break;
+											case '6':           iv->send[w->instrumentsend] = 6;  break;
+											case '7':           iv->send[w->instrumentsend] = 7;  break;
+											case '8':           iv->send[w->instrumentsend] = 8;  break;
+											case '9':           iv->send[w->instrumentsend] = 9;  break;
+											case 'A': case 'a': iv->send[w->instrumentsend] = 10; break;
+											case 'B': case 'b': iv->send[w->instrumentsend] = 11; break;
+											case 'C': case 'c': iv->send[w->instrumentsend] = 12; break;
+											case 'D': case 'd': iv->send[w->instrumentsend] = 13; break;
+											case 'E': case 'e': iv->send[w->instrumentsend] = 14; break;
+											case 'F': case 'f': iv->send[w->instrumentsend] = 15; break;
+										}
+										redraw();
+									} else switch (w->instrumentindex)
 									{
 										case MIN_INSTRUMENT_INDEX:
 											switch (input)
@@ -586,29 +751,30 @@ int instrumentInput(int input)
 												case 24: /* ^x */
 													iv->type--;
 													break;
-												case '0':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 0);  break;
-												case '1':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 1);  break;
-												case '2':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 2);  break;
-												case '3':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 3);  break;
-												case '4':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 4);  break;
-												case '5':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 5);  break;
-												case '6':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 6);  break;
-												case '7':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 7);  break;
-												case '8':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 8);  break;
-												case '9':           updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 9);  break;
-												case 'A': case 'a': updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 10); break;
-												case 'B': case 'b': updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 11); break;
-												case 'C': case 'c': updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 12); break;
-												case 'D': case 'd': updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 13); break;
-												case 'E': case 'e': updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 14); break;
-												case 'F': case 'f': updateField(&w->fieldpointer, 2, (uint32_t *)&iv->type, 15); break;
+												case '0':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 0);  break;
+												case '1':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 1);  break;
+												case '2':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 2);  break;
+												case '3':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 3);  break;
+												case '4':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 4);  break;
+												case '5':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 5);  break;
+												case '6':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 6);  break;
+												case '7':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 7);  break;
+												case '8':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 8);  break;
+												case '9':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 9);  break;
+												case 'A': case 'a': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 10); break;
+												case 'B': case 'b': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 11); break;
+												case 'C': case 'c': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 12); break;
+												case 'D': case 'd': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 13); break;
+												case 'E': case 'e': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 14); break;
+												case 'F': case 'f': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 15); break;
 											}
+											w->fieldpointer = !w->fieldpointer;
 											redraw();
 											break;
 										default:
 											if (!s->instrumenti[w->instrument]) break;
 											iv = s->instrumentv[s->instrumenti[w->instrument]];
-											if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].input != NULL)
+											if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].input)
 												t->f[iv->type].input(&input);
 											break;
 									}
@@ -872,9 +1038,8 @@ int instrumentInput(int input)
 										if (getSubdir(newpath) == 1)
 										{
 											w->previewinstrument.sampledata = _loadSample(newpath, &sfinfo);
-											if (w->previewinstrument.sampledata != NULL)
+											if (w->previewinstrument.sampledata)
 											{
-												/* iv should be valid if this branch is reached */
 												sampler_state *ss = w->previewinstrument.state;
 												ss->length = sfinfo.frames;
 												ss->channels = sfinfo.channels;
