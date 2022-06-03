@@ -27,6 +27,20 @@ void samplerDecFieldPointer(signed char *fieldpointer, short index)
 			default: *fieldpointer = 1; break;
 		}
 }
+void samplerEndFieldPointer(signed char *fieldpointer, short index)
+{
+	switch (index)
+	{
+		case 0:  *fieldpointer = 0; break;
+		case 1:  *fieldpointer = 7; break;
+		case 2:  *fieldpointer = 7; break;
+		case 3:  *fieldpointer = 7; break;
+		case 4:  *fieldpointer = 7; break;
+		case 5:  *fieldpointer = 7; break;
+		default: *fieldpointer = 1; break;
+	}
+}
+
 void inputSamplerHex(signed char *fieldpointer, short index, instrument *iv, char value)
 {
 	sampler_state *ss = iv->state;
@@ -573,20 +587,59 @@ void samplerInput(int *input)
 	}
 }
 
-short samplerMouseToIndex(int y, int x)
+void samplerMouseToIndex(int y, int x, short *index, signed char *fieldpointer)
 {
+	const unsigned char fieldoffset = 21;
 	switch (y)
 	{
-		case 0: case 1:       return 0;
-		case 2: case 3:       return 1;
-		case 4:               return 2;
-		case 5: case 6:       return 3;
-		case 7:               return 4;
-		case 8: case 9:       return 5;
-		case 10: if (x < 26)  return 6;
-		         else         return 7;
-		default: if (x < 26)  return 8;
-		         else         return 9;
+		case 0: case 1: *index = 0; *fieldpointer = 0; break;
+		case 2: case 3: *index = 1;
+			if (x < fieldoffset)          *fieldpointer = 0;
+			else if (x > fieldoffset + 8) *fieldpointer = 7;
+			else *fieldpointer = x - fieldoffset;
+			break;
+		case 4:         *index = 2;
+			if (x < fieldoffset)          *fieldpointer = 0;
+			else if (x > fieldoffset + 8) *fieldpointer = 7;
+			else *fieldpointer = x - fieldoffset;
+			break;
+		case 5: case 6: *index = 3;
+			if (x < fieldoffset)          *fieldpointer = 0;
+			else if (x > fieldoffset + 8) *fieldpointer = 7;
+			else *fieldpointer = x - fieldoffset;
+			break;
+		case 7:         *index = 4;
+			if (x < fieldoffset)          *fieldpointer = 0;
+			else if (x > fieldoffset + 8) *fieldpointer = 7;
+			else *fieldpointer = x - fieldoffset;
+			break;
+		case 8: case 9: *index = 5;
+			if (x < fieldoffset)          *fieldpointer = 0;
+			else if (x > fieldoffset + 8) *fieldpointer = 7;
+			else *fieldpointer = x - fieldoffset;
+			break;
+		case 10:
+			if (x < 26)
+			{ *index = 6;
+				if (x < fieldoffset + 1) *fieldpointer = 0;
+				else                     *fieldpointer = 1;
+			} else
+			{ *index = 7;
+				if (x < fieldoffset + 10) *fieldpointer = 0;
+				else                     *fieldpointer = 1;
+			}
+			break;
+		default:
+			if (x < 26)
+			{ *index = 8;
+				if (x < fieldoffset + 1) *fieldpointer = 0;
+				else                     *fieldpointer = 1;
+			} else
+			{ *index = 9;
+				if (x < fieldoffset + 10) *fieldpointer = 0;
+				else                     *fieldpointer = 1;
+			}
+			break;
 	}
 }
 
@@ -791,6 +844,7 @@ void samplerInit(int index)
 	t->f[index].adjustRight = &samplerAdjustRight;
 	t->f[index].incFieldPointer = &samplerIncFieldPointer;
 	t->f[index].decFieldPointer = &samplerDecFieldPointer;
+	t->f[index].endFieldPointer = &samplerEndFieldPointer;
 	t->f[index].mouseToIndex = &samplerMouseToIndex;
 	t->f[index].input = &samplerInput;
 	t->f[index].process = &samplerProcess;

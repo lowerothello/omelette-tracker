@@ -259,12 +259,6 @@ void instrumentAdjustRight(instrument *iv, short index)
 			break;
 	}
 }
-short instrumentMouseToIndex(instrument *iv, int y, int x)
-{
-	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex)
-		return t->f[iv->type].mouseToIndex(y, x);
-	return 0; /* failsafe */
-}
 
 int getSubdir(char *newpath)
 {
@@ -344,9 +338,15 @@ int instrumentInput(int input)
 										w->instrumentindex--;
 										if (w->instrumentindex < MIN_INSTRUMENT_INDEX)
 											w->instrumentindex = MIN_INSTRUMENT_INDEX;
+										if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
+											tic = t->f[iv->type].indexc;
 
 										/* ensure fieldpointer is still in range */
-										if (w->instrumentindex == tic)
+										if (w->instrumentindex == MIN_INSTRUMENT_INDEX)
+											w->fieldpointer = 0;
+										else if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 1)
+										{ if (w->fieldpointer > 1) w->fieldpointer = 1; }
+										else if (w->instrumentindex == tic)
 										{ if (w->fieldpointer > 3) w->fieldpointer = 3; }
 										else if (w->instrumentindex > tic)
 											w->fieldpointer = 0;
@@ -374,7 +374,11 @@ int instrumentInput(int input)
 											w->instrumentindex = tic + 2;
 
 										/* ensure fieldpointer is still in range */
-										if (w->instrumentindex == tic)
+										if (w->instrumentindex == MIN_INSTRUMENT_INDEX)
+											w->fieldpointer = 0;
+										else if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 1)
+										{ if (w->fieldpointer > 1) w->fieldpointer = 1; }
+										else if (w->instrumentindex == tic)
 										{ if (w->fieldpointer > 3) w->fieldpointer = 3; }
 										else if (w->instrumentindex > tic)
 											w->fieldpointer = 0;
@@ -402,6 +406,7 @@ int instrumentInput(int input)
 										else w->fieldpointer--;
 									} else switch (w->instrumentindex)
 									{
+										case MIN_INSTRUMENT_INDEX: break;
 										case MIN_INSTRUMENT_INDEX + 1:
 											w->fieldpointer = !w->fieldpointer;
 											break;
@@ -426,6 +431,7 @@ int instrumentInput(int input)
 											w->fieldpointer = 0;
 									} else switch (w->instrumentindex)
 									{
+										case MIN_INSTRUMENT_INDEX: break;
 										case MIN_INSTRUMENT_INDEX + 1:
 											w->fieldpointer = !w->fieldpointer;
 											break;
@@ -455,16 +461,30 @@ int instrumentInput(int input)
 									}
 									break;
 								case 'H': /* home */
-									if (w->instrumentindex == MIN_INSTRUMENT_INDEX)
-										w->instrument = 0;
-									else w->instrumentindex = MIN_INSTRUMENT_INDEX;
+									w->fieldpointer = 0;
+									redraw();
 									break;
 								case '4': /* end */
 									getchar(); /* burn through the tilde */
 									unsigned short tic = 0; /* type index count */
 									if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
 										tic = t->f[iv->type].indexc;
-									w->instrumentindex = tic + 3;
+
+									if (w->instrumentindex == tic)
+										w->fieldpointer = 3;
+									else if (w->instrumentindex > tic)
+										w->fieldpointer = 1;
+									else switch (w->instrumentindex)
+									{
+										case MIN_INSTRUMENT_INDEX:     w->fieldpointer = 0; break;
+										case MIN_INSTRUMENT_INDEX + 1: w->fieldpointer = 1; break;
+										default:
+											if (iv && iv->type < INSTRUMENT_TYPE_COUNT
+													&& t->f[iv->type].endFieldPointer)
+												t->f[iv->type].endFieldPointer(&w->fieldpointer, w->instrumentindex);
+											break;
+									}
+									redraw();
 									break;
 								case '5': /* page up */
 									getchar(); /* burn through the tilde */
@@ -473,7 +493,6 @@ int instrumentInput(int input)
 									getchar(); /* burn through the tilde */
 									break;
 								case 'M': /* mouse */
-									w->fieldpointer = 0;
 									int button = getchar();
 									int x = getchar() - 32;
 									int y = getchar() - 32;
@@ -499,20 +518,30 @@ int instrumentInput(int input)
 											}
 
 											if (y < w->instrumentrowoffset)
+											{ /* header */
+												w->fieldpointer = 0;
 												w->instrumentindex = MIN_INSTRUMENT_INDEX;
-											else if (y < w->instrumentrowoffset + 3)
+											} else if (y < w->instrumentrowoffset + 3)
+											{ /* type selection */
+												if (x - w->instrumentcelloffset < 12) w->fieldpointer = 0;
+												else                                  w->fieldpointer = 1;
 												w->instrumentindex = MIN_INSTRUMENT_INDEX + 1;
-											else if (y >= w->instrumentrowoffset + INSTRUMENT_TYPE_ROWS + 5)
-											{
+											} else if (y >= w->instrumentrowoffset + INSTRUMENT_TYPE_ROWS + 5)
+											{ /* type contents */
 												unsigned short tic = 0; /* type index count */
 												iv = s->instrumentv[s->instrumenti[w->instrument]];
 												if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
 													tic = t->f[iv->type].indexc;
 
-												if (x - w->instrumentcelloffset - 2 < 20)
+												if (x - w->instrumentcelloffset < 22)
+												{ /* fader */
+													if (x - w->instrumentcelloffset < 11)      w->fieldpointer = 0;
+													else if (x - w->instrumentcelloffset > 14) w->fieldpointer = 3;
+													else w->fieldpointer = x - w->instrumentcelloffset - 11;
 													w->instrumentindex = tic + 0;
-												else
-												{
+												} else
+												{ /* sends */
+													w->fieldpointer = 0;
 													if (y > w->instrumentrowoffset + INSTRUMENT_TYPE_ROWS + 5)
 														w->instrumentindex = tic + 2;
 													else
@@ -521,11 +550,11 @@ int instrumentInput(int input)
 											} else
 											{
 												if (!s->instrumenti[w->instrument]) break;
-
-												w->instrumentindex =
-													instrumentMouseToIndex(iv,
+												if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex)
+													t->f[iv->type].mouseToIndex(
 															y - w->instrumentrowoffset + MIN_INSTRUMENT_INDEX - 1,
-															x - w->instrumentcelloffset - 2);
+															x - w->instrumentcelloffset - 2,
+															&w->instrumentindex, &w->fieldpointer);
 											}
 
 											/* enter mouse adjust mode */

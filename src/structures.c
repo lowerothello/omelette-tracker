@@ -236,7 +236,8 @@ typedef struct
 		void (*adjustRight)(instrument *, short);
 		void (*incFieldPointer)(signed char *, short);
 		void (*decFieldPointer)(signed char *, short);
-		short (*mouseToIndex)(int, int);
+		void (*endFieldPointer)(signed char *, short);
+		void (*mouseToIndex)(int, int, short *, signed char *);
 		void (*input)(int *);
 		void (*process)(instrument *, channel *, uint32_t,
 				sample_t *, sample_t *);

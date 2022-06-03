@@ -15,21 +15,15 @@ TODO:
 	^ remove input.c, it's kinda stupid
 -> playback
 	^ pingpong loop, note off loop ending
-	^ test instrument types
-	^ test portamento
+	^ auto release envelope
 -> tracker
-	^ click across pattern bounds
 	^ redo mode 0 input, probably should be modal? not sure
 	^ edit step
-	^ use the return key to open the file browser instead of the 'o' key
 -> instruments
 	^ test retaining relative instrument params after processing
-	^ test spleeter macro
+	^ test macros
 	^ midi type
-	^ option to (un)link fader channels
 -> effects
-	^ search the plugin list
-	^ instantiate plugins per instrument, and only on playback
 	^ apply plugins to instruments as per the mixing rules
 	^ temporary mixing rule macro
 
@@ -44,6 +38,8 @@ MACROS
 * either 2 char macros or 1 short macro
 * colour macroc and macrov differently
 * maybe both macrovs have the same colour?
+* maybe the number of macro columns can be set in a declare?
+	* maybe even at runtime, on a per-mod basis?
 
 tracker:
 >  00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D   0E
@@ -54,7 +50,7 @@ tracker:
 > 02   ... .. A17 Ba4   ... .. ... ...   ... .. ... ...   ... .. ... ...
 > 03   ... ..  L1c44    ... .. ... ...   ... .. ... ...   ... .. ... ...
 > 04 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 05   ... 00 1a8 280   ... .. ... ...   ... .. ... ...   ... .. ... ...
+> 05   C-5 00 1a8 S80   ... .. ... ...   ... .. ... ...   ... .. ... ...
 > 06   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
 > 07   ... 00  2ffff    ... .. ... ...   ... .. ... ...   ... .. ... ...
 > 08 * ... 00  2eeee  * ... .. ... ... * ... .. ... ... * ... .. ... ... *
