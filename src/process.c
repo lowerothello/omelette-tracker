@@ -400,20 +400,25 @@ int process(jack_nframes_t nfptr, void *arg)
 						p->dirty = 1;
 					}
 					
-					if (p->s->songa[p->s->songp]) /* loop */
+					if (p->w->songnext)
+					{
+						if (p->w->songfx == p->s->songp)
+						{
+							p->w->songfx = p->w->songnext - 1;
+							p->dirty = 1;
+						}
+						p->s->songp = p->w->songnext - 1;
+						p->w->songnext = 0;
+					} else if (p->s->songa[p->s->songp]) /* loop */
 					{
 						/* do nothing, don't inc the song pointer */
-					} else if (p->w->songnext)
-					{
-						p->s->songp = p->w->songnext;
-						p->w->songnext = 0;
 					} else if (p->s->songi[p->s->songp + 1] == 255)
 					{ /* no next pattern, go to the beginning of the block */
 						uint8_t blockstart = 0;
-						for (uint8_t i = p->s->songp; i > 0; i--)
+						for (uint8_t i = p->s->songp; i >= 0; i--)
 							if (p->s->songi[i] == 255)
 							{
-								blockstart = i;
+								blockstart = i + 1;
 								break;
 							}
 
