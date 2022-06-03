@@ -59,16 +59,21 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	}
 
 	/* process the effect sends */
-	for (int j = 0; j < 16; j++)
-		if (iv->processsend[j] && p->s->effectv[j].type > 0)
-		{
-			*p->s->effectinl = *p->s->effectoutl * (iv->processsend[j] - 1) / 15.0;
-			*p->s->effectinr = *p->s->effectoutr * (iv->processsend[j] - 1) / 15.0;
-			lilv_instance_run(iv->plugininstance[j], 1); // TODO: call this bufferwise
-		}
+	if (iv)
+	{
+		for (int j = 0; j < 16; j++)
+			if (iv->processsend[j] && p->s->effectv[j].type > 0)
+			{
+				*p->s->effectinl = *p->s->effectoutl * (iv->processsend[j] - 1) / 15.0;
+				*p->s->effectinr = *p->s->effectoutr * (iv->processsend[j] - 1) / 15.0;
+				lilv_instance_run(iv->plugininstance[j], 1); // TODO: call this bufferwise
+			}
+		*p->s->effectoutl *= iv->fader[0] / 256.0;
+		*p->s->effectoutr *= iv->fader[1] / 256.0;
+	}
 
-	pb.outl[fptr] += *p->s->effectoutl * (iv->fader[0] / 256.0) * ((cv->gain>>4) / 16.0);
-	pb.outr[fptr] += *p->s->effectoutr * (iv->fader[1] / 256.0) * ((cv->gain%16) / 16.0);
+	pb.outl[fptr] += *p->s->effectoutl * ((cv->gain>>4) / 16.0);
+	pb.outr[fptr] += *p->s->effectoutr * ((cv->gain%16) / 16.0);
 }
 
 void bendUp(channel *cv)
@@ -301,7 +306,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					if (m >= 0) // offset
 					{
 						iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-						if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
+						if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
 						{
 							cv->sampleoffset = t->f[iv->type].offset(iv, cv, m);
 							cv->samplepointer = 0;
@@ -394,15 +399,30 @@ int process(jack_nframes_t nfptr, void *arg)
 						p->w->trackerfy = 0;
 						p->dirty = 1;
 					}
-					/* no next pattern, go to the beginning */
-					if (p->s->songi[p->s->songp + 1] == 255)
+					
+					if (p->s->songa[p->s->songp]) /* loop */
 					{
+						/* do nothing, don't inc the song pointer */
+					} else if (p->w->songnext)
+					{
+						p->s->songp = p->w->songnext;
+						p->w->songnext = 0;
+					} else if (p->s->songi[p->s->songp + 1] == 255)
+					{ /* no next pattern, go to the beginning of the block */
+						uint8_t blockstart = 0;
+						for (uint8_t i = p->s->songp; i > 0; i--)
+							if (p->s->songi[i] == 255)
+							{
+								blockstart = i;
+								break;
+							}
+
 						if (p->w->songfx == p->s->songp)
 						{
-							p->w->songfx = 0;
+							p->w->songfx = blockstart;
 							p->dirty = 1;
 						}
-						p->s->songp = 0;
+						p->s->songp = blockstart;
 					} else
 					{
 						if (p->w->songfx == p->s->songp)
