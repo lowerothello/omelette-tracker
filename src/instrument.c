@@ -62,7 +62,8 @@ void instrumentRedraw(void)
 			/* if (w->instrumentrecv > INST_REC_LOCK_OK && w->instrumentreci == s->instrumenti[w->instrument])
 				printf("\033[%d;%dH\033[6mREC\033[m", y + 0, x + 2); */
 
-			if (w->popup == 1 && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
+			if (w->popup == 1 && iv->typefollow == iv->type
+					&& iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
 				t->f[iv->type].draw(iv, w->instrument, x + 2, y + 4, &w->instrumentindex, w->fieldpointer);
 
 			switch (w->instrumentindex)
@@ -191,7 +192,11 @@ void instrumentAdjustLeft(instrument *iv, short index)
 			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
-			if (iv->lock == INST_REC_LOCK_OK) iv->type--;
+			if (iv->lock > INST_REC_LOCK_OK) break;
+
+			iv->type--;
+			w->instrumentlocki = s->instrumenti[w->instrument];
+			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
 			break;
 		default:
 			unsigned short tic = 0; /* type index count */
@@ -231,7 +236,11 @@ void instrumentAdjustRight(instrument *iv, short index)
 			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
-			if (iv->lock == INST_REC_LOCK_OK) iv->type++;
+			if (iv->lock > INST_REC_LOCK_OK) break;
+
+			iv->type++;
+			w->instrumentlocki = s->instrumenti[w->instrument];
+			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
 			break;
 		default:
 			unsigned short tic = 0; /* type index count */
@@ -707,6 +716,7 @@ int instrumentInput(int input)
 									{
 										if (!s->instrumenti[w->instrument]) break;
 										iv = s->instrumentv[s->instrumenti[w->instrument]];
+
 										switch (input)
 										{
 											case 1: /* ^a */
@@ -735,6 +745,11 @@ int instrumentInput(int input)
 											case 'D': case 'd': iv->send[w->instrumentsend] = 13; break;
 											case 'E': case 'e': iv->send[w->instrumentsend] = 14; break;
 											case 'F': case 'f': iv->send[w->instrumentsend] = 15; break;
+										}
+										if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+										{
+											w->instrumentlocki = s->instrumenti[w->instrument];
+											w->instrumentlockv = w->instrumentsend + 16;
 										}
 										redraw();
 									} else switch (w->instrumentindex)
@@ -770,6 +785,7 @@ int instrumentInput(int input)
 											}
 											break;
 										case MIN_INSTRUMENT_INDEX + 1:
+											if (iv->lock > INST_REC_LOCK_OK) break;
 											if (!s->instrumenti[w->instrument]) break;
 											iv = s->instrumentv[s->instrumenti[w->instrument]];
 											switch (input)
@@ -798,6 +814,8 @@ int instrumentInput(int input)
 												case 'F': case 'f': updateField(w->fieldpointer, 2, (uint32_t *)&iv->type, 15); break;
 											}
 											w->fieldpointer = !w->fieldpointer;
+											w->instrumentlocki = s->instrumenti[w->instrument];
+											w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
 											redraw();
 											break;
 										default:

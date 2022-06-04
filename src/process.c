@@ -33,7 +33,8 @@ void changeBpm(song *s, uint16_t newbpm)
 void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, instrument *iv)
 {
 	/* process the type */
-	if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 	{
 		if (cv->rtrigsamples > 0)
 			t->f[iv->type].process(iv, cv, cv->rtrigpointer + (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples,
@@ -123,10 +124,13 @@ int process(jack_nframes_t nfptr, void *arg)
 	pb.outr = jack_port_get_buffer(p->outr, nfptr); memset(pb.outr, 0, nfptr * sizeof(sample_t));
 
 
-	/* just need to know this has been seen */
+	/* just need to know these have been seen */
 	/* will no longer write to the record buffer */
 	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_END)
-		p->w->instrumentrecv = INST_REC_LOCK_END;
+		p->w->instrumentrecv =  INST_REC_LOCK_END;
+	/* will no longer access the instrument state */
+	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE)
+		p->w->instrumentlockv =  INST_GLOBAL_LOCK_FREE;
 
 
 	if (p->w->previewchanneltrigger) switch (p->w->previewchanneltrigger)
@@ -148,6 +152,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			break;
 		case 5: // unload sample
 			free(p->w->previewinstrument.sampledata);
+			p->w->previewinstrument.sampledata = NULL;
 			break;
 
 		case 4: // continue sample preview
@@ -202,8 +207,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			}
 		}
 
-		p->s->playing = PLAYING_STOP;
 		p->dirty = 1;
+		p->s->playing = PLAYING_STOP;
 	}
 
 	if (p->w->request == REQ_BPM)
@@ -247,18 +252,22 @@ int process(jack_nframes_t nfptr, void *arg)
 							cv->releasepointer = cv->samplepointer;
 							break;
 						case 254:
-							iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-							if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+							if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+									&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 							{
-								/* freewheel to fill up the ramp buffer, potential speed issues? */
-								for (uint16_t i = 0; i < cv->rampmax; i++)
+								iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+								if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 								{
-									if (!cv->r.note) break;
-									t->f[iv->type].process(iv, cv, cv->samplepointer,
-											&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-									cv->samplepointer++;
+									/* freewheel to fill up the ramp buffer, potential speed issues? */
+									for (uint16_t i = 0; i < cv->rampmax; i++)
+									{
+										if (!cv->r.note) break;
+										t->f[iv->type].process(iv, cv, cv->samplepointer,
+												&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+										cv->samplepointer++;
+									}
+									cv->rampindex = 0;
 								}
-								cv->rampindex = 0;
 							}
 							cv->r.note = 0;
 							break;
@@ -272,18 +281,22 @@ int process(jack_nframes_t nfptr, void *arg)
 							{
 								if (cv->r.note) /* old note, ramp it out */
 								{
-									iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-									if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+									if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+											&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 									{
-										/* freewheel to fill up the ramp buffer, potential speed issues? */
-										for (uint16_t i = 0; i < cv->rampmax; i++)
+										iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+										if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 										{
-											if (!cv->r.note) break;
-											t->f[iv->type].process(iv, cv, cv->samplepointer,
-													&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-											cv->samplepointer++;
+											/* freewheel to fill up the ramp buffer, potential speed issues? */
+											for (uint16_t i = 0; i < cv->rampmax; i++)
+											{
+												if (!cv->r.note) break;
+												t->f[iv->type].process(iv, cv, cv->samplepointer,
+														&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+												cv->samplepointer++;
+											}
+											cv->rampindex = 0;
 										}
-										cv->rampindex = 0;
 									}
 								}
 								cv->r.inst = r.inst;

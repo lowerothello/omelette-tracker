@@ -108,17 +108,17 @@ int commandCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command));
 	wordSplit(buffer, command, 0);
-	if      (!strcmp(buffer, "q"))  { free(buffer); return 1; }
-	else if (!strcmp(buffer, "q!")) { free(buffer); return 1; }
+	if      (!strcmp(buffer, "q"))  { free(buffer); buffer = NULL; return 1; }
+	else if (!strcmp(buffer, "q!")) { free(buffer); buffer = NULL; return 1; }
 	else if (!strcmp(buffer, "w"))  { wordSplit(buffer, command, 1); writeSong(s, w, buffer); }
 	else if (!strcmp(buffer, "wq"))
 	{
 		wordSplit(buffer, command, 1);
-		if (!writeSong(s, w, buffer)) { free(buffer); return 1; } /* exit if writing the file succeeded */
+		if (!writeSong(s, w, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
 	}
 	else if (!strcmp(buffer, "e"))  { wordSplit(buffer, command, 1); s = readSong(s, w, t, buffer); w->songfx = 0; }
 
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 
@@ -402,12 +402,16 @@ int main(int argc, char **argv)
 	while(!running)
 	{
 		running = input();
-		if (p->dirty)
+		// if (p->dirty)
+		{
+			p->dirty = 0;
 			redraw();
+		}
 
 		if (w->previewsamplestatus == 3)
 		{
 			free(w->previewinstrument.sampledata);
+			w->previewinstrument.sampledata = NULL;
 			w->previewsamplestatus = 0;
 		}
 
@@ -421,7 +425,7 @@ int main(int argc, char **argv)
 			{
 				instrument *iv = s->instrumentv[w->instrumentreci];
 				if (iv->sampledata)
-					free(iv->sampledata);
+				{ free(iv->sampledata); iv->sampledata = NULL; }
 				iv->sampledata = malloc(w->recptr * sizeof(short));
 				if (iv->sampledata == NULL)
 				{
@@ -442,7 +446,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			free(w->recbuffer);
+			free(w->recbuffer); w->recbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
 		}
 

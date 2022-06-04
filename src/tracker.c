@@ -387,7 +387,7 @@ int changeBpmCallback(char *command, unsigned char *mode)
 	wordSplit(buffer, command, 0);
 	s->songbpm = min16(max16(strtol(buffer, NULL, 0), 32), 10000); /* above 41343 at 44100hz causes a float exception */
 	w->request = REQ_BPM; /* update if playing */
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 int changePatternLengthCallback(char *command, unsigned char *mode)
@@ -398,7 +398,7 @@ int changePatternLengthCallback(char *command, unsigned char *mode)
 	s->defpatternlength = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
 	if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
 		w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 int changeRowHighlightCallback(char *command, unsigned char *mode)
@@ -406,7 +406,7 @@ int changeRowHighlightCallback(char *command, unsigned char *mode)
 	char *buffer = malloc(strlen(command));
 	wordSplit(buffer, command, 0);
 	s->rowhighlight = strtol(buffer, NULL, 0);
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 

@@ -249,7 +249,7 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 		else if (c < SHRT_MIN) iv->sampledata[ptr] = SHRT_MIN;
 		else                   iv->sampledata[ptr] = c;
 	}
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 int samplerAkaizerCallback3(char *command, unsigned char *mode)
@@ -270,7 +270,7 @@ int samplerAkaizerCallback3(char *command, unsigned char *mode)
 
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	sampler_state *ss = iv->state;
-	free(iv->sampledata);
+	free(iv->sampledata); iv->sampledata = NULL;
 	SF_INFO sfinfo;
 	iv->sampledata = _loadSample(buffer, &sfinfo);
 
@@ -280,8 +280,8 @@ int samplerAkaizerCallback3(char *command, unsigned char *mode)
 	ss->loop[1] = ss->loop[1] * (float)sfinfo.frames / (float)ss->length;
 
 	ss->length = sfinfo.frames;
-	free(buffer);
-	free(altbuffer);
+	free(buffer);    buffer = NULL;
+	free(altbuffer); altbuffer = NULL;
 	return 0;
 }
 int samplerAkaizerCallback2(char *command, unsigned char *mode)
@@ -291,7 +291,7 @@ int samplerAkaizerCallback2(char *command, unsigned char *mode)
 	w->akaizercyclelength = strtol(buffer, NULL, 0);
 	setCommand(&w->command, &samplerAkaizerCallback3, NULL, 0, "Akaizer transpose [-24 to +24]: ", "0");
 	*mode = 255;
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 int samplerAkaizerCallback1(char *command, unsigned char *mode)
@@ -301,7 +301,7 @@ int samplerAkaizerCallback1(char *command, unsigned char *mode)
 	w->akaizertimefactor = strtol(buffer, NULL, 0);
 	setCommand(&w->command, &samplerAkaizerCallback2, NULL, 0, "Akaizer cycle length [20 to 2000]: ", "1000");
 	*mode = 255;
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 int samplerLameCallback(char *command, unsigned char *mode)
@@ -315,7 +315,7 @@ int samplerLameCallback(char *command, unsigned char *mode)
 
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	sampler_state *ss = iv->state;
-	free(iv->sampledata);
+	free(iv->sampledata); iv->sampledata = NULL;
 	SF_INFO sfinfo;
 	iv->sampledata = _loadSample("/tmp/omelette.mp3", &sfinfo);
 
@@ -324,7 +324,7 @@ int samplerLameCallback(char *command, unsigned char *mode)
 	ss->trim[1] = min32(sfinfo.frames, ss->trim[1]);
 	ss->loop[0] = min32(sfinfo.frames, ss->loop[0]);
 	ss->loop[1] = min32(sfinfo.frames, ss->loop[1]);
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 int samplerResampleCallback(char *command, unsigned char *mode)
@@ -343,7 +343,7 @@ int samplerResampleCallback(char *command, unsigned char *mode)
 	short *sampledata = malloc(sizeof(short) * newlen * ss->channels);
 	if (sampledata == NULL) { /* malloc failed */
 		strcpy(w->command.error, "failed to resample, out of memory");
-		free(buffer);
+		free(buffer); buffer = NULL;
 		return 0;
 	}
 
@@ -354,7 +354,7 @@ int samplerResampleCallback(char *command, unsigned char *mode)
 		sampledata[i] = iv->sampledata[pitchedpointer];
 	}
 
-	free(iv->sampledata);
+	free(iv->sampledata); iv->sampledata = NULL;
 	iv->sampledata = sampledata;
 	iv->samplelength = newlen * ss->channels;
 	ss->length = newlen;
@@ -364,7 +364,7 @@ int samplerResampleCallback(char *command, unsigned char *mode)
 	ss->loop[1] = ss->loop[1] * (float)newrate / (float)ss->c5rate;
 
 	ss->c5rate = newrate;
-	free(buffer);
+	free(buffer); buffer = NULL;
 	return 0;
 }
 
@@ -464,7 +464,7 @@ void samplerInput(int *input)
 						uint32_t startOffset = min32(ss->trim[0], ss->trim[1]);
 						memcpy(sampledata, iv->sampledata+startOffset, newlen * ss->channels);
 
-						free(iv->sampledata);
+						free(iv->sampledata); iv->sampledata = NULL;
 						iv->sampledata = sampledata;
 						iv->samplelength = newlen * ss->channels;
 						ss->length = newlen;
@@ -780,10 +780,10 @@ uint8_t samplerGetOffset(instrument *iv, channel *cv)
 	return (cv->samplepointer - ss->trim[0]) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
 }
 
-/* called when instrument iv's type is changed to this file's */
-void samplerChangeType(instrument *iv)
+/* called when state's type is changed to this file's */
+void samplerChangeType(void **state)
 {
-	iv->state = calloc(1, sizeof(sampler_state));
+	*state = calloc(1, sizeof(sampler_state));
 }
 
 void samplerLoadSample(instrument *iv, SF_INFO sfinfo)

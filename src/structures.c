@@ -4,13 +4,13 @@ typedef struct
 {
 	uint8_t note;
 	uint8_t inst;
-	char macroc[2]; /* command */
+	char    macroc[2]; /* command */
 	uint8_t macrov[2]; /* argument */
 } row;
 typedef struct
 {
 	uint8_t rowc;
-	row rowv[64][256]; /* 64 channels, each with 256 rows */
+	row     rowv[64][256]; /* 64 channels, each with 256 rows */
 } pattern;
 
 typedef struct
@@ -24,81 +24,82 @@ typedef struct
 typedef struct /* TODO: move into instrument_sampler.c */
 {
 	uint32_t length;
-	char channels;
+	char     channels;
 	uint32_t c5rate;
 	uint32_t trim[2];
 	uint32_t loop[2];
-	adsr volume;
+	adsr     volume;
 } sampler_state;
 
 typedef struct
 {
-	char mute; /* saved to disk */
-	uint32_t samplepointer; /* progress through the sample */
-	uint32_t sampleoffset; /* point to base samplepointer off of */
-	uint32_t releasepointer; /* 0 for no release, where releasing started */
-	uint8_t gain; /* two 4bit uints, one for each channel */
-	row r;
-	float cents; /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
-	uint8_t portamento; /* portamento target, 255 for off */
-	uint8_t portamentospeed; /* portamento m */
-	uint16_t rtrigsamples; /* samples per retrigger */
-	uint32_t rtrigpointer; /* sample ptr to ratchet back to */
-	uint8_t effectholdinst; /* 255 for no hold */
-	uint8_t effectholdindex;
+	char     mute;            /* saved to disk */
+	uint32_t samplepointer;   /* progress through the sample */
+	uint32_t sampleoffset;    /* point to base samplepointer off of */
+	uint32_t releasepointer;  /* 0 for no release, where releasing started */
+	uint8_t  gain;            /* two 4bit uints, one for each channel */
+	row      r;
+	float    cents;           /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
+	uint8_t  portamento;      /* portamento target, 255 for off */
+	uint8_t  portamentospeed; /* portamento m */
+	uint16_t rtrigsamples;    /* samples per retrigger */
+	uint32_t rtrigpointer;    /* sample ptr to ratchet back to */
+	uint8_t  effectholdinst;  /* 255 for no hold */
+	uint8_t  effectholdindex;
 
-	uint16_t rampindex; /* progress through the ramp buffer, rampmax if not ramping */
-	uint16_t rampmax; /* length of the ramp buffer */
-	float *rampbuffer; /* samples to ramp out */
+	uint16_t rampindex;       /* progress through the ramp buffer, rampmax if not ramping */
+	uint16_t rampmax;         /* length of the ramp buffer */
+	float   *rampbuffer;      /* samples to ramp out */
 } channel;
 
 typedef struct
 {
-	uint8_t type;
-	short *sampledata; /* variable size, persists between types */
-	uint32_t samplelength; /* raw samples allocated for sampledata */
-	void *state; /* instrument working memory */
-	char lock;
-	uint8_t fader[2];
-	char send[16]; /* [0-15][0-15] are used */
-	char processsend[16]; /* takes priority over send, set and used in process */
-	void *plugininstance[16]; /* pointer to an instance of a plugin type */
-	char pluginactive[16]; /* actual active status, follows send */
+	uint8_t  type;
+	uint8_t  typefollow;         /* follows the type, set once state is guaranteed to be mallocced */
+	short   *sampledata;         /* variable size, persists between types */
+	uint32_t samplelength;       /* raw samples allocated for sampledata */
+	void    *state;              /* instrument working memory */
+	char     lock;
+	uint8_t  fader[2];
+	char     send[16];           /* [0-15][0-15] are used */
+	char     processsend[16];    /* takes priority over send, set and used in process */
+	void    *plugininstance[16]; /* pointer to an instance of a plugin type */
+	char     pluginactive[16];   /* actual active status, follows send */
 } instrument;
 
 #define LV2_TYPE_INPUT 0
 #define LV2_TYPE_OUTPUT 1
 typedef struct
 {
-	uint32_t index;
-	float min, max, value;
-	char *name;
-	char *format;
-	char integer; /* true for integer, false for float */
-	char toggled; /* true if value is boolean */
-	char logarithmic; /* true if value should be adjusted logarithmically */
-	char samplerate; /* true to multiply values by the sample rate? documentation isn't clear */
-	int steps; /* the number of steps to divide min-max into */
-	unsigned int enumerate; /* the number of scalepoints, or 0 for no enumeration */
-	char (*scalelabel)[MAX_VALUE_LEN]; /* string array */
-	float *scalevalue; /* float array */
+	uint32_t     index;
+	float        min, max, value;
+	char        *name;
+	char        *format;
+	char         integer;                    /* true for integer, false for float */
+	char         toggled;                    /* true if value is boolean */
+	char         logarithmic;                /* true if value should be adjusted logarithmically */
+	char         samplerate;                 /* true to multiply values by the sample rate? documentation isn't clear */
+	int          steps;                      /* the number of steps to divide min-max into */
+	unsigned int enumerate;                  /* the number of scalepoints, or 0 for no enumeration */
+	char       (*scalelabel)[MAX_VALUE_LEN]; /* string array */
+	float       *scalevalue;                 /* float array */
 } lv2control;
 typedef struct
 {
 	uint32_t index;
-	char type;
+	char     type;
 } lv2audio;
 
 typedef struct
 {
-	uint8_t type; /* 0:empty, default:lv2 */
-	uint32_t indexc;
+	uint8_t           type;            /* 0:empty, default:lv2 */
+	uint32_t          indexc;
 	const LilvPlugin *plugin;
-	const char *name;
-	uint32_t controlc, audioc;
-	uint32_t inputc, outputc; /* audio input/output count */
-	lv2control *controlv;
-	lv2audio *audiov;
+	const char       *name;
+	uint32_t          controlc, audioc;
+	uint32_t          inputc, outputc; /* audio input/output count */
+	lv2control       *controlv;
+	lv2audio         *audiov;
 } effect;
 
 #define PLAYING_STOP 0
@@ -107,168 +108,169 @@ typedef struct
 #define PLAYING_PREP_STOP 3
 typedef struct
 {
-	uint8_t patternc; /* pattern count */
-	uint8_t patterni[256]; /* pattern backref */
-	pattern *patternv[256]; /* pattern values */
-	pattern patternbuffer; /* pattern yank buffer */
+	uint8_t     patternc;                /* pattern count */
+	uint8_t     patterni[256];           /* pattern backref */
+	pattern    *patternv[256];           /* pattern values */
+	pattern     patternbuffer;           /* pattern yank buffer */
 
-	uint8_t instrumentc; /* instrument count */
-	uint8_t instrumenti[256]; /* instrument backref */
-	instrument *instrumentv[256]; /* instrument values */
-	instrument instrumentbuffer; /* instrument yank buffer */
+	uint8_t     instrumentc;             /* instrument count */
+	uint8_t     instrumenti[256];        /* instrument backref */
+	instrument *instrumentv[256];        /* instrument values */
+	instrument  instrumentbuffer;        /* instrument yank buffer */
 
-	effect effectv[16]; /* effect values */
-	float *effectinl, *effectinr; /* effect inputs */
-	float *effectoutl, *effectoutr; /* effect outputs */
+	effect      effectv[16];             /* effect values */
+	float      *effectinl, *effectinr;   /* effect inputs */
+	float      *effectoutl, *effectoutr; /* effect outputs */
 
-	uint8_t channelc; /* channel count */
-	channel channelv[64]; /* channel values */
-	row *channelbuffer[64]; /* channel yank buffer */
-	char channelbuffermute;
+	uint8_t     channelc;                /* channel count */
+	channel     channelv[64];            /* channel values */
+	row        *channelbuffer[64];       /* channel yank buffer */
+	char        channelbuffermute;
 
-	uint8_t songi[256]; /* song list backref, links to patterns */
-	uint8_t songa[256]; /* song list attributes */
+	uint8_t     songi[256];              /* song list backref, links to patterns */
+	uint8_t     songa[256];              /* song list attributes */
 
-	uint8_t songp; /* song pos, analogous to window->songfx */
-	uint16_t songr; /* song row, analogous to window->trackerfy */
+	uint8_t     songp;                   /* song pos, analogous to window->songfx */
+	uint16_t    songr;                   /* song row, analogous to window->trackerfy */
 
-	uint8_t rowhighlight;
-	uint8_t defpatternlength; /* only here cos window isn't defined yet */
-	uint16_t bpm;
-	uint16_t songbpm; /* to store the song's bpm through bpm change macros */
-	uint32_t spr; /* samples per row (samplerate * (60 / bpm) / 4) */
-	uint32_t sprp; /* samples per row progress */
-	char playing;
+	uint8_t     rowhighlight;
+	uint8_t     defpatternlength;        /* only here cos window isn't defined yet */
+	uint16_t    bpm;
+	uint16_t    songbpm;                 /* to store the song's bpm through bpm change macros */
+	uint32_t    spr;                     /* samples per row (samplerate * (60 / bpm) / 4) */
+	uint32_t    sprp;                    /* samples per row progress */
+	char        playing;
 } song;
 
 
 #define INST_GLOBAL_LOCK_OK 0        /* playback and most memory ops are safe */
 #define INST_GLOBAL_LOCK_PREP_FREE 1 /* playback unsafe, preparing to free the state */
 #define INST_GLOBAL_LOCK_FREE 2      /* playback has stopped, safe to free the state */
+/* inst_global_lock - 16 = the effect whose default mix has changed */
+
 #define INST_REC_LOCK_OK 0       /* playback and most memory ops are safe */
 #define INST_REC_LOCK_CONT 1     /* recording                             */
 #define INST_REC_LOCK_PREP_END 2 /* start stopping recording              */
 #define INST_REC_LOCK_END 3      /* stopping recording has finished       */
+
 #define REQ_OK 0  /* do nothing / done */
 #define REQ_BPM 1 /* re-apply the song bpm */
+
 typedef struct
 {
-	char filepath[COMMAND_LENGTH];
+	char           filepath[COMMAND_LENGTH];
 
-	command_t command;
-	char *search;
+	command_t      command;
+	char          *search;
 
-	unsigned char popup;
-	unsigned char mode;
+	unsigned char  popup;
+	unsigned char  mode;
 	unsigned short centre;
-	uint8_t pattern; /* focused pattern */
-	uint8_t channel; /* focused channel */
-	uint8_t channeloffset, visiblechannels;
+	uint8_t        pattern;               /* focused pattern */
+	uint8_t        channel;               /* focused channel */
+	uint8_t        channeloffset, visiblechannels;
 
-	short trackerfy, trackerfx;
+	short          trackerfy, trackerfx;
 	unsigned short trackercelloffset;
-	short instrumentindex;
-	uint8_t instrument; /* focused instrument */
+	short          instrumentindex;
+	uint8_t        instrument;            /* focused instrument */
 	unsigned short instrumentcelloffset;
-	short instrumentsend; /* focused send */
+	short          instrumentsend;        /* focused send */
 
-	short effectindex;
-	short pluginindex;
-	short effectoffset; /* scroll offset for pluginindex */
-	unsigned char effect; /* focused effect */
-	char (*pluginlist)[INSTRUMENT_TYPE_COLS - 2];
+	short          effectindex;
+	short          pluginindex;
+	short          effectoffset;          /* scroll offset for pluginindex */
+	unsigned char  effect;                /* focused effect */
+	char         (*pluginlist)[INSTRUMENT_TYPE_COLS - 2];
 
 	unsigned short mousey, mousex;
 
-	short fyoffset;
-	signed char fieldpointer;
+	short          fyoffset;
+	signed char    fieldpointer;
 
-	char dirpath[NAME_MAX + 1];
-	unsigned int dirc;
+	char           dirpath[NAME_MAX + 1];
+	unsigned int   dirc;
 	unsigned short dirmaxwidth;
-	DIR *dir;
+	DIR           *dir;
 
-	uint8_t songfx;
-	uint8_t songoffset, songvisible;
+	uint8_t        songfx;
+	uint8_t        songoffset, songvisible;
 	unsigned short songcelloffset;
 
 	unsigned short instrumentrowoffset;
 
-	char octave;
+	char           octave;
 
 	unsigned short akaizertimefactor, akaizercyclelength;
 
-	uint8_t songnext;
+	uint8_t        songnext;
 
-	channel previewchannel;
-	instrument previewinstrument; /* used by the file browser */
-	char previewchanneltrigger; /* 0:stopped
-	                               1:start inst
-	                               2:still inst
-	                               3:start sample
-	                               4:still sample
-	                               5:prep volatile */
+	channel        previewchannel;
+	instrument     previewinstrument;     /* used by the file browser */
+	char           previewchanneltrigger; /* 0:stopped
+	                                         1:start inst
+	                                         2:still inst
+	                                         3:start sample
+	                                         4:still sample
+	                                         5:prep volatile */
 
-	char previewsamplestatus;
+	char           previewsamplestatus;
 
-	uint8_t instrumentlocki; /* realindex */
-	uint8_t instrumentlockv; /* value, set to an INST_GLOBAL_LOCK constant */
+	uint8_t        instrumentlocki;       /* realindex */
+	uint8_t        instrumentlockv;       /* value, set to an INST_GLOBAL_LOCK constant */
 
-	uint8_t instrumentreci; /* realindex */
-	uint8_t instrumentrecv; /* value, set to an INST_REC_LOCK constant */
-	short *recbuffer; /* disallow changing the type or removing while recording */
-	uint32_t recptr;
+	uint8_t        instrumentreci;        /* realindex */
+	uint8_t        instrumentrecv;        /* value, set to an INST_REC_LOCK constant */
+	short         *recbuffer;             /* disallow changing the type or removing while recording */
+	uint32_t       recptr;
 
-	char request; /* ask the playback function to do something */
+	char           request;               /* ask the playback function to do something */
 } window;
 
 typedef struct
 {
 	struct
 	{
-		void (*draw) (instrument *, uint8_t,
-				unsigned short, unsigned short,
-				short *, unsigned char);
-		unsigned short indexc; /* index count used (0 inclusive) */
-		void (*adjustUp)(instrument *, short);
-		void (*adjustDown)(instrument *, short);
-		void (*adjustLeft)(instrument *, short);
-		void (*adjustRight)(instrument *, short);
-		void (*incFieldPointer)(signed char *, short);
-		void (*decFieldPointer)(signed char *, short);
-		void (*endFieldPointer)(signed char *, short);
-		void (*mouseToIndex)(int, int, short *, signed char *);
-		void (*input)(int *);
-		void (*process)(instrument *, channel *, uint32_t,
-				sample_t *, sample_t *);
-		uint32_t (*offset)(instrument *, channel *, int);
-		uint8_t (*getOffset)(instrument *, channel *);
-		void (*changeType)(instrument *);
-		void (*loadSample)(instrument *, SF_INFO);
-		void (*exportSample)(instrument *, SF_INFO *);
-		void (*write)(instrument *, FILE *fp);
-		void (*read)(instrument *, FILE *fp);
-	} f[INSTRUMENT_TYPE_COUNT];
+		void         (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, unsigned char);
+		unsigned short indexc;               /* index count used (0 inclusive) */
+		void         (*adjustUp)(instrument *, short);
+		void         (*adjustDown)(instrument *, short);
+		void         (*adjustLeft)(instrument *, short);
+		void         (*adjustRight)(instrument *, short);
+		void         (*incFieldPointer)(signed char *, short);
+		void         (*decFieldPointer)(signed char *, short);
+		void         (*endFieldPointer)(signed char *, short);
+		void         (*mouseToIndex)(int, int, short *, signed char *);
+		void         (*input)(int *);
+		void         (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
+		uint32_t     (*offset)(instrument *, channel *, int);
+		uint8_t      (*getOffset)(instrument *, channel *);
+		void         (*changeType)(void **); /* literally a pointer to a pointer */
+		void         (*loadSample)(instrument *, SF_INFO);
+		void         (*exportSample)(instrument *, SF_INFO *);
+		void         (*write)(instrument *, FILE *fp);
+		void         (*read)(instrument *, FILE *fp);
+	}                  f[INSTRUMENT_TYPE_COUNT];
 } typetable;
 typetable *t;
 
 typedef struct
 {
-	LilvWorld *world;
+	LilvWorld   *world;
 	LilvPlugins *plugins;
 	unsigned int pluginc; /* indexed plugin count */
-	LilvNode *inputport;
-	LilvNode *outputport;
-	LilvNode *audioport;
-	LilvNode *controlport;
-	LilvNode *integer;
-	LilvNode *toggled;
-	LilvNode *samplerate;
-	LilvNode *render;
-	LilvNode *unit;
-	LilvNode *enumeration;
-	LilvNode *logarithmic;
-	LilvNode *rangesteps;
+	LilvNode    *inputport;
+	LilvNode    *outputport;
+	LilvNode    *audioport;
+	LilvNode    *controlport;
+	LilvNode    *integer;
+	LilvNode    *toggled;
+	LilvNode    *samplerate;
+	LilvNode    *render;
+	LilvNode    *unit;
+	LilvNode    *enumeration;
+	LilvNode    *logarithmic;
+	LilvNode    *rangesteps;
 } lilv;
 lilv lv2;
 
@@ -303,16 +305,16 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 		for (uint32_t i = 0; i < le->controlc; i++)
 		{
 			lc = &le->controlv[i];
-			free(lc->format);
+			free(lc->format); lc->format = NULL;
 			if (lc->enumerate)
 			{
-				free(lc->scalelabel);
-				free(lc->scalevalue);
+				free(lc->scalelabel); lc->scalelabel = NULL;
+				free(lc->scalevalue); lc->scalevalue = NULL;
 			}
 		}
 
-		free(le->controlv);
-		free(le->audiov);
+		free(le->controlv); le->controlv = NULL;
+		free(le->audiov); le->audiov = NULL;
 		for (uint8_t i = 1; i < s->instrumentc; i++)
 			lilv_instance_free(s->instrumentv[i]->plugininstance[index]);
 	}
@@ -521,6 +523,8 @@ int delChannel(song *s, uint8_t index)
 	} else
 	{
 		free(s->channelv[index].rampbuffer);
+		s->channelv[index].rampbuffer = NULL;
+
 		for (i = index; i < s->channelc; i++)
 		{
 			for (p = 1; p < s->patternc; p++)
@@ -623,8 +627,8 @@ int delPattern(song *s, uint8_t index)
 	if (!s->patterni[index]) return 1; /* pattern doesn't exist */
 	uint8_t cutIndex = s->patterni[index];
 
-	free(s->patternv[cutIndex]);
-	free(s->channelbuffer[cutIndex]);
+	free(s->patternv[cutIndex]); s->patternv[cutIndex] = NULL;
+	free(s->channelbuffer[cutIndex]); s->channelbuffer[cutIndex] = NULL;
 
 	s->patterni[index] = 0;
 
@@ -651,29 +655,30 @@ int delPattern(song *s, uint8_t index)
 int changeInstrumentType(song *s, window *w, typetable *t, uint8_t forceindex)
 {
 	uint8_t i;
-	if (!forceindex && w->instrumentlocki && w->instrumentlockv == INST_GLOBAL_LOCK_FREE)
-		i = w->instrumentlocki;
+	if (!forceindex)
+		if (w->instrumentlockv == INST_GLOBAL_LOCK_FREE)
+			i = w->instrumentlocki;
+		else return 0;
 	else i = forceindex;
 
-	if (i)
-	{
-		instrument *iv = s->instrumentv[i];
-		if (iv->state != NULL) free(iv->state); /* free old state */
-		if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].changeType != NULL)
-			t->f[iv->type].changeType(iv);
+	if (!forceindex)
+		w->instrumentlockv = INST_GLOBAL_LOCK_OK; // mark as free to use
 
-		if (iv->state == NULL)
+
+	instrument *iv = s->instrumentv[i];
+	iv->typefollow = iv->type;
+	if (iv->state) { free(iv->state); iv->state = NULL; } // free old state
+	if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].changeType)
+	{
+		t->f[iv->type].changeType(&iv->state);
+
+		if (!iv->state)
 		{
 			strcpy(w->command.error, "failed to change instrument type, out of memory");
 			return 1;
 		}
-
-		if (!forceindex)
-		{
-			w->instrumentlocki = 0;
-			w->instrumentlockv = INST_GLOBAL_LOCK_OK; /* mark as free to use */
-		}
 	}
+
 	return 0;
 }
 
@@ -773,8 +778,8 @@ int yankInstrument(song *s, window *w, uint8_t index)
 
 	if (s->instrumentbuffer.samplelength > 0)
 		free(s->instrumentbuffer.sampledata);
-	if (s->instrumentbuffer.state != NULL)
-		free(s->instrumentbuffer.state);
+	if (s->instrumentbuffer.state)
+	{ free(s->instrumentbuffer.state); s->instrumentbuffer.state = NULL; }
 
 	memcpy(&s->instrumentbuffer,
 		s->instrumentv[s->instrumenti[index]],
@@ -803,7 +808,7 @@ int yankInstrument(song *s, window *w, uint8_t index)
 			case 0: s->instrumentbuffer.state = malloc(sizeof(sampler_state)); break;
 		}
 
-		if (s->instrumentbuffer.state == NULL)
+		if (!s->instrumentbuffer.state)
 		{
 			free(s->instrumentbuffer.sampledata);
 			strcpy(w->command.error, "failed to yank instrument, out of memory");
@@ -834,7 +839,10 @@ int putInstrument(song *s, window *w, typetable *t, uint8_t index)
 	if (w->instrumentreci == s->instrumenti[index] && w->instrumentrecv > INST_REC_LOCK_OK) return 1;
 
 	if (s->instrumentv[s->instrumenti[index]]->samplelength > 0)
+	{
 		free(s->instrumentv[s->instrumenti[index]]->sampledata);
+		s->instrumentv[s->instrumenti[index]]->sampledata = NULL;
+	}
 
 	memcpy(s->instrumentv[s->instrumenti[index]],
 		&s->instrumentbuffer,
@@ -868,7 +876,7 @@ int delInstrument(song *s, uint8_t index)
 	s->instrumenti[index] = 0;
 
 	/* free the sample data */
-	if (s->instrumentv[cutIndex]->state != NULL)
+	if (s->instrumentv[cutIndex]->state)
 		free(s->instrumentv[cutIndex]->state);
 	if (s->instrumentv[cutIndex]->samplelength > 0)
 		free(s->instrumentv[cutIndex]->sampledata);
@@ -884,6 +892,7 @@ int delInstrument(song *s, uint8_t index)
 	}
 
 	free(s->instrumentv[cutIndex]);
+	s->instrumentv[cutIndex] = NULL;
 
 	/* enforce contiguity */
 	uint8_t i;
@@ -966,7 +975,7 @@ int loadSample(song *s, window *w, typetable *t, uint8_t index, char *path)
 	{
 		SF_INFO sfinfo;
 		short *sampledata = _loadSample(path, &sfinfo);
-		if (sampledata == NULL)
+		if (!sampledata)
 		{
 			strcpy(w->command.error, "failed to load sample, out of memory");
 			return 1;
@@ -1069,7 +1078,7 @@ void delSong(song *s)
 	{
 		if (s->instrumentv[i]->samplelength > 0)
 			free(s->instrumentv[i]->sampledata);
-		if (s->instrumentv[i]->state != NULL)
+		if (s->instrumentv[i]->state)
 			free(s->instrumentv[i]->state);
 
 		for (int j = 0; j < 16; j++)

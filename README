@@ -13,6 +13,7 @@ TODO:
 -> main
 	^ command line args
 	^ remove input.c, it's kinda stupid
+	^ undo buffers
 -> playback
 	^ pingpong loop, note off loop ending
 	^ auto release envelope
@@ -21,14 +22,16 @@ TODO:
 	^ edit step
 -> instruments
 	^ test retaining relative instrument params after processing
-	^ test macros
-	^ midi type
+	^ changing type forfeits state immediately; allow for storing multiple types in memory (not disk)?
 -> effects
 	^ apply plugins to instruments as per the mixing rules
 	^ temporary mixing rule macro
 
 some eq10q mono plugins segfault on load, not sure why
-reduce setting instrumentindex to 0 unnecessarily
+
+
+bad interaction between retriggering and filling the ramp buffer, causes a click if the ramp buffer is empty
+retriggering should ramp between ratchets!
 
 
 can i properly index a VERY long sample with multiple channels and still fit in the uint limit?
@@ -227,14 +230,14 @@ tracker keybinds:
 
 MACROS:
 // Pxx: portamento to target
-	the note field sets the target
 	xx is the portamento speed
+	the note field sets the target
 // Mxy: channel multiplier
 	x is the volume for the left channel
 	y is the volume for the right channel
 // Rxx: s&h retrigger
 	xx is the number of slices in the row
-	xx == 0||1 does nothing
+	(xx < 2) does nothing
 	->	will ratchet the current point in the sample
 		and continue as if nothing happened after the row
 	->	audio rate
@@ -242,10 +245,14 @@ MACROS:
 		x is the delay before triggering
 		x only applies if the note field is populated
 		y is the delay before cutting
-		y == 0 will NOT cut, use ^^^ for this
+		(y == 0) will NOT cut, use ^^^ for this
 // Oxx: offset
 	start the triggered sample at xx 255ths through
-	no effect if the note field is empty
+Exy: effect mix
+	x    is the effect index to target
+	y/16 is the new mix
+	the inst field sets the target
+	mix will revert to default once the row is over
 
 
 
