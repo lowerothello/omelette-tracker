@@ -37,9 +37,25 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 	{
 		if (cv->rtrigsamples > 0)
-			t->f[iv->type].process(iv, cv, cv->rtrigpointer + (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples,
+		{
+			uint8_t oldnote = cv->r.note;
+			uint32_t rtrigoffset = (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples;
+			if (rtrigoffset == cv->rtrigsamples - 1)
+			{
+				/* freewheel to fill up the ramp buffer, potential speed issues? */
+				for (uint16_t i = 0; i < cv->rampmax; i++)
+				{
+					if (!cv->r.note) { cv->r.note = oldnote; break; }
+					t->f[iv->type].process(iv, cv,
+							cv->rtrigpointer + cv->rtrigsamples + i,
+							&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+				}
+				cv->rampindex = 0;
+			}
+			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset,
 					p->s->effectoutl, p->s->effectoutr);
-		else
+			cv->r.note = oldnote;
+		} else
 			t->f[iv->type].process(iv, cv, cv->samplepointer,
 					p->s->effectoutl, p->s->effectoutr);
 		cv->samplepointer++;
@@ -53,9 +69,9 @@ DEBUG=cv->releasepointer;
 	/* mix in ramp data */
 	if (cv->rampindex < cv->rampmax)
 	{
-		float rampgain = 1.0 - (float)cv->rampindex / (float)cv->rampmax;
-		*p->s->effectoutl += cv->rampbuffer[cv->rampindex * 2 + 0] * rampgain;
-		*p->s->effectoutr += cv->rampbuffer[cv->rampindex * 2 + 1] * rampgain;
+		float rampgain = (float)cv->rampindex / (float)cv->rampmax;
+		*p->s->effectoutl = (*p->s->effectoutl * rampgain) + (cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain));
+		*p->s->effectoutr = (*p->s->effectoutr * rampgain) + (cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - rampgain));
 
 		cv->rampindex++;
 	}
@@ -253,6 +269,8 @@ int process(jack_nframes_t nfptr, void *arg)
 							cv->releasepointer = cv->samplepointer;
 							break;
 						case 254:
+							/* clear the rampbuffer so cruft isn't played in edge cases */
+							memset(cv->rampbuffer, 0, sizeof(float) * cv->rampmax * 2);
 							if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 									&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 							{
@@ -263,13 +281,12 @@ int process(jack_nframes_t nfptr, void *arg)
 									for (uint16_t i = 0; i < cv->rampmax; i++)
 									{
 										if (!cv->r.note) break;
-										t->f[iv->type].process(iv, cv, cv->samplepointer,
+										t->f[iv->type].process(iv, cv, cv->samplepointer + i,
 												&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-										cv->samplepointer++;
 									}
-									cv->rampindex = 0;
 								}
 							}
+							cv->rampindex = 0;
 							cv->r.note = 0;
 							break;
 						default:
@@ -280,6 +297,8 @@ int process(jack_nframes_t nfptr, void *arg)
 								cv->portamentospeed = m;
 							} else
 							{
+								/* clear the rampbuffer so cruft isn't played in edge cases */
+								memset(cv->rampbuffer, 0, sizeof(float) * cv->rampmax * 2);
 								if (cv->r.note) /* old note, ramp it out */
 								{
 									if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
@@ -292,14 +311,13 @@ int process(jack_nframes_t nfptr, void *arg)
 											for (uint16_t i = 0; i < cv->rampmax; i++)
 											{
 												if (!cv->r.note) break;
-												t->f[iv->type].process(iv, cv, cv->samplepointer,
+												t->f[iv->type].process(iv, cv, cv->samplepointer + i,
 														&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-												cv->samplepointer++;
 											}
-											cv->rampindex = 0;
 										}
 									}
 								}
+								cv->rampindex = 0; /* set this even if it's not populated */
 								cv->r.inst = r.inst;
 								cv->r.note = r.note;
 								cv->portamento = 0;
@@ -322,6 +340,27 @@ int process(jack_nframes_t nfptr, void *arg)
 						iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 						if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
 						{
+							if (!r.note)
+							{
+								/* clear the rampbuffer so cruft isn't played in edge cases */
+								memset(cv->rampbuffer, 0, sizeof(float) * cv->rampmax * 2);
+								if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+										&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
+								{
+									iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+									if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+									{
+										/* freewheel to fill up the ramp buffer, potential speed issues? */
+										for (uint16_t i = 0; i < cv->rampmax; i++)
+										{
+											if (!cv->r.note) break;
+											t->f[iv->type].process(iv, cv, cv->samplepointer + i,
+													&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+										}
+									}
+								}
+								cv->rampindex = 0;
+							}
 							cv->sampleoffset = t->f[iv->type].offset(iv, cv, m);
 							cv->samplepointer = 0;
 						}

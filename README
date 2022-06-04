@@ -16,7 +16,6 @@ TODO:
 	^ undo buffers
 -> playback
 	^ pingpong loop, note off loop ending
-	^ auto release envelope
 -> tracker
 	^ redo mode 0 input, probably should be modal? not sure
 	^ edit step
@@ -30,7 +29,7 @@ TODO:
 some eq10q mono plugins segfault on load, not sure why
 
 
-bad interaction between retriggering and filling the ramp buffer, causes a click if the ramp buffer is empty
+bad interaction between retriggering and filling the ramp buffer, causes a nasty click if the ramp buffer is empty
 retriggering should ramp between ratchets!
 
 
