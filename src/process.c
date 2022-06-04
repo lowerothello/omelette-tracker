@@ -43,6 +43,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 			t->f[iv->type].process(iv, cv, cv->samplepointer,
 					p->s->effectoutl, p->s->effectoutr);
 		cv->samplepointer++;
+DEBUG=cv->releasepointer;
 	} else
 	{
 		*p->s->effectoutl = 0.0;

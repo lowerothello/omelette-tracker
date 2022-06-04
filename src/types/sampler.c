@@ -655,7 +655,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		return;
 	}
 
-	float gain;
+	float gain = 1.0;
 	uint32_t pitchedpointer;
 
 	sampler_state *ss = iv->state;
@@ -684,7 +684,8 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 			/* trigger the release envelope */
 			if (((ss->loop[1] && ss->trim[1] < ss->loop[1]) || !ss->loop[1])
-					&& pitchedpointer > ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * samplerate))
+					&& pitchedpointer > ss->trim[1] - (ss->volume.r * ENVELOPE_RELEASE * samplerate)
+					&& !cv->releasepointer)
 				cv->releasepointer = pointer;
 
 			/* cut if the pointer is ever past trim[1] */
@@ -714,33 +715,30 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 
 		/* envelope */
-		if (cv->releasepointer && cv->releasepointer < pointer) // release
-		{
+		if (cv->releasepointer && cv->releasepointer < pointer)
+		{ // release
 			if (ss->volume.r)
 			{
 				uint32_t releaselength = ss->volume.r * ENVELOPE_RELEASE * samplerate;
 				if (pointer - cv->releasepointer < releaselength)
-					// gain = ss->volume.s / 255.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.r * ss->volume.s / 255.0;
-					gain = 1.0 - (float)(pointer - cv->releasepointer) / (float)releaselength * ss->volume.s / 255.0;
+					gain *= 1.0 - (float)(pointer - cv->releasepointer) / (float)releaselength * ss->volume.s / 255.0;
 				else cv->r.note = 0;
 			} else cv->r.note = 0;
+		}
+
+		uint32_t attacklength = ss->volume.a * ENVELOPE_ATTACK * samplerate;
+		uint32_t decaylength = ss->volume.d * ENVELOPE_DECAY * samplerate;
+		if (pointer < attacklength)
+		{ // attack
+			gain *= (float)pointer / (float)attacklength;
+			/* raise up to sustain if there's no decay stage */
+			if (!ss->volume.d) gain *= ss->volume.s / 255.0;
+		} else if (ss->volume.s < 255 && pointer < attacklength + decaylength)
+		{ // decay
+			gain *= 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - ss->volume.s / 255.0);
 		} else
-		{
-			uint32_t attacklength = ss->volume.a * ENVELOPE_ATTACK * samplerate;
-			uint32_t decaylength = ss->volume.d * ENVELOPE_DECAY * samplerate;
-			if (pointer < attacklength) // attack
-			{
-				gain = (float)pointer / (float)attacklength;
-				/* raise up to sustain if there's no decay stage */
-				if (!ss->volume.d) gain *= ss->volume.s / 255.0;
-			} else if (ss->volume.s < 255 && pointer < attacklength + decaylength) // decay
-			{
-				gain = 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - ss->volume.s / 255.0);
-				// gain = 1.0 - ((float)cv->envelopepointer + cv->envelopesamples / (ENVELOPE_ATTACK * samplerate)) / (float)ss->volume.d * (1.0 - ss->volume.s / 255.0);
-			} else // sustain
-			{
-				gain = ss->volume.s / 255.0;
-			}
+		{ // sustain
+			gain *= ss->volume.s / 255.0;
 		}
 
 
@@ -757,9 +755,14 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 				else
 					*r = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * gain;
 			}
+		} else
+		{
+			*l = 0.0;
+			*r = 0.0;
 		}
 	} else
 	{
+		cv->r.note = 0;
 		*l = 0.0;
 		*r = 0.0;
 	}
