@@ -47,11 +47,12 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
-		case 'P': case 'p': *dest = 'P'; break;
+		case 'E': case 'e': *dest = 'E'; break;
 		case 'M': case 'm': *dest = 'M'; break;
+		case 'O': case 'o': *dest = 'O'; break;
+		case 'P': case 'p': *dest = 'P'; break;
 		case 'R': case 'r': *dest = 'R'; break;
 		case 'S': case 's': *dest = 'S'; break;
-		case 'O': case 'o': *dest = 'O'; break;
 	}
 }
 

@@ -219,6 +219,11 @@ void instrumentAdjustLeft(instrument *iv, short index)
 				iv->send[w->instrumentsend]--;
 				if (iv->send[w->instrumentsend] < 0)
 					iv->send[w->instrumentsend] = 15;
+				if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+				{
+					w->instrumentlocki = s->instrumenti[w->instrument];
+					w->instrumentlockv = w->instrumentsend + 16;
+				}
 			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustLeft)
 				t->f[iv->type].adjustLeft(iv, index);
 			break;
@@ -263,6 +268,11 @@ void instrumentAdjustRight(instrument *iv, short index)
 				iv->send[w->instrumentsend]++;
 				if (iv->send[w->instrumentsend] > 15)
 					iv->send[w->instrumentsend] = 0;
+				if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+				{
+					w->instrumentlocki = s->instrumenti[w->instrument];
+					w->instrumentlockv = w->instrumentsend + 16;
+				}
 			} else if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustRight)
 				t->f[iv->type].adjustRight(iv, index);
 			break;

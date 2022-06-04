@@ -92,7 +92,7 @@ typedef struct
 
 typedef struct
 {
-	uint8_t           type;            /* 0:empty, default:lv2 */
+	uint8_t           type;            /* 0:empty, 2:lv2 */
 	uint32_t          indexc;
 	const LilvPlugin *plugin;
 	const char       *name;

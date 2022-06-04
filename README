@@ -15,7 +15,6 @@ TODO:
 	^ remove input.c, it's kinda stupid
 	^ undo buffers
 -> playback
-	^ pingpong loop, note off loop ending
 -> tracker
 	^ redo mode 0 input, probably should be modal? not sure
 	^ edit step
@@ -27,10 +26,6 @@ TODO:
 	^ temporary mixing rule macro
 
 some eq10q mono plugins segfault on load, not sure why
-
-
-bad interaction between retriggering and filling the ramp buffer, causes a nasty click if the ramp buffer is empty
-retriggering should ramp between ratchets!
 
 
 can i properly index a VERY long sample with multiple channels and still fit in the uint limit?

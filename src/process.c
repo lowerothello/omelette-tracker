@@ -59,7 +59,6 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 			t->f[iv->type].process(iv, cv, cv->samplepointer,
 					p->s->effectoutl, p->s->effectoutr);
 		cv->samplepointer++;
-DEBUG=cv->releasepointer;
 	} else
 	{
 		*p->s->effectoutl = 0.0;
@@ -79,12 +78,19 @@ DEBUG=cv->releasepointer;
 	/* process the effect sends */
 	if (iv)
 	{
+		float dryl = *p->s->effectoutl;
+		float dryr = *p->s->effectoutr;
 		for (int j = 0; j < 16; j++)
-			if (iv->processsend[j] && p->s->effectv[j].type > 0)
+			if (iv->processsend[j] && p->s->effectv[j].type)
 			{
-				*p->s->effectinl = *p->s->effectoutl * (iv->processsend[j] - 1) / 15.0;
-				*p->s->effectinr = *p->s->effectoutr * (iv->processsend[j] - 1) / 15.0;
+				*p->s->effectinl = *p->s->effectoutl;
+				*p->s->effectinr = *p->s->effectoutr;
 				lilv_instance_run(iv->plugininstance[j], 1); // TODO: call this bufferwise
+				float mix = (iv->processsend[j] - 1) / 15.0;
+				*p->s->effectoutl = dryl * (1.0 - mix)
+					+         *p->s->effectoutl * mix;
+				*p->s->effectoutr = dryr * (1.0 - mix)
+					+         *p->s->effectoutr * mix;
 			}
 		*p->s->effectoutl *= iv->fader[0] / 256.0;
 		*p->s->effectoutr *= iv->fader[1] / 256.0;
@@ -148,6 +154,30 @@ int process(jack_nframes_t nfptr, void *arg)
 	/* will no longer access the instrument state */
 	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE)
 		p->w->instrumentlockv =  INST_GLOBAL_LOCK_FREE;
+	/* new default send */
+	else if (p->w->instrumentlockv > 15)
+	{
+		p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
+		iv = p->s->instrumentv[p->w->instrumentlocki];
+		if (iv)
+		{
+			char held = 0;
+			for (uint8_t i = 0; i < p->s->channelc; i++)
+			{
+				cv = &p->s->channelv[i];
+				if (p->s->instrumenti[cv->effectholdinst] == p->w->instrumentlocki
+						&& cv->effectholdindex == p->w->instrumentlockv - 16)
+				{ held = 1; break; }
+			}
+
+			if (!held)
+			{
+				iv->processsend[p->w->instrumentlockv - 16]
+					= iv->send[p->w->instrumentlockv - 16];
+			}
+		}
+	}
+
 
 
 	if (p->w->previewchanneltrigger) switch (p->w->previewchanneltrigger)
@@ -198,7 +228,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			for (int j = 0; j < 16; j++)
 			{
 				iv->processsend[j] = iv->send[j];
-				if (iv->send[j] && p->s->effectv[j].type > 0)
+				if (iv->send[j] && p->s->effectv[j].type)
 					lilv_instance_activate(iv->plugininstance[j]);
 			}
 		}
@@ -207,6 +237,11 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
+			if (cv->effectholdinst < 255)
+			{
+				iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
+				iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
+			}
 			cv->r.note = 0;
 		}
 
@@ -219,7 +254,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			iv = p->s->instrumentv[i];
 			for (int j = 0; j < 16; j++)
 			{
-				if (iv->processsend[j] && p->s->effectv[j].type > 0)
+				if (iv->processsend[j] && p->s->effectv[j].type)
 					lilv_instance_deactivate(iv->plugininstance[j]);
 			}
 		}
@@ -373,7 +408,7 @@ int process(jack_nframes_t nfptr, void *arg)
 						cv->rtrigsamples = p->s->spr / m;
 					} else cv->rtrigsamples = 0;
 
-					m = ifMacro(r, '1');
+					m = ifMacro(r, 'E');
 					if (m >= 0) // effect mix
 					{
 						iv = p->s->instrumentv[p->s->instrumenti[r.inst]];

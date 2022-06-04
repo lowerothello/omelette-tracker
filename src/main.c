@@ -31,8 +31,8 @@
 #define ENVELOPE_DECAY   0.025
 #define ENVELOPE_RELEASE 0.025
 
-#define RAMP_MS 10 /* only up to about 300 is safe */
-                   /* any higher risks overflows   */
+#define RAMP_MS 5 /* only up to about 300 is safe */
+                  /* any higher risks overflows   */
 
 #define PORTAMENTO_SEMITONES 0.00003 /* max speed: ~1oct a row */
 

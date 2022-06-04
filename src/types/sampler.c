@@ -122,21 +122,21 @@ void samplerAdjustUp(instrument *iv, short index)
 	sampler_state *ss = iv->state;
 	switch (index)
 	{
-		case 1: ss->c5rate = ss->c5rate * 2; break;
+		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, 1); break;
 		case 2:
-			ss->trim[0] += ss->length / 10.0;
+			ss->trim[0] += ss->length / 50.0;
 			if (ss->trim[0] > ss->length) ss->trim[0] = ss->length;
 			break;
 		case 3:
-			ss->trim[1] += ss->length / 10.0;
+			ss->trim[1] += ss->length / 50.0;
 			if (ss->trim[1] > ss->length) ss->trim[1] = ss->length;
 			break;
 		case 4:
-			ss->loop[0] += ss->length / 10.0;
+			ss->loop[0] += ss->length / 50.0;
 			if (ss->loop[0] > ss->length) ss->loop[0] = ss->length;
 			break;
 		case 5:
-			ss->loop[1] += ss->length / 10.0;
+			ss->loop[1] += ss->length / 50.0;
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
 	}
@@ -147,25 +147,25 @@ void samplerAdjustDown(instrument *iv, short index)
 	uint32_t oldpos;
 	switch (index)
 	{
-		case 1: ss->c5rate = ss->c5rate / 2; break;
+		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, -1); break;
 		case 2:
 			oldpos = ss->trim[0];
-			ss->trim[0] -= ss->length / 10.0;
+			ss->trim[0] -= ss->length / 50.0;
 			if (ss->trim[0] > oldpos) ss->trim[0] = 0;
 			break;
 		case 3:
 			oldpos = ss->trim[1];
-			ss->trim[1] -= ss->length / 10.0;
+			ss->trim[1] -= ss->length / 50.0;
 			if (ss->trim[1] > oldpos) ss->trim[1] = 0;
 			break;
 		case 4:
 			oldpos = ss->loop[0];
-			ss->loop[0] -= ss->length / 10.0;
+			ss->loop[0] -= ss->length / 50.0;
 			if (ss->loop[0] > oldpos) ss->loop[0] = 0;
 			break;
 		case 5:
 			oldpos = ss->loop[1];
-			ss->loop[1] -= ss->length / 10.0;
+			ss->loop[1] -= ss->length / 50.0;
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
 	}
@@ -176,25 +176,25 @@ void samplerAdjustLeft(instrument *iv, short index)
 	uint32_t oldpos;
 	switch (index)
 	{
-		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, -1); break;
+		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, -0.2); break;
 		case 2:
 			oldpos = ss->trim[0];
-			ss->trim[0] -= ss->length / 100.0;
+			ss->trim[0] -= ss->length / 1000.0;
 			if (ss->trim[0] > oldpos) ss->trim[0] = 0;
 			break;
 		case 3:
 			oldpos = ss->trim[1];
-			ss->trim[1] -= ss->length / 100.0;
+			ss->trim[1] -= ss->length / 1000.0;
 			if (ss->trim[1] > oldpos) ss->trim[1] = 0;
 			break;
 		case 4:
 			oldpos = ss->loop[0];
-			ss->loop[0] -= ss->length / 100.0;
+			ss->loop[0] -= ss->length / 1000.0;
 			if (ss->loop[0] > oldpos) ss->loop[0] = 0;
 			break;
 		case 5:
 			oldpos = ss->loop[1];
-			ss->loop[1] -= ss->length / 100.0;
+			ss->loop[1] -= ss->length / 1000.0;
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
 		case 6: ss->volume.a--; break;
@@ -208,21 +208,21 @@ void samplerAdjustRight(instrument *iv, short index)
 	sampler_state *ss = iv->state;
 	switch (index)
 	{
-		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, 1); break;
+		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, 0.2); break;
 		case 2:
-			ss->trim[0] += ss->length / 100.0;
+			ss->trim[0] += ss->length / 1000.0;
 			if (ss->trim[0] > ss->length) ss->trim[0] = ss->length;
 			break;
 		case 3:
-			ss->trim[1] += ss->length / 100.0;
+			ss->trim[1] += ss->length / 1000.0;
 			if (ss->trim[1] > ss->length) ss->trim[1] = ss->length;
 			break;
 		case 4:
-			ss->loop[0] += ss->length / 100.0;
+			ss->loop[0] += ss->length / 1000.0;
 			if (ss->loop[0] > ss->length) ss->loop[0] = ss->length;
 			break;
 		case 5:
-			ss->loop[1] += ss->length / 100.0;
+			ss->loop[1] += ss->length / 1000.0;
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
 		case 6: ss->volume.a++; break;
