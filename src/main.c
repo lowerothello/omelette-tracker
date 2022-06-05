@@ -31,7 +31,7 @@
 #define ENVELOPE_DECAY   0.025
 #define ENVELOPE_RELEASE 0.025
 
-#define RAMP_MS 5 /* only up to about 300 is safe */
+#define RAMP_MS 3 /* only up to about 300 is safe */
                   /* any higher risks overflows   */
 
 #define PORTAMENTO_SEMITONES 0.00003 /* max speed: ~1oct a row */
@@ -392,7 +392,10 @@ int main(int argc, char **argv)
 
 
 	if (argc > 1)
-		s = readSong(s, w, t, argv[1]);
+	{
+		song *temp = readSong(s, w, t, argv[1]);
+		if (temp) s = temp;
+	}
 
 	resize(0);
 

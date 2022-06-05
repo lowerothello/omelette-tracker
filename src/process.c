@@ -11,10 +11,10 @@ typedef struct
 
 typedef struct
 {
-	float *inl;
-	float *inr;
-	float *outl;
-	float *outr;
+	sample_t *inl;
+	sample_t *inr;
+	sample_t *outl;
+	sample_t *outr;
 } portbuffers;
 
 int ifMacro(row r, char m)
@@ -30,26 +30,38 @@ void changeBpm(song *s, uint16_t newbpm)
 	s->spr = samplerate * (60.0 / newbpm) / 4;
 }
 
-void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, instrument *iv)
+/* freewheel to fill up the ramp buffer, potential speed issues? */
+void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointeroffset)
 {
+	instrument *iv = p->s->instrumentv[realinstrument];
+	cv->rampinstrument = realinstrument;
+	cv->rampgain = cv->gain;
+	for (uint16_t i = 0; i < cv->rampmax; i++)
+	{
+		if (!cv->r.note) break;
+		t->f[iv->type].process(iv, cv, cv->samplepointer + i,
+				&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+	}
+}
+
+
+/* inst==255 for previewinstrument */
+void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, uint8_t inst)
+{
+	instrument *iv;
+	if (inst == 255)                  iv = &p->w->previewinstrument;
+	else if (p->s->instrumenti[inst]) iv = p->s->instrumentv[p->s->instrumenti[inst]];
 	/* process the type */
-	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == cv->r.inst)
 			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
 	{
-		if (cv->rtrigsamples > 0)
+		if (cv->rtrigsamples > 0 && inst < 255)
 		{
 			uint8_t oldnote = cv->r.note;
 			uint32_t rtrigoffset = (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples;
-			if (rtrigoffset == cv->rtrigsamples - 1)
+			if (rtrigoffset == 0 && cv->samplepointer > cv->rtrigpointer) /* first sample */
 			{
-				/* freewheel to fill up the ramp buffer, potential speed issues? */
-				for (uint16_t i = 0; i < cv->rampmax; i++)
-				{
-					if (!cv->r.note) { cv->r.note = oldnote; break; }
-					t->f[iv->type].process(iv, cv,
-							cv->rtrigpointer + cv->rtrigsamples + i,
-							&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-				}
+				ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
 				cv->rampindex = 0;
 			}
 			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset,
@@ -65,39 +77,42 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		*p->s->effectoutr = 0.0;
 	}
 
-	/* mix in ramp data */
-	if (cv->rampindex < cv->rampmax)
+	if (!cv->mute)
 	{
-		float rampgain = (float)cv->rampindex / (float)cv->rampmax;
-		*p->s->effectoutl = (*p->s->effectoutl * rampgain) + (cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain));
-		*p->s->effectoutr = (*p->s->effectoutr * rampgain) + (cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - rampgain));
-
-		cv->rampindex++;
-	}
-
-	/* process the effect sends */
-	if (iv)
-	{
-		float dryl = *p->s->effectoutl;
-		float dryr = *p->s->effectoutr;
-		for (int j = 0; j < 16; j++)
-			if (iv->processsend[j] && p->s->effectv[j].type)
+		/* mix in ramp data */
+		if (cv->rampindex < cv->rampmax)
+		{
+			float rampgain = (float)cv->rampindex / (float)cv->rampmax;
+			*p->s->effectoutl *= rampgain;
+			*p->s->effectoutr *= rampgain;
+			if (inst == 255) /* special case for sample preview */
 			{
-				*p->s->effectinl = *p->s->effectoutl;
-				*p->s->effectinr = *p->s->effectoutr;
-				lilv_instance_run(iv->plugininstance[j], 1); // TODO: call this bufferwise
-				float mix = (iv->processsend[j] - 1) / 15.0;
-				*p->s->effectoutl = dryl * (1.0 - mix)
-					+         *p->s->effectoutl * mix;
-				*p->s->effectoutr = dryr * (1.0 - mix)
-					+         *p->s->effectoutr * mix;
+				*p->s->effectoutl += cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain);
+				*p->s->effectoutr += cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - rampgain);
+			} else if (cv->rampinstrument)
+			{
+				instrument *jv = p->s->instrumentv[cv->rampinstrument];
+				jv->outbufferl[fptr] += cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain) * ((cv->rampgain>>4) / 16.0);
+				jv->outbufferr[fptr] += cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - rampgain) * ((cv->rampgain%16) / 16.0);
 			}
-		*p->s->effectoutl *= iv->fader[0] / 256.0;
-		*p->s->effectoutr *= iv->fader[1] / 256.0;
-	}
 
-	pb.outl[fptr] += *p->s->effectoutl * ((cv->gain>>4) / 16.0);
-	pb.outr[fptr] += *p->s->effectoutr * ((cv->gain%16) / 16.0);
+			cv->rampindex++;
+		}
+
+		/* volume macro */
+		*p->s->effectoutl *= (cv->gain>>4) / 16.0;
+		*p->s->effectoutr *= (cv->gain%16) / 16.0;
+
+		if (inst == 255) /* special case for sample preview */
+		{
+			pb.outl[fptr] += *p->s->effectoutl;
+			pb.outr[fptr] += *p->s->effectoutr;
+		} else if (iv)
+		{
+			iv->outbufferl[fptr] += *p->s->effectoutl;
+			iv->outbufferr[fptr] += *p->s->effectoutr;
+		}
+	}
 }
 
 void bendUp(channel *cv)
@@ -141,10 +156,18 @@ int process(jack_nframes_t nfptr, void *arg)
 	row r;
 	int m;
 	portbuffers pb;
-	pb.inl = jack_port_get_buffer(p->inl, nfptr);
-	pb.inr = jack_port_get_buffer(p->inr, nfptr);
+	pb.inl =  jack_port_get_buffer(p->inl, nfptr);
+	pb.inr =  jack_port_get_buffer(p->inr, nfptr);
 	pb.outl = jack_port_get_buffer(p->outl, nfptr); memset(pb.outl, 0, nfptr * sizeof(sample_t));
 	pb.outr = jack_port_get_buffer(p->outr, nfptr); memset(pb.outr, 0, nfptr * sizeof(sample_t));
+
+	/* memset instrument buffers */
+	for (uint8_t i = 1; i < p->s->instrumentc; i++)
+	{
+		iv = p->s->instrumentv[i];
+		memset(iv->outbufferl, 0, nfptr * sizeof(sample_t));
+		memset(iv->outbufferr, 0, nfptr * sizeof(sample_t));
+	}
 
 
 	/* just need to know these have been seen */
@@ -157,23 +180,34 @@ int process(jack_nframes_t nfptr, void *arg)
 	/* new default send */
 	else if (p->w->instrumentlockv > 15)
 	{
+		short index = p->w->instrumentlockv - 16;
 		p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
-		iv = p->s->instrumentv[p->w->instrumentlocki];
-		if (iv)
+
+		iv = p->s->instrumentv[p->s->instrumenti[p->w->instrumentlocki]];
+		if (iv && p->s->effectv[index].type)
 		{
 			char held = 0;
 			for (uint8_t i = 0; i < p->s->channelc; i++)
 			{
 				cv = &p->s->channelv[i];
-				if (p->s->instrumenti[cv->effectholdinst] == p->w->instrumentlocki
-						&& cv->effectholdindex == p->w->instrumentlockv - 16)
+				if (cv->effectholdinst == p->w->instrumentlocki
+						&& cv->effectholdindex == index)
 				{ held = 1; break; }
 			}
 
 			if (!held)
 			{
-				iv->processsend[p->w->instrumentlockv - 16]
-					= iv->send[p->w->instrumentlockv - 16];
+				if (p->s->playing == PLAYING_CONT)
+				{
+					/* off to on */
+					if      (!iv->processsend[index] && iv->send[index])
+						lilv_instance_activate(iv->plugininstance[index]);
+					/* on to off */
+					else if (iv->processsend[index] && !iv->send[index])
+						lilv_instance_deactivate(iv->plugininstance[index]);
+				}
+
+				iv->processsend[index] = iv->send[index];
 			}
 		}
 	}
@@ -204,13 +238,12 @@ int process(jack_nframes_t nfptr, void *arg)
 
 		case 4: // continue sample preview
 			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				playChannel(fptr, p, pb, &p->w->previewchannel,
-						&p->w->previewinstrument);
+				playChannel(fptr, p, pb, &p->w->previewchannel, 255);
 			break;
 		case 2: // continue instrument preview
 			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 				playChannel(fptr, p, pb, &p->w->previewchannel,
-						p->s->instrumentv[p->s->instrumenti[p->w->previewchannel.r.inst]]);
+						p->w->previewchannel.r.inst);
 			break;
 	}
 
@@ -228,7 +261,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			for (int j = 0; j < 16; j++)
 			{
 				iv->processsend[j] = iv->send[j];
-				if (iv->send[j] && p->s->effectv[j].type)
+				if (iv->processsend[j] && p->s->effectv[j].type)
 					lilv_instance_activate(iv->plugininstance[j]);
 			}
 		}
@@ -237,7 +270,7 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
-			if (cv->effectholdinst < 255)
+			if (cv->effectholdinst < 255 && p->s->instrumenti[cv->effectholdinst])
 			{
 				iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
 				iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
@@ -253,10 +286,8 @@ int process(jack_nframes_t nfptr, void *arg)
 		{
 			iv = p->s->instrumentv[i];
 			for (int j = 0; j < 16; j++)
-			{
 				if (iv->processsend[j] && p->s->effectv[j].type)
 					lilv_instance_deactivate(iv->plugininstance[j]);
-			}
 		}
 
 		p->dirty = 1;
@@ -305,9 +336,9 @@ int process(jack_nframes_t nfptr, void *arg)
 							break;
 						case 254:
 							/* clear the rampbuffer so cruft isn't played in edge cases */
-							memset(cv->rampbuffer, 0, sizeof(float) * cv->rampmax * 2);
+							memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 							if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-									&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
+									&& p->w->instrumentlocki == cv->r.inst))
 							{
 								iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 								if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
@@ -333,24 +364,14 @@ int process(jack_nframes_t nfptr, void *arg)
 							} else
 							{
 								/* clear the rampbuffer so cruft isn't played in edge cases */
-								memset(cv->rampbuffer, 0, sizeof(float) * cv->rampmax * 2);
+								memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 								if (cv->r.note) /* old note, ramp it out */
 								{
 									if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-											&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
-									{
-										iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-										if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
-										{
-											/* freewheel to fill up the ramp buffer, potential speed issues? */
-											for (uint16_t i = 0; i < cv->rampmax; i++)
-											{
-												if (!cv->r.note) break;
-												t->f[iv->type].process(iv, cv, cv->samplepointer + i,
-														&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-											}
-										}
-									}
+											&& p->w->instrumentlocki == cv->r.inst)
+											&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
+											&& t->f[iv->type].process)
+										ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
 								}
 								cv->rampindex = 0; /* set this even if it's not populated */
 								cv->r.inst = r.inst;
@@ -378,9 +399,9 @@ int process(jack_nframes_t nfptr, void *arg)
 							if (!r.note)
 							{
 								/* clear the rampbuffer so cruft isn't played in edge cases */
-								memset(cv->rampbuffer, 0, sizeof(float) * cv->rampmax * 2);
+								memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 								if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-										&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
+										&& p->w->instrumentlocki == cv->r.inst))
 								{
 									iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 									if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
@@ -412,7 +433,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					if (m >= 0) // effect mix
 					{
 						iv = p->s->instrumentv[p->s->instrumenti[r.inst]];
-						if (iv)
+						if (iv && p->s->effectv[m>>4].type)
 						{
 							/* off to on */
 							if      (!iv->processsend[cv->effectholdindex] && m%16)
@@ -428,7 +449,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					} else if (cv->effectholdinst < 255) /* reset the state */
 					{
 						iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
-						if (iv)
+						if (iv && p->s->effectv[m>>4].type)
 						{
 							/* off to on */
 							if      (!iv->processsend[cv->effectholdindex] && iv->send[cv->effectholdindex])
@@ -453,7 +474,6 @@ int process(jack_nframes_t nfptr, void *arg)
 			for (uint8_t c = 0; c < p->s->channelc; c++)
 			{
 				cv = &p->s->channelv[c];
-				iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 
 				if (cv->portamento)
 				{
@@ -470,7 +490,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					}
 				}
 
-				playChannel(fptr, p, pb, cv, iv);
+				playChannel(fptr, p, pb, cv, cv->r.inst);
 			}
 
 
@@ -532,6 +552,38 @@ int process(jack_nframes_t nfptr, void *arg)
 						p->dirty = 1;
 					}
 			}
+		}
+	}
+
+	/* final mixdown */
+	float mix;
+	for (uint8_t i = 1; i < p->s->instrumentc; i++)
+	{
+		iv = p->s->instrumentv[i];
+
+		/* walk over each effect */
+		for (int j = 0; j < 16; j++)
+		{
+			effect *le = &p->s->effectv[i];
+			if (!le->type || !iv->processsend[j]) continue;
+
+			mix = (iv->processsend[i] - 1) / 15.0;
+			memcpy(p->s->effectinl, iv->outbufferl, sizeof(sample_t) * nfptr);
+			memcpy(p->s->effectinr, iv->outbufferr, sizeof(sample_t) * nfptr);
+			lilv_instance_run(iv->plugininstance[j], nfptr);
+			/* dry/wet mixing */
+			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+			{
+				iv->outbufferl[fptr] = p->s->effectinl[fptr] * (1.0 - mix) + p->s->effectoutl[fptr] * mix;
+				iv->outbufferr[fptr] = p->s->effectinr[fptr] * (1.0 - mix) + p->s->effectoutr[fptr] * mix;
+			}
+		}
+
+		/* fader and output */
+		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+		{
+			pb.outl[fptr] = iv->outbufferl[fptr] * iv->fader[0] / 256.0;
+			pb.outr[fptr] = iv->outbufferr[fptr] * iv->fader[1] / 256.0;
 		}
 	}
 

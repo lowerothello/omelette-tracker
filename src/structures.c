@@ -33,38 +33,41 @@ typedef struct /* TODO: move into instrument_sampler.c */
 
 typedef struct
 {
-	char     mute;            /* saved to disk */
-	uint32_t samplepointer;   /* progress through the sample */
-	uint32_t sampleoffset;    /* point to base samplepointer off of */
-	uint32_t releasepointer;  /* 0 for no release, where releasing started */
-	uint8_t  gain;            /* two 4bit uints, one for each channel */
-	row      r;
-	float    cents;           /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
-	uint8_t  portamento;      /* portamento target, 255 for off */
-	uint8_t  portamentospeed; /* portamento m */
-	uint16_t rtrigsamples;    /* samples per retrigger */
-	uint32_t rtrigpointer;    /* sample ptr to ratchet back to */
-	uint8_t  effectholdinst;  /* 255 for no hold */
-	uint8_t  effectholdindex;
+	char      mute;            /* saved to disk */
+	uint32_t  samplepointer;   /* progress through the sample */
+	uint32_t  sampleoffset;    /* point to base samplepointer off of */
+	uint32_t  releasepointer;  /* 0 for no release, where releasing started */
+	uint8_t   gain;            /* two 4bit uints, one for each channel */
+	row       r;
+	float     cents;           /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
+	uint8_t   portamento;      /* portamento target, 255 for off */
+	uint8_t   portamentospeed; /* portamento m */
+	uint16_t  rtrigsamples;    /* samples per retrigger */
+	uint32_t  rtrigpointer;    /* sample ptr to ratchet back to */
+	uint8_t   effectholdinst;  /* 255 for no hold */
+	uint8_t   effectholdindex;
 
-	uint16_t rampindex;       /* progress through the ramp buffer, rampmax if not ramping */
-	uint16_t rampmax;         /* length of the ramp buffer */
-	float   *rampbuffer;      /* samples to ramp out */
+	uint16_t  rampindex;       /* progress through the ramp buffer, rampmax if not ramping */
+	uint16_t  rampmax;         /* length of the ramp buffer */
+	sample_t *rampbuffer;      /* samples to ramp out */
+	uint8_t   rampinstrument;  /* old instrument, realindex */
+	uint8_t   rampgain;        /* old gain */
 } channel;
 
 typedef struct
 {
-	uint8_t  type;
-	uint8_t  typefollow;         /* follows the type, set once state is guaranteed to be mallocced */
-	short   *sampledata;         /* variable size, persists between types */
-	uint32_t samplelength;       /* raw samples allocated for sampledata */
-	void    *state;              /* instrument working memory */
-	char     lock;
-	uint8_t  fader[2];
-	char     send[16];           /* [0-15][0-15] are used */
-	char     processsend[16];    /* takes priority over send, set and used in process */
-	void    *plugininstance[16]; /* pointer to an instance of a plugin type */
-	char     pluginactive[16];   /* actual active status, follows send */
+	uint8_t       type;
+	uint8_t       typefollow;         /* follows the type, set once state is guaranteed to be mallocced */
+	short        *sampledata;         /* variable size, persists between types */
+	uint32_t      samplelength;       /* raw samples allocated for sampledata */
+	void         *state;              /* instrument working memory */
+	char          lock;
+	uint8_t       fader[2];
+	char          send[16];           /* [0-15][0-15] are used */
+	char          processsend[16];    /* takes priority over send */
+	LilvInstance *plugininstance[16]; /* pointer to an lv2 instance */
+	sample_t     *outbufferl;
+	sample_t     *outbufferr;
 } instrument;
 
 #define LV2_TYPE_INPUT 0
@@ -119,8 +122,9 @@ typedef struct
 	instrument  instrumentbuffer;        /* instrument yank buffer */
 
 	effect      effectv[16];             /* effect values */
-	float      *effectinl, *effectinr;   /* effect inputs */
-	float      *effectoutl, *effectoutr; /* effect outputs */
+	sample_t   *effectinl, *effectinr;   /* effect inputs */
+	sample_t   *effectoutl, *effectoutr; /* effect outputs */
+	sample_t   *effectdryl, *effectdryr; /* effect dry */
 
 	uint8_t     channelc;                /* channel count */
 	channel     channelv[64];            /* channel values */
@@ -320,10 +324,10 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 	}
 
 	LilvInstance *li = lilv_plugin_instantiate(plugin, samplerate, NULL);
-	if (li == NULL)
+	if (!li)
 	{
 		strcpy(w->command.error, "plugin failed to instantiate");
-		s->effectv[index].type = 0;
+		le->type = 0;
 		return;
 	}
 	if (s->instrumentc > 1) /* any instruments at all */
@@ -479,7 +483,7 @@ void _addChannel(channel *cv)
 {
 	cv->rampmax = samplerate / 1000 * RAMP_MS;
 	cv->rampindex = cv->rampmax;
-	cv->rampbuffer = malloc(sizeof(float) * cv->rampmax * 2); /* *2 for stereo */
+	cv->rampbuffer = malloc(sizeof(sample_t) * cv->rampmax * 2); /* *2 for stereo */
 }
 int addChannel(song *s, uint8_t index)
 {
@@ -650,14 +654,13 @@ int delPattern(song *s, uint8_t index)
 
 
 
-
-
+/* forceindex is a realindex */
 int changeInstrumentType(song *s, window *w, typetable *t, uint8_t forceindex)
 {
 	uint8_t i;
 	if (!forceindex)
 		if (w->instrumentlockv == INST_GLOBAL_LOCK_FREE)
-			i = w->instrumentlocki;
+			i = s->instrumenti[w->instrumentlocki];
 		else return 0;
 	else i = forceindex;
 
@@ -686,6 +689,8 @@ int _addInstrument(song *s, uint8_t realindex)
 {
 	s->instrumentv[realindex] = calloc(1, sizeof(instrument));
 	if (s->instrumentv[realindex] == NULL) return 1;
+	s->instrumentv[realindex]->outbufferl = calloc(sizeof(sample_t), buffersize);
+	s->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
 	return 0;
 }
 void _instantiateInstrumentEffect(song *s, uint8_t realindex)
@@ -740,6 +745,7 @@ void _instantiateInstrumentEffect(song *s, uint8_t realindex)
 		}
 	}
 }
+
 int addInstrument(song *s, window *w, typetable *t, uint8_t index)
 {
 	if (s->instrumenti[index] > 0) return 1; /* index occupied */
@@ -777,15 +783,16 @@ int yankInstrument(song *s, window *w, uint8_t index)
 	if (s->instrumenti[index] == 0) return 1; /* nothing to yank */
 
 	if (s->instrumentbuffer.samplelength > 0)
-		free(s->instrumentbuffer.sampledata);
+	{ free(s->instrumentbuffer.sampledata); s->instrumentbuffer.sampledata = NULL; }
 	if (s->instrumentbuffer.state)
 	{ free(s->instrumentbuffer.state); s->instrumentbuffer.state = NULL; }
 
-	memcpy(&s->instrumentbuffer,
-		s->instrumentv[s->instrumenti[index]],
-		sizeof(instrument));
+	s->instrumentbuffer.type = s->instrumentv[s->instrumenti[index]]->type;
+	s->instrumentbuffer.samplelength = s->instrumentv[s->instrumenti[index]]->samplelength;
+	memcpy(s->instrumentbuffer.fader, s->instrumentv[s->instrumenti[index]]->fader, sizeof(uint8_t) * 2);
+	memcpy(s->instrumentbuffer.send,  s->instrumentv[s->instrumenti[index]]->send,  sizeof(char) * 16);
 
-	if (s->instrumentv[s->instrumenti[index]]->samplelength > 0)
+	if (s->instrumentbuffer.samplelength > 0)
 	{
 		s->instrumentbuffer.sampledata =
 			malloc(s->instrumentv[s->instrumenti[index]]->samplelength);
@@ -801,23 +808,12 @@ int yankInstrument(song *s, window *w, uint8_t index)
 			s->instrumentv[s->instrumenti[index]]->samplelength);
 	}
 
-	if (s->instrumentv[s->instrumenti[index]]->state != NULL)
+	if (s->instrumentv[s->instrumenti[index]]->state)
 	{
 		switch (s->instrumentbuffer.type)
 		{
-			case 0: s->instrumentbuffer.state = malloc(sizeof(sampler_state)); break;
-		}
-
-		if (!s->instrumentbuffer.state)
-		{
-			free(s->instrumentbuffer.sampledata);
-			strcpy(w->command.error, "failed to yank instrument, out of memory");
-			return 1;
-		}
-
-		switch (s->instrumentbuffer.type)
-		{
 			case 0:
+				s->instrumentbuffer.state = malloc(sizeof(sampler_state));
 				memcpy(s->instrumentbuffer.state,
 					s->instrumentv[s->instrumenti[index]]->state,
 					sizeof(sampler_state));
@@ -844,9 +840,24 @@ int putInstrument(song *s, window *w, typetable *t, uint8_t index)
 		s->instrumentv[s->instrumenti[index]]->sampledata = NULL;
 	}
 
-	memcpy(s->instrumentv[s->instrumenti[index]],
-		&s->instrumentbuffer,
-		sizeof(instrument));
+	s->instrumentv[s->instrumenti[index]]->type = s->instrumentbuffer.type;
+	s->instrumentv[s->instrumenti[index]]->samplelength = s->instrumentbuffer.samplelength;
+	memcpy(s->instrumentv[s->instrumenti[index]]->fader, s->instrumentbuffer.fader, sizeof(uint8_t) * 2);
+	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send,  sizeof(char) * 16);
+	changeInstrumentType(s, w, t, s->instrumenti[index]); /* is this safe to force? */
+
+	if (s->instrumentv[s->instrumenti[index]]->state)
+	{
+		switch (s->instrumentbuffer.type)
+		{
+			case 0:
+				memcpy(s->instrumentv[s->instrumenti[index]]->state,
+					s->instrumentbuffer.state,
+					sizeof(sampler_state));
+				break;
+		}
+	}
+
 
 	if (s->instrumentbuffer.samplelength > 0)
 	{
@@ -864,8 +875,6 @@ int putInstrument(song *s, window *w, typetable *t, uint8_t index)
 			s->instrumentbuffer.samplelength);
 	}
 
-	_instantiateInstrumentEffect(s, index);
-
 	return 0;
 }
 int delInstrument(song *s, uint8_t index)
@@ -880,16 +889,16 @@ int delInstrument(song *s, uint8_t index)
 		free(s->instrumentv[cutIndex]->state);
 	if (s->instrumentv[cutIndex]->samplelength > 0)
 		free(s->instrumentv[cutIndex]->sampledata);
+	free(s->instrumentv[cutIndex]->outbufferl);
+	free(s->instrumentv[cutIndex]->outbufferr);
 
-	for (int i = 0; i < 16; i++)
-	{
-		if (s->effectv[i].type > 0) switch (s->effectv[i].type)
+	for (short i = 0; i < 16; i++)
+		switch (s->effectv[i].type)
 		{
 			case 2:
 				lilv_instance_free(s->instrumentv[cutIndex]->plugininstance[i]);
 				break;
 		}
-	}
 
 	free(s->instrumentv[cutIndex]);
 	s->instrumentv[cutIndex] = NULL;
@@ -906,8 +915,6 @@ int delInstrument(song *s, uint8_t index)
 	s->instrumentc--;
 	return 0;
 }
-
-
 
 
 
@@ -1038,11 +1045,15 @@ song *_addSong(song *s, window *w)
 
 	memset(s->songi, 255, sizeof(uint8_t) * 256);
 
-	s->effectinl = calloc(sizeof(float), buffersize);
-	s->effectinr = calloc(sizeof(float), buffersize);
-	s->effectoutl = calloc(sizeof(float), buffersize);
-	s->effectoutr = calloc(sizeof(float), buffersize);
-	if (!s->effectinl || !s->effectinr || !s->effectoutl || !s->effectoutr)
+	s->effectinl = calloc(sizeof(sample_t), buffersize);
+	s->effectinr = calloc(sizeof(sample_t), buffersize);
+	s->effectoutl = calloc(sizeof(sample_t), buffersize);
+	s->effectoutr = calloc(sizeof(sample_t), buffersize);
+	s->effectdryl = calloc(sizeof(sample_t), buffersize);
+	s->effectdryr = calloc(sizeof(sample_t), buffersize);
+	if (       !s->effectinl  || !s->effectinr
+			|| !s->effectoutl || !s->effectoutr
+			|| !s->effectdryl || !s->effectdryr)
 	{
 		free(s);
 		return NULL;
@@ -1067,6 +1078,8 @@ void delSong(song *s)
 	free(s->effectinr);
 	free(s->effectoutl);
 	free(s->effectoutr);
+	free(s->effectdryl);
+	free(s->effectdryr);
 
 	for (int i = 0; i < s->channelc; i++)
 		free(s->channelv[i].rampbuffer);
@@ -1080,16 +1093,16 @@ void delSong(song *s)
 			free(s->instrumentv[i]->sampledata);
 		if (s->instrumentv[i]->state)
 			free(s->instrumentv[i]->state);
+		free(s->instrumentv[i]->outbufferl);
+		free(s->instrumentv[i]->outbufferr);
 
 		for (int j = 0; j < 16; j++)
-		{
-			if (s->effectv[j].type > 0) switch (s->effectv[j].type)
+			switch (s->effectv[j].type)
 			{
 				case 2:
 					lilv_instance_free(s->instrumentv[i]->plugininstance[j]);
 					break;
 			}
-		}
 
 		free(s->instrumentv[i]);
 	}
@@ -1326,12 +1339,14 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 		if (s->instrumentv[i]->samplelength > 0)
 		{
 			short *sampledata = malloc(sizeof(short) * s->instrumentv[i]->samplelength);
-			if (sampledata == NULL) // malloc failed
+			if (!sampledata) // malloc failed
 			{
 				strcpy(w->command.error, "some sample data failed to load, out of memory");
+				fseek(fp, s->instrumentv[i]->samplelength, SEEK_CUR);
 				continue;
 			}
-			fread(sampledata, sizeof(short), s->instrumentv[i]->samplelength, fp);
+			fread(sampledata, sizeof(short), s->instrumentv[i]->samplelength, fp); /* <<< this sometimes segfaults */
+			printf("DEBUG\n");
 			s->instrumentv[i]->sampledata = sampledata;
 		}
 	}
