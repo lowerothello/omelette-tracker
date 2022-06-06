@@ -106,7 +106,7 @@ void redraw(void)
 
 int commandCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	if      (!strcmp(buffer, "q"))  { free(buffer); buffer = NULL; return 1; }
 	else if (!strcmp(buffer, "q!")) { free(buffer); buffer = NULL; return 1; }
@@ -241,6 +241,7 @@ void cleanup(int ret)
 
 	free(w);
 	delSong(s);
+	free(p);
 
 	lilv_node_free(lv2.inputport);
 	lilv_node_free(lv2.outputport);
@@ -268,7 +269,7 @@ int main(int argc, char **argv)
 
 	/* jack stuffs */
 	p = malloc(sizeof(playbackinfo));
-	if (p == NULL)
+	if (!p)
 	{
 		printf("out of memory");
 		common_cleanup(1);
@@ -278,6 +279,7 @@ int main(int argc, char **argv)
 	if (client == NULL)
 	{
 		printf("failed to init the jack client");
+		free(p);
 		common_cleanup(1);
 	}
 
@@ -294,6 +296,7 @@ int main(int argc, char **argv)
 	if (w == NULL)
 	{
 		printf("out of memory");
+		free(p);
 		common_cleanup(1);
 	}
 	w->octave = 4;
@@ -303,6 +306,7 @@ int main(int argc, char **argv)
 	{
 		printf("out of memory");
 		free(w);
+		free(p);
 		common_cleanup(1);
 	}
 
@@ -316,9 +320,8 @@ int main(int argc, char **argv)
 
 	w->previewchannel.gain = 255;
 	w->previewinstrument.type = 0;
-	sampler_state *ss = w->previewinstrument.state;
-	ss = malloc(sizeof(sampler_state));
-	if (ss == NULL)
+	w->previewinstrument.state = malloc(sizeof(sampler_state));
+	if (!w->previewinstrument.state)
 	{
 		printf("out of memory");
 		jack_deactivate(client);
@@ -326,9 +329,11 @@ int main(int argc, char **argv)
 
 		free(w);
 		delSong(s);
+		free(p);
 
 		common_cleanup(1);
 	}
+	sampler_state *ss = w->previewinstrument.state;
 	ss->volume.s = 255;
 
 
@@ -353,6 +358,7 @@ int main(int argc, char **argv)
 
 		free(w);
 		delSong(s);
+		free(p);
 
 		common_cleanup(1);
 	}

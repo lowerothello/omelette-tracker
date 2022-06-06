@@ -53,7 +53,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	else if (p->s->instrumenti[inst]) iv = p->s->instrumentv[p->s->instrumenti[inst]];
 	/* process the type */
 	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == cv->r.inst)
-			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
 	{
 		if (cv->rtrigsamples > 0 && inst < 255)
 		{
@@ -161,7 +161,7 @@ int process(jack_nframes_t nfptr, void *arg)
 	pb.outl = jack_port_get_buffer(p->outl, nfptr); memset(pb.outl, 0, nfptr * sizeof(sample_t));
 	pb.outr = jack_port_get_buffer(p->outr, nfptr); memset(pb.outr, 0, nfptr * sizeof(sample_t));
 
-	/* memset instrument buffers */
+	/* clear instrument buffers */
 	for (uint8_t i = 1; i < p->s->instrumentc; i++)
 	{
 		iv = p->s->instrumentv[i];
@@ -260,9 +260,9 @@ int process(jack_nframes_t nfptr, void *arg)
 			iv = p->s->instrumentv[i];
 			for (int j = 0; j < 16; j++)
 			{
-				iv->processsend[j] = iv->send[j];
 				if (iv->processsend[j] && p->s->effectv[j].type)
 					lilv_instance_activate(iv->plugininstance[j]);
+				iv->processsend[j] = iv->send[j];
 			}
 		}
 
@@ -449,7 +449,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					} else if (cv->effectholdinst < 255) /* reset the state */
 					{
 						iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
-						if (iv && p->s->effectv[m>>4].type)
+						if (iv && p->s->effectv[cv->effectholdindex].type)
 						{
 							/* off to on */
 							if      (!iv->processsend[cv->effectholdindex] && iv->send[cv->effectholdindex])
@@ -556,7 +556,7 @@ int process(jack_nframes_t nfptr, void *arg)
 	}
 
 	/* final mixdown */
-	float mix;
+	float wetmix, drymix;
 	for (uint8_t i = 1; i < p->s->instrumentc; i++)
 	{
 		iv = p->s->instrumentv[i];
@@ -564,26 +564,37 @@ int process(jack_nframes_t nfptr, void *arg)
 		/* walk over each effect */
 		for (int j = 0; j < 16; j++)
 		{
-			effect *le = &p->s->effectv[i];
+			effect *le = &p->s->effectv[j];
 			if (!le->type || !iv->processsend[j]) continue;
 
-			mix = (iv->processsend[i] - 1) / 15.0;
+			if (iv->processsend[j] == 8)
+			{
+				wetmix = 1.0; drymix = 1.0;
+			} else if (iv->processsend[j] > 8)
+			{
+				wetmix = 1.0;
+				drymix = 1.0 - (iv->processsend[j] - 9) / 7.0;
+			} else
+			{
+				wetmix = (iv->processsend[j] - 1) / 7.0;
+				drymix = 1.0;
+			}
 			memcpy(p->s->effectinl, iv->outbufferl, sizeof(sample_t) * nfptr);
 			memcpy(p->s->effectinr, iv->outbufferr, sizeof(sample_t) * nfptr);
 			lilv_instance_run(iv->plugininstance[j], nfptr);
 			/* dry/wet mixing */
 			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				iv->outbufferl[fptr] = p->s->effectinl[fptr] * (1.0 - mix) + p->s->effectoutl[fptr] * mix;
-				iv->outbufferr[fptr] = p->s->effectinr[fptr] * (1.0 - mix) + p->s->effectoutr[fptr] * mix;
+				iv->outbufferl[fptr] = p->s->effectinl[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
+				iv->outbufferr[fptr] = p->s->effectinr[fptr] * drymix + p->s->effectoutr[fptr] * wetmix;
 			}
 		}
 
 		/* fader and output */
 		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			pb.outl[fptr] = iv->outbufferl[fptr] * iv->fader[0] / 256.0;
-			pb.outr[fptr] = iv->outbufferr[fptr] * iv->fader[1] / 256.0;
+			pb.outl[fptr] += iv->outbufferl[fptr] * iv->fader[0] / 256.0;
+			pb.outr[fptr] += iv->outbufferr[fptr] * iv->fader[1] / 256.0;
 		}
 	}
 

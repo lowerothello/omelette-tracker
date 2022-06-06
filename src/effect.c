@@ -290,7 +290,7 @@ void effectAdjustRight(window *w, effect *ev, short index)
 int effectListSearchEnd(char *input, unsigned char *mode)
 {
 	if (w->search) free(w->search);
-	w->search = malloc(strlen(input));
+	w->search = malloc(strlen(input) + 1);
 	strcpy(w->search, input);
 
 	char *buffer = malloc(strlen(w->search) + 1);
@@ -370,28 +370,32 @@ void effectInput(int input)
 			switch (input)
 			{
 				case 10: case 13: /* return */
-					switch (w->effectindex)
+					if (w->effectindex > MIN_EFFECT_INDEX)
 					{
-						case MIN_EFFECT_INDEX:
-							/* break;
-						case MIN_EFFECT_INDEX + 1: */
-							w->popup = 4;
-							w->command.error[0] = '\0';
-							redraw();
-							break;
-						default:
-							/* handle toggle buttons */
-							effect *le = &s->effectv[w->effect];
-							if (le->controlv[w->effectindex - 1].toggled)
-							{
-								if (le->controlv[w->effectindex - 1].value > 0.5)
-									le->controlv[w->effectindex - 1].value = 0.0;
-								else
-									le->controlv[w->effectindex - 1].value = 1.0;
-							}
-							redraw();
-							break;
+						/* handle toggle buttons */
+						effect *le = &s->effectv[w->effect];
+						if (le->controlv[w->effectindex - 1].toggled)
+						{
+							if (le->controlv[w->effectindex - 1].value > 0.5)
+								le->controlv[w->effectindex - 1].value = 0.0;
+							else
+								le->controlv[w->effectindex - 1].value = 1.0;
+						}
+						redraw();
 					}
+					break;
+				case 'a': /* add */
+					if (w->effectindex == MIN_EFFECT_INDEX)
+					{
+						w->popup = 4;
+						w->command.error[0] = '\0';
+						redraw();
+					}
+					break;
+				case 'd': /* delete */
+					if (w->effectindex == MIN_EFFECT_INDEX)
+						_unloadLv2Effect(s, w->effect);
+					redraw();
 					break;
 				case '\033':
 					switch (getchar())

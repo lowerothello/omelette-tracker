@@ -235,7 +235,7 @@ void samplerAdjustRight(instrument *iv, short index)
 
 int samplerAmplifyCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -254,8 +254,8 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 }
 int samplerAkaizerCallback3(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
-	char *altbuffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
+	char *altbuffer = malloc(strlen(command) + 1);
 	wordSplit(altbuffer, command, 0);
 	exportSample(s, t, w->instrument, "/tmp/omelette.wav");
 	snprintf(buffer, COMMAND_LENGTH, "akaizer /tmp/omelette.wav %d %d %d",
@@ -286,7 +286,7 @@ int samplerAkaizerCallback3(char *command, unsigned char *mode)
 }
 int samplerAkaizerCallback2(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	w->akaizercyclelength = strtol(buffer, NULL, 0);
 	setCommand(&w->command, &samplerAkaizerCallback3, NULL, 0, "Akaizer transpose [-24 to +24]: ", "0");
@@ -296,7 +296,7 @@ int samplerAkaizerCallback2(char *command, unsigned char *mode)
 }
 int samplerAkaizerCallback1(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	w->akaizertimefactor = strtol(buffer, NULL, 0);
 	setCommand(&w->command, &samplerAkaizerCallback2, NULL, 0, "Akaizer cycle length [20 to 2000]: ", "1000");
@@ -306,7 +306,7 @@ int samplerAkaizerCallback1(char *command, unsigned char *mode)
 }
 int samplerLameCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	exportSample(s, t, w->instrument, "/tmp/omelette.wav");
 	snprintf(buffer, COMMAND_LENGTH, "lame -b%d /tmp/omelette.wav",
@@ -329,7 +329,7 @@ int samplerLameCallback(char *command, unsigned char *mode)
 }
 int samplerResampleCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	long newrate = strtol(buffer, NULL, 0);
 

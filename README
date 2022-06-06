@@ -243,10 +243,18 @@ MACROS:
 // Oxx: offset
 	start the triggered sample at xx 255ths through
 Exy: effect mix
-	x    is the effect index to target
-	y/16 is the new mix
+	x is the effect index to target
 	the inst field sets the target
 	mix will revert to default once the row is over
+
+	y is the new mix (
+		0 - off (instance disabled)
+		1234567 - dry:      100%
+				  wet:   0%-100%
+		8 - dry/wet: 100%
+		9abcdef - dry: 100%-  0%
+				  wet:      100%
+	)
 
 
 

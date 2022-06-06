@@ -384,7 +384,7 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 
 int changeBpmCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	s->songbpm = min16(max16(strtol(buffer, NULL, 0), 32), 10000); /* above 41343 at 44100hz causes a float exception */
 	w->request = REQ_BPM; /* update if playing */
@@ -393,7 +393,7 @@ int changeBpmCallback(char *command, unsigned char *mode)
 }
 int changePatternLengthCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	s->patternv[s->patterni[s->songi[w->songfx]]]->rowc = (uint8_t)strtol(buffer, NULL, 0);
 	s->defpatternlength = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
@@ -404,7 +404,7 @@ int changePatternLengthCallback(char *command, unsigned char *mode)
 }
 int changeRowHighlightCallback(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command));
+	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	s->rowhighlight = strtol(buffer, NULL, 0);
 	free(buffer); buffer = NULL;

@@ -282,7 +282,7 @@ lilv lv2;
 /* only replaces the first instance of *find */
 void strrep(char *s, char *find, char *replace)
 {
-	char *buffer = malloc(strlen(s));
+	char *buffer = malloc(strlen(s) + 1);
 	char *pos = strstr(s, find);
 	if (pos)
 	{
@@ -298,14 +298,13 @@ void strrep(char *s, char *find, char *replace)
 	free(buffer);
 }
 
-void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
+void _unloadLv2Effect(song *s, int index)
 {
 	effect *le = &s->effectv[index];
-	/* TODO: stop using the effect before freeing */
-	if (le->type) /* unload any current effect */
+	if (le->type)
 	{
+		le->type = 0;
 		lv2control *lc;
-
 		for (uint32_t i = 0; i < le->controlc; i++)
 		{
 			lc = &le->controlv[i];
@@ -322,6 +321,13 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 		for (uint8_t i = 1; i < s->instrumentc; i++)
 			lilv_instance_free(s->instrumentv[i]->plugininstance[index]);
 	}
+}
+void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
+{
+	/* TODO: stop using the effect before freeing */
+	_unloadLv2Effect(s, index);
+
+	effect *le = &s->effectv[index];
 
 	LilvInstance *li = lilv_plugin_instantiate(plugin, samplerate, NULL);
 	if (!li)
@@ -387,17 +393,17 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 					render = lilv_world_get(lv2.world, unit, lv2.render, NULL);
 					if (render)
 					{
-						lc->format = malloc(strlen((char *)lilv_node_as_string(render)));
-						strcpy(lc->format, (char *)lilv_node_as_string(render));
+						lc->format = malloc(strlen(lilv_node_as_string(render)) + 1);
+						strcpy(lc->format, lilv_node_as_string(render));
 					} else
 					{
-						lc->format = malloc(strlen("%f"));
+						lc->format = malloc(strlen("%f") + 1);
 						strcpy(lc->format, "%f");
 					}
 					lilv_node_free(render);
 				} else
 				{
-					lc->format = malloc(strlen("%f"));
+					lc->format = malloc(strlen("%f") + 1);
 					strcpy(lc->format, "%f");
 				}
 				lilv_nodes_free(units);
@@ -477,6 +483,9 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 			le->audioc++;
 		}
 	}
+	free(min);
+	free(max);
+	free(def);
 }
 
 void _addChannel(channel *cv)
@@ -549,7 +558,6 @@ int yankChannel(song *s, uint8_t index)
 	for (uint8_t i = 0; i < s->patternc; i++)
 		if (s->channelbuffer[i])
 		{
-			DEBUG=8;
 			memcpy(s->channelbuffer[i],
 				s->patternv[i]->rowv[index],
 				sizeof(row) * 256);
@@ -567,9 +575,6 @@ int putChannel(song *s, uint8_t index)
 	s->channelv[index].mute = s->channelbuffermute;
 	return 0;
 }
-
-
-
 
 
 /* memory for addPattern */
@@ -688,7 +693,7 @@ int changeInstrumentType(song *s, window *w, typetable *t, uint8_t forceindex)
 int _addInstrument(song *s, uint8_t realindex)
 {
 	s->instrumentv[realindex] = calloc(1, sizeof(instrument));
-	if (s->instrumentv[realindex] == NULL) return 1;
+	if (!s->instrumentv[realindex]) return 1;
 	s->instrumentv[realindex]->outbufferl = calloc(sizeof(sample_t), buffersize);
 	s->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
 	return 0;
@@ -790,7 +795,7 @@ int yankInstrument(song *s, window *w, uint8_t index)
 	s->instrumentbuffer.type = s->instrumentv[s->instrumenti[index]]->type;
 	s->instrumentbuffer.samplelength = s->instrumentv[s->instrumenti[index]]->samplelength;
 	memcpy(s->instrumentbuffer.fader, s->instrumentv[s->instrumenti[index]]->fader, sizeof(uint8_t) * 2);
-	memcpy(s->instrumentbuffer.send,  s->instrumentv[s->instrumenti[index]]->send,  sizeof(char) * 16);
+	memcpy(s->instrumentbuffer.send,  s->instrumentv[s->instrumenti[index]]->send, 1 * 16);
 
 	if (s->instrumentbuffer.samplelength > 0)
 	{
@@ -843,7 +848,7 @@ int putInstrument(song *s, window *w, typetable *t, uint8_t index)
 	s->instrumentv[s->instrumenti[index]]->type = s->instrumentbuffer.type;
 	s->instrumentv[s->instrumenti[index]]->samplelength = s->instrumentbuffer.samplelength;
 	memcpy(s->instrumentv[s->instrumenti[index]]->fader, s->instrumentbuffer.fader, sizeof(uint8_t) * 2);
-	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send,  sizeof(char) * 16);
+	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send, 1 * 16);
 	changeInstrumentType(s, w, t, s->instrumenti[index]); /* is this safe to force? */
 
 	if (s->instrumentv[s->instrumenti[index]]->state)
@@ -1085,7 +1090,13 @@ void delSong(song *s)
 		free(s->channelv[i].rampbuffer);
 
 	for (int i = 1; i < s->patternc; i++)
+	{
+		free(s->channelbuffer[i]);
 		free(s->patternv[i]);
+	}
+
+	for (int i = 0; i < 16; i++)
+		_unloadLv2Effect(s, i);
 
 	for (int i = 1; i < s->instrumentc; i++)
 	{
@@ -1106,27 +1117,6 @@ void delSong(song *s)
 
 		free(s->instrumentv[i]);
 	}
-
-	for (int i = 0; i < 16; i++)
-		if (s->effectv[i].type)
-		{
-			effect *le = &s->effectv[i];
-			lv2control *lc;
-
-			if (le->controlc > 0) for (uint32_t j = 0; j < le->controlc; j++)
-			{
-				lc = &le->controlv[j];
-				free(lc->format);
-				if (lc->enumerate)
-				{
-					free(lc->scalelabel);
-					free(lc->scalevalue);
-				}
-			}
-
-			free(le->controlv);
-			free(le->audiov);
-		}
 
 	free(s);
 }
@@ -1217,13 +1207,32 @@ int writeSong(song *s, window *w, char *path)
 
 		fputc(s->instrumentv[i]->fader[0], fp);
 		fputc(s->instrumentv[i]->fader[1], fp);
-		fwrite(&s->instrumentv[i]->send, sizeof(char), 16, fp);
+		fwrite(&s->instrumentv[i]->send, 1, 16, fp);
 		fwrite(&s->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
 		if (s->instrumentv[i]->samplelength > 0)
 			fwrite(s->instrumentv[i]->sampledata, sizeof(short), s->instrumentv[i]->samplelength, fp);
 	}
-	fclose(fp);
 
+	/* effectv */
+	for (i = 0; i < 16; i++)
+	{
+		fputc(s->effectv[i].type, fp);
+		if (s->effectv[i].type)
+		{
+			/* plugin uri */
+			const LilvNode *uri = lilv_plugin_get_uri(s->effectv[i].plugin);
+			const char *uristring = lilv_node_as_string(uri);
+			fputc(strlen(uristring), fp); /* assume the uri is never longer than 255 chars */
+			fwrite(uristring, 1, strlen(uristring), fp);
+
+			/* control port values */
+			for (int j = 0; j < s->effectv[i].indexc; j++)
+				fwrite(&s->effectv[i].controlv[j].value, sizeof(float), 1, fp);
+		}
+	}
+
+
+	fclose(fp);
 	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", path);
 	return 0;
 }
@@ -1231,9 +1240,16 @@ int writeSong(song *s, window *w, char *path)
 song *readSong(song *s, window *w, typetable *t, char *path)
 {
 	FILE *fp = fopen(path, "rb");
-	if (fp == NULL) // file doesn't exist, or fopen otherwise failed
+	if (!fp) // file doesn't exist, or fopen otherwise failed
 	{
 		snprintf(w->command.error, COMMAND_LENGTH, "File '%s' doesn't exist", path);
+		return NULL;
+	}
+	DIR *dp = opendir(path);
+	if (dp) // file is a directory
+	{
+		closedir(dp);
+		snprintf(w->command.error, COMMAND_LENGTH, "File '%s' is a directory", path);
 		return NULL;
 	}
 
@@ -1334,7 +1350,7 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 
 		s->instrumentv[i]->fader[0] = fgetc(fp);
 		s->instrumentv[i]->fader[1] = fgetc(fp);
-		fread(&s->instrumentv[i]->send, sizeof(char), 16, fp);
+		fread(&s->instrumentv[i]->send, 1, 16, fp);
 		fread(&s->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
 		if (s->instrumentv[i]->samplelength > 0)
 		{
@@ -1345,11 +1361,36 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 				fseek(fp, s->instrumentv[i]->samplelength, SEEK_CUR);
 				continue;
 			}
+
 			fread(sampledata, sizeof(short), s->instrumentv[i]->samplelength, fp); /* <<< this sometimes segfaults */
-			printf("DEBUG\n");
 			s->instrumentv[i]->sampledata = sampledata;
 		}
 	}
+
+	/* effectv */
+	for (i = 0; i < 16; i++)
+	{
+		s->effectv[i].type = fgetc(fp);
+		if (s->effectv[i].type)
+		{
+			/* plugin uri */
+			unsigned char urilen = fgetc(fp);
+			char uristring[urilen];
+
+			fread(uristring, 1, urilen, fp);
+			uristring[urilen] = '\0';
+
+			LilvNode *uri = lilv_new_uri(lv2.world, uristring);
+			loadLv2Effect(s, w, i, lilv_plugins_get_by_uri(lv2.plugins, uri));
+			lilv_node_free(uri);
+
+			/* control port values */
+			for (int j = 0; j < s->effectv[i].indexc; j++)
+				fread(&s->effectv[i].controlv[j].value, sizeof(float), 1, fp);
+		}
+	}
+
+
 	fclose(fp);
 	return s;
 }
