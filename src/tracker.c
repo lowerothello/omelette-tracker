@@ -245,10 +245,10 @@ int drawChannel(uint8_t pattern, uint8_t channel, uint8_t screenpos)
 	{
 		instrument *iv = s->instrumentv[s->instrumenti[s->channelv[channel].r.inst]];
 		if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].getOffset != NULL)
-			printf("\033[%d;%dHOffset  O%02x", ws.ws_row - 1, x + 1, t->f[iv->type].getOffset(iv, &s->channelv[channel]));
+			printf("\033[%d;%dHO%02x", ws.ws_row - 1, x + 5, t->f[iv->type].getOffset(iv, &s->channelv[channel]));
 		else
-			printf("\033[%d;%dHOffset  O00", ws.ws_row - 1, x + 1);
-	} else printf("\033[%d;%dHOffset  O00", ws.ws_row - 1, x + 1);
+			printf("\033[%d;%dHO00", ws.ws_row - 1, x + 5);
+	} else printf("\033[%d;%dHO00", ws.ws_row - 1, x + 5);
 	
 	return 0;
 }
@@ -298,6 +298,16 @@ void trackerRedraw(void)
 
 	y = w->centre + w->fyoffset;
 	x = w->trackercelloffset + LINENO_COLS + ROW_COLS * (w->channel - w->channeloffset) + w->fieldpointer;
+
+	/* ruler */
+	printf("\033[%d;%dH[%02x] %02x,%02x  ", ws.ws_row, ws.ws_col - 43,
+			w->songfx, w->trackerfy, w->channel);
+	if (s->playing == PLAYING_STOP)
+		printf("(stopped)    ");
+	else
+		printf("([%02x] %02x)    ", s->songp, s->songr);
+	printf("&%d +%x   B%02x  (B%02x)", w->octave, 0, s->songbpm, s->bpm);
+
 	switch (w->mode)
 	{
 		case 0: /* pattern */
@@ -386,7 +396,7 @@ int changeBpmCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
-	s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 256);
+	s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
 	w->request = REQ_BPM; /* update if playing */
 	free(buffer); buffer = NULL;
 	return 0;
@@ -417,7 +427,7 @@ int trackerInput(int input)
 	switch (input)
 	{
 		case 2: /* ^B, change bpm */
-			snprintf(buffer, COMMAND_LENGTH, "%d", s->songbpm);
+			snprintf(buffer, COMMAND_LENGTH, "0x%x", s->songbpm);
 			setCommand(&w->command, &changeBpmCallback, NULL, 0, "New bpm: ", buffer);
 			w->mode = 255;
 			redraw();
@@ -435,9 +445,13 @@ int trackerInput(int input)
 			w->mode = 255;
 			redraw();
 			break;
+		case 15: /* ^O, toggle current pattern loop */
+			s->songa[w->songfx] = !s->songa[w->songfx];
+			redraw();
+			break;
 		case 9: /* tab */
 			if (w->mode) w->mode = 0;
-			else              w->mode = 1;
+			else         w->mode = 1;
 			redraw();
 			break;
 		case '\033': /* escape */
@@ -690,8 +704,8 @@ int trackerInput(int input)
 									{
 										if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
 										{
-											w->songfx++;
 											w->trackerfy -= s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1;
+											w->songfx++;
 										} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
 									}
 
@@ -1069,12 +1083,7 @@ int trackerInput(int input)
 							break;
 						case 'l':
 							if (s->songi[w->songfx] != 255)
-							{
-								if (s->songa[w->songfx] == 1)
-									s->songa[w->songfx] = 0;
-								else
-									s->songa[w->songfx] = 1;
-							}
+								s->songa[w->songfx] = !s->songa[w->songfx];
 							break;
 						case 'n':
 							if (s->songi[w->songfx] != 255)

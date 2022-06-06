@@ -24,7 +24,7 @@ int ifMacro(row r, char m)
 	return -1;
 }
 
-void changeBpm(song *s, uint16_t newbpm)
+void changeBpm(song *s, uint8_t newbpm)
 {
 	s->bpm = newbpm;
 	s->spr = samplerate * (60.0 / newbpm) / 4;
@@ -579,14 +579,30 @@ int process(jack_nframes_t nfptr, void *arg)
 				wetmix = (iv->processsend[j] - 1) / 7.0;
 				drymix = 1.0;
 			}
-			memcpy(p->s->effectinl, iv->outbufferl, sizeof(sample_t) * nfptr);
-			memcpy(p->s->effectinr, iv->outbufferr, sizeof(sample_t) * nfptr);
-			lilv_instance_run(iv->plugininstance[j], nfptr);
-			/* dry/wet mixing */
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-			{
-				iv->outbufferl[fptr] = p->s->effectinl[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
-				iv->outbufferr[fptr] = p->s->effectinr[fptr] * drymix + p->s->effectoutr[fptr] * wetmix;
+
+			if (le->inputc < 2 || le->outputc < 2)
+			{ /* mono plugin */
+				for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+					p->s->effectinl[fptr] = (iv->outbufferl[fptr] + iv->outbufferr[fptr]) / 2.0;
+				memset(p->s->effectinr, 0, sizeof(sample_t) * nfptr);
+				lilv_instance_run(iv->plugininstance[j], nfptr);
+
+				for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+				{
+					iv->outbufferl[fptr] = iv->outbufferl[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
+					iv->outbufferr[fptr] = iv->outbufferr[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
+				}
+			} else
+			{ /* stereo plugin */
+				memcpy(p->s->effectinl, iv->outbufferl, sizeof(sample_t) * nfptr);
+				memcpy(p->s->effectinr, iv->outbufferr, sizeof(sample_t) * nfptr);
+				lilv_instance_run(iv->plugininstance[j], nfptr);
+
+				for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+				{
+					iv->outbufferl[fptr] = iv->outbufferl[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
+					iv->outbufferr[fptr] = iv->outbufferr[fptr] * drymix + p->s->effectoutr[fptr] * wetmix;
+				}
 			}
 		}
 

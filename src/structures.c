@@ -139,8 +139,8 @@ typedef struct
 
 	uint8_t     rowhighlight;
 	uint8_t     defpatternlength;        /* only here cos window isn't defined yet */
-	uint16_t    bpm;
-	uint16_t    songbpm;                 /* to store the song's bpm through bpm change macros */
+	uint8_t    bpm;
+	uint8_t    songbpm;                 /* to store the song's bpm through bpm change macros */
 	uint32_t    spr;                     /* samples per row (samplerate * (60 / bpm) / 4) */
 	uint32_t    sprp;                    /* samples per row progress */
 	char        playing;
@@ -1143,7 +1143,7 @@ int writeSong(song *s, window *w, char *path)
 	fseek(fp, 0x4, SEEK_SET);
 
 	/* counts */
-	fwrite(&s->songbpm, sizeof(uint16_t), 1, fp);
+	fwrite(&s->songbpm, sizeof(uint8_t), 1, fp);
 	fputc(s->patternc, fp);
 	fputc(s->instrumentc, fp);
 	fputc(s->channelc, fp);
@@ -1278,7 +1278,7 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 	strcpy(w->filepath, path);
 
 	/* counts */
-	fread(&s->songbpm, sizeof(uint16_t), 1, fp);
+	fread(&s->songbpm, sizeof(uint8_t), 1, fp);
 	w->request = REQ_BPM;
 
 	s->patternc = fgetc(fp);
