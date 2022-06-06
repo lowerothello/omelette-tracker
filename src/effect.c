@@ -41,7 +41,7 @@ void effectRedraw(void)
 				} else switch (ev->type)
 				{
 					case 2:
-						printf("\033[%d;%dH(%.*s)", y + 1, x + maxshort(2, (INSTRUMENT_TYPE_COLS - strlen(ev->name)) / 2), INSTRUMENT_TYPE_COLS - 4, ev->name);
+						printf("\033[%d;%ldH(%.*s)", y + 1, x + MAX(2, (INSTRUMENT_TYPE_COLS - strlen(ev->name)) / 2), INSTRUMENT_TYPE_COLS - 4, ev->name);
 
 						unsigned short maxnamewidth = 0, maxvaluewidth = 1;
 						char valuebuffer[128];

@@ -386,7 +386,7 @@ int changeBpmCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
-	s->songbpm = min16(max16(strtol(buffer, NULL, 0), 32), 10000); /* above 41343 at 44100hz causes a float exception */
+	s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 256);
 	w->request = REQ_BPM; /* update if playing */
 	free(buffer); buffer = NULL;
 	return 0;
@@ -705,8 +705,7 @@ int trackerInput(int input)
 										if (x < w->songcelloffset) /* left */
 											w->songfx = w->songoffset;
 										else if (x > ws.ws_col - w->songcelloffset) /* right */
-											w->songfx = min8(255,
-												w->songoffset + w->songvisible) - 1;
+											w->songfx = MIN(255, w->songoffset + w->songvisible) - 1;
 										else /* middle */
 											w->songfx = (x + 1 - w->songcelloffset + w->songoffset * SONG_COLS) / SONG_COLS;
 										break;
@@ -717,9 +716,9 @@ int trackerInput(int input)
 
 									if (button == BUTTON1 || button == BUTTON3)
 									{
-										if (x > w->trackercelloffset + ROW_COLS * min8(w->visiblechannels, s->channelc))
+										if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
 										{ /* right edge */
-											w->channel = min8(w->channeloffset + w->visiblechannels, s->channelc) - 1;
+											w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
 											w->trackerfx = 5;
 										} else if (x < w->trackercelloffset + LINENO_COLS - 3)
 										{ /* left edge */

@@ -11,7 +11,6 @@ TODO: description
 ### dev notes ###
 TODO:
 -> main
-	^ command line args
 	^ remove input.c, it's kinda stupid
 	^ undo buffers
 -> playback
@@ -22,8 +21,6 @@ TODO:
 	^ test retaining relative instrument params after processing
 	^ changing type forfeits state immediately; allow for storing multiple types in memory (not disk)?
 -> effects
-	^ apply plugins to instruments as per the mixing rules
-	^ temporary mixing rule macro
 
 some eq10q mono plugins segfault on load, not sure why
 
@@ -33,10 +30,6 @@ can i properly index a VERY long sample with multiple channels and still fit in 
 
 MACROS
 * either 2 char macros or 1 short macro
-* colour macroc and macrov differently
-* maybe both macrovs have the same colour?
-* maybe the number of macro columns can be set in a declare?
-	* maybe even at runtime, on a per-mod basis?
 
 tracker:
 >  00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D   0E
@@ -229,12 +222,11 @@ MACROS:
 // Mxy: channel multiplier
 	x is the volume for the left channel
 	y is the volume for the right channel
-// Rxx: s&h retrigger
-	xx is the number of slices in the row
-	(xx < 2) does nothing
+// Rxy: s&h retrigger
+	y is the number of slices in the block
+	(y < 2) does nothing
 	->	will ratchet the current point in the sample
-		and continue as if nothing happened after the row
-	->	audio rate
+		and continue as if nothing happened after the block
 // Sxy: note delay and cut
 		x is the delay before triggering
 		x only applies if the note field is populated
@@ -242,7 +234,7 @@ MACROS:
 		(y == 0) will NOT cut, use ^^^ for this
 // Oxx: offset
 	start the triggered sample at xx 255ths through
-Exy: effect mix
+// Exy: effect mix
 	x is the effect index to target
 	the inst field sets the target
 	mix will revert to default once the row is over

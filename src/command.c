@@ -69,7 +69,7 @@ void pushHistory(command_t *command)
 int getHistory(command_t *command, unsigned short index)
 {
 	if (command->historyc < 0) return 1;
-	if (index > minushort(command->historyc, HISTORY_LENGTH)) return 1; /* too far back in time */
+	if (index > MIN(command->historyc, HISTORY_LENGTH)) return 1; /* too far back in time */
 
 	strcpy(command->command, command->historyv[(command->historyc - index) % HISTORY_LENGTH]);
 	return 0;

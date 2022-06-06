@@ -320,10 +320,10 @@ int samplerLameCallback(char *command, unsigned char *mode)
 	iv->sampledata = _loadSample("/tmp/omelette.mp3", &sfinfo);
 
 	ss->length = sfinfo.frames;
-	ss->trim[0] = min32(sfinfo.frames, ss->trim[0]);
-	ss->trim[1] = min32(sfinfo.frames, ss->trim[1]);
-	ss->loop[0] = min32(sfinfo.frames, ss->loop[0]);
-	ss->loop[1] = min32(sfinfo.frames, ss->loop[1]);
+	ss->trim[0] = MIN(sfinfo.frames, ss->trim[0]);
+	ss->trim[1] = MIN(sfinfo.frames, ss->trim[1]);
+	ss->loop[0] = MIN(sfinfo.frames, ss->loop[0]);
+	ss->loop[1] = MIN(sfinfo.frames, ss->loop[1]);
 	free(buffer); buffer = NULL;
 	return 0;
 }
@@ -450,8 +450,8 @@ void samplerInput(int *input)
 					{
 						sampler_state *ss = iv->state;
 						uint32_t newlen
-							= max32(ss->trim[0], ss->trim[1])
-							- min32(ss->trim[0], ss->trim[1]);
+							= MAX(ss->trim[0], ss->trim[1])
+							- MIN(ss->trim[0], ss->trim[1]);
 
 						/* malloc a new buffer */
 						short *sampledata = malloc(sizeof(short) * newlen * ss->channels);
@@ -461,7 +461,7 @@ void samplerInput(int *input)
 							break;
 						}
 
-						uint32_t startOffset = min32(ss->trim[0], ss->trim[1]);
+						uint32_t startOffset = MIN(ss->trim[0], ss->trim[1]);
 						memcpy(sampledata, iv->sampledata+startOffset, newlen * ss->channels);
 
 						free(iv->sampledata); iv->sampledata = NULL;
