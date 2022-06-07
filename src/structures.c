@@ -44,6 +44,7 @@ typedef struct
 	uint8_t   portamentospeed; /* portamento m */
 	uint16_t  rtrigsamples;    /* samples per retrigger */
 	uint32_t  rtrigpointer;    /* sample ptr to ratchet back to */
+	uint8_t   rtrigblocksize;  /* number of rows block extends to */
 	uint8_t   effectholdinst;  /* 255 for no hold */
 	uint8_t   effectholdindex;
 
@@ -95,7 +96,7 @@ typedef struct
 
 typedef struct
 {
-	uint8_t           type;            /* 0:empty, 2:lv2 */
+	unsigned char     type;            /* 0:empty, 2:lv2 */
 	uint32_t          indexc;
 	const LilvPlugin *plugin;
 	const char       *name;
@@ -111,39 +112,42 @@ typedef struct
 #define PLAYING_PREP_STOP 3
 typedef struct
 {
-	uint8_t     patternc;                /* pattern count */
-	uint8_t     patterni[256];           /* pattern backref */
-	pattern    *patternv[256];           /* pattern values */
-	pattern     patternbuffer;           /* pattern yank buffer */
+	uint8_t         patternc;                /* pattern count */
+	uint8_t         patterni[256];           /* pattern backref */
+	pattern        *patternv[256];           /* pattern values */
+	pattern         patternbuffer;           /* pattern yank buffer */
 
-	uint8_t     instrumentc;             /* instrument count */
-	uint8_t     instrumenti[256];        /* instrument backref */
-	instrument *instrumentv[256];        /* instrument values */
-	instrument  instrumentbuffer;        /* instrument yank buffer */
+	uint8_t         instrumentc;             /* instrument count */
+	uint8_t         instrumenti[256];        /* instrument backref */
+	instrument     *instrumentv[256];        /* instrument values */
+	instrument      instrumentbuffer;        /* instrument yank buffer */
 
-	effect      effectv[16];             /* effect values */
-	sample_t   *effectinl, *effectinr;   /* effect inputs */
-	sample_t   *effectoutl, *effectoutr; /* effect outputs */
-	sample_t   *effectdryl, *effectdryr; /* effect dry */
+	effect          effectv[16];             /* effect values */
+	sample_t       *effectinl, *effectinr;   /* effect inputs */
+	sample_t       *effectoutl, *effectoutr; /* effect outputs */
+	sample_t       *effectdryl, *effectdryr; /* effect dry */
+	unsigned char   effectbuffertype;        /* effect yank buffer */
+	const LilvNode *effectbufferlv2uri;
+	float          *effectbufferlv2values;
 
-	uint8_t     channelc;                /* channel count */
-	channel     channelv[64];            /* channel values */
-	row        *channelbuffer[64];       /* channel yank buffer */
-	char        channelbuffermute;
+	uint8_t         channelc;                /* channel count */
+	channel         channelv[64];            /* channel values */
+	row            *channelbuffer[64];       /* channel yank buffer */
+	char            channelbuffermute;
 
-	uint8_t     songi[256];              /* song list backref, links to patterns */
-	uint8_t     songa[256];              /* song list attributes */
+	uint8_t         songi[256];              /* song list backref, links to patterns */
+	uint8_t         songa[256];              /* song list attributes */
 
-	uint8_t     songp;                   /* song pos, analogous to window->songfx */
-	uint16_t    songr;                   /* song row, analogous to window->trackerfy */
+	uint8_t         songp;                   /* song pos, analogous to window->songfx */
+	uint16_t        songr;                   /* song row, analogous to window->trackerfy */
 
-	uint8_t     rowhighlight;
-	uint8_t     defpatternlength;        /* only here cos window isn't defined yet */
-	uint8_t    bpm;
-	uint8_t    songbpm;                 /* to store the song's bpm through bpm change macros */
-	uint32_t    spr;                     /* samples per row (samplerate * (60 / bpm) / 4) */
-	uint32_t    sprp;                    /* samples per row progress */
-	char        playing;
+	uint8_t         rowhighlight;
+	uint8_t         defpatternlength;        /* only here cos window isn't defined yet */
+	uint8_t         bpm;
+	uint8_t         songbpm;                 /* to store the song's bpm through bpm change macros */
+	uint32_t        spr;                     /* samples per row (samplerate * (60 / bpm) / 4) */
+	uint32_t        sprp;                    /* samples per row progress */
+	char            playing;
 } song;
 
 
@@ -175,6 +179,7 @@ typedef struct
 	uint8_t        channeloffset, visiblechannels;
 
 	short          trackerfy, trackerfx;
+	short          visualfy, visualfx, visualchannel;
 	unsigned short trackercelloffset;
 	short          instrumentindex;
 	uint8_t        instrument;            /* focused instrument */
@@ -486,6 +491,41 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 	free(min);
 	free(max);
 	free(def);
+}
+void yankEffect(song *s, int index)
+{
+	effect *le = &s->effectv[index];
+	switch (le->type)
+	{
+		case 0: /* nothing */
+			s->effectbuffertype = 0;
+			break;
+		case 2: /* lv2 */
+			s->effectbuffertype = 2;
+			if (s->effectbufferlv2values)
+				free(s->effectbufferlv2values);
+
+			s->effectbufferlv2uri = lilv_plugin_get_uri(le->plugin);
+			s->effectbufferlv2values = malloc(sizeof(float) * le->indexc);
+			for (int i = 0; i < le->indexc; i++)
+				s->effectbufferlv2values[i] = le->controlv[i].value;
+			break;
+	}
+}
+void putEffect(song *s, window *w, int index)
+{
+	switch (s->effectbuffertype)
+	{
+		case 0: /* nothing */
+			_unloadLv2Effect(s, index);
+			break;
+		case 2: /* lv2 */
+			loadLv2Effect(s, w, index, lilv_plugins_get_by_uri(lv2.plugins, s->effectbufferlv2uri));
+			effect *le = &s->effectv[index];
+			for (int i = 0; i < le->indexc; i++)
+				le->controlv[i].value = s->effectbufferlv2values[i];
+			break;
+	}
 }
 
 void _addChannel(channel *cv)
@@ -1097,6 +1137,8 @@ void delSong(song *s)
 
 	for (int i = 0; i < 16; i++)
 		_unloadLv2Effect(s, i);
+	if (s->effectbufferlv2values)
+		free(s->effectbufferlv2values);
 
 	for (int i = 1; i < s->instrumentc; i++)
 	{

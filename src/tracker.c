@@ -47,6 +47,7 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
+		case 'B': case 'b': *dest = 'B'; break;
 		case 'E': case 'e': *dest = 'E'; break;
 		case 'M': case 'm': *dest = 'M'; break;
 		case 'O': case 'o': *dest = 'O'; break;
@@ -135,42 +136,237 @@ int drawChannel(uint8_t pattern, uint8_t channel, uint8_t screenpos)
 		if (w->centre - w->trackerfy + i > 4 && w->centre - w->trackerfy + i < ws.ws_row - 1)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
+
+			void startVisual(signed char fieldpointer)
+			{
+				if (w->mode == 1 && channel == MIN(w->visualchannel, w->channel))
+				{
+					if (w->visualchannel == w->channel)
+					{
+						if (       i >= MIN(w->visualfy, w->trackerfy)
+								&& i <= MAX(w->visualfy, w->trackerfy)
+								&& MIN(w->visualfx, w->trackerfx) == fieldpointer)
+							printf("\033[2;7m");
+					} else if (i >= MIN(w->visualfy, w->trackerfy)
+							&& i <= MAX(w->visualfy, w->trackerfy)
+							&& (w->visualchannel <= w->channel ? w->visualfx : w->trackerfx) == fieldpointer)
+						printf("\033[2;7m");
+				}
+			}
+			void stopVisual(signed char fieldpointer)
+			{
+				if (w->mode == 1 && channel == MAX(w->visualchannel, w->channel))
+				{
+					if (w->visualchannel == w->channel)
+					{
+						if (       i >= MIN(w->visualfy, w->trackerfy)
+								&& i <= MAX(w->visualfy, w->trackerfy)
+								&& MAX(w->visualfx, w->trackerfx) == fieldpointer)
+						{
+							printf("\033[27m");
+							if (!s->channelv[channel].mute) printf("\033[22m");
+						}
+					} else if (i >= MIN(w->visualfy, w->trackerfy)
+							&& i <= MAX(w->visualfy, w->trackerfy)
+							&& (w->visualchannel >= w->channel ? w->visualfx : w->trackerfx) == fieldpointer)
+					{
+						printf("\033[27m");
+						if (!s->channelv[channel].mute) printf("\033[22m");
+					}
+				}
+			}
+			int ifVisual(signed char fieldpointer)
+			{
+				if (w->mode == 1
+						&& channel >= MIN(w->visualchannel, w->channel)
+						&& channel <= MAX(w->visualchannel, w->channel))
+				{
+					if (w->visualchannel == w->channel)
+					{
+						if (       i >= MIN(w->visualfy, w->trackerfy)
+								&& i <= MAX(w->visualfy, w->trackerfy)
+								&& fieldpointer >= MIN(w->visualfx, w->trackerfx)
+								&& fieldpointer <= MAX(w->visualfx, w->trackerfx))
+							return 1;
+					} else
+					{
+						if (channel > MIN(w->visualchannel, w->channel)
+								&& channel < MAX(w->visualchannel, w->channel))
+							return 1;
+						else if (channel == MIN(w->visualchannel, w->channel))
+						{
+							if (       i >= MIN(w->visualfy, w->trackerfy)
+									&& i <= MAX(w->visualfy, w->trackerfy)
+									&& fieldpointer >= (w->visualchannel <= w->channel ? w->visualfx : w->trackerfx))
+								return 1;
+						} else if (channel == MAX(w->visualchannel, w->channel))
+						{
+							if (       i >= MIN(w->visualfy, w->trackerfy)
+									&& i <= MAX(w->visualfy, w->trackerfy)
+									&& fieldpointer <= (w->visualchannel >= w->channel ? w->visualfx : w->trackerfx))
+								return 1;
+						}
+					}
+				}
+				return 0;
+			}
+
+			/* special attributes */
+			if (s->channelv[channel].mute) printf("\033[2m");
+			if (w->mode == 1
+					&& channel > MIN(w->visualchannel, w->channel)
+					&& channel <= MAX(w->visualchannel, w->channel)
+					&& i >= MIN(w->visualfy, w->trackerfy)
+					&& i <= MAX(w->visualfy, w->trackerfy))
+				printf("\033[2;7m");
+
 			r = s->patternv[s->patterni[pattern]]->rowv[channel][i];
 
+			startVisual(0);
 			noteToString(r.note, altbuffer);
 			snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
-			{ if (r.note) printf(buffer); else printf("..."); }
+			if (r.note)
+			{
+				if (ifVisual(0) && !s->channelv[channel].mute)
+				{
+					printf("\033[22m");
+					printf(buffer);
+					printf("\033[2m");
+				} else printf(buffer);
+			} else printf("...");
+			stopVisual(0);
+
 			printf(" ");
+
+			startVisual(1);
 			snprintf(buffer, 16, "\033[33m%02x\033[37m", r.inst);
-			{ if (r.inst < 255) printf(buffer); else printf(".."); }
+			if (r.inst < 255)
+			{
+				if (ifVisual(1) && !s->channelv[channel].mute)
+				{
+					printf("\033[22m");
+					printf(buffer);
+					printf("\033[2m");
+				} else printf(buffer);
+			} else printf("..");
+			stopVisual(1);
+
 			printf(" ");
+
+			startVisual(2);
 			if (isdigit(r.macroc[0])) /* different colour for instrument macros */
 			{
 				snprintf(buffer, 16, "\033[31m%c\033[37m", r.macroc[0]);
-				{ if (r.macroc[0]) printf(buffer); else printf("."); }
-				snprintf(buffer, 16, "\033[31m%02x\033[37m", r.macrov[0]);
-				{ if (r.macroc[0]) printf(buffer); else printf(".."); }
+				if (r.macroc[0])
+				{
+					if (ifVisual(2) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf(".");
 			} else
 			{
 				snprintf(buffer, 16, "\033[34m%c\033[37m", r.macroc[0]);
-				{ if (r.macroc[0]) printf(buffer); else printf("."); }
-				snprintf(buffer, 16, "\033[34m%02x\033[37m", r.macrov[0]);
-				{ if (r.macroc[0]) printf(buffer); else printf(".."); }
+				if (r.macroc[0])
+				{
+					if (ifVisual(2) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf(".");
 			}
+			stopVisual(2);
+
+			startVisual(3);
+			if (isdigit(r.macroc[0])) /* different colour for instrument macros */
+			{
+				snprintf(buffer, 16, "\033[31m%02x\033[37m", r.macrov[0]);
+				if (r.macroc[0])
+				{
+					if (ifVisual(3) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf("..");
+			} else
+			{
+				snprintf(buffer, 16, "\033[34m%02x\033[37m", r.macrov[0]);
+				if (r.macroc[0])
+				{
+					if (ifVisual(3) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf("..");
+			}
+			stopVisual(3);
+
 			printf(" ");
+
+			startVisual(4);
 			if (isdigit(r.macroc[1])) /* different colour for instrument macros */
 			{
 				snprintf(buffer, 16, "\033[31m%c\033[37m", r.macroc[1]);
-				{ if (r.macroc[1]) printf(buffer); else printf("."); }
-				snprintf(buffer, 16, "\033[31m%02x\033[37m", r.macrov[1]);
-				{ if (r.macroc[1]) printf(buffer); else printf(".."); }
+				if (r.macroc[1])
+				{
+					if (ifVisual(4) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf(".");
 			} else
 			{
 				snprintf(buffer, 16, "\033[35m%c\033[37m", r.macroc[1]);
-				{ if (r.macroc[1]) printf(buffer); else printf("."); }
-				snprintf(buffer, 16, "\033[35m%02x\033[37m", r.macrov[1]);
-				{ if (r.macroc[1]) printf(buffer); else printf(".."); }
+				if (r.macroc[1])
+				{
+					if (ifVisual(4) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf(".");
 			}
+			stopVisual(4);
+
+			startVisual(5);
+			if (isdigit(r.macroc[1])) /* different colour for instrument macros */
+			{
+				snprintf(buffer, 16, "\033[31m%02x\033[37m", r.macrov[1]);
+				if (r.macroc[1])
+				{
+					if (ifVisual(5) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf("..");
+			} else
+			{
+				snprintf(buffer, 16, "\033[35m%02x\033[37m", r.macrov[1]);
+				if (r.macroc[1])
+				{
+					if (ifVisual(5) && !s->channelv[channel].mute)
+					{
+						printf("\033[22m");
+						printf(buffer);
+						printf("\033[2m");
+					} else printf(buffer);
+				} else printf("..");
+			}
+
+			printf("\033[m"); /* always clear all attributes */
 
 			if (s->rowhighlight > 0 && i % s->rowhighlight == 0)
 				printf(" * ");
@@ -189,20 +385,20 @@ int drawChannel(uint8_t pattern, uint8_t channel, uint8_t screenpos)
 				[s->patternv[s->patterni[s->songi[w->songfx - 1]]]->rowc - c];
 
 			noteToString(r.note, buffer);
-			{ if (r.note) printf(buffer); else printf("..."); }
+			if (r.note) printf(buffer); else printf("...");
 			printf(" ");
 			snprintf(buffer, 16, "%02x", r.inst);
-			{ if (r.inst < 255) printf(buffer); else printf(".."); }
+			if (r.inst < 255) printf(buffer); else printf("..");
 			printf(" ");
 			snprintf(buffer, 16, "%c", r.macroc[0]);
-			{ if (r.macroc[0]) printf(buffer); else printf("."); }
+			if (r.macroc[0]) printf(buffer); else printf(".");
 			snprintf(buffer, 16, "%02x", r.macrov[0]);
-			{ if (r.macroc[0]) printf(buffer); else printf(".."); }
+			if (r.macroc[0]) printf(buffer); else printf("..");
 			printf(" ");
 			snprintf(buffer, 16, "%c", r.macroc[1]);
-			{ if (r.macroc[1]) printf(buffer); else printf("."); }
+			if (r.macroc[1]) printf(buffer); else printf(".");
 			snprintf(buffer, 16, "%02x", r.macrov[1]);
-			{ if (r.macroc[1]) printf(buffer); else printf(".."); }
+			if (r.macroc[1]) printf(buffer); else printf("..");
 
 			printf("\033[m");
 
@@ -220,20 +416,20 @@ int drawChannel(uint8_t pattern, uint8_t channel, uint8_t screenpos)
 			r = s->patternv[s->patterni[s->songi[w->songfx + 1]]]->rowv[channel][c];
 
 			noteToString(r.note, buffer);
-			{ if (r.note) printf(buffer); else printf("..."); }
+			if (r.note) printf(buffer); else printf("...");
 			printf(" ");
 			snprintf(buffer, 16, "%02x", r.inst);
-			{ if (r.inst < 255) printf(buffer); else printf(".."); }
+			if (r.inst < 255) printf(buffer); else printf("..");
 			printf(" ");
 			snprintf(buffer, 16, "%c", r.macroc[0]);
-			{ if (r.macroc[0]) printf(buffer); else printf("."); }
+			if (r.macroc[0]) printf(buffer); else printf(".");
 			snprintf(buffer, 16, "%02x", r.macrov[0]);
-			{ if (r.macroc[0]) printf(buffer); else printf(".."); }
+			if (r.macroc[0]) printf(buffer); else printf("..");
 			printf(" ");
 			snprintf(buffer, 16, "%c", r.macroc[1]);
-			{ if (r.macroc[1]) printf(buffer); else printf("."); }
+			if (r.macroc[1]) printf(buffer); else printf(".");
 			snprintf(buffer, 16, "%02x", r.macrov[1]);
-			{ if (r.macroc[1]) printf(buffer); else printf(".."); }
+			if (r.macroc[1]) printf(buffer); else printf("..");
 
 			printf("\033[m");
 
@@ -310,6 +506,9 @@ void trackerRedraw(void)
 
 	switch (w->mode)
 	{
+		case 1: /* visual */
+			printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row);
+			w->command.error[0] = '\0';
 		case 0: /* pattern */
 			if (s->songi[w->songfx] != 255)
 				switch (w->trackerfx)
@@ -323,7 +522,7 @@ void trackerRedraw(void)
 				}
 			else printf("\033[%d;%ldH", w->centre, (ws.ws_col - strlen("(invalid pattern)")) / 2 + 1);
 			break;
-		case 1: /* song */
+		case 2: /* song */
 			printf("\033[%d;0H\033[1m-- SONG --\033[m", ws.ws_row);
 			w->command.error[0] = '\0';
 			printf("\033[2;%dH", w->songcelloffset + (w->songfx - w->songoffset) * SONG_COLS + 1 + w->fieldpointer);
@@ -396,8 +595,10 @@ int changeBpmCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
+	char update = 0;
+	if (s->songbpm == s->bpm) update = 1;
 	s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
-	w->request = REQ_BPM; /* update if playing */
+	if (update) w->request = REQ_BPM; /* update if playing */
 	free(buffer); buffer = NULL;
 	return 0;
 }
@@ -449,9 +650,20 @@ int trackerInput(int input)
 			s->songa[w->songfx] = !s->songa[w->songfx];
 			redraw();
 			break;
+		case 22: /* ^V, toggle visual mode */
+			if (w->mode == 0)
+			{
+				w->visualfx = w->trackerfx;
+				w->visualfy = w->trackerfy;
+				w->visualchannel = w->channel;
+				w->mode = 1;
+			} else if (w->mode == 1)
+				w->mode = 0;
+			redraw();
+			break;
 		case 9: /* tab */
-			if (w->mode) w->mode = 0;
-			else         w->mode = 1;
+			if (w->mode == 2) w->mode = 0;
+			else              w->mode = 2;
 			redraw();
 			break;
 		case '\033': /* escape */
@@ -481,7 +693,7 @@ int trackerInput(int input)
 					switch (getchar())
 					{
 						case 'A': /* up arrow */
-							if (w->mode == 1 || s->songi[w->songfx] == 255) break;
+							if (w->mode == 2 || s->songi[w->songfx] == 255) break;
 							w->trackerfy--;
 							if (w->trackerfy < 0)
 							{
@@ -494,7 +706,7 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case 'B': /* down arrow */
-							if (w->mode == 1) { w->mode = 0; redraw(); break; }
+							if (w->mode == 2) { w->mode = 0; redraw(); break; }
 							if (s->songi[w->songfx] == 255) break;
 							w->trackerfy++;
 							if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
@@ -510,7 +722,7 @@ int trackerInput(int input)
 						case 'D': /* left arrow */
 							switch (w->mode)
 							{
-								case 0:
+								case 0: case 1:
 									if (s->songi[w->songfx] == 255) break;
 
 									if (w->fieldpointer) w->fieldpointer--;
@@ -536,7 +748,7 @@ int trackerInput(int input)
 										} else w->trackerfx = 0;
 									}
 									break;
-								case 1:
+								case 2:
 									w->trackerfy = 0;
 									if (w->songfx > 0)
 										w->songfx--;
@@ -547,7 +759,7 @@ int trackerInput(int input)
 						case 'C': /* right arrow */
 							switch (w->mode)
 							{
-								case 0:
+								case 0: case 1:
 									if (s->songi[w->songfx] == 255) break;
 
 									switch (w->trackerfx)
@@ -575,7 +787,7 @@ int trackerInput(int input)
 										}
 									}
 									break;
-								case 1:
+								case 2:
 									w->trackerfy = 0;
 									w->songfx++;
 									if (w->songfx > 254)
@@ -602,7 +814,7 @@ int trackerInput(int input)
 											switch (getchar())
 											{
 												case 'D': /* left */
-													if (w->mode != 1 && s->songi[w->songfx] != 255)
+													if (w->mode != 2 && s->songi[w->songfx] != 255)
 													{
 														if (w->channel > 0)
 															w->channel--;
@@ -610,7 +822,7 @@ int trackerInput(int input)
 													}
 													break;
 												case 'C': /* right */
-													if (w->mode != 1 && s->songi[w->songfx] != 255)
+													if (w->mode != 2 && s->songi[w->songfx] != 255)
 													{
 														if (w->channel < s->channelc - 1)
 															w->channel++;
@@ -713,9 +925,9 @@ int trackerInput(int input)
 									break;
 								default: /* click / drag */
 									/* song indices */
-									if ((button == BUTTON1 && y < 4) || (button == BUTTON1 + 32 && w->mode == 1))
+									if ((button == BUTTON1 && y < 4) || (button == BUTTON1 + 32 && w->mode == 2))
 									{
-										w->mode = 1; /* force enter song mode */
+										w->mode = 2; /* force enter song mode */
 										if (x < w->songcelloffset) /* left */
 											w->songfx = w->songoffset;
 										else if (x > ws.ws_col - w->songcelloffset) /* right */
@@ -730,6 +942,20 @@ int trackerInput(int input)
 
 									if (button == BUTTON1 || button == BUTTON3)
 									{
+										switch (button)
+										{
+											case BUTTON1: w->mode = 0; break;
+											case BUTTON3:
+												if (w->mode != 1)
+												{
+													w->visualfx = w->trackerfx;
+													w->visualfy = w->trackerfy;
+													w->visualchannel = w->channel;
+												}
+												w->mode = 1;
+												break;
+										}
+
 										if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
 										{ /* right edge */
 											w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
@@ -752,6 +978,7 @@ int trackerInput(int input)
 											else if (modulo < 13)          { w->trackerfx = 5; w->fieldpointer = 0; }
 											else                           { w->trackerfx = 5; w->fieldpointer = 1; }
 										}
+										w->fyoffset = y - w->centre;
 									}
 
 									/* channel row, for mute and solo */
@@ -771,11 +998,6 @@ int trackerInput(int input)
 										}
 										break;
 									}
-									if (button == BUTTON1 || button == BUTTON3)
-									{
-										w->mode = 0;
-										w->fyoffset = y - w->centre;
-									}
 									break;
 							}
 							redraw();
@@ -783,7 +1005,6 @@ int trackerInput(int input)
 					}
 					break;
 				default:
-					w->fieldpointer = 0;
 					if (w->mode)
 					{
 						w->mode = 0;
@@ -1026,7 +1247,7 @@ int trackerInput(int input)
 					}
 					redraw();
 					break;
-				case 1:
+				case 2:
 					switch (input)
 					{
 						case 1: /* ^a */

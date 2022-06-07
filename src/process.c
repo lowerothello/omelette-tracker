@@ -276,6 +276,8 @@ int process(jack_nframes_t nfptr, void *arg)
 				iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
 			}
 			cv->r.note = 0;
+			cv->rtrigpointer = 0;
+			cv->rtrigblocksize = 0;
 		}
 
 		p->s->playing = PLAYING_CONT;
@@ -315,8 +317,15 @@ int process(jack_nframes_t nfptr, void *arg)
 					p->w->instrumentrecv = INST_REC_LOCK_END;
 				} else
 				{
-					p->w->recbuffer[p->w->recptr + 0] = (float)pb.inl[fptr] * (float)SHRT_MAX;
-					p->w->recbuffer[p->w->recptr + 1] = (float)pb.inr[fptr] * (float)SHRT_MAX;
+					int c;
+					c = (float)pb.inl[fptr] * (float)SHRT_MAX;
+					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr + 0] = SHRT_MAX;
+					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr + 0] = SHRT_MIN;
+					else                   p->w->recbuffer[p->w->recptr + 0] = c;
+					c = (float)pb.inr[fptr] * (float)SHRT_MAX;
+					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr + 1] = SHRT_MAX;
+					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr + 1] = SHRT_MIN;
+					else                   p->w->recbuffer[p->w->recptr + 1] = c;
 					p->w->recptr += 2;
 				}
 			}
@@ -328,6 +337,10 @@ int process(jack_nframes_t nfptr, void *arg)
 				{
 					r = p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr];
 					cv = &p->s->channelv[c];
+
+					m = ifMacro(r, 'B');
+					if (m >= 32) // bpm
+						changeBpm(p->s, m);
 
 					if (r.note) switch (r.note)
 					{
@@ -423,11 +436,18 @@ int process(jack_nframes_t nfptr, void *arg)
 					}
 
 					m = ifMacro(r, 'R');
-					if (m >= 1) // retrigger
+					if (m >= 0) // retrigger
 					{
 						cv->rtrigpointer = cv->samplepointer;
-						cv->rtrigsamples = p->s->spr / m;
-					} else cv->rtrigsamples = 0;
+						cv->rtrigsamples = (p->s->spr / (m%16)) * ((m<<4) + 1);
+						cv->rtrigblocksize = m<<4;
+					} else if (cv->rtrigsamples)
+					{
+						if (cv->rtrigblocksize)
+							cv->rtrigblocksize--;
+						else
+							cv->rtrigsamples = 0;
+					}
 
 					m = ifMacro(r, 'E');
 					if (m >= 0) // effect mix

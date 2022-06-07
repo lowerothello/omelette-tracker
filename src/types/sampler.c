@@ -241,10 +241,9 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	if (iv->samplelength == 0) return 0; /* no sample data */
 
-	int c;
 	for (uint32_t ptr = 0; ptr < iv->samplelength; ptr++)
 	{
-		c = ((int)iv->sampledata[ptr] * (float)strtol(buffer, NULL, 0)) / 100.0;
+		int c = ((int)iv->sampledata[ptr] * (float)strtol(buffer, NULL, 0)) / 100.0;
 		if      (c > SHRT_MAX) iv->sampledata[ptr] = SHRT_MAX;
 		else if (c < SHRT_MIN) iv->sampledata[ptr] = SHRT_MIN;
 		else                   iv->sampledata[ptr] = c;

@@ -41,6 +41,7 @@ void effectRedraw(void)
 				} else switch (ev->type)
 				{
 					case 2:
+						printf("\033[%d;%dH{lv2}", y, x + 2);
 						printf("\033[%d;%ldH(%.*s)", y + 1, x + MAX(2, (INSTRUMENT_TYPE_COLS - strlen(ev->name)) / 2), INSTRUMENT_TYPE_COLS - 4, ev->name);
 
 						unsigned short maxnamewidth = 0, maxvaluewidth = 1;
@@ -197,8 +198,8 @@ void effectAdjustDown(window *w, effect *ev, short index) {}
 
 void effectAdjustLeft(window *w, effect *ev, short index)
 {
-	if (index == MIN_EFFECT_INDEX && w->effect > 0)
-		w->effect--;
+	if (index == MIN_EFFECT_INDEX)
+	{ if (w->effect > 0) w->effect--; }
 	else if (ev->type)
 	{
 		lv2control *lc = &ev->controlv[index - 1];
@@ -242,8 +243,8 @@ void effectAdjustLeft(window *w, effect *ev, short index)
 }
 void effectAdjustRight(window *w, effect *ev, short index)
 {
-	if (index == MIN_EFFECT_INDEX && w->effect < 15)
-		w->effect++;
+	if (index == MIN_EFFECT_INDEX)
+	{ if (w->effect < 15) w->effect++; }
 	else if (ev->type)
 	{
 		lv2control *lc = &ev->controlv[index - 1];
@@ -384,7 +385,7 @@ void effectInput(int input)
 						redraw();
 					}
 					break;
-				case 'a': /* add */
+				case 'v': /* add lv2 */
 					if (w->effectindex == MIN_EFFECT_INDEX)
 					{
 						w->popup = 4;
@@ -394,8 +395,24 @@ void effectInput(int input)
 					break;
 				case 'd': /* delete */
 					if (w->effectindex == MIN_EFFECT_INDEX)
+					{
 						_unloadLv2Effect(s, w->effect);
-					redraw();
+						redraw();
+					}
+					break;
+				case 'y': /* yank */
+					if (w->effectindex == MIN_EFFECT_INDEX)
+					{
+						yankEffect(s, w->effect);
+						redraw();
+					}
+					break;
+				case 'p': /* put */
+					if (w->effectindex == MIN_EFFECT_INDEX)
+					{
+						putEffect(s, w, w->effect);
+						redraw();
+					}
 					break;
 				case '\033':
 					switch (getchar())

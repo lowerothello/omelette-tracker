@@ -14,6 +14,7 @@ TODO:
 	^ remove input.c, it's kinda stupid
 	^ undo buffers
 -> playback
+	^ test retrigger blocks
 -> tracker
 	^ redo mode 0 input, probably should be modal? not sure
 	^ edit step
@@ -110,26 +111,34 @@ options:
 ││                                       ││
 ││    grains    mix: [00] length: [00]   ││
 │└───────────────────────────────────────┘│
-│  fader: [FF][FF]    sends  effect: [0]  │
+│  fader: [FFFF]      sends  effect: [0]  │
 │                     -----     mix: [0]  │
 └─────────────────────────────────────────┘
 
- ┌─────────── [unnamed synth] ───────────┐
- │ osc1: [    sine]  sub:    [    sine]  │
- │ det:[00] fm:[00]  gain:[00] oct:[-0]  │
+synth1 subset/clone
+[https://daichilab.sakura.ne.jp/softsynth/synmanu/readmeeng.html]
+ ┌────────── [virtual analog] ───────────┐
+ │ osc1: [    ramp]  det:[80]  fm:  [00] │
+ │ osc2: [    ramp]  det:[80]  ptch:[ff] │
+ │ sub  [triangle]                       │
+ │ amp[00] oct[-0]                       │
+ │                  amplifier  gain:[ff] │
+ │                  a[00]d[00]s[ff]r[00] │
+ │ lfo 1[triangle]                       │
+ │ --- 2[triangle]  filter    amt:  [ff] │
+ │ dest  1[filter]  frq:[00]  res:  [00] │
+ │ ----  2[  osc2]  trk:[00]  sat:  [00] │
+ │ spd  1[80]2[80]  type:         [LP12] │
+ │ amp  1[80]2[80]  a[00]d[00]s[ff]r[00] │
  │                                       │
- │ osc2:[triangle]  g:[00] a:[00] d:[00] │
- │ tune:[+00]       amp  > s:[FF] r:[00] │
- │                                       │
- │ lfo1:[triangle]  g:[00] a:[00] d:[00] │
- │ spd:[80] g:[80]  fltr > s:[FF] r:[00] │
- │ type:  [filter]  frq:[00]  res:[00]   │
- │                  trk:[00] type:[LP12] │
- │ lfo2:[triangle]                       │
- │ spd:[80] g:[80]  num:  [1]   det:[00] │
- │ type:  [filter]  phase:[00] sprd:[00] │
+ │ num[01]  det[00]  phase[00]  sprd[00] │
  └───────────────────────────────────────┘
 
+
+^v
+/\
+|\
+n_
 
 instrument keybinds:
 	meta: (instrument indices at the top)
@@ -223,11 +232,12 @@ MACROS:
 	x is the volume for the left channel
 	y is the volume for the right channel
 // Rxy: s&h retrigger
+	x is the number of rows the block continues to
 	y is the number of slices in the block
 	(y < 2) does nothing
 	->	will ratchet the current point in the sample
 		and continue as if nothing happened after the block
-// Sxy: note delay and cut
+Sxy: note delay and cut
 		x is the delay before triggering
 		x only applies if the note field is populated
 		y is the delay before cutting
@@ -236,9 +246,6 @@ MACROS:
 	start the triggered sample at xx 255ths through
 // Exy: effect mix
 	x is the effect index to target
-	the inst field sets the target
-	mix will revert to default once the row is over
-
 	y is the new mix (
 		0 - off (instance disabled)
 		1234567 - dry:      100%
@@ -247,6 +254,8 @@ MACROS:
 		9abcdef - dry: 100%-  0%
 				  wet:      100%
 	)
+	the inst field sets the target
+	mix will revert to default once the row is over
 
 
 
