@@ -94,9 +94,6 @@ void stopPlayback(void);
 #include "command.c"
 #include "structures.c" /* declares typetable *t */
 
-song *s;
-window *w;
-
 int ifMacro(row, char); /* (row, char) */
 
 #include "input.c"
@@ -137,13 +134,13 @@ int commandCallback(char *command, unsigned char *mode)
 	wordSplit(buffer, command, 0);
 	if      (!strcmp(buffer, "q"))  { free(buffer); buffer = NULL; return 1; }
 	else if (!strcmp(buffer, "q!")) { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "w"))  { wordSplit(buffer, command, 1); writeSong(s, w, buffer); }
+	else if (!strcmp(buffer, "w"))  { wordSplit(buffer, command, 1); writeSong(buffer); }
 	else if (!strcmp(buffer, "wq"))
 	{
 		wordSplit(buffer, command, 1);
-		if (!writeSong(s, w, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
+		if (!writeSong(buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
 	}
-	else if (!strcmp(buffer, "e"))  { wordSplit(buffer, command, 1); s = readSong(s, w, t, buffer); w->songfx = 0; }
+	else if (!strcmp(buffer, "e"))  { wordSplit(buffer, command, 1); s = readSong(buffer); w->songfx = 0; }
 
 	free(buffer); buffer = NULL;
 	return 0;
@@ -276,7 +273,7 @@ void cleanup(int ret)
 	free(w->pluginlist);
 
 	free(w);
-	delSong(s);
+	delSong();
 	free(p);
 
 	lilv_node_free(lv2.inputport);
@@ -348,7 +345,7 @@ int main(int argc, char **argv)
 	}
 	w->octave = 4;
 
-	s = addSong(s, w);
+	s = addSong();
 	if (s == NULL)
 	{
 		printf("out of memory");
@@ -375,7 +372,7 @@ int main(int argc, char **argv)
 		jack_client_close(client);
 
 		free(w);
-		delSong(s);
+		delSong();
 		free(p);
 
 		common_cleanup(1);
@@ -384,7 +381,7 @@ int main(int argc, char **argv)
 	ss->volume.s = 255;
 
 
-	addPattern(s, w, 0, 0);
+	addPattern(0, 0);
 	s->songi[0] = 0;
 
 
@@ -404,7 +401,7 @@ int main(int argc, char **argv)
 		free(w->previewinstrument.state);
 
 		free(w);
-		delSong(s);
+		delSong();
 		free(p);
 
 		common_cleanup(1);
@@ -446,7 +443,7 @@ int main(int argc, char **argv)
 
 	if (argc > 1)
 	{
-		song *temp = readSong(s, w, t, argv[1]);
+		song *temp = readSong(argv[1]);
 		if (temp) s = temp;
 	}
 
@@ -458,7 +455,7 @@ int main(int argc, char **argv)
 	while(!running)
 	{
 		running = input();
-		// if (p->dirty)
+		if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();
@@ -472,7 +469,7 @@ int main(int argc, char **argv)
 		}
 
 		/* perform any pending instrument actions */
-		changeInstrumentType(s, w, t, 0);
+		changeInstrumentType(0);
 
 		/* finish freeing the record buffer */
 		if (w->instrumentrecv == INST_REC_LOCK_END)

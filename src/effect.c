@@ -193,10 +193,10 @@ void effectRedraw(void)
 	}
 }
 
-void effectAdjustUp(window *w, effect *ev, short index) {}
-void effectAdjustDown(window *w, effect *ev, short index) {}
+void effectAdjustUp(effect *ev, short index) {}
+void effectAdjustDown(effect *ev, short index) {}
 
-void effectAdjustLeft(window *w, effect *ev, short index)
+void effectAdjustLeft(effect *ev, short index)
 {
 	if (index == MIN_EFFECT_INDEX)
 	{ if (w->effect > 0) w->effect--; }
@@ -241,7 +241,7 @@ void effectAdjustLeft(window *w, effect *ev, short index)
 		else lc->value = newvalue;
 	}
 }
-void effectAdjustRight(window *w, effect *ev, short index)
+void effectAdjustRight(effect *ev, short index)
 {
 	if (index == MIN_EFFECT_INDEX)
 	{ if (w->effect < 15) w->effect++; }
@@ -396,21 +396,21 @@ void effectInput(int input)
 				case 'd': /* delete */
 					if (w->effectindex == MIN_EFFECT_INDEX)
 					{
-						_unloadLv2Effect(s, w->effect);
+						_unloadLv2Effect(w->effect);
 						redraw();
 					}
 					break;
 				case 'y': /* yank */
 					if (w->effectindex == MIN_EFFECT_INDEX)
 					{
-						yankEffect(s, w->effect);
+						yankEffect(w->effect);
 						redraw();
 					}
 					break;
 				case 'p': /* put */
 					if (w->effectindex == MIN_EFFECT_INDEX)
 					{
-						putEffect(s, w, w->effect);
+						putEffect(w->effect);
 						redraw();
 					}
 					break;
@@ -460,11 +460,11 @@ void effectInput(int input)
 									redraw();
 									break;
 								case 'D': /* left arrow */
-									effectAdjustLeft(w, ev, w->effectindex);
+									effectAdjustLeft(ev, w->effectindex);
 									redraw();
 									break;
 								case 'C': /* right arrow */
-									effectAdjustRight(w, ev, w->effectindex);
+									effectAdjustRight(ev, w->effectindex);
 									redraw();
 									break;
 								case '1': /* mod+arrow / f5 - f8 */
@@ -563,11 +563,11 @@ void effectInput(int input)
 										case BUTTON1 + 32:
 											if (w->mode > 0) // mouse adjust
 											{
-												if      (x > w->mousex) effectAdjustRight(w, ev, w->effectindex);
-												else if (x < w->mousex) effectAdjustLeft(w, ev, w->effectindex);
+												if      (x > w->mousex) effectAdjustRight(ev, w->effectindex);
+												else if (x < w->mousex) effectAdjustLeft(ev, w->effectindex);
 
-												if      (y > w->mousey) effectAdjustDown(w, ev, w->effectindex);
-												else if (y < w->mousey) effectAdjustUp(w, ev, w->effectindex);
+												if      (y > w->mousey) effectAdjustDown(ev, w->effectindex);
+												else if (y < w->mousey) effectAdjustUp(ev, w->effectindex);
 
 												w->mousey = y;
 												w->mousex = x;
@@ -624,7 +624,7 @@ void effectInput(int input)
 						if (xc - w->pluginindex + cursoroffset > 20 || xc > lv2.pluginc) break;
 						if (xc == w->pluginindex)
 						{
-							loadLv2Effect(s, w, w->effect, lilv_plugins_get(lv2.plugins, i));
+							loadLv2Effect(w->effect, lilv_plugins_get(lv2.plugins, i));
 							break;
 						}
 						xc++;

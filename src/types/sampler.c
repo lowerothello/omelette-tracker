@@ -256,7 +256,7 @@ int samplerAkaizerCallback3(char *command, unsigned char *mode)
 	char *buffer = malloc(strlen(command) + 1);
 	char *altbuffer = malloc(strlen(command) + 1);
 	wordSplit(altbuffer, command, 0);
-	exportSample(s, t, w->instrument, "/tmp/omelette.wav");
+	exportSample(w->instrument, "/tmp/omelette.wav");
 	snprintf(buffer, COMMAND_LENGTH, "akaizer /tmp/omelette.wav %d %d %d",
 		w->akaizertimefactor,
 		w->akaizercyclelength,
@@ -307,7 +307,7 @@ int samplerLameCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
-	exportSample(s, t, w->instrument, "/tmp/omelette.wav");
+	exportSample(w->instrument, "/tmp/omelette.wav");
 	snprintf(buffer, COMMAND_LENGTH, "lame -b%d /tmp/omelette.wav",
 		(short)strtol(buffer, NULL, 0));
 	system(buffer);
@@ -425,16 +425,16 @@ void samplerInput(int *input)
 						else
 						{
 							uint8_t val[4];
-							exportSample(s, t, w->instrument, "/tmp/omelette.wav");
+							exportSample(w->instrument, "/tmp/omelette.wav");
 							system("spleeter separate -p spleeter:4stems /tmp/omelette.wav");
-							val[0] = newInstrument(s, w->instrument + 1);
-							val[1] = newInstrument(s, w->instrument + 1);
-							val[2] = newInstrument(s, w->instrument + 1);
-							val[3] = newInstrument(s, w->instrument + 1);
-							loadSample(s, w, t, val[0], "/tmp/separated_audio/omelette/vocals.wav");
-							loadSample(s, w, t, val[1], "/tmp/separated_audio/omelette/drums.wav");
-							loadSample(s, w, t, val[2], "/tmp/separated_audio/omelette/bass.wav");
-							loadSample(s, w, t, val[3], "/tmp/separated_audio/omelette/other.wav");
+							val[0] = newInstrument(w->instrument + 1);
+							val[1] = newInstrument(w->instrument + 1);
+							val[2] = newInstrument(w->instrument + 1);
+							val[3] = newInstrument(w->instrument + 1);
+							loadSample(val[0], "/tmp/separated_audio/omelette/vocals.wav");
+							loadSample(val[1], "/tmp/separated_audio/omelette/drums.wav");
+							loadSample(val[2], "/tmp/separated_audio/omelette/bass.wav");
+							loadSample(val[3], "/tmp/separated_audio/omelette/other.wav");
 
 							snprintf(w->command.error, COMMAND_LENGTH,
 								"Separated stems into slots %x %x %x %x",

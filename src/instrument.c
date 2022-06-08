@@ -773,27 +773,27 @@ int instrumentInput(int input)
 											{
 												case 'a': /* add */
 													if (!s->instrumenti[w->instrument])
-														addInstrument(s, w, t, w->instrument);
+														addInstrument(w->instrument);
 													redraw();
 													break;
 												case 'd': /* delete */
 													if (s->instrumenti[w->instrument])
 													{
-														yankInstrument(s, w, w->instrument);
-														delInstrument(s, w->instrument);
+														yankInstrument(w->instrument);
+														delInstrument(w->instrument);
 													}
 													redraw();
 													break;
 												case 'y': /* yank */
-													yankInstrument(s, w, w->instrument);
+													yankInstrument(w->instrument);
 													redraw();
 													break;
 												case 'p': /* put */
-													putInstrument(s, w, t, w->instrument);
+													putInstrument(w->instrument);
 													redraw();
 													break;
 												case 'e': /* empty */
-													w->instrument = newInstrument(s, 0);
+													w->instrument = newInstrument(0);
 													redraw();
 													break;
 											}
@@ -890,7 +890,7 @@ int instrumentInput(int input)
 					switch (getSubdir(newpath))
 					{
 						case 1: /* file */
-							loadSample(s, w, t, w->instrument, newpath);
+							loadSample(w->instrument, newpath);
 							w->popup = 1;
 							w->instrumentindex = 0;
 							break;
@@ -956,7 +956,7 @@ int instrumentInput(int input)
 									switch (getSubdir(newpath))
 									{
 										case 1: /* file */
-											loadSample(s, w, t, w->instrument, newpath);
+											loadSample(w->instrument, newpath);
 											w->popup = 1;
 											w->instrumentindex = 0;
 											break;

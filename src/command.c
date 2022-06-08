@@ -138,6 +138,11 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 						if (getchar() == '~') /* end */
 							command->commandptr = strlen(command->command);
 						break;
+					case 'M': /* mouse */
+						getchar();
+						getchar();
+						getchar();
+						break;
 				}
 				break;
 			} else /* assume escape */

@@ -115,31 +115,35 @@ typedef struct
 	uint8_t         patternc;                /* pattern count */
 	uint8_t         patterni[256];           /* pattern backref */
 	pattern        *patternv[256];           /* pattern values */
-	pattern         patternbuffer;           /* pattern yank buffer */
+	pattern         songbuffer;              /* full pattern paste buffer, TODO: use */
+	pattern         patternbuffer;           /* partial pattern paste buffer */
+	short           pbfy[2], pbfx[2];        /* partial pattern paste buffer clipping region */
+	uint8_t         pbchannel[2];            /* " */
+	char            pbpopulated;             /* there's no good way to tell if pb is set */
 
 	uint8_t         instrumentc;             /* instrument count */
 	uint8_t         instrumenti[256];        /* instrument backref */
 	instrument     *instrumentv[256];        /* instrument values */
-	instrument      instrumentbuffer;        /* instrument yank buffer */
+	instrument      instrumentbuffer;        /* instrument paste buffer */
 
 	effect          effectv[16];             /* effect values */
 	sample_t       *effectinl, *effectinr;   /* effect inputs */
 	sample_t       *effectoutl, *effectoutr; /* effect outputs */
 	sample_t       *effectdryl, *effectdryr; /* effect dry */
-	unsigned char   effectbuffertype;        /* effect yank buffer */
+	unsigned char   effectbuffertype;        /* effect paste buffer */
 	const LilvNode *effectbufferlv2uri;
 	float          *effectbufferlv2values;
 
 	uint8_t         channelc;                /* channel count */
 	channel         channelv[64];            /* channel values */
-	row            *channelbuffer[64];       /* channel yank buffer */
+	row            *channelbuffer[64];       /* channel paste buffer */
 	char            channelbuffermute;
 
 	uint8_t         songi[256];              /* song list backref, links to patterns */
 	uint8_t         songa[256];              /* song list attributes */
 
 	uint8_t         songp;                   /* song pos, analogous to window->songfx */
-	uint16_t        songr;                   /* song row, analogous to window->trackerfy */
+	short           songr;                   /* song row, analogous to window->trackerfy */
 
 	uint8_t         rowhighlight;
 	uint8_t         defpatternlength;        /* only here cos window isn't defined yet */
@@ -149,6 +153,7 @@ typedef struct
 	uint32_t        sprp;                    /* samples per row progress */
 	char            playing;
 } song;
+song *s;
 
 
 #define INST_GLOBAL_LOCK_OK 0        /* playback and most memory ops are safe */
@@ -179,7 +184,8 @@ typedef struct
 	uint8_t        channeloffset, visiblechannels;
 
 	short          trackerfy, trackerfx;
-	short          visualfy, visualfx, visualchannel;
+	short          visualfy, visualfx;
+	uint8_t        visualchannel;
 	unsigned short trackercelloffset;
 	short          instrumentindex;
 	uint8_t        instrument;            /* focused instrument */
@@ -235,31 +241,32 @@ typedef struct
 
 	char           request;               /* ask the playback function to do something */
 } window;
+window *w;
 
 typedef struct
 {
 	struct
 	{
-		void         (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, unsigned char);
-		unsigned short indexc;               /* index count used (0 inclusive) */
-		void         (*adjustUp)(instrument *, short);
-		void         (*adjustDown)(instrument *, short);
-		void         (*adjustLeft)(instrument *, short);
-		void         (*adjustRight)(instrument *, short);
-		void         (*incFieldPointer)(signed char *, short);
-		void         (*decFieldPointer)(signed char *, short);
-		void         (*endFieldPointer)(signed char *, short);
-		void         (*mouseToIndex)(int, int, short *, signed char *);
-		void         (*input)(int *);
-		void         (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
-		uint32_t     (*offset)(instrument *, channel *, int);
-		uint8_t      (*getOffset)(instrument *, channel *);
-		void         (*changeType)(void **); /* literally a pointer to a pointer */
-		void         (*loadSample)(instrument *, SF_INFO);
-		void         (*exportSample)(instrument *, SF_INFO *);
-		void         (*write)(instrument *, FILE *fp);
-		void         (*read)(instrument *, FILE *fp);
-	}                  f[INSTRUMENT_TYPE_COUNT];
+		void           (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, unsigned char);
+		unsigned short   indexc;               /* index count used (0 inclusive) */
+		void           (*adjustUp)(instrument *, short);
+		void           (*adjustDown)(instrument *, short);
+		void           (*adjustLeft)(instrument *, short);
+		void           (*adjustRight)(instrument *, short);
+		void           (*incFieldPointer)(signed char *, short);
+		void           (*decFieldPointer)(signed char *, short);
+		void           (*endFieldPointer)(signed char *, short);
+		void           (*mouseToIndex)(int, int, short *, signed char *);
+		void           (*input)(int *);
+		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
+		uint32_t       (*offset)(instrument *, channel *, int);
+		uint8_t        (*getOffset)(instrument *, channel *);
+		void           (*changeType)(void **); /* literally a pointer to a pointer */
+		void           (*loadSample)(instrument *, SF_INFO);
+		void           (*exportSample)(instrument *, SF_INFO *);
+		void           (*write)(instrument *, FILE *fp);
+		void           (*read)(instrument *, FILE *fp);
+	} f[INSTRUMENT_TYPE_COUNT];
 } typetable;
 typetable *t;
 
@@ -285,25 +292,25 @@ lilv lv2;
 
 /* replace *find with *replace in *s */
 /* only replaces the first instance of *find */
-void strrep(char *s, char *find, char *replace)
+void strrep(char *string, char *find, char *replace)
 {
-	char *buffer = malloc(strlen(s) + 1);
-	char *pos = strstr(s, find);
+	char *buffer = malloc(strlen(string) + 1);
+	char *pos = strstr(string, find);
 	if (pos)
 	{
-		strcpy(buffer, s);
-		size_t len = pos - s + strlen(find);
+		strcpy(buffer, string);
+		size_t len = pos - string + strlen(find);
 		memmove(buffer, buffer+len, strlen(buffer) - len + 1);
 
-		s[pos - s] = '\0';
-		strcat(s, replace);
+		string[pos - string] = '\0';
+		strcat(string, replace);
 
-		strcat(s, buffer);
+		strcat(string, buffer);
 	}
 	free(buffer);
 }
 
-void _unloadLv2Effect(song *s, int index)
+void _unloadLv2Effect(int index)
 {
 	effect *le = &s->effectv[index];
 	if (le->type)
@@ -327,10 +334,10 @@ void _unloadLv2Effect(song *s, int index)
 			lilv_instance_free(s->instrumentv[i]->plugininstance[index]);
 	}
 }
-void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
+void loadLv2Effect(int index, const LilvPlugin *plugin)
 {
 	/* TODO: stop using the effect before freeing */
-	_unloadLv2Effect(s, index);
+	_unloadLv2Effect(index);
 
 	effect *le = &s->effectv[index];
 
@@ -492,7 +499,7 @@ void loadLv2Effect(song *s, window *w, int index, const LilvPlugin *plugin)
 	free(max);
 	free(def);
 }
-void yankEffect(song *s, int index)
+void yankEffect(int index)
 {
 	effect *le = &s->effectv[index];
 	switch (le->type)
@@ -512,15 +519,15 @@ void yankEffect(song *s, int index)
 			break;
 	}
 }
-void putEffect(song *s, window *w, int index)
+void putEffect(int index)
 {
 	switch (s->effectbuffertype)
 	{
 		case 0: /* nothing */
-			_unloadLv2Effect(s, index);
+			_unloadLv2Effect(index);
 			break;
 		case 2: /* lv2 */
-			loadLv2Effect(s, w, index, lilv_plugins_get_by_uri(lv2.plugins, s->effectbufferlv2uri));
+			loadLv2Effect(index, lilv_plugins_get_by_uri(lv2.plugins, s->effectbufferlv2uri));
 			effect *le = &s->effectv[index];
 			for (int i = 0; i < le->indexc; i++)
 				le->controlv[i].value = s->effectbufferlv2values[i];
@@ -534,7 +541,7 @@ void _addChannel(channel *cv)
 	cv->rampindex = cv->rampmax;
 	cv->rampbuffer = malloc(sizeof(sample_t) * cv->rampmax * 2); /* *2 for stereo */
 }
-int addChannel(song *s, uint8_t index)
+int addChannel(uint8_t index)
 {
 	_addChannel(&s->channelv[s->channelc]); /* allocate memory */
 	if (s->channelc > 0) /* contiguity */
@@ -558,7 +565,7 @@ int addChannel(song *s, uint8_t index)
 	s->channelc++;
 	return 0;
 }
-int delChannel(song *s, uint8_t index)
+int delChannel(uint8_t index)
 {
 	uint8_t i;
 	uint8_t p;
@@ -593,7 +600,7 @@ int delChannel(song *s, uint8_t index)
 	}
 	return 0;
 }
-int yankChannel(song *s, uint8_t index)
+int yankChannel(uint8_t index)
 {
 	for (uint8_t i = 0; i < s->patternc; i++)
 		if (s->channelbuffer[i])
@@ -605,7 +612,7 @@ int yankChannel(song *s, uint8_t index)
 	s->channelbuffermute = s->channelv[index].mute;
 	return 0;
 }
-int putChannel(song *s, uint8_t index)
+int putChannel( uint8_t index)
 {
 	for (uint8_t i = 0; i < s->patternc; i++)
 		if (s->channelbuffer[i])
@@ -618,7 +625,7 @@ int putChannel(song *s, uint8_t index)
 
 
 /* memory for addPattern */
-int _addPattern(song *s, uint8_t realindex)
+int _addPattern(uint8_t realindex)
 {
 	s->channelbuffer[realindex] = calloc(256, sizeof(row));
 	s->patternv[realindex] = calloc(1, sizeof(pattern));
@@ -630,12 +637,12 @@ int _addPattern(song *s, uint8_t realindex)
 	return 0;
 }
 /* length 0 for the default */
-int addPattern(song *s, window *w, uint8_t index, uint8_t length)
+int addPattern(uint8_t index, uint8_t length)
 {
 	if (index == 255) return 1; /* index invalid */
 	if (s->patterni[index] > 0) return 1; /* index occupied */
 
-	if (_addPattern(s, s->patternc))
+	if (_addPattern(s->patternc))
 	{
 		strcpy(w->command.error, "failed to add pattern, out of memory");
 		return 1;
@@ -648,29 +655,29 @@ int addPattern(song *s, window *w, uint8_t index, uint8_t length)
 	s->patternc++;
 	return 0;
 }
-int yankPattern(song *s, uint8_t index)
+int yankPattern(uint8_t index)
 {
 	if (s->patterni[index] == 0) return 1; /* nothing to yank */
 
-	memcpy(&s->patternbuffer,
+	memcpy(&s->songbuffer,
 		s->patternv[s->patterni[index]],
 		sizeof(pattern));
 	return 0;
 }
-int putPattern(song *s, window *w, uint8_t index)
+int putPattern(uint8_t index)
 {
 	if (s->patterni[index] == 0)
-		if (addPattern(s, w, index, 0)) return 1; /* allocate memory */
+		if (addPattern(index, 0)) return 1; /* allocate memory */
 
 	memcpy(s->patternv[s->patterni[index]],
-		&s->patternbuffer,
+		&s->songbuffer,
 		sizeof(pattern));
 
 	if (s->patternv[s->patterni[index]]->rowc == 0)
 		s->patternv[s->patterni[index]]->rowc = s->defpatternlength;
 	return 0;
 }
-int delPattern(song *s, uint8_t index)
+int delPattern(uint8_t index)
 {
 	if (s->patternc <= 1) return 1; /* no patterns to remove */
 	if (!s->patterni[index]) return 1; /* pattern doesn't exist */
@@ -697,10 +704,213 @@ int delPattern(song *s, uint8_t index)
 	return 0;
 }
 
+short tfxToVfx(short trackerfx)
+{
+	switch (trackerfx)
+	{
+		case 2: case 3: return 2;
+		case 4: case 5: return 3;
+	}
+	return trackerfx;
+}
+short vfxToTfx(short visualfx)
+{
+	switch (visualfx)
+	{
+		case 2: return 2;
+		case 3: return 4;
+	}
+	return visualfx;
+}
+void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	memcpy(&s->patternbuffer, s->patternv[s->patterni[s->songi[w->songfx]]], sizeof(pattern));
+	s->pbfx[0] = x1;
+	s->pbfx[1] = x2;
+	s->pbfy[0] = y1;
+	s->pbfy[1] = y2;
+	s->pbchannel[0] = c1;
+	s->pbchannel[1] = c2;
+	s->pbpopulated = 1;
+}
+void putPartPattern(void)
+{
+	if (!s->pbpopulated) return;
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+	if (s->pbchannel[0] == s->pbchannel[1]) /* only one channel */
+	{
+		if ((s->pbfx[0] == 2 && s->pbfx[1] == 2) || (s->pbfx[0] == 3 && s->pbfx[1] == 3)) /* just one macro column */
+		{
+			unsigned char targetmacro;
+			if (w->trackerfx < 2) targetmacro = 0;
+			else targetmacro = tfxToVfx(w->trackerfx) - 2;
+
+			for (uint8_t j = s->pbfy[0]; j <= s->pbfy[1]; j++)
+			{
+				uint8_t row = w->trackerfy + j - s->pbfy[0];
+				if (row < destpattern->rowc)
+				{
+					destpattern->rowv[w->channel][row].macroc[targetmacro] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[s->pbfx[0] - 2];
+					destpattern->rowv[w->channel][row].macrov[targetmacro] = s->patternbuffer.rowv[s->pbchannel[0]][j].macrov[s->pbfx[0] - 2];
+				} else break;
+			}
+			w->trackerfx = vfxToTfx(targetmacro + 2);
+		} else
+		{
+			for (uint8_t j = s->pbfy[0]; j <= s->pbfy[1]; j++)
+			{
+				uint8_t row = w->trackerfy + j - s->pbfy[0];
+				if (row < destpattern->rowc)
+				{
+					if (s->pbfx[0] <= 0 && s->pbfx[1] >= 0)
+						destpattern->rowv[w->channel][row].note = s->patternbuffer.rowv[s->pbchannel[0]][j].note;
+					if (s->pbfx[0] <= 1 && s->pbfx[1] >= 1)
+						destpattern->rowv[w->channel][row].inst = s->patternbuffer.rowv[s->pbchannel[0]][j].inst;
+					if (s->pbfx[0] <= 2 && s->pbfx[1] >= 2)
+					{
+						destpattern->rowv[w->channel][row].macroc[0] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[0];
+						destpattern->rowv[w->channel][row].macrov[0] = s->patternbuffer.rowv[s->pbchannel[0]][j].macrov[0];
+					}
+					if (s->pbfx[0] <= 3 && s->pbfx[1] >= 3)
+					{
+						destpattern->rowv[w->channel][row].macroc[1] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[1];
+						destpattern->rowv[w->channel][row].macrov[1] = s->patternbuffer.rowv[s->pbchannel[0]][j].macrov[1];
+					}
+				} else break;
+			}
+			w->trackerfx = vfxToTfx(s->pbfx[0]);
+		}
+	} else
+	{
+		for (uint8_t i = s->pbchannel[0]; i <= s->pbchannel[1]; i++)
+		{
+			uint8_t channel = w->channel + i - s->pbchannel[0];
+			if (channel < s->channelc)
+			{
+				for (uint8_t j = s->pbfy[0]; j <= s->pbfy[1]; j++)
+				{
+					uint8_t row = w->trackerfy + j - s->pbfy[0];
+					if (row < destpattern->rowc)
+					{
+						if (i == s->pbchannel[0]) /* first channel */
+						{
+							if (s->pbfx[0] <= 0)
+								destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
+							if (s->pbfx[0] <= 1)
+								destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
+							if (s->pbfx[0] <= 2)
+							{
+								destpattern->rowv[channel][row].macroc[0] = s->patternbuffer.rowv[i][j].macroc[0];
+								destpattern->rowv[channel][row].macrov[0] = s->patternbuffer.rowv[i][j].macrov[0];
+							}
+							if (s->pbfx[0] <= 3)
+							{
+								destpattern->rowv[channel][row].macroc[1] = s->patternbuffer.rowv[i][j].macroc[1];
+								destpattern->rowv[channel][row].macrov[1] = s->patternbuffer.rowv[i][j].macrov[1];
+							}
+						} else if (i == s->pbchannel[1]) /* last channel */
+						{
+							if (s->pbfx[1] >= 0)
+								destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
+							if (s->pbfx[1] >= 1)
+								destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
+							if (s->pbfx[1] >= 2)
+							{
+								destpattern->rowv[channel][row].macroc[0] = s->patternbuffer.rowv[i][j].macroc[0];
+								destpattern->rowv[channel][row].macrov[0] = s->patternbuffer.rowv[i][j].macrov[0];
+							}
+							if (s->pbfx[1] >= 3)
+							{
+								destpattern->rowv[channel][row].macroc[1] = s->patternbuffer.rowv[i][j].macroc[1];
+								destpattern->rowv[channel][row].macrov[1] = s->patternbuffer.rowv[i][j].macrov[1];
+							}
+						} else /* middle channel */
+							destpattern->rowv[channel][row] = s->patternbuffer.rowv[i][j];
+					} else break;
+				}
+			} else break;
+		}
+		w->trackerfx = vfxToTfx(s->pbfx[0]);
+	}
+}
+void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+	if (c1 == c2) /* only one channel */
+	{
+		for (uint8_t j = y1; j <= y2; j++)
+		{
+			uint8_t row = w->trackerfy + j - y1;
+			if (row < destpattern->rowc)
+			{
+				if (x1 <= 0 && x2 >= 0) destpattern->rowv[w->channel][row].note = 0;
+				if (x1 <= 1 && x2 >= 1) destpattern->rowv[w->channel][row].inst = 255;
+				if (x1 <= 2 && x2 >= 2)
+				{
+					destpattern->rowv[w->channel][row].macroc[0] = 0;
+					destpattern->rowv[w->channel][row].macrov[0] = 0;
+				}
+				if (x1 <= 3 && x2 >= 3)
+				{
+					destpattern->rowv[w->channel][row].macroc[1] = 0;
+					destpattern->rowv[w->channel][row].macrov[1] = 0;
+				}
+			} else break;
+		}
+	} else
+		for (uint8_t i = c1; i <= c2; i++)
+		{
+			uint8_t channel = w->channel + i - c1;
+			if (channel < s->channelc)
+			{
+				for (uint8_t j = y1; j <= y2; j++)
+				{
+					uint8_t row = w->trackerfy + j - y1;
+					if (row < destpattern->rowc)
+					{
+						if (i == c1) /* first channel */
+						{
+							if (x1 <= 0) destpattern->rowv[channel][row].note = 0;
+							if (x1 <= 1) destpattern->rowv[channel][row].inst = 255;
+							if (x1 <= 2)
+							{
+								destpattern->rowv[channel][row].macroc[0] = 0;
+								destpattern->rowv[channel][row].macrov[0] = 0;
+							}
+							if (x1 <= 3)
+							{
+								destpattern->rowv[channel][row].macroc[1] = 0;
+								destpattern->rowv[channel][row].macrov[1] = 0;
+							}
+						} else if (i == c2) /* last channel */
+						{
+							if (x2 >= 0) destpattern->rowv[channel][row].note = 0;
+							if (x2 >= 1) destpattern->rowv[channel][row].inst = 255;
+							if (x2 >= 2)
+							{
+								destpattern->rowv[channel][row].macroc[0] = 0;
+								destpattern->rowv[channel][row].macrov[0] = 0;
+							}
+							if (x2 >= 3)
+							{
+								destpattern->rowv[channel][row].macroc[1] = 0;
+								destpattern->rowv[channel][row].macrov[1] = 0;
+							}
+						} else /* middle channel */
+						{
+							memset(&destpattern->rowv[channel][row], 0, sizeof(row));
+							destpattern->rowv[channel][row].inst = 255;
+						}
+					} else break;
+				}
+			} else break;
+		}
+}
+
 
 
 /* forceindex is a realindex */
-int changeInstrumentType(song *s, window *w, typetable *t, uint8_t forceindex)
+int changeInstrumentType(uint8_t forceindex)
 {
 	uint8_t i;
 	if (!forceindex)
@@ -730,7 +940,7 @@ int changeInstrumentType(song *s, window *w, typetable *t, uint8_t forceindex)
 	return 0;
 }
 
-int _addInstrument(song *s, uint8_t realindex)
+int _addInstrument(uint8_t realindex)
 {
 	s->instrumentv[realindex] = calloc(1, sizeof(instrument));
 	if (!s->instrumentv[realindex]) return 1;
@@ -738,7 +948,7 @@ int _addInstrument(song *s, uint8_t realindex)
 	s->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
 	return 0;
 }
-void _instantiateInstrumentEffect(song *s, uint8_t realindex)
+void _instantiateInstrumentEffect(uint8_t realindex)
 {
 	for (int i = 0; i < 16; i++)
 	{
@@ -791,29 +1001,29 @@ void _instantiateInstrumentEffect(song *s, uint8_t realindex)
 	}
 }
 
-int addInstrument(song *s, window *w, typetable *t, uint8_t index)
+int addInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] > 0) return 1; /* index occupied */
 
-	if (_addInstrument(s, s->instrumentc))
+	if (_addInstrument(s->instrumentc))
 	{
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
 	s->instrumentv[s->instrumentc]->fader[0] = 0xFF;
 	s->instrumentv[s->instrumentc]->fader[1] = 0xFF;
-	changeInstrumentType(s, w, t, s->instrumentc);
+	changeInstrumentType(s->instrumentc);
 	sampler_state *ss = s->instrumentv[s->instrumentc]->state;
 	ss->volume.s = 255;
 	s->instrumenti[index] = s->instrumentc;
 
-	_instantiateInstrumentEffect(s, s->instrumentc);
+	_instantiateInstrumentEffect(s->instrumentc);
 
 	s->instrumentc++;
 	return 0;
 }
 /* return a fresh slot */
-uint8_t newInstrument(song *s, uint8_t minindex)
+uint8_t newInstrument(uint8_t minindex)
 {
 	for (uint8_t i = minindex; i < 256; i++) // is 256 right? idfk
 	{
@@ -823,7 +1033,7 @@ uint8_t newInstrument(song *s, uint8_t minindex)
 		}
 	}
 }
-int yankInstrument(song *s, window *w, uint8_t index)
+int yankInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] == 0) return 1; /* nothing to yank */
 
@@ -867,11 +1077,11 @@ int yankInstrument(song *s, window *w, uint8_t index)
 	}
 	return 0;
 }
-int putInstrument(song *s, window *w, typetable *t, uint8_t index)
+int putInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] == 0)
 	{
-		if (addInstrument(s, w, t, index)) /* allocate memory */
+		if (addInstrument(index)) /* allocate memory */
 		{
 			strcpy(w->command.error, "failed to put instrument, out of memory");
 			return 1;
@@ -889,7 +1099,7 @@ int putInstrument(song *s, window *w, typetable *t, uint8_t index)
 	s->instrumentv[s->instrumenti[index]]->samplelength = s->instrumentbuffer.samplelength;
 	memcpy(s->instrumentv[s->instrumenti[index]]->fader, s->instrumentbuffer.fader, sizeof(uint8_t) * 2);
 	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send, 1 * 16);
-	changeInstrumentType(s, w, t, s->instrumenti[index]); /* is this safe to force? */
+	changeInstrumentType(s->instrumenti[index]); /* is this safe to force? */
 
 	if (s->instrumentv[s->instrumenti[index]]->state)
 	{
@@ -922,7 +1132,7 @@ int putInstrument(song *s, window *w, typetable *t, uint8_t index)
 
 	return 0;
 }
-int delInstrument(song *s, uint8_t index)
+int delInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] < 1) return 1; /* instrument doesn't exist */
 
@@ -1011,11 +1221,11 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 	}
 	return ptr;
 }
-int loadSample(song *s, window *w, typetable *t, uint8_t index, char *path)
+int loadSample(uint8_t index, char *path)
 {
 	if (s->instrumenti[index] == 0)
 	{
-		if (addInstrument(s, w, t, index)) /* allocate instrument memory */
+		if (addInstrument(index)) /* allocate instrument memory */
 		{
 			strcpy(w->command.error, "failed to add instrument, out of memory");
 			return 1;
@@ -1044,7 +1254,7 @@ int loadSample(song *s, window *w, typetable *t, uint8_t index, char *path)
 	}
 	return 1;
 };
-int exportSample(song *s, typetable *t, uint8_t index, char *path)
+int exportSample(uint8_t index, char *path)
 {
 	if (s->instrumenti[index] < 0) return 1; /* instrument doesn't exist */
 	if (s->instrumentv[s->instrumenti[index]]->samplelength < 1) return 1; /* no sample data */
@@ -1074,7 +1284,7 @@ int exportSample(song *s, typetable *t, uint8_t index, char *path)
 
 
 
-song *_addSong(song *s, window *w)
+song *_addSong(void)
 {
 	s = calloc(1, sizeof(song));
 	if (s == NULL)
@@ -1106,18 +1316,18 @@ song *_addSong(song *s, window *w)
 
 	return s;
 }
-song *addSong(song *s, window *w)
+song *addSong(void)
 {
-	s = _addSong(s, w);
+	s = _addSong();
 	if (s == NULL) return NULL;
-	addChannel(s, s->channelc);
-	addChannel(s, s->channelc);
-	addChannel(s, s->channelc);
-	addChannel(s, s->channelc);
+	addChannel(s->channelc);
+	addChannel(s->channelc);
+	addChannel(s->channelc);
+	addChannel(s->channelc);
 	return s;
 }
 
-void delSong(song *s)
+void delSong(void)
 {
 	free(s->effectinl);
 	free(s->effectinr);
@@ -1136,7 +1346,7 @@ void delSong(song *s)
 	}
 
 	for (int i = 0; i < 16; i++)
-		_unloadLv2Effect(s, i);
+		_unloadLv2Effect(i);
 	if (s->effectbufferlv2values)
 		free(s->effectbufferlv2values);
 
@@ -1163,7 +1373,7 @@ void delSong(song *s)
 	free(s);
 }
 
-int writeSong(song *s, window *w, char *path)
+int writeSong(char *path)
 {
 	if (!strcmp(path, ""))
 	{
@@ -1279,7 +1489,7 @@ int writeSong(song *s, window *w, char *path)
 	return 0;
 }
 
-song *readSong(song *s, window *w, typetable *t, char *path)
+song *readSong(char *path)
 {
 	FILE *fp = fopen(path, "rb");
 	if (!fp) // file doesn't exist, or fopen otherwise failed
@@ -1306,9 +1516,9 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 	}
 	fseek(fp, 0x4, SEEK_SET);
 
-	if (s != NULL) delSong(s);
+	if (s != NULL) delSong();
 
-	s = _addSong(s, w);
+	s = _addSong();
 	if (s == NULL)
 	{
 		strcpy(w->command.error, "failed to read song, out of memory");
@@ -1364,7 +1574,7 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 	/* patternv */
 	for (i = 1; i < s->patternc; i++)
 	{
-		_addPattern(s, i);
+		_addPattern(i);
 		s->patternv[i]->rowc = fgetc(fp);
 		for (j = 0; j < s->channelc; j++)
 			for (k = 0; k < s->patternv[i]->rowc + 1; k++)
@@ -1381,10 +1591,10 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 	/* instrumentv */
 	for (i = 1; i < s->instrumentc; i++)
 	{
-		_addInstrument(s, i);
+		_addInstrument(i);
 
 		s->instrumentv[i]->type = fgetc(fp);
-		changeInstrumentType(s, w, t, i);
+		changeInstrumentType(i);
 
 		if (s->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
 				&& t->f[s->instrumentv[i]->type].read != NULL)
@@ -1423,7 +1633,7 @@ song *readSong(song *s, window *w, typetable *t, char *path)
 			uristring[urilen] = '\0';
 
 			LilvNode *uri = lilv_new_uri(lv2.world, uristring);
-			loadLv2Effect(s, w, i, lilv_plugins_get_by_uri(lv2.plugins, uri));
+			loadLv2Effect(i, lilv_plugins_get_by_uri(lv2.plugins, uri));
 			lilv_node_free(uri);
 
 			/* control port values */
