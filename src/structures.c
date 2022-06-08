@@ -762,10 +762,8 @@ void putPartPattern(void)
 				uint8_t row = w->trackerfy + j - s->pbfy[0];
 				if (row < destpattern->rowc)
 				{
-					if (s->pbfx[0] <= 0 && s->pbfx[1] >= 0)
-						destpattern->rowv[w->channel][row].note = s->patternbuffer.rowv[s->pbchannel[0]][j].note;
-					if (s->pbfx[0] <= 1 && s->pbfx[1] >= 1)
-						destpattern->rowv[w->channel][row].inst = s->patternbuffer.rowv[s->pbchannel[0]][j].inst;
+					if (s->pbfx[0] <= 0 && s->pbfx[1] >= 0) destpattern->rowv[w->channel][row].note = s->patternbuffer.rowv[s->pbchannel[0]][j].note;
+					if (s->pbfx[0] <= 1 && s->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = s->patternbuffer.rowv[s->pbchannel[0]][j].inst;
 					if (s->pbfx[0] <= 2 && s->pbfx[1] >= 2)
 					{
 						destpattern->rowv[w->channel][row].macroc[0] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[0];
@@ -794,10 +792,8 @@ void putPartPattern(void)
 					{
 						if (i == s->pbchannel[0]) /* first channel */
 						{
-							if (s->pbfx[0] <= 0)
-								destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
-							if (s->pbfx[0] <= 1)
-								destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
+							if (s->pbfx[0] <= 0) destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
+							if (s->pbfx[0] <= 1) destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
 							if (s->pbfx[0] <= 2)
 							{
 								destpattern->rowv[channel][row].macroc[0] = s->patternbuffer.rowv[i][j].macroc[0];
@@ -810,10 +806,8 @@ void putPartPattern(void)
 							}
 						} else if (i == s->pbchannel[1]) /* last channel */
 						{
-							if (s->pbfx[1] >= 0)
-								destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
-							if (s->pbfx[1] >= 1)
-								destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
+							if (s->pbfx[1] >= 0) destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
+							if (s->pbfx[1] >= 1) destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
 							if (s->pbfx[1] >= 2)
 							{
 								destpattern->rowv[channel][row].macroc[0] = s->patternbuffer.rowv[i][j].macroc[0];
@@ -840,66 +834,63 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 	{
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			uint8_t row = w->trackerfy + j - y1;
-			if (row < destpattern->rowc)
+			if (j < destpattern->rowc)
 			{
-				if (x1 <= 0 && x2 >= 0) destpattern->rowv[w->channel][row].note = 0;
-				if (x1 <= 1 && x2 >= 1) destpattern->rowv[w->channel][row].inst = 255;
+				if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][j].note = 0;
+				if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][j].inst = 255;
 				if (x1 <= 2 && x2 >= 2)
 				{
-					destpattern->rowv[w->channel][row].macroc[0] = 0;
-					destpattern->rowv[w->channel][row].macrov[0] = 0;
+					destpattern->rowv[c1][j].macroc[0] = 0;
+					destpattern->rowv[c1][j].macrov[0] = 0;
 				}
 				if (x1 <= 3 && x2 >= 3)
 				{
-					destpattern->rowv[w->channel][row].macroc[1] = 0;
-					destpattern->rowv[w->channel][row].macrov[1] = 0;
+					destpattern->rowv[c1][j].macroc[1] = 0;
+					destpattern->rowv[c1][j].macrov[1] = 0;
 				}
 			} else break;
 		}
 	} else
 		for (uint8_t i = c1; i <= c2; i++)
 		{
-			uint8_t channel = w->channel + i - c1;
-			if (channel < s->channelc)
+			if (i < s->channelc)
 			{
 				for (uint8_t j = y1; j <= y2; j++)
 				{
-					uint8_t row = w->trackerfy + j - y1;
-					if (row < destpattern->rowc)
+					if (j < destpattern->rowc)
 					{
 						if (i == c1) /* first channel */
 						{
-							if (x1 <= 0) destpattern->rowv[channel][row].note = 0;
-							if (x1 <= 1) destpattern->rowv[channel][row].inst = 255;
+							if (x1 <= 0) destpattern->rowv[i][j].note = 0;
+							if (x1 <= 1) destpattern->rowv[i][j].inst = 255;
 							if (x1 <= 2)
 							{
-								destpattern->rowv[channel][row].macroc[0] = 0;
-								destpattern->rowv[channel][row].macrov[0] = 0;
+								destpattern->rowv[i][j].macroc[0] = 0;
+								destpattern->rowv[i][j].macrov[0] = 0;
 							}
 							if (x1 <= 3)
 							{
-								destpattern->rowv[channel][row].macroc[1] = 0;
-								destpattern->rowv[channel][row].macrov[1] = 0;
+								destpattern->rowv[i][j].macroc[1] = 0;
+								destpattern->rowv[i][j].macrov[1] = 0;
 							}
 						} else if (i == c2) /* last channel */
 						{
-							if (x2 >= 0) destpattern->rowv[channel][row].note = 0;
-							if (x2 >= 1) destpattern->rowv[channel][row].inst = 255;
+							if (x2 >= 0) destpattern->rowv[i][j].note = 0;
+							if (x2 >= 1) destpattern->rowv[i][j].inst = 255;
 							if (x2 >= 2)
 							{
-								destpattern->rowv[channel][row].macroc[0] = 0;
-								destpattern->rowv[channel][row].macrov[0] = 0;
+								destpattern->rowv[i][j].macroc[0] = 0;
+								destpattern->rowv[i][j].macrov[0] = 0;
 							}
 							if (x2 >= 3)
 							{
-								destpattern->rowv[channel][row].macroc[1] = 0;
-								destpattern->rowv[channel][row].macrov[1] = 0;
+								destpattern->rowv[i][j].macroc[1] = 0;
+								destpattern->rowv[i][j].macrov[1] = 0;
 							}
 						} else /* middle channel */
 						{
-							memset(&destpattern->rowv[channel][row], 0, sizeof(row));
-							destpattern->rowv[channel][row].inst = 255;
+							memset(&destpattern->rowv[i][j], 0, sizeof(row));
+							destpattern->rowv[i][j].inst = 255;
 						}
 					} else break;
 				}
