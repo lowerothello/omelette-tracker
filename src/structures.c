@@ -215,6 +215,7 @@ typedef struct
 	unsigned short instrumentrowoffset;
 
 	char           octave;
+	char           step;
 
 	unsigned short akaizertimefactor, akaizercyclelength;
 
@@ -891,6 +892,55 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 						{
 							memset(&destpattern->rowv[i][j], 0, sizeof(row));
 							destpattern->rowv[i][j].inst = 255;
+						}
+					} else break;
+				}
+			} else break;
+		}
+}
+void addPartPattern(signed char value, short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+	if (c1 == c2) /* only one channel */
+	{
+		for (uint8_t j = y1; j <= y2; j++)
+		{
+			if (j < destpattern->rowc)
+			{
+				if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][j].note += value;
+				if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][j].inst += value;
+				if (x1 <= 2 && x2 >= 2) destpattern->rowv[c1][j].macrov[0] += value;
+				if (x1 <= 3 && x2 >= 3) destpattern->rowv[c1][j].macrov[1] += value;
+			} else break;
+		}
+	} else
+		for (uint8_t i = c1; i <= c2; i++)
+		{
+			if (i < s->channelc)
+			{
+				for (uint8_t j = y1; j <= y2; j++)
+				{
+					if (j < destpattern->rowc)
+					{
+						if (i == c1) /* first channel */
+						{
+							if (x1 <= 0) destpattern->rowv[i][j].note += value;
+							if (x1 <= 1) destpattern->rowv[i][j].inst += value;
+							if (x1 <= 2) destpattern->rowv[i][j].macrov[0] += value;
+							if (x1 <= 3) destpattern->rowv[i][j].macrov[1] += value;
+						} else if (i == c2) /* last channel */
+						{
+							if (x2 >= 0) destpattern->rowv[i][j].note += value;
+							if (x2 >= 1) destpattern->rowv[i][j].inst += value;
+							if (x2 >= 2) destpattern->rowv[i][j].macrov[0] += value;
+							if (x2 >= 3) destpattern->rowv[i][j].macrov[1] += value;
+						} else /* middle channel */
+						{
+							destpattern->rowv[i][j].inst += value;
+							destpattern->rowv[i][j].note += value;
+							destpattern->rowv[i][j].inst += value;
+							destpattern->rowv[i][j].macrov[0] += value;
+							destpattern->rowv[i][j].macrov[1] += value;
 						}
 					} else break;
 				}

@@ -132,17 +132,45 @@ int commandCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
-	if      (!strcmp(buffer, "q"))  { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "q!")) { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "w"))  { wordSplit(buffer, command, 1); writeSong(buffer); }
+	if      (!strcmp(buffer, "q"))   { free(buffer); buffer = NULL; return 1; }
+	else if (!strcmp(buffer, "q!"))  { free(buffer); buffer = NULL; return 1; }
+	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSong(buffer); }
 	else if (!strcmp(buffer, "wq"))
 	{
 		wordSplit(buffer, command, 1);
 		if (!writeSong(buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
+	} else if (!strcmp(buffer, "e")) { wordSplit(buffer, command, 1); s = readSong(buffer); w->songfx = 0; }
+	else if (!strcmp(buffer, "bpm"))
+	{
+		wordSplit(buffer, command, 1);
+		char update = 0;
+		if (s->songbpm == s->bpm) update = 1;
+		s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
+		if (update) w->request = REQ_BPM;
+	} else if (!strcmp(buffer, "plen")) /* pattern length */
+	{
+		wordSplit(buffer, command, 1);
+		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+		pattern->rowc = strtol(buffer, NULL, 0);
+		s->defpatternlength = pattern->rowc;
+		if (w->trackerfy > pattern->rowc)
+			w->trackerfy = pattern->rowc;
+	} else if (!strcmp(buffer, "hi")) /* row highlight */
+	{
+		wordSplit(buffer, command, 1);
+		s->rowhighlight = strtol(buffer, NULL, 0);
+	} else if (!strcmp(buffer, "step"))
+	{
+		wordSplit(buffer, command, 1);
+		w->step = strtol(buffer, NULL, 0);
+	} else if (!strcmp(buffer, "octave"))
+	{
+		wordSplit(buffer, command, 1);
+		w->octave = MIN(MAX(strtol(buffer, NULL, 0), 0), 9);
 	}
-	else if (!strcmp(buffer, "e"))  { wordSplit(buffer, command, 1); s = readSong(buffer); w->songfx = 0; }
 
 	free(buffer); buffer = NULL;
+	redraw();
 	return 0;
 }
 
