@@ -67,3 +67,8 @@ void updateField(signed char fieldpointer, char fieldsize, uint32_t *value, char
 	newDigit = pow32(16, multiplier) * modifier;
 	*value = *value - oldDigit + newDigit;
 }
+void updateFieldPush(uint8_t *field, char value)
+{
+	*field <<= 4;
+	*field += value;
+}

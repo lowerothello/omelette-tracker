@@ -21,8 +21,8 @@ typedef jack_default_audio_sample_t sample_t;
 #include <lv2/port-props/port-props.h>
 
 
-#define MIN(X, Y)   ((X) < (Y) ? (X) : (Y))
-#define MAX(X, Y)   ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 
 uint32_t clamp32(uint32_t x, uint32_t min, uint32_t max)
 {
@@ -61,9 +61,7 @@ int fl;
 #define RAMP_MS 3 /* only up to about 300 is safe */
                   /* any higher risks overflows   */
 
-#define PORTAMENTO_SEMITONES 0.00003 /* max speed: ~1oct a row */
-
-#define TICKS_PER_ROW 16
+#define INST_HISTDEPTH 128 /* 2(?)>INST_HISTDEPTH>128 */
 
 #define INSTRUMENT_TYPE_COUNT 2
 #define MIN_INSTRUMENT_INDEX -2
@@ -75,7 +73,7 @@ int fl;
 #define INSTRUMENT_TYPE_COLS 41
 
 
-#define RECORD_LENGTH 52920000 /* record length, in samples (600 secs) */
+#define RECORD_LENGTH 600 /* record length, in seconds */
 
 #define M_12_ROOT_2 1.0594630943592953
 
@@ -139,7 +137,13 @@ int commandCallback(char *command, unsigned char *mode)
 	{
 		wordSplit(buffer, command, 1);
 		if (!writeSong(buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
-	} else if (!strcmp(buffer, "e")) { wordSplit(buffer, command, 1); s = readSong(buffer); w->songfx = 0; }
+	} else if (!strcmp(buffer, "e"))
+	{
+		wordSplit(buffer, command, 1);
+		song *cs = readSong(buffer);
+		if (cs) s = cs;
+		w->songfx = 0;
+	}
 	else if (!strcmp(buffer, "bpm"))
 	{
 		wordSplit(buffer, command, 1);
@@ -147,7 +151,7 @@ int commandCallback(char *command, unsigned char *mode)
 		if (s->songbpm == s->bpm) update = 1;
 		s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
 		if (update) w->request = REQ_BPM;
-	} else if (!strcmp(buffer, "plen")) /* pattern length */
+	} else if (!strcmp(buffer, "rows")) /* pattern length */
 	{
 		wordSplit(buffer, command, 1);
 		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfx]]];
@@ -155,7 +159,7 @@ int commandCallback(char *command, unsigned char *mode)
 		s->defpatternlength = pattern->rowc;
 		if (w->trackerfy > pattern->rowc)
 			w->trackerfy = pattern->rowc;
-	} else if (!strcmp(buffer, "hi")) /* row highlight */
+	} else if (!strcmp(buffer, "highlight")) /* row highlight */
 	{
 		wordSplit(buffer, command, 1);
 		s->rowhighlight = strtol(buffer, NULL, 0);
@@ -297,7 +301,7 @@ void cleanup(int ret)
 	jack_deactivate(client);
 	jack_client_close(client);
 
-	free(w->previewinstrument.state);
+	free(w->previewinstrument.state[0]);
 	free(w->pluginlist);
 
 	free(w);
@@ -392,7 +396,7 @@ int main(int argc, char **argv)
 
 	w->previewchannel.gain = 255;
 	w->previewinstrument.type = 0;
-	w->previewinstrument.state = malloc(sizeof(sampler_state));
+	w->previewinstrument.state[0] = malloc(sizeof(sampler_state));
 	if (!w->previewinstrument.state)
 	{
 		printf("out of memory");
@@ -405,7 +409,7 @@ int main(int argc, char **argv)
 
 		common_cleanup(1);
 	}
-	sampler_state *ss = w->previewinstrument.state;
+	sampler_state *ss = w->previewinstrument.state[0];
 	ss->volume.s = 255;
 
 
@@ -426,7 +430,7 @@ int main(int argc, char **argv)
 		jack_deactivate(client);
 		jack_client_close(client);
 
-		free(w->previewinstrument.state);
+		free(w->previewinstrument.state[0]);
 
 		free(w);
 		delSong();
@@ -516,7 +520,7 @@ int main(int argc, char **argv)
 					memcpy(iv->sampledata, w->recbuffer, w->recptr * sizeof(short));
 					iv->samplelength = w->recptr;
 
-					sampler_state *ss = iv->state;
+					sampler_state *ss = iv->state[iv->type];
 					ss->channels = 2;
 					ss->length = w->recptr / 2;
 					ss->c5rate = samplerate;
@@ -529,6 +533,7 @@ int main(int argc, char **argv)
 
 			free(w->recbuffer); w->recbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
+			redraw();
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */

@@ -1,3 +1,13 @@
+typedef struct
+{
+	uint32_t length;
+	char     channels;
+	uint32_t c5rate;
+	uint32_t trim[2];
+	uint32_t loop[2];
+	adsr     volume;
+} sampler_state;
+
 void samplerIncFieldPointer(signed char *fieldpointer, short index)
 {
 	(*fieldpointer)++;
@@ -9,7 +19,7 @@ void samplerIncFieldPointer(signed char *fieldpointer, short index)
 		case 3:  if (*fieldpointer > 7) *fieldpointer = 0; break;
 		case 4:  if (*fieldpointer > 7) *fieldpointer = 0; break;
 		case 5:  if (*fieldpointer > 7) *fieldpointer = 0; break;
-		default: if (*fieldpointer > 1) *fieldpointer = 0; break;
+		default:                        *fieldpointer = 0; break;
 	}
 }
 void samplerDecFieldPointer(signed char *fieldpointer, short index)
@@ -24,7 +34,7 @@ void samplerDecFieldPointer(signed char *fieldpointer, short index)
 			case 3:  *fieldpointer = 7; break;
 			case 4:  *fieldpointer = 7; break;
 			case 5:  *fieldpointer = 7; break;
-			default: *fieldpointer = 1; break;
+			default: *fieldpointer = 0; break;
 		}
 }
 void samplerEndFieldPointer(signed char *fieldpointer, short index)
@@ -37,13 +47,12 @@ void samplerEndFieldPointer(signed char *fieldpointer, short index)
 		case 3:  *fieldpointer = 7; break;
 		case 4:  *fieldpointer = 7; break;
 		case 5:  *fieldpointer = 7; break;
-		default: *fieldpointer = 1; break;
+		default: *fieldpointer = 0; break;
 	}
 }
 
-void inputSamplerHex(signed char *fieldpointer, short index, instrument *iv, char value)
+void inputSamplerHex(signed char *fieldpointer, short index, sampler_state *ss, char value)
 {
-	sampler_state *ss = iv->state;
 	switch (index)
 	{
 		case 1: updateField(*fieldpointer, 8, (uint32_t *)&ss->c5rate, value); break;
@@ -51,17 +60,17 @@ void inputSamplerHex(signed char *fieldpointer, short index, instrument *iv, cha
 		case 3: updateField(*fieldpointer, 8, (uint32_t *)&ss->trim[1], value); if (ss->trim[1] > ss->length) ss->trim[1] = ss->length; break;
 		case 4: updateField(*fieldpointer, 8, (uint32_t *)&ss->loop[0], value); if (ss->loop[0] > ss->length) ss->loop[0] = ss->length; break;
 		case 5: updateField(*fieldpointer, 8, (uint32_t *)&ss->loop[1], value); if (ss->loop[1] > ss->length) ss->loop[1] = ss->length; break;
-		case 6: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.a, value); break;
-		case 7: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.d, value); break;
-		case 8: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.s, value); break;
-		case 9: updateField(*fieldpointer, 2, (uint32_t *)&ss->volume.r, value); break;
+		case 6: updateFieldPush(&ss->volume.a, value); break;
+		case 7: updateFieldPush(&ss->volume.d, value); break;
+		case 8: updateFieldPush(&ss->volume.s, value); break;
+		case 9: updateFieldPush(&ss->volume.r, value); break;
 	}
 	samplerIncFieldPointer(fieldpointer, index);
 }
 
 void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short y, short *cursor, unsigned char fieldpointer)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	signed char sampletitleoffset;
 	if (!iv->samplelength)
 	{
@@ -99,7 +108,7 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 	printf("\033[%d;%dH    ------       s: [%02x]  r: [%02x]      ", y + 10, x, ss->volume.s, ss->volume.r);
 
 	if (w->instrumentrecv == INST_REC_LOCK_CONT)
-		printf("\033[%d;%dH\033[6mREC\033[m", y, x + 1);
+		printf("\033[%d;%dHREC", y, x + 1);
 
 	x = x + 21 + fieldpointer;
 	switch (*cursor)
@@ -110,91 +119,91 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 		case 3: printf("\033[%d;%dH", y + 4, x + 0); break;
 		case 4: printf("\033[%d;%dH", y + 6, x + 0); break;
 		case 5: printf("\033[%d;%dH", y + 7, x + 0); break;
-		case 6: printf("\033[%d;%dH", y + 9, x + 0); break;
-		case 7: printf("\033[%d;%dH", y + 9, x + 9); break;
-		case 8: printf("\033[%d;%dH", y + 10, x + 0); break;
-		case 9: printf("\033[%d;%dH", y + 10, x + 9); break;
+		case 6: printf("\033[%d;%dH", y + 9, x + 1); break;
+		case 7: printf("\033[%d;%dH", y + 9, x + 10); break;
+		case 8: printf("\033[%d;%dH", y + 10, x + 1); break;
+		case 9: printf("\033[%d;%dH", y + 10, x + 10); break;
 	}
 }
 
 void samplerAdjustUp(instrument *iv, short index)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	switch (index)
 	{
 		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, 1); break;
 		case 2:
-			ss->trim[0] += ss->length / 50.0;
+			ss->trim[0] += MAX(ss->length / 50.0, 1);
 			if (ss->trim[0] > ss->length) ss->trim[0] = ss->length;
 			break;
 		case 3:
-			ss->trim[1] += ss->length / 50.0;
+			ss->trim[1] += MAX(ss->length / 50.0, 1);
 			if (ss->trim[1] > ss->length) ss->trim[1] = ss->length;
 			break;
 		case 4:
-			ss->loop[0] += ss->length / 50.0;
+			ss->loop[0] += MAX(ss->length / 50.0, 1);
 			if (ss->loop[0] > ss->length) ss->loop[0] = ss->length;
 			break;
 		case 5:
-			ss->loop[1] += ss->length / 50.0;
+			ss->loop[1] += MAX(ss->length / 50.0, 1);
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
 	}
 }
 void samplerAdjustDown(instrument *iv, short index)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	uint32_t oldpos;
 	switch (index)
 	{
 		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, -1); break;
 		case 2:
 			oldpos = ss->trim[0];
-			ss->trim[0] -= ss->length / 50.0;
+			ss->trim[0] -= MAX(ss->length / 50.0, 1);
 			if (ss->trim[0] > oldpos) ss->trim[0] = 0;
 			break;
 		case 3:
 			oldpos = ss->trim[1];
-			ss->trim[1] -= ss->length / 50.0;
+			ss->trim[1] -= MAX(ss->length / 50.0, 1);
 			if (ss->trim[1] > oldpos) ss->trim[1] = 0;
 			break;
 		case 4:
 			oldpos = ss->loop[0];
-			ss->loop[0] -= ss->length / 50.0;
+			ss->loop[0] -= MAX(ss->length / 50.0, 1);
 			if (ss->loop[0] > oldpos) ss->loop[0] = 0;
 			break;
 		case 5:
 			oldpos = ss->loop[1];
-			ss->loop[1] -= ss->length / 50.0;
+			ss->loop[1] -= MAX(ss->length / 50.0, 1);
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
 	}
 }
 void samplerAdjustLeft(instrument *iv, short index)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	uint32_t oldpos;
 	switch (index)
 	{
 		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, -0.2); break;
 		case 2:
 			oldpos = ss->trim[0];
-			ss->trim[0] -= ss->length / 1000.0;
+			ss->trim[0] -= MAX(ss->length / 1000.0, 1);
 			if (ss->trim[0] > oldpos) ss->trim[0] = 0;
 			break;
 		case 3:
 			oldpos = ss->trim[1];
-			ss->trim[1] -= ss->length / 1000.0;
+			ss->trim[1] -= MAX(ss->length / 1000.0, 1);
 			if (ss->trim[1] > oldpos) ss->trim[1] = 0;
 			break;
 		case 4:
 			oldpos = ss->loop[0];
-			ss->loop[0] -= ss->length / 1000.0;
+			ss->loop[0] -= MAX(ss->length / 1000.0, 1);
 			if (ss->loop[0] > oldpos) ss->loop[0] = 0;
 			break;
 		case 5:
 			oldpos = ss->loop[1];
-			ss->loop[1] -= ss->length / 1000.0;
+			ss->loop[1] -= MAX(ss->length / 1000.0, 1);
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
 		case 6: ss->volume.a--; break;
@@ -205,24 +214,24 @@ void samplerAdjustLeft(instrument *iv, short index)
 }
 void samplerAdjustRight(instrument *iv, short index)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	switch (index)
 	{
 		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, 0.2); break;
 		case 2:
-			ss->trim[0] += ss->length / 1000.0;
+			ss->trim[0] += MAX(ss->length / 1000.0, 1);
 			if (ss->trim[0] > ss->length) ss->trim[0] = ss->length;
 			break;
 		case 3:
-			ss->trim[1] += ss->length / 1000.0;
+			ss->trim[1] += MAX(ss->length / 1000.0, 1);
 			if (ss->trim[1] > ss->length) ss->trim[1] = ss->length;
 			break;
 		case 4:
-			ss->loop[0] += ss->length / 1000.0;
+			ss->loop[0] += MAX(ss->length / 1000.0, 1);
 			if (ss->loop[0] > ss->length) ss->loop[0] = ss->length;
 			break;
 		case 5:
-			ss->loop[1] += ss->length / 1000.0;
+			ss->loop[1] += MAX(ss->length / 1000.0, 1);
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
 		case 6: ss->volume.a++; break;
@@ -249,6 +258,7 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 		else                   iv->sampledata[ptr] = c;
 	}
 	free(buffer); buffer = NULL;
+	pushInstrumentHistory(iv);
 	return 0;
 }
 int samplerAkaizerCallback3(char *command, unsigned char *mode)
@@ -268,7 +278,7 @@ int samplerAkaizerCallback3(char *command, unsigned char *mode)
 		(short)strtol(altbuffer, NULL, 0));
 
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	free(iv->sampledata); iv->sampledata = NULL;
 	SF_INFO sfinfo;
 	iv->sampledata = _loadSample(buffer, &sfinfo);
@@ -281,6 +291,7 @@ int samplerAkaizerCallback3(char *command, unsigned char *mode)
 	ss->length = sfinfo.frames;
 	free(buffer);    buffer = NULL;
 	free(altbuffer); altbuffer = NULL;
+	pushInstrumentHistory(iv);
 	return 0;
 }
 int samplerAkaizerCallback2(char *command, unsigned char *mode)
@@ -313,7 +324,7 @@ int samplerLameCallback(char *command, unsigned char *mode)
 	system(buffer);
 
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	free(iv->sampledata); iv->sampledata = NULL;
 	SF_INFO sfinfo;
 	iv->sampledata = _loadSample("/tmp/omelette.mp3", &sfinfo);
@@ -324,6 +335,7 @@ int samplerLameCallback(char *command, unsigned char *mode)
 	ss->loop[0] = MIN(sfinfo.frames, ss->loop[0]);
 	ss->loop[1] = MIN(sfinfo.frames, ss->loop[1]);
 	free(buffer); buffer = NULL;
+	pushInstrumentHistory(iv);
 	return 0;
 }
 int samplerResampleCallback(char *command, unsigned char *mode)
@@ -335,7 +347,7 @@ int samplerResampleCallback(char *command, unsigned char *mode)
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	if (iv->samplelength == 0) return 1; /* no sample data */
 
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	uint32_t newlen = ss->length * ((float)newrate / (float)ss->c5rate);
 
 	/* malloc a new buffer */
@@ -364,13 +376,14 @@ int samplerResampleCallback(char *command, unsigned char *mode)
 
 	ss->c5rate = newrate;
 	free(buffer); buffer = NULL;
+	pushInstrumentHistory(iv);
 	return 0;
 }
 
 void samplerInput(int *input)
 {
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	switch (w->instrumentindex)
 	{
 		case 0:
@@ -447,7 +460,7 @@ void samplerInput(int *input)
 				case 't': /* apply trimming */
 					if (iv->samplelength > 0)
 					{
-						sampler_state *ss = iv->state;
+						sampler_state *ss = iv->state[iv->type];
 						uint32_t newlen
 							= MAX(ss->trim[0], ss->trim[1])
 							- MIN(ss->trim[0], ss->trim[1]);
@@ -515,7 +528,7 @@ void samplerInput(int *input)
 						switch (w->instrumentrecv)
 						{
 							case INST_REC_LOCK_OK:
-								w->recbuffer = malloc(sizeof(short) * RECORD_LENGTH);
+								w->recbuffer = malloc(sizeof(short) * RECORD_LENGTH * samplerate * 2);
 								if (w->recbuffer == NULL)
 								{
 									strcpy(w->command.error, "failed to start recording, out of memory");
@@ -564,22 +577,22 @@ void samplerInput(int *input)
 						case 9: ss->volume.r--; break;
 					}
 					break;
-				case '0':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 0);   break;
-				case '1':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 1);   break;
-				case '2':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 2);   break;
-				case '3':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 3);   break;
-				case '4':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 4);   break;
-				case '5':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 5);   break;
-				case '6':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 6);   break;
-				case '7':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 7);   break;
-				case '8':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 8);   break;
-				case '9':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 9);   break;
-				case 'A': case 'a': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 10);  break;
-				case 'B': case 'b': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 11);  break;
-				case 'C': case 'c': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 12);  break;
-				case 'D': case 'd': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 13);  break;
-				case 'E': case 'e': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 14);  break;
-				case 'F': case 'f': inputSamplerHex(&w->fieldpointer, w->instrumentindex, iv, 15);  break;
+				case '0':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 0);   break;
+				case '1':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 1);   break;
+				case '2':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 2);   break;
+				case '3':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 3);   break;
+				case '4':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 4);   break;
+				case '5':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 5);   break;
+				case '6':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 6);   break;
+				case '7':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 7);   break;
+				case '8':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 8);   break;
+				case '9':           inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 9);   break;
+				case 'A': case 'a': inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 10);  break;
+				case 'B': case 'b': inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 11);  break;
+				case 'C': case 'c': inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 12);  break;
+				case 'D': case 'd': inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 13);  break;
+				case 'E': case 'e': inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 14);  break;
+				case 'F': case 'f': inputSamplerHex(&w->fieldpointer, w->instrumentindex, ss, 15);  break;
 			}
 			redraw();
 			break;
@@ -618,26 +631,18 @@ void samplerMouseToIndex(int y, int x, short *index, signed char *fieldpointer)
 			else *fieldpointer = x - fieldoffset;
 			break;
 		case 10:
+			*fieldpointer = 0;
 			if (x < 26)
-			{ *index = 6;
-				if (x < fieldoffset + 1) *fieldpointer = 0;
-				else                     *fieldpointer = 1;
-			} else
-			{ *index = 7;
-				if (x < fieldoffset + 10) *fieldpointer = 0;
-				else                     *fieldpointer = 1;
-			}
+				*index = 6;
+			else
+				*index = 7;
 			break;
 		default:
+			*fieldpointer = 0;
 			if (x < 26)
-			{ *index = 8;
-				if (x < fieldoffset + 1) *fieldpointer = 0;
-				else                     *fieldpointer = 1;
-			} else
-			{ *index = 9;
-				if (x < fieldoffset + 10) *fieldpointer = 0;
-				else                     *fieldpointer = 1;
-			}
+				*index = 8;
+			else
+				*index = 9;
 			break;
 	}
 }
@@ -657,7 +662,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 	float gain = 1.0;
 	uint32_t pitchedpointer;
 
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 
 	if (ss->length > 0)
 	{
@@ -770,7 +775,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 /* must be realtime safe */
 uint32_t samplerOffset(instrument *iv, channel *cv, int m)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	return ss->trim[0] + m / 255.0 * (ss->trim[1] - ss->trim[0]);
 }
 
@@ -778,7 +783,7 @@ uint32_t samplerOffset(instrument *iv, channel *cv, int m)
 uint8_t samplerGetOffset(instrument *iv, channel *cv)
 {
 	if (!cv->r.note) return 0;
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	return (cv->samplepointer - ss->trim[0]) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
 }
 
@@ -786,11 +791,13 @@ uint8_t samplerGetOffset(instrument *iv, channel *cv)
 void samplerChangeType(void **state)
 {
 	*state = calloc(1, sizeof(sampler_state));
+	sampler_state *ss = *state;
+	ss->volume.s = 255;
 }
 
 void samplerLoadSample(instrument *iv, SF_INFO sfinfo)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	ss->channels = sfinfo.channels;
 	ss->length = sfinfo.frames;
 	ss->c5rate = sfinfo.samplerate;
@@ -802,7 +809,7 @@ void samplerLoadSample(instrument *iv, SF_INFO sfinfo)
 
 void samplerExportSample(instrument *iv, SF_INFO *sfinfo)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	sfinfo->samplerate = ss->c5rate;
 	sfinfo->frames = ss->length;
 	sfinfo->channels = ss->channels;
@@ -810,7 +817,7 @@ void samplerExportSample(instrument *iv, SF_INFO *sfinfo)
 
 void samplerWrite(instrument *iv, FILE *fp)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	fwrite(&ss->length, sizeof(uint32_t), 1, fp);
 	fputc(ss->channels, fp);
 	fwrite(&ss->c5rate, sizeof(uint32_t), 1, fp);
@@ -824,7 +831,7 @@ void samplerWrite(instrument *iv, FILE *fp)
 
 void samplerRead(instrument *iv, FILE *fp)
 {
-	sampler_state *ss = iv->state;
+	sampler_state *ss = iv->state[iv->type];
 	fread(&ss->length, sizeof(uint32_t), 1, fp);
 	ss->channels = fgetc(fp);
 	fread(&ss->c5rate, sizeof(uint32_t), 1, fp);
@@ -838,8 +845,9 @@ void samplerRead(instrument *iv, FILE *fp)
 
 void samplerInit(int index)
 {
-	t->f[index].draw = &drawSampler;
 	t->f[index].indexc = 10;
+	t->f[index].statesize = sizeof(sampler_state);
+	t->f[index].draw = &drawSampler;
 	t->f[index].adjustUp = &samplerAdjustUp;
 	t->f[index].adjustDown = &samplerAdjustDown;
 	t->f[index].adjustLeft = &samplerAdjustLeft;

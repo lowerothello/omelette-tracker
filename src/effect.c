@@ -271,7 +271,6 @@ void effectAdjustRight(effect *ev, short index)
 		{
 			float currentstep = (lc->steps - 1.0) * logf(newvalue / lc->min) / logf(lc->max / lc->min);
 			float nextstep = lc->min * powf(lc->max / lc->min, (currentstep + 1.0) / (lc->steps - 1.0));
-			DEBUG=currentstep;
 			if (nextstep > lc->max) newvalue = lc->max;
 			else newvalue = nextstep;
 		} else

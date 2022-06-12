@@ -1,7 +1,7 @@
 omelette tracker
 ================
 
-TODO: description
+TODO: proper readme
 
 
 
@@ -17,16 +17,12 @@ TODO:
 	^ test retrigger blocks
 -> tracker
 	^ redo mode 0 input, probably should be modal? not sure
-	^ edit step
 -> instruments
 	^ test retaining relative instrument params after processing
 	^ changing type forfeits state immediately; allow for storing multiple types in memory (not disk)?
 -> effects
 
 some eq10q mono plugins segfault on load, not sure why
-
-
-can i properly index a VERY long sample with multiple channels and still fit in the uint limit?
 
 
 MACROS
@@ -70,7 +66,7 @@ An s&h sampler
 Sample data can be loaded from a file or recorded in
 They're copied into the module, any changes won't affect the sample on disk
 TODO: sample compression
-options:
+actions:
 	non-destructive:
 		+ tuning
 		+ trimming (start and end pos)
@@ -213,14 +209,6 @@ tracker keybinds:
 		D : delete from the selected channel to the end
 		p : put the buffer after the selected channel, shift channels
 		P : put the buffer before the selected channel, shift channels
-	insert: (focuses the pattern data)
-		^v: enter visual block mode, actions will affect all selected fields
-		^a: increment
-		^x: decrement
-		^i: interpolate
-		^[: exit instert mode
-	visual: (focuses the pattern data)
-		^[: exit visual block mode
 
 
 

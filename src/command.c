@@ -6,15 +6,13 @@
 
 typedef struct
 {
-	unsigned short historyc; /* count of history entries */
+	short historyc; /* count of history entries */
 	char historyv[COMMAND_LENGTH][HISTORY_LENGTH]; /* history entries */
 
 	short history; /* current point in history */
 	unsigned short commandptr; /* command char */
-	char command[COMMAND_LENGTH]; /* current point in history */
 	char error[COMMAND_LENGTH]; /* error code */
 	char prompt[COMMAND_LENGTH]; /* prompt */
-	// uint8_t type; /* type, used for different callback functions */
 	int (*callback)(char *, unsigned char *); /* (command, mode) mode is *window->mode */
 	void (*keycallback)(char *); /* (command) */
 } command_t;
@@ -46,35 +44,6 @@ void wordSplit(char *output, char *line, int wordt)
 	}
 }
 
-/* update the current point in history */
-void updateHistory(command_t *command)
-{
-	if (command->history < 0) return;
-	strcpy(command->historyv[command->historyc % HISTORY_LENGTH], command->command);
-}
-/* set a new point in history */
-void pushHistory(command_t *command)
-{
-	if (command->history < 0) return;
-	command->historyc++;
-
-	/* protect against reaching the short limit */
-	if (command->historyc >= HISTORY_LENGTH * 2)
-		command->historyc = HISTORY_LENGTH;
-}
-
-/* index is how far back in time to go */
-/* data will be filled with the string */
-/* data should be of size COMMAND_LENGTH */
-int getHistory(command_t *command, unsigned short index)
-{
-	if (command->historyc < 0) return 1;
-	if (index > MIN(command->historyc, HISTORY_LENGTH)) return 1; /* too far back in time */
-
-	strcpy(command->command, command->historyv[(command->historyc - index) % HISTORY_LENGTH]);
-	return 0;
-}
-
 void setCommand(command_t *command, int (*callback)(char *, unsigned char *), void (*keycallback)(char *), char historyenabled, char *prompt, char *startvalue)
 {
 	command->callback = callback;
@@ -85,7 +54,7 @@ void setCommand(command_t *command, int (*callback)(char *, unsigned char *), vo
 		command->history = -1;
 
 	strcpy(command->prompt, prompt);
-	strcpy(command->command, startvalue);
+	strcpy(command->historyv[command->historyc], startvalue);
 	command->commandptr = strlen(startvalue);
 }
 
@@ -93,8 +62,8 @@ void drawCommand(command_t *command, unsigned char mode)
 {
 	if (mode == 255) /* command mode */
 	{
+		printf("\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, command->prompt, command->historyv[command->historyc], ws.ws_row, (command->commandptr + (unsigned short)strlen(command->prompt) + 1) % ws.ws_col);
 		command->error[0] = '\0';
-		printf("\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, command->prompt, command->command, ws.ws_row, (command->commandptr + (unsigned short)strlen(command->prompt) + 1) % ws.ws_col);
 	} else if (strlen(command->error) > 0)
 	{
 		printf("\033[s\033[%d;0H%s\033[u", ws.ws_row, command->error);
@@ -112,31 +81,30 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 				switch (getchar())
 				{
 					case 'A': /* up arrow */
-						if (!getHistory(command, command->historyc + 1))
-						{ /* if getting the history succeeded */
-							command->commandptr = strlen(command->command);
-							command->historyc++;
-						}
+						if (command->history < 0) break;
+						command->history = MIN((command->history + 1) % HISTORY_LENGTH, command->historyc);
+						strcpy(command->historyv[command->historyc], command->historyv[command->historyc - command->history]);
+						command->commandptr = strlen(command->historyv[command->historyc]);
 						break;
 					case 'B': /* down arrow */
-						if (!getHistory(command, command->historyc - 1))
-						{ /* if getting the history succeeded */
-							command->commandptr = strlen(command->command);
-							command->historyc--;
-						}
+						if (command->history < 0) break;
+						command->history = MAX(command->history - 1, 0);
+						strcpy(command->historyv[command->historyc], command->historyv[command->historyc - command->history]);
+						command->commandptr = strlen(command->historyv[command->historyc]);
 						break;
 					case 'D': /* left arrow */
 						if (command->commandptr > 0) command->commandptr--;
 						break;
 					case 'C': /* right arrow */
-						if (command->commandptr < strlen(command->command)) command->commandptr++;
+						if (command->commandptr < strlen(command->historyv[command->historyc]))
+							command->commandptr++;
 						break;
 					case 'H': /* home */
 						command->commandptr = 0;
 						break;
-					case '4':
-						if (getchar() == '~') /* end */
-							command->commandptr = strlen(command->command);
+					case '4': /* end */
+						getchar();
+						command->commandptr = strlen(command->historyv[command->historyc]);
 						break;
 					case 'M': /* mouse */
 						getchar();
@@ -150,56 +118,54 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 				*mode = 0;
 				break;
 			}
-		case 10: case 13: /* newline */
-			updateHistory(command);
-			pushHistory(command);
+		case 10: case 13: /* return */
 			*mode = 0;
-			if (command->keycallback)
-				command->keycallback(command->command);
-			if (command->callback)
-				if (command->callback(command->command, mode)) return 1; /* exit if the command says to */
+
+			if (strcmp(command->historyv[command->historyc], ""))
+			{
+				if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
+				if (command->callback) if (command->callback(command->historyv[command->historyc], mode)) return 1;
+
+				if (command->history < 0) break;
+				command->historyc++;
+
+				/* protect against reaching the short limit */
+				if (command->historyc >= HISTORY_LENGTH * 2)
+					command->historyc = HISTORY_LENGTH;
+			}
 			break;
 		case 127: /* backspace */
 			if (command->commandptr > 0)
 			{
-				int i;
-				for (i = 0; i < strlen(command->command); i++)
-				{
-					if (command->command[i] != '\0' && i > command->commandptr - 2)
-						command->command[i] = command->command[i + 1];
-				}
+				for (int i = 0; i < strlen(command->historyv[command->historyc]); i++)
+					if (command->historyv[command->historyc][i] != '\0' && i > command->commandptr - 2)
+						command->historyv[command->historyc][i] = command->historyv[command->historyc][i + 1];
 				command->commandptr--;
-				updateHistory(command);
-				if (command->keycallback)
-					command->keycallback(command->command);
+				if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			}
 			break;
 		case 21: /* <C-u> */
-			memcpy(command->command, command->command + command->commandptr, COMMAND_LENGTH - command->commandptr);
+			memcpy(command->historyv[command->historyc], command->historyv[command->historyc] + command->commandptr, COMMAND_LENGTH - command->commandptr);
 			command->commandptr = 0;
-			updateHistory(command);
-			if (command->keycallback)
-				command->keycallback(command->command);
+			if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			break;
 		case 11: /* <C-k> */
-			command->command[command->commandptr] = '\0';
-			updateHistory(command);
-			if (command->keycallback)
-				command->keycallback(command->command);
+			command->historyv[command->historyc][command->commandptr] = '\0';
+			if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			break;
 		default:
-			int i;
-			for (i = strlen(command->command); i >= 0; i--)
+			if (strlen(command->historyv[command->historyc]) == 0)
 			{
-				if (i >= command->commandptr)
-					command->command[i + 1] = command->command[i];
-				if (i == command->commandptr)
-					command->command[i] = input;
-			}
+				command->historyv[command->historyc][0] = input;
+				command->historyv[command->historyc][1] = '\0';
+			} else
+				for (int i = strlen(command->historyv[command->historyc]); i >= 0; i--)
+				{
+					if (i > command->commandptr)  command->historyv[command->historyc][i + 1] = command->historyv[command->historyc][i];
+					if (i == command->commandptr) command->historyv[command->historyc][i] = input;
+				}
 			command->commandptr++;
-			updateHistory(command);
-			if (command->keycallback)
-				command->keycallback(command->command);
+			if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			break;
 	}
 	return 0;

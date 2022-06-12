@@ -12,12 +12,12 @@ run() {
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
 		-lm -Wall -std=c99 \
-		src/main.c -o omutrack
+		src/main.c -o omelette
 } || {
 	run ${CC:-gcc} \
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
-		-lm -Wall -std=c99 \
-		src/main.c -o omutrack
+		-lm -Wall -std=c99 -g \
+		src/main.c -o omelette
 }

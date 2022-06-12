@@ -27,7 +27,7 @@ int ifMacro(row r, char m)
 void changeBpm(song *s, uint8_t newbpm)
 {
 	s->bpm = newbpm;
-	s->spr = samplerate * (60.0 / newbpm) / 4;
+	s->spr = samplerate * (60.0 / newbpm) / (s->rowhighlight * 2);
 }
 
 /* freewheel to fill up the ramp buffer, potential speed issues? */
@@ -115,9 +115,9 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	}
 }
 
-void bendUp(channel *cv)
+void bendUp(channel *cv, uint32_t spr)
 {
-	cv->cents += PORTAMENTO_SEMITONES * cv->portamentospeed;
+	cv->cents += (12.0 / spr) * (cv->portamentospeed / 255.0);
 	while (cv->cents > 0.5)
 	{
 		cv->cents -= 1.0;
@@ -131,9 +131,9 @@ void bendUp(channel *cv)
 	}
 }
 
-void bendDown(channel *cv)
+void bendDown(channel *cv, uint32_t spr)
 {
-	cv->cents -= PORTAMENTO_SEMITONES * cv->portamentospeed;
+	cv->cents -= (12.0 / spr) * (cv->portamentospeed / 255.0);
 	while (cv->cents < 0.5)
 	{
 		cv->cents += 1.0;
@@ -311,7 +311,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			/* record */
 			if (p->w->instrumentrecv == INST_REC_LOCK_CONT)
 			{
-				if (p->w->recptr + 2 > RECORD_LENGTH)
+				if (p->w->recptr + 1 > RECORD_LENGTH * samplerate)
 				{
 					strcpy(p->w->command.error, "record buffer full");
 					p->w->instrumentrecv = INST_REC_LOCK_END;
@@ -319,14 +319,14 @@ int process(jack_nframes_t nfptr, void *arg)
 				{
 					int c;
 					c = (float)pb.inl[fptr] * (float)SHRT_MAX;
-					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr + 0] = SHRT_MAX;
-					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr + 0] = SHRT_MIN;
-					else                   p->w->recbuffer[p->w->recptr + 0] = c;
+					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
+					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
+					else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
 					c = (float)pb.inr[fptr] * (float)SHRT_MAX;
-					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr + 1] = SHRT_MAX;
-					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr + 1] = SHRT_MIN;
-					else                   p->w->recbuffer[p->w->recptr + 1] = c;
-					p->w->recptr += 2;
+					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
+					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
+					else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
+					p->w->recptr++;
 				}
 			}
 
@@ -499,14 +499,14 @@ int process(jack_nframes_t nfptr, void *arg)
 				{
 					if (cv->r.note == cv->portamento)
 					{ /* fine bend */
-						if (cv->cents < 0.0) bendUp(cv);
-						else                 bendDown(cv);
+						if (cv->cents < 0.0) bendUp(cv, p->s->spr);
+						else                 bendDown(cv, p->s->spr);
 					} else if (cv->r.note < cv->portamento)
 					{ /* bend up */
-						bendUp(cv);
+						bendUp(cv, p->s->spr);
 					} else
 					{ /* bend down */
-						bendDown(cv);
+						bendDown(cv, p->s->spr);
 					}
 				}
 

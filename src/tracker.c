@@ -419,13 +419,23 @@ void trackerRedraw(void)
 	x = w->trackercelloffset + LINENO_COLS + ROW_COLS * (w->channel - w->channeloffset);
 
 	/* ruler */
-	printf("\033[%d;%dH[%02x] %02x,%02x  ", ws.ws_row, ws.ws_col - 43,
-			w->songfx, w->trackerfy, w->channel);
-	if (s->playing == PLAYING_STOP)
-		printf("(stopped)    ");
-	else
-		printf("([%02x] %02x)    ", s->songp, s->songr);
-	printf("&%d %+-4d B%02x  (B%02x)", w->octave, w->step, s->songbpm, s->bpm);
+	if (w->mode < 255)
+	{
+		if (w->instrumentrecv == INST_REC_LOCK_CONT)
+		{
+			if (w->recptr == 0)
+				printf("\033[%d;%dH{REC   0s}", ws.ws_row, ws.ws_col - 58);
+			else
+				printf("\033[%d;%dH{REC %3ds}", ws.ws_row, ws.ws_col - 58, w->recptr / samplerate + 1);
+		}
+		printf("\033[%d;%dH[%02x] %02x,%02x ", ws.ws_row, ws.ws_col - 39,
+				w->songfx, w->trackerfy, w->channel);
+		if (s->playing == PLAYING_STOP)
+			printf("(stopped)   ");
+		else
+			printf("([%02x] %02x)   ", s->songp, s->songr);
+		printf("&%d %+-4d B%02x (B%02x)", w->octave, w->step, s->songbpm, s->bpm);
+	}
 
 	switch (w->mode)
 	{
