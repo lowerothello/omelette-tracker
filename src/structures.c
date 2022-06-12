@@ -152,6 +152,8 @@ song *s;
 #define INST_GLOBAL_LOCK_OK 0        /* playback and most memory ops are safe */
 #define INST_GLOBAL_LOCK_PREP_FREE 1 /* playback unsafe, preparing to free the state */
 #define INST_GLOBAL_LOCK_FREE 2      /* playback has stopped, safe to free the state */
+#define INST_GLOBAL_LOCK_PREP_HIST 3 /* playback unsafe, preparing to restore history */
+#define INST_GLOBAL_LOCK_HIST 4      /* playback has stopped, restoring history */
 /* inst_global_lock - 16 = the effect whose default mix has changed */
 
 #define INST_REC_LOCK_OK 0       /* playback and most memory ops are safe */
@@ -949,23 +951,67 @@ int changeInstrumentType(uint8_t forceindex)
 {
 	uint8_t i;
 	if (!forceindex)
-		if (w->instrumentlockv == INST_GLOBAL_LOCK_FREE)
-			i = s->instrumenti[w->instrumentlocki];
+		if (w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+				|| w->instrumentlockv == INST_GLOBAL_LOCK_HIST)
+			i = w->instrumentlocki;
 		else return 0;
 	else i = forceindex;
 
 	instrument *iv = s->instrumentv[i];
-	// if (iv->state) { free(iv->state); iv->state = NULL; } // free old state
 	if (iv)
 	{
-		if (!iv->state && iv->type < INSTRUMENT_TYPE_COUNT)
+DEBUG=99;
+		if (forceindex)
 		{
-			t->f[iv->type].changeType(&iv->state[iv->type]);
-			if (!iv->state[iv->type])
+			if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
 			{
-				strcpy(w->command.error, "failed to allocate instrument type, out of memory");
-				return 1;
+				t->f[iv->type].changeType(&iv->state[iv->type]);
+				if (!iv->state[iv->type])
+				{
+					strcpy(w->command.error, "failed to allocate instrument type, out of memory");
+					return 1;
+				}
 			}
+		} else switch (w->instrumentlockv)
+		{
+			case INST_GLOBAL_LOCK_FREE:
+				if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
+				{
+					t->f[iv->type].changeType(&iv->state[iv->type]);
+					if (!iv->state[iv->type])
+					{
+						strcpy(w->command.error, "failed to allocate instrument type, out of memory");
+						return 1;
+					}
+				}
+				break;
+			case INST_GLOBAL_LOCK_HIST:
+				instrument *dest = s->instrumentv[i];
+				instrument *src = dest->history[dest->historyptr%128];
+
+				dest->type = src->type;
+				memcpy(dest->fader, src->fader, sizeof(uint8_t) * 2);
+				memcpy(dest->send, src->send, sizeof(char) * 16);
+
+				for (int j = 0; j < 256; j++)
+					if (src->state[j])
+					{
+						if (!dest->state[j]) t->f[j].changeType(&dest->state[j]);
+						memcpy(dest->state[j], src->state[j], t->f[j].statesize);
+					}
+
+				dest->samplelength = src->samplelength;
+				if (dest->sampledata)
+				{
+					free(dest->sampledata);
+					dest->sampledata = NULL;
+				}
+				if (src->samplelength)
+				{
+					dest->sampledata = malloc(sizeof(short) * dest->samplelength);
+					memcpy(dest->sampledata, src->sampledata, sizeof(short) * dest->samplelength);
+				}
+				break;
 		}
 		iv->typefollow = iv->type;
 	}
@@ -1055,6 +1101,10 @@ void pushInstrumentHistory(instrument *iv)
 
 	if (!iv->history[iv->historyptr%128])
 		iv->history[iv->historyptr%128] = calloc(1, sizeof(instrument));
+	else
+		for (int i = 0; i < 256; i++)
+			if (iv->history[iv->historyptr%128]->state[i])
+				free(iv->history[iv->historyptr%128]->state[i]);
 
 	instrument *ivh = iv->history[iv->historyptr%128];
 	ivh->type = iv->type;
@@ -1081,34 +1131,29 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 	instrument *ivh = iv->history[iv->historyptr%128];
 	if (ivh && iv->type < INSTRUMENT_TYPE_COUNT)
 	{
-		if (ivh->type != iv->type
-				|| !iv->state[iv->type]
-				|| memcmp(ivh->state[iv->type], iv->state[iv->type], t->f[iv->type].statesize)
+		if (!iv->state[iv->type]
 				|| memcmp(ivh->fader, iv->fader, sizeof(uint8_t) * 2)
 				|| memcmp(ivh->send, iv->send, sizeof(char) * 16)
 				|| ivh->samplelength != iv->samplelength)
 			pushInstrumentHistory(iv);
+		else
+			for (int i = 0; i < 256; i++)
+				if (ivh->state[i] || iv->state[i])
+					if (!(ivh->state[i] && iv->state[i]) || memcmp(ivh->state[i], iv->state[i], t->f[i].statesize))
+					{
+						pushInstrumentHistory(iv);
+						break;
+					}
 	}
 }
-void _popInstrumentHistory(instrument *dest, instrument *src)
+void _popInstrumentHistory(uint8_t realindex)
 {
-	dest->type = src->type;
-	for (int i = 0; i < 256; i++)
-		if (src->state[i])
-			memcpy(dest->state[i], src->state[i], t->f[i].statesize);
-	memcpy(dest->fader, src->fader, sizeof(uint8_t) * 2);
-	memcpy(dest->send, src->send, sizeof(char) * 16);
-
-	dest->samplelength = src->samplelength;
-	if (dest->sampledata) { free(dest->sampledata); dest->sampledata = NULL; }
-	if (src->samplelength)
-	{
-		dest->sampledata = malloc(sizeof(short) * dest->samplelength);
-		memcpy(dest->sampledata, src->sampledata, sizeof(short) * dest->samplelength);
-	}
+	w->instrumentlocki = realindex;
+	w->instrumentlockv = INST_GLOBAL_LOCK_PREP_HIST;
 }
-void popInstrumentHistory(instrument *iv) /* undo */
+void popInstrumentHistory(uint8_t realindex) /* undo */
 {
+	instrument *iv = s->instrumentv[realindex];
 	if (!iv) return;
 	if (iv->historyptr <= 1 || iv->historybehind >= 127)
 	{ strcpy(w->command.error, "already at oldest change"); return; }
@@ -1118,13 +1163,14 @@ void popInstrumentHistory(instrument *iv) /* undo */
 	else
 		iv->historyptr--;
 
-	_popInstrumentHistory(iv, iv->history[iv->historyptr%128]);
+	_popInstrumentHistory(realindex);
 
 	iv->historybehind++;
 	iv->historyahead++;
 }
-void unpopInstrumentHistory(instrument *iv) /* redo */
+void unpopInstrumentHistory(uint8_t realindex) /* redo */
 {
+	instrument *iv = s->instrumentv[realindex];
 	if (!iv) return;
 	if (iv->historyahead == 0)
 	{ strcpy(w->command.error, "already at newest change"); return; }
@@ -1134,7 +1180,7 @@ void unpopInstrumentHistory(instrument *iv) /* redo */
 	else
 		iv->historyptr++;
 
-	_popInstrumentHistory(iv, iv->history[iv->historyptr%128]);
+	_popInstrumentHistory(realindex);
 
 	iv->historybehind--;
 	iv->historyahead--;

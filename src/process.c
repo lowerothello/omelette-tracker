@@ -52,7 +52,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	if (inst == 255)                  iv = &p->w->previewinstrument;
 	else if (p->s->instrumenti[inst]) iv = p->s->instrumentv[p->s->instrumenti[inst]];
 	/* process the type */
-	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == cv->r.inst)
+	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
 			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
 	{
 		if (cv->rtrigsamples > 0 && inst < 255)
@@ -173,24 +173,26 @@ int process(jack_nframes_t nfptr, void *arg)
 	/* just need to know these have been seen */
 	/* will no longer write to the record buffer */
 	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_END)
-		p->w->instrumentrecv =  INST_REC_LOCK_END;
+		p->w->instrumentrecv = INST_REC_LOCK_END;
 	/* will no longer access the instrument state */
 	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE)
-		p->w->instrumentlockv =  INST_GLOBAL_LOCK_FREE;
+		p->w->instrumentlockv = INST_GLOBAL_LOCK_FREE;
+	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST)
+		p->w->instrumentlockv = INST_GLOBAL_LOCK_HIST;
 	/* new default send */
 	else if (p->w->instrumentlockv > 15)
 	{
 		short index = p->w->instrumentlockv - 16;
 		p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
 
-		iv = p->s->instrumentv[p->s->instrumenti[p->w->instrumentlocki]];
+		iv = p->s->instrumentv[p->w->instrumentlocki];
 		if (iv && p->s->effectv[index].type)
 		{
 			char held = 0;
 			for (uint8_t i = 0; i < p->s->channelc; i++)
 			{
 				cv = &p->s->channelv[i];
-				if (cv->effectholdinst == p->w->instrumentlocki
+				if (p->s->instrumenti[cv->effectholdinst] == p->w->instrumentlocki
 						&& cv->effectholdindex == index)
 				{ held = 1; break; }
 			}
@@ -351,7 +353,7 @@ int process(jack_nframes_t nfptr, void *arg)
 							/* clear the rampbuffer so cruft isn't played in edge cases */
 							memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 							if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-									&& p->w->instrumentlocki == cv->r.inst))
+									&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 							{
 								iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 								if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
@@ -381,7 +383,7 @@ int process(jack_nframes_t nfptr, void *arg)
 								if (cv->r.note) /* old note, ramp it out */
 								{
 									if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-											&& p->w->instrumentlocki == cv->r.inst)
+											&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
 											&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
 											&& t->f[iv->type].process)
 										ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
@@ -414,7 +416,7 @@ int process(jack_nframes_t nfptr, void *arg)
 								/* clear the rampbuffer so cruft isn't played in edge cases */
 								memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 								if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-										&& p->w->instrumentlocki == cv->r.inst))
+										&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 								{
 									iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 									if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)

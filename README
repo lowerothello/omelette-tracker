@@ -12,21 +12,18 @@ TODO: proper readme
 TODO:
 -> main
 	^ remove input.c, it's kinda stupid
-	^ undo buffers
 -> playback
 	^ test retrigger blocks
 -> tracker
 	^ redo mode 0 input, probably should be modal? not sure
 -> instruments
 	^ test retaining relative instrument params after processing
-	^ changing type forfeits state immediately; allow for storing multiple types in memory (not disk)?
 -> effects
 
 some eq10q mono plugins segfault on load, not sure why
 
 
 MACROS
-* either 2 char macros or 1 short macro
 
 tracker:
 >  00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D   0E

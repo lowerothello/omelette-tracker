@@ -139,7 +139,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 			void startVisual(signed char fieldpointer)
 			{
-				if (w->mode == 1 && channel == MIN(w->visualchannel, w->channel))
+				if (!w->popup && w->mode == 1 && channel == MIN(w->visualchannel, w->channel))
 				{
 					if (w->visualchannel == w->channel)
 					{
@@ -155,7 +155,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 			}
 			void stopVisual(signed char fieldpointer)
 			{
-				if (w->mode == 1 && channel == MAX(w->visualchannel, w->channel))
+				if (!w->popup && w->mode == 1 && channel == MAX(w->visualchannel, w->channel))
 				{
 					if (w->visualchannel == w->channel)
 					{
@@ -177,7 +177,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 			}
 			int ifVisual(signed char fieldpointer)
 			{
-				if (w->mode == 1
+				if (!w->popup && w->mode == 1
 						&& channel >= MIN(w->visualchannel, w->channel)
 						&& channel <= MAX(w->visualchannel, w->channel))
 				{
@@ -213,7 +213,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 			/* special attributes */
 			if (s->channelv[channel].mute) printf("\033[2m");
-			if (w->mode == 1
+			if (!w->popup && w->mode == 1
 					&& channel > MIN(w->visualchannel, w->channel)
 					&& channel <= MAX(w->visualchannel, w->channel)
 					&& i >= MIN(w->visualfy, w->trackerfy)
@@ -644,11 +644,11 @@ int trackerInput(int input)
 							switch (getchar())
 							{
 								case '5': /* f5, play */
-									getchar(); /* extraneous tilde */
+									getchar();
 									startPlayback();
 									break;
 								case '7': /* f6 (yes, f6 is '7'), stop */
-									getchar(); /* extraneous tilde */
+									getchar();
 									stopPlayback();
 									break;
 								case ';': /* mod+arrow */
@@ -680,14 +680,16 @@ int trackerInput(int input)
 							}
 							break;
 						case 'H': /* home */
-							w->trackerfx = 0;
+							w->trackerfy = 0;
 							redraw();
 							break;
 						case '4': /* end */
-							getchar(); /* burn through the tilde */
+							getchar();
+							w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
+							redraw();
 							break;
 						case '5': /* page up */
-							getchar(); /* burn through the tilde */
+							getchar();
 							if (s->songi[w->songfx] == 255) break;
 							w->trackerfy -= s->rowhighlight;
 							if (w->trackerfy < 0)
@@ -701,7 +703,7 @@ int trackerInput(int input)
 							redraw();
 							break;
 						case '6': /* page down */
-							getchar(); /* burn through the tilde */
+							getchar();
 							if (s->songi[w->songfx] == 255) break;
 							w->trackerfy += s->rowhighlight;
 							if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
