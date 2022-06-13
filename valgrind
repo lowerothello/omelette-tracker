@@ -5,4 +5,4 @@
 valgrind \
 	--log-file=valgrind.log \
 	--leak-check=full \
-	./omelette
+	./omelette "$@"

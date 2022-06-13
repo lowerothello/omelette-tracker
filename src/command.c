@@ -7,12 +7,12 @@
 typedef struct
 {
 	short historyc; /* count of history entries */
-	char historyv[COMMAND_LENGTH][HISTORY_LENGTH]; /* history entries */
+	char historyv[HISTORY_LENGTH][COMMAND_LENGTH + 1]; /* history entries */
 
 	short history; /* current point in history */
 	unsigned short commandptr; /* command char */
-	char error[COMMAND_LENGTH]; /* error code */
-	char prompt[COMMAND_LENGTH]; /* prompt */
+	char error[COMMAND_LENGTH + 1]; /* error code */
+	char prompt[COMMAND_LENGTH + 1]; /* prompt */
 	int (*callback)(char *, unsigned char *); /* (command, mode) mode is *window->mode */
 	void (*keycallback)(char *); /* (command) */
 } command_t;
@@ -154,16 +154,13 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 			if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			break;
 		default:
-			if (strlen(command->historyv[command->historyc]) == 0)
+			command->historyv[command->historyc][strlen(command->historyv[command->historyc]) + 1] = '\0';
+			for (int i = strlen(command->historyv[command->historyc]); i >= 0; i--)
 			{
-				command->historyv[command->historyc][0] = input;
-				command->historyv[command->historyc][1] = '\0';
-			} else
-				for (int i = strlen(command->historyv[command->historyc]); i >= 0; i--)
-				{
-					if (i > command->commandptr)  command->historyv[command->historyc][i + 1] = command->historyv[command->historyc][i];
-					if (i == command->commandptr) command->historyv[command->historyc][i] = input;
-				}
+				if      (i >  command->commandptr) command->historyv[command->historyc][i + 1] = command->historyv[command->historyc][i];
+				else if (i == command->commandptr) command->historyv[command->historyc][i] = input;
+				else break;
+			}
 			command->commandptr++;
 			if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			break;

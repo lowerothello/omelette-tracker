@@ -466,8 +466,22 @@ int instrumentInput(int input)
 											stopPlayback();
 											break;
 										case ';': /* mod+arrow */
-											getchar();
-											getchar();
+											switch (getchar())
+											{
+												case '5': /* ctrl+arrow */
+													switch (getchar())
+													{
+														case 'D': /* left */
+															instrumentAdjustLeft(iv, MIN_INSTRUMENT_INDEX);
+															redraw();
+															break;
+														case 'C': /* right */
+															instrumentAdjustRight(iv, MIN_INSTRUMENT_INDEX);
+															redraw();
+															break;
+													}
+													break;
+											}
 											break;
 									}
 									break;
@@ -624,12 +638,12 @@ int instrumentInput(int input)
 									redraw();
 									break;
 								case 'u': /* undo */
-									// pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
+									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									popInstrumentHistory(s->instrumenti[w->instrument]);
 									redraw();
 									break;
 								case 18: /* ^R, redo */
-									// pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
+									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									unpopInstrumentHistory(s->instrumenti[w->instrument]);
 									redraw();
 									break;

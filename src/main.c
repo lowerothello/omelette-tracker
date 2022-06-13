@@ -20,7 +20,6 @@ typedef jack_default_audio_sample_t sample_t;
 #include <lv2/units/units.h>
 #include <lv2/port-props/port-props.h>
 
-
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 
@@ -38,6 +37,9 @@ uint32_t pow32(uint32_t a, uint32_t b)
 		c = c * a;
 	return c;
 }
+
+
+
 
 
 jack_nframes_t samplerate;
@@ -140,8 +142,8 @@ int commandCallback(char *command, unsigned char *mode)
 	} else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
-		song *cs = readSong(buffer);
-		if (cs) s = cs;
+		strcpy(w->newfilename, buffer);
+		p->lock = PLAY_LOCK_START;
 		w->songfx = 0;
 	}
 	else if (!strcmp(buffer, "bpm"))
@@ -218,7 +220,7 @@ int input(void)
 		} else if (input == 7) /* ^G, show file info */
 		{
 			if (strlen(w->filepath))
-				strcpy(w->command.error, w->filepath);
+				sprintf(w->command.error, "\"%.*s\"", COMMAND_LENGTH - 2, w->filepath);
 			else
 				strcpy(w->command.error, "No file loaded");
 			redraw();
@@ -305,7 +307,7 @@ void cleanup(int ret)
 	free(w->pluginlist);
 
 	free(w);
-	delSong();
+	delSong(s);
 	free(p);
 
 	lilv_node_free(lv2.inputport);
@@ -404,7 +406,7 @@ int main(int argc, char **argv)
 		jack_client_close(client);
 
 		free(w);
-		delSong();
+		delSong(s);
 		free(p);
 
 		common_cleanup(1);
@@ -433,7 +435,7 @@ int main(int argc, char **argv)
 		free(w->previewinstrument.state[0]);
 
 		free(w);
-		delSong();
+		delSong(s);
 		free(p);
 
 		common_cleanup(1);
@@ -475,8 +477,8 @@ int main(int argc, char **argv)
 
 	if (argc > 1)
 	{
-		song *temp = readSong(argv[1]);
-		if (temp) s = temp;
+		strcpy(w->newfilename, argv[1]);
+		p->lock = PLAY_LOCK_START;
 	}
 
 	resize(0);
@@ -486,7 +488,21 @@ int main(int argc, char **argv)
 	int running = 0;
 	while(!running)
 	{
+		if (p->lock == PLAY_LOCK_CONT)
+		{
+			song *cs = readSong(w->newfilename);
+			if (cs)
+			{
+				delSong(s);
+				s = cs;
+			}
+			p->s = s;
+			p->dirty = 1;
+			p->lock = PLAY_LOCK_OK;
+		}
+
 		running = input();
+
 		if (p->dirty)
 		{
 			p->dirty = 0;
@@ -501,7 +517,7 @@ int main(int argc, char **argv)
 		}
 
 		/* perform any pending instrument actions */
-		changeInstrumentType(0);
+		changeInstrumentType(s, 0);
 
 		/* finish freeing the record buffer */
 		if (w->instrumentrecv == INST_REC_LOCK_END)

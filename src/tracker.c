@@ -1031,10 +1031,10 @@ int trackerInput(int input)
 					{
 						case 14: /* ^N, new (^A is taken by increment) */
 							w->channel++;
-							addChannel(w->channel);
+							addChannel(s, w->channel);
 							break;
 						// case 'A': /* add before */
-							addChannel(w->channel);
+							addChannel(s, w->channel);
 							break;
 						case 4: /* ^D, delete */
 							delChannel(w->channel);
@@ -1053,7 +1053,7 @@ int trackerInput(int input)
 							break;
 						case 16: /* ^P, put */
 							w->channel++;
-							addChannel(w->channel);
+							addChannel(s, w->channel);
 							putChannel(w->channel);
 							break;
 						case 10: case 13: /* ^M, mute */

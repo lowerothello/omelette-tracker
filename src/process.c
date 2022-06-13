@@ -1,3 +1,6 @@
+#define PLAY_LOCK_OK 0    /* p->s and p->w are safe */
+#define PLAY_LOCK_START 1 /* p->s and p->w want to be unsafe */
+#define PLAY_LOCK_CONT 2  /* p->s and p->w are unsafe */
 typedef struct
 {
 	song *s;
@@ -7,6 +10,7 @@ typedef struct
 	jack_port_t *outl;
 	jack_port_t *outr;
 	char dirty;
+	char lock;         /* PLAY_LOCK */
 } playbackinfo;
 
 typedef struct
@@ -160,6 +164,11 @@ int process(jack_nframes_t nfptr, void *arg)
 	pb.inr =  jack_port_get_buffer(p->inr, nfptr);
 	pb.outl = jack_port_get_buffer(p->outl, nfptr); memset(pb.outl, 0, nfptr * sizeof(sample_t));
 	pb.outr = jack_port_get_buffer(p->outr, nfptr); memset(pb.outr, 0, nfptr * sizeof(sample_t));
+
+	if (p->lock == PLAY_LOCK_START)
+		p->lock = PLAY_LOCK_CONT;
+
+	if (p->lock == PLAY_LOCK_CONT) return 0;
 
 	/* clear instrument buffers */
 	for (uint8_t i = 1; i < p->s->instrumentc; i++)

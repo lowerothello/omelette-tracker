@@ -174,8 +174,8 @@ typedef struct
 	unsigned char  popup;
 	unsigned char  mode;
 	unsigned short centre;
-	uint8_t        pattern;               /* focused pattern */
-	uint8_t        channel;               /* focused channel */
+	uint8_t        pattern;                     /* focused pattern */
+	uint8_t        channel;                     /* focused channel */
 	uint8_t        channeloffset, visiblechannels;
 
 	short          trackerfy, trackerfx;
@@ -183,14 +183,14 @@ typedef struct
 	uint8_t        visualchannel;
 	unsigned short trackercelloffset;
 	short          instrumentindex;
-	uint8_t        instrument;            /* focused instrument */
+	uint8_t        instrument;                  /* focused instrument */
 	unsigned short instrumentcelloffset;
-	short          instrumentsend;        /* focused send */
+	short          instrumentsend;              /* focused send */
 
 	short          effectindex;
 	short          pluginindex;
-	short          effectoffset;          /* scroll offset for pluginindex */
-	unsigned char  effect;                /* focused effect */
+	short          effectoffset;                /* scroll offset for pluginindex */
+	unsigned char  effect;                      /* focused effect */
 	char         (*pluginlist)[INSTRUMENT_TYPE_COLS - 2];
 
 	unsigned short mousey, mousex;
@@ -217,25 +217,27 @@ typedef struct
 	uint8_t        songnext;
 
 	channel        previewchannel;
-	instrument     previewinstrument;     /* used by the file browser */
-	char           previewchanneltrigger; /* 0:stopped
-	                                         1:start inst
-	                                         2:still inst
-	                                         3:start sample
-	                                         4:still sample
-	                                         5:prep volatile */
+	instrument     previewinstrument;           /* used by the file browser */
+	char           previewchanneltrigger;       /* 0:stopped
+	                                               1:start inst
+	                                               2:still inst
+	                                               3:start sample
+	                                               4:still sample
+	                                               5:prep volatile */
 
 	char           previewsamplestatus;
 
-	uint8_t        instrumentlocki;       /* realindex */
-	uint8_t        instrumentlockv;       /* value, set to an INST_GLOBAL_LOCK constant */
+	uint8_t        instrumentlocki;             /* realindex */
+	uint8_t        instrumentlockv;             /* value, set to an INST_GLOBAL_LOCK constant */
 
-	uint8_t        instrumentreci;        /* realindex */
-	uint8_t        instrumentrecv;        /* value, set to an INST_REC_LOCK constant */
-	short         *recbuffer;             /* disallow changing the type or removing while recording */
+	uint8_t        instrumentreci;              /* realindex */
+	uint8_t        instrumentrecv;              /* value, set to an INST_REC_LOCK constant */
+	short         *recbuffer;                   /* disallow changing the type or removing while recording */
 	uint32_t       recptr;
 
-	char           request;               /* ask the playback function to do something */
+	char           request;                     /* ask the playback function to do something */
+
+	char           newfilename[COMMAND_LENGTH]; /* used by readSong */
 } window;
 window *w;
 
@@ -538,28 +540,28 @@ void _addChannel(channel *cv)
 	cv->rampindex = cv->rampmax;
 	cv->rampbuffer = malloc(sizeof(sample_t) * cv->rampmax * 2); /* *2 for stereo */
 }
-int addChannel(uint8_t index)
+int addChannel(song *cs, uint8_t index)
 {
-	_addChannel(&s->channelv[s->channelc]); /* allocate memory */
-	if (s->channelc > 0) /* contiguity */
-		for (uint8_t i = s->channelc; i >= index; i--)
+	_addChannel(&cs->channelv[cs->channelc]); /* allocate memory */
+	if (cs->channelc > 0) /* contiguity */
+		for (uint8_t i = cs->channelc; i >= index; i--)
 		{
-			for (uint8_t p = 1; p < s->patternc; p++)
-				memcpy(s->patternv[p]->rowv[i + 1],
-					s->patternv[p]->rowv[i],
+			for (uint8_t p = 1; p < cs->patternc; p++)
+				memcpy(cs->patternv[p]->rowv[i + 1],
+					cs->patternv[p]->rowv[i],
 					sizeof(row) * 256);
-			s->channelv[i + 1].mute = s->channelv[i].mute;
+			cs->channelv[i + 1].mute = cs->channelv[i].mute;
 		}
 
-	s->channelv[index].mute = 0;
+	cs->channelv[index].mute = 0;
 
-	for (uint8_t p = 1; p < s->patternc; p++)
+	for (uint8_t p = 1; p < cs->patternc; p++)
 	{
-		memset(s->patternv[p]->rowv[index], 0, sizeof(row) * 256);
-		for (short r = 0; r < 256; r++) s->patternv[p]->rowv[index][r].inst = 255;
+		memset(cs->patternv[p]->rowv[index], 0, sizeof(row) * 256);
+		for (short r = 0; r < 256; r++) cs->patternv[p]->rowv[index][r].inst = 255;
 	}
 
-	s->channelc++;
+	cs->channelc++;
 	return 0;
 }
 int delChannel(uint8_t index)
@@ -622,15 +624,15 @@ int putChannel( uint8_t index)
 
 
 /* memory for addPattern */
-int _addPattern(uint8_t realindex)
+int _addPattern(song *cs, uint8_t realindex)
 {
-	s->channelbuffer[realindex] = calloc(256, sizeof(row));
-	s->patternv[realindex] = calloc(1, sizeof(pattern));
-	if (!s->channelbuffer[realindex] || !s->patternv[realindex])
+	cs->channelbuffer[realindex] = calloc(256, sizeof(row));
+	cs->patternv[realindex] = calloc(1, sizeof(pattern));
+	if (!cs->channelbuffer[realindex] || !cs->patternv[realindex])
 		return 1;
 	for (short c = 0; c < 64; c++)
 		for (short r = 0; r < 256; r++)
-			s->patternv[realindex]->rowv[c][r].inst = 255;
+			cs->patternv[realindex]->rowv[c][r].inst = 255;
 	return 0;
 }
 /* length 0 for the default */
@@ -639,7 +641,7 @@ int addPattern(uint8_t index, uint8_t length)
 	if (index == 255) return 1; /* index invalid */
 	if (s->patterni[index] > 0) return 1; /* index occupied */
 
-	if (_addPattern(s->patternc))
+	if (_addPattern(s, s->patternc))
 	{
 		strcpy(w->command.error, "failed to add pattern, out of memory");
 		return 1;
@@ -947,7 +949,7 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 
 
 /* forceindex is a realindex */
-int changeInstrumentType(uint8_t forceindex)
+int changeInstrumentType(song *cs, uint8_t forceindex)
 {
 	uint8_t i;
 	if (!forceindex)
@@ -957,7 +959,7 @@ int changeInstrumentType(uint8_t forceindex)
 		else return 0;
 	else i = forceindex;
 
-	instrument *iv = s->instrumentv[i];
+	instrument *iv = cs->instrumentv[i];
 	if (iv)
 	{
 DEBUG=99;
@@ -986,8 +988,8 @@ DEBUG=99;
 				}
 				break;
 			case INST_GLOBAL_LOCK_HIST:
-				instrument *dest = s->instrumentv[i];
-				instrument *src = dest->history[dest->historyptr%128];
+				instrument *dest = iv;
+				instrument *src = iv->history[iv->historyptr%128];
 
 				dest->type = src->type;
 				memcpy(dest->fader, src->fader, sizeof(uint8_t) * 2);
@@ -1026,12 +1028,12 @@ DEBUG=99;
 	return 0;
 }
 
-int _addInstrument(uint8_t realindex)
+int _addInstrument(song *cs, uint8_t realindex)
 {
-	s->instrumentv[realindex] = calloc(1, sizeof(instrument));
-	if (!s->instrumentv[realindex]) return 1;
-	s->instrumentv[realindex]->outbufferl = calloc(sizeof(sample_t), buffersize);
-	s->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
+	cs->instrumentv[realindex] = calloc(1, sizeof(instrument));
+	if (!cs->instrumentv[realindex]) return 1;
+	cs->instrumentv[realindex]->outbufferl = calloc(sizeof(sample_t), buffersize);
+	cs->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
 	return 0;
 }
 void _instantiateInstrumentEffect(uint8_t realindex)
@@ -1139,13 +1141,11 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 		else
 			for (int i = 0; i < 256; i++)
 				if (ivh->state[i] || iv->state[i])
-					if (!(ivh->state[i] && iv->state[i]) || memcmp(ivh->state[i], iv->state[i], t->f[i].statesize))
-					{
-						pushInstrumentHistory(iv);
-						break;
-					}
+					if (!ivh->state[i] || !iv->state[i] || memcmp(ivh->state[i], iv->state[i], t->f[i].statesize))
+					{ pushInstrumentHistory(iv); break; }
 	}
 }
+
 void _popInstrumentHistory(uint8_t realindex)
 {
 	w->instrumentlocki = realindex;
@@ -1189,14 +1189,14 @@ int addInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] > 0) return 1; /* index occupied */
 
-	if (_addInstrument(s->instrumentc))
+	if (_addInstrument(s, s->instrumentc))
 	{
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
 	s->instrumentv[s->instrumentc]->fader[0] = 0xFF;
 	s->instrumentv[s->instrumentc]->fader[1] = 0xFF;
-	changeInstrumentType(s->instrumentc);
+	changeInstrumentType(s, s->instrumentc);
 	t->f[s->instrumentv[s->instrumentc]->type].changeType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
 	s->instrumenti[index] = s->instrumentc;
 
@@ -1222,8 +1222,12 @@ int yankInstrument(uint8_t index)
 	if (s->instrumenti[index] == 0) return 1; /* nothing to yank */
 
 	if (s->instrumentbuffer.samplelength > 0)
-	{ free(s->instrumentbuffer.sampledata); s->instrumentbuffer.sampledata = NULL; }
-	for (uint8_t i = 0; i < 256; i++)
+	{
+		free(s->instrumentbuffer.sampledata);
+		s->instrumentbuffer.sampledata = NULL;
+	}
+
+	for (int i = 0; i < 256; i++)
 		if (s->instrumentbuffer.state[i])
 		{
 			free(s->instrumentbuffer.state[i]);
@@ -1238,7 +1242,7 @@ int yankInstrument(uint8_t index)
 	if (s->instrumentbuffer.samplelength > 0)
 	{
 		s->instrumentbuffer.sampledata =
-			malloc(s->instrumentv[s->instrumenti[index]]->samplelength);
+			malloc(sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
 
 		if (s->instrumentbuffer.sampledata == NULL)
 		{
@@ -1248,7 +1252,7 @@ int yankInstrument(uint8_t index)
 
 		memcpy(s->instrumentbuffer.sampledata,
 			s->instrumentv[s->instrumenti[index]]->sampledata,
-			s->instrumentv[s->instrumenti[index]]->samplelength);
+			sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
 	}
 
 	t->f[s->instrumentbuffer.type].changeType(&s->instrumentbuffer.state[s->instrumentbuffer.type]);
@@ -1279,7 +1283,7 @@ int putInstrument(uint8_t index)
 	s->instrumentv[s->instrumenti[index]]->samplelength = s->instrumentbuffer.samplelength;
 	memcpy(s->instrumentv[s->instrumenti[index]]->fader, s->instrumentbuffer.fader, sizeof(uint8_t) * 2);
 	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send, 1 * 16);
-	changeInstrumentType(s->instrumenti[index]); /* is this safe to force? */
+	changeInstrumentType(s, s->instrumenti[index]); /* is this safe to force? */
 
 	memcpy(s->instrumentv[s->instrumenti[index]]->state[s->instrumentbuffer.type],
 			s->instrumentbuffer.state[s->instrumentbuffer.type],
@@ -1288,7 +1292,7 @@ int putInstrument(uint8_t index)
 	if (s->instrumentbuffer.samplelength > 0)
 	{
 		s->instrumentv[s->instrumenti[index]]->sampledata =
-			malloc(s->instrumentbuffer.samplelength);
+			malloc(sizeof(short) * s->instrumentbuffer.samplelength);
 
 		if (s->instrumentv[s->instrumenti[index]]->sampledata == NULL)
 		{
@@ -1298,44 +1302,43 @@ int putInstrument(uint8_t index)
 
 		memcpy(s->instrumentv[s->instrumenti[index]]->sampledata,
 			s->instrumentbuffer.sampledata,
-			s->instrumentbuffer.samplelength);
+			sizeof(short) * s->instrumentbuffer.samplelength);
 	}
 
 	return 0;
 }
-void _delInstrument(uint8_t realindex)
+void _delInstrument(song *cs, uint8_t realindex)
 {
 	/* free the sample data */
 	for (int i = 0; i < 256; i++)
-		if (s->instrumentv[realindex]->state[i])
-		{
-			free(s->instrumentv[realindex]->state[i]);
-			s->instrumentv[realindex]->state[i] = NULL;
-		}
-	if (s->instrumentv[realindex]->samplelength > 0)
-		free(s->instrumentv[realindex]->sampledata);
-	free(s->instrumentv[realindex]->outbufferl);
-	free(s->instrumentv[realindex]->outbufferr);
+		if (cs->instrumentv[realindex]->state[i])
+			free(cs->instrumentv[realindex]->state[i]);
+	if (cs->instrumentv[realindex]->samplelength > 0)
+		free(cs->instrumentv[realindex]->sampledata);
+	free(cs->instrumentv[realindex]->outbufferl);
+	free(cs->instrumentv[realindex]->outbufferr);
 
 	for (int i = 0; i < 128; i++)
 	{
-		if (!s->instrumentv[realindex]->history[i]) break;
+		if (!cs->instrumentv[realindex]->history[i]) continue;
 		for (int j = 0; j < 256; j++)
-			if (s->instrumentv[realindex]->history[i]->state[j])
-				free(s->instrumentv[realindex]->history[i]->state[j]);
-		free(s->instrumentv[realindex]->history[i]);
+			if (cs->instrumentv[realindex]->history[i]->state[j])
+				free(cs->instrumentv[realindex]->history[i]->state[j]);
+		if (cs->instrumentv[realindex]->history[i]->sampledata)
+			free(cs->instrumentv[realindex]->history[i]->sampledata);
+		free(cs->instrumentv[realindex]->history[i]);
 	}
 
 	for (int i = 0; i < 16; i++)
-		switch (s->effectv[i].type)
+		switch (cs->effectv[i].type)
 		{
 			case 2:
-				lilv_instance_free(s->instrumentv[realindex]->plugininstance[i]);
+				lilv_instance_free(cs->instrumentv[realindex]->plugininstance[i]);
 				break;
 		}
 
-	free(s->instrumentv[realindex]);
-	s->instrumentv[realindex] = NULL;
+	free(cs->instrumentv[realindex]);
+	cs->instrumentv[realindex] = NULL;
 }
 int delInstrument(uint8_t index)
 {
@@ -1344,7 +1347,7 @@ int delInstrument(uint8_t index)
 	uint8_t cutindex = s->instrumenti[index];
 	s->instrumenti[index] = 0;
 
-	_delInstrument(cutindex);
+	_delInstrument(s, cutindex);
 
 	/* enforce contiguity */
 	for (uint8_t i = cutindex; i < s->instrumentc - 1; i++)
@@ -1464,78 +1467,89 @@ int exportSample(uint8_t index, char *path)
 
 song *_addSong(void)
 {
-	s = calloc(1, sizeof(song));
-	if (s == NULL)
-		return NULL;
+	song *cs = calloc(1, sizeof(song));
+	if (!cs) return NULL;
 
-	s->patternc = 1;
-	s->instrumentc = 1;
+	cs->patternc = 1;
+	cs->instrumentc = 1;
 
-	s->rowhighlight = 4;
-	s->defpatternlength = 63;
-	s->songbpm = 125;
+	cs->rowhighlight = 4;
+	cs->defpatternlength = 63;
+	cs->songbpm = 125;
 	w->request = REQ_BPM;
 
-	memset(s->songi, 255, sizeof(uint8_t) * 256);
+	memset(cs->songi, 255, sizeof(uint8_t) * 256);
 
-	s->effectinl = calloc(sizeof(sample_t), buffersize);
-	s->effectinr = calloc(sizeof(sample_t), buffersize);
-	s->effectoutl = calloc(sizeof(sample_t), buffersize);
-	s->effectoutr = calloc(sizeof(sample_t), buffersize);
-	s->effectdryl = calloc(sizeof(sample_t), buffersize);
-	s->effectdryr = calloc(sizeof(sample_t), buffersize);
-	if (       !s->effectinl  || !s->effectinr
-			|| !s->effectoutl || !s->effectoutr
-			|| !s->effectdryl || !s->effectdryr)
+	cs->effectinl = calloc(sizeof(sample_t), buffersize);
+	cs->effectinr = calloc(sizeof(sample_t), buffersize);
+	cs->effectoutl = calloc(sizeof(sample_t), buffersize);
+	cs->effectoutr = calloc(sizeof(sample_t), buffersize);
+	cs->effectdryl = calloc(sizeof(sample_t), buffersize);
+	cs->effectdryr = calloc(sizeof(sample_t), buffersize);
+	if (       !cs->effectinl  || !cs->effectinr
+			|| !cs->effectoutl || !cs->effectoutr
+			|| !cs->effectdryl || !cs->effectdryr)
 	{
-		free(s);
+		free(cs);
 		return NULL;
 	}
-
-	return s;
+	return cs;
 }
 song *addSong(void)
 {
-	s = _addSong();
-	if (s == NULL) return NULL;
-	addChannel(s->channelc);
-	addChannel(s->channelc);
-	addChannel(s->channelc);
-	addChannel(s->channelc);
-	return s;
+	song *cs = _addSong();
+	if (!cs) return NULL;
+	addChannel(cs, cs->channelc);
+	addChannel(cs, cs->channelc);
+	addChannel(cs, cs->channelc);
+	addChannel(cs, cs->channelc);
+	return cs;
 }
 
-void delSong(void)
+void delSong(song *cs)
 {
-	free(s->effectinl);
-	free(s->effectinr);
-	free(s->effectoutl);
-	free(s->effectoutr);
-	free(s->effectdryl);
-	free(s->effectdryr);
+	free(cs->effectinl);
+	free(cs->effectinr);
+	free(cs->effectoutl);
+	free(cs->effectoutr);
+	free(cs->effectdryl);
+	free(cs->effectdryr);
 
-	for (int i = 0; i < s->channelc; i++)
-		free(s->channelv[i].rampbuffer);
+	for (int i = 0; i < cs->channelc; i++)
+		free(cs->channelv[i].rampbuffer);
 
-	for (int i = 1; i < s->patternc; i++)
+	for (int i = 1; i < cs->patternc; i++)
 	{
-		free(s->channelbuffer[i]);
-		free(s->patternv[i]);
+		free(cs->channelbuffer[i]);
+		free(cs->patternv[i]);
 	}
 
 	for (int i = 0; i < 16; i++)
 		_unloadLv2Effect(i);
-	if (s->effectbufferlv2values)
-		free(s->effectbufferlv2values);
+	if (cs->effectbufferlv2values)
+		free(cs->effectbufferlv2values);
 
-	for (int i = 1; i < s->instrumentc; i++)
-		_delInstrument(i);
+	for (int i = 1; i < cs->instrumentc; i++)
+		_delInstrument(cs, i);
 
-	free(s);
+	for (int i = 0; i < 256; i++)
+		if (s->instrumentbuffer.state[i])
+			free(s->instrumentbuffer.state[i]);
+	if (cs->instrumentbuffer.samplelength > 0)
+		free(cs->instrumentbuffer.sampledata);
+
+	free(cs);
 }
 
+char *fileExtension(char *path, char *ext)
+{
+	if (strcmp(path+(strlen(path) - strlen(ext)), ext))
+		strcat(path, ext);
+	return path;
+}
 int writeSong(char *path)
 {
+	fileExtension(path, ".omlm");
 	if (!strcmp(path, ""))
 	{
 		if (!strlen(w->filepath))
@@ -1549,7 +1563,7 @@ int writeSong(char *path)
 	FILE *fp = fopen(path, "wb");
 	int i, j, k;
 
-	/* egg (the most important) */
+	/* egg, for each and every trying time (the most important) */
 	fputc('e', fp);
 	fputc('g', fp);
 	fputc('g', fp);
@@ -1677,10 +1691,8 @@ song *readSong(char *path)
 	}
 	fseek(fp, 0x4, SEEK_SET);
 
-	if (s != NULL) delSong();
-
-	s = _addSong();
-	if (s == NULL)
+	song *cs = _addSong();
+	if (!cs)
 	{
 		strcpy(w->command.error, "failed to read song, out of memory");
 		return NULL;
@@ -1691,15 +1703,15 @@ song *readSong(char *path)
 	strcpy(w->filepath, path);
 
 	/* counts */
-	fread(&s->songbpm, sizeof(uint8_t), 1, fp);
+	fread(&cs->songbpm, sizeof(uint8_t), 1, fp);
 	w->request = REQ_BPM;
 
-	s->patternc = fgetc(fp);
-	s->instrumentc = fgetc(fp);
-	s->channelc = fgetc(fp);
-	for (int i = 0; i < s->channelc; i++)
-		_addChannel(&s->channelv[i]);
-	s->rowhighlight = fgetc(fp);
+	cs->patternc = fgetc(fp);
+	cs->instrumentc = fgetc(fp);
+	cs->channelc = fgetc(fp);
+	for (int i = 0; i < cs->channelc; i++)
+		_addChannel(&cs->channelv[i]);
+	cs->rowhighlight = fgetc(fp);
 
 	fseek(fp, 0x10, SEEK_SET);
 	/* mutes */
@@ -1707,85 +1719,85 @@ song *readSong(char *path)
 	for (i = 0; i < 8; i++)
 	{
 		byte = fgetc(fp);
-		if (byte & 0b10000000) s->channelv[i * 8 + 0].mute = 1;
-		if (byte & 0b01000000) s->channelv[i * 8 + 1].mute = 1;
-		if (byte & 0b00100000) s->channelv[i * 8 + 2].mute = 1;
-		if (byte & 0b00010000) s->channelv[i * 8 + 3].mute = 1;
-		if (byte & 0b00001000) s->channelv[i * 8 + 4].mute = 1;
-		if (byte & 0b00000100) s->channelv[i * 8 + 5].mute = 1;
-		if (byte & 0b00000010) s->channelv[i * 8 + 6].mute = 1;
-		if (byte & 0b00000001) s->channelv[i * 8 + 7].mute = 1;
+		if (byte & 0b10000000) cs->channelv[i * 8 + 0].mute = 1;
+		if (byte & 0b01000000) cs->channelv[i * 8 + 1].mute = 1;
+		if (byte & 0b00100000) cs->channelv[i * 8 + 2].mute = 1;
+		if (byte & 0b00010000) cs->channelv[i * 8 + 3].mute = 1;
+		if (byte & 0b00001000) cs->channelv[i * 8 + 4].mute = 1;
+		if (byte & 0b00000100) cs->channelv[i * 8 + 5].mute = 1;
+		if (byte & 0b00000010) cs->channelv[i * 8 + 6].mute = 1;
+		if (byte & 0b00000001) cs->channelv[i * 8 + 7].mute = 1;
 		fputc(byte, fp);
 	}
 
 	fseek(fp, 0x20, SEEK_SET);
 	/* songi */
 	for (i = 0; i < 256; i++)
-		s->songi[i] = fgetc(fp);
+		cs->songi[i] = fgetc(fp);
 	/* songa */
 	for (i = 0; i < 256; i++)
-		s->songa[i] = fgetc(fp);
+		cs->songa[i] = fgetc(fp);
 	/* patterni */
 	for (i = 0; i < 256; i++)
-		s->patterni[i] = fgetc(fp);
+		cs->patterni[i] = fgetc(fp);
 	/* instrumenti */
 	for (i = 0; i < 256; i++)
-		s->instrumenti[i] = fgetc(fp);
+		cs->instrumenti[i] = fgetc(fp);
 
 	/* patternv */
-	for (i = 1; i < s->patternc; i++)
+	for (i = 1; i < cs->patternc; i++)
 	{
-		_addPattern(i);
-		s->patternv[i]->rowc = fgetc(fp);
-		for (j = 0; j < s->channelc; j++)
-			for (k = 0; k < s->patternv[i]->rowc + 1; k++)
+		_addPattern(cs, i);
+		cs->patternv[i]->rowc = fgetc(fp);
+		for (j = 0; j < cs->channelc; j++)
+			for (k = 0; k < cs->patternv[i]->rowc + 1; k++)
 			{
-				s->patternv[i]->rowv[j][k].note = fgetc(fp);
-				s->patternv[i]->rowv[j][k].inst = fgetc(fp);
-				s->patternv[i]->rowv[j][k].macroc[0] = fgetc(fp);
-				s->patternv[i]->rowv[j][k].macroc[1] = fgetc(fp);
-				s->patternv[i]->rowv[j][k].macrov[0] = fgetc(fp);
-				s->patternv[i]->rowv[j][k].macrov[1] = fgetc(fp);
+				cs->patternv[i]->rowv[j][k].note = fgetc(fp);
+				cs->patternv[i]->rowv[j][k].inst = fgetc(fp);
+				cs->patternv[i]->rowv[j][k].macroc[0] = fgetc(fp);
+				cs->patternv[i]->rowv[j][k].macroc[1] = fgetc(fp);
+				cs->patternv[i]->rowv[j][k].macrov[0] = fgetc(fp);
+				cs->patternv[i]->rowv[j][k].macrov[1] = fgetc(fp);
 			}
 	}
 
 	/* instrumentv */
-	for (i = 1; i < s->instrumentc; i++)
+	for (i = 1; i < cs->instrumentc; i++)
 	{
-		_addInstrument(i);
+		_addInstrument(cs, i);
 
-		s->instrumentv[i]->type = fgetc(fp);
-		changeInstrumentType(i);
+		cs->instrumentv[i]->type = fgetc(fp);
+		changeInstrumentType(cs, i);
 
-		if (s->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
-				&& t->f[s->instrumentv[i]->type].read != NULL)
-			t->f[s->instrumentv[i]->type].read(s->instrumentv[i], fp);
+		if (cs->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
+				&& t->f[cs->instrumentv[i]->type].read != NULL)
+			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], fp);
 
-		s->instrumentv[i]->fader[0] = fgetc(fp);
-		s->instrumentv[i]->fader[1] = fgetc(fp);
-		fread(&s->instrumentv[i]->send, 1, 16, fp);
-		fread(&s->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
-		if (s->instrumentv[i]->samplelength > 0)
+		cs->instrumentv[i]->fader[0] = fgetc(fp);
+		cs->instrumentv[i]->fader[1] = fgetc(fp);
+		fread(&cs->instrumentv[i]->send, 1, 16, fp);
+		fread(&cs->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
+		if (cs->instrumentv[i]->samplelength > 0)
 		{
-			short *sampledata = malloc(sizeof(short) * s->instrumentv[i]->samplelength);
+			short *sampledata = malloc(sizeof(short) * cs->instrumentv[i]->samplelength);
 			if (!sampledata) // malloc failed
 			{
 				strcpy(w->command.error, "some sample data failed to load, out of memory");
-				fseek(fp, s->instrumentv[i]->samplelength, SEEK_CUR);
+				fseek(fp, sizeof(short) * cs->instrumentv[i]->samplelength, SEEK_CUR);
 				continue;
 			}
 
-			fread(sampledata, sizeof(short), s->instrumentv[i]->samplelength, fp); /* <<< this sometimes segfaults */
-			s->instrumentv[i]->sampledata = sampledata;
+			fread(sampledata, sizeof(short), cs->instrumentv[i]->samplelength, fp); /* <<< this sometimes segfaults */
+			cs->instrumentv[i]->sampledata = sampledata;
 		}
-		pushInstrumentHistory(s->instrumentv[i]);
+		pushInstrumentHistory(cs->instrumentv[i]);
 	}
 
 	/* effectv */
 	for (i = 0; i < 16; i++)
 	{
-		s->effectv[i].type = fgetc(fp);
-		if (s->effectv[i].type)
+		cs->effectv[i].type = fgetc(fp);
+		if (cs->effectv[i].type)
 		{
 			/* plugin uri */
 			unsigned char urilen = fgetc(fp);
@@ -1799,12 +1811,12 @@ song *readSong(char *path)
 			lilv_node_free(uri);
 
 			/* control port values */
-			for (int j = 0; j < s->effectv[i].indexc; j++)
-				fread(&s->effectv[i].controlv[j].value, sizeof(float), 1, fp);
+			for (int j = 0; j < cs->effectv[i].indexc; j++)
+				fread(&cs->effectv[i].controlv[j].value, sizeof(float), 1, fp);
 		}
 	}
 
 
 	fclose(fp);
-	return s;
+	return cs;
 }

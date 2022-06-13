@@ -379,6 +379,47 @@ int samplerResampleCallback(char *command, unsigned char *mode)
 	pushInstrumentHistory(iv);
 	return 0;
 }
+void samplerApplyTrimming(instrument *iv)
+{
+	pushInstrumentHistoryIfNew(iv);
+	if (iv->samplelength > 0)
+	{
+		sampler_state *ss = iv->state[iv->type];
+		uint32_t newlen
+			= MAX(ss->trim[0], ss->trim[1])
+			- MIN(ss->trim[0], ss->trim[1]);
+
+		/* malloc a new buffer */
+		short *sampledata = malloc(sizeof(short) * newlen * ss->channels);
+		if (sampledata == NULL)
+		{
+			strcpy(w->command.error, "failed to apply trim, out of memory");
+			return;
+		}
+
+		uint32_t startOffset = MIN(ss->trim[0], ss->trim[1]);
+		memcpy(sampledata,
+				iv->sampledata+(sizeof(short) * startOffset),
+				sizeof(short) * newlen * ss->channels);
+
+		free(iv->sampledata); iv->sampledata = NULL;
+		iv->sampledata = sampledata;
+		iv->samplelength = newlen * ss->channels;
+		ss->length = newlen;
+		ss->trim[0] = ss->trim[0] - startOffset;
+		ss->trim[1] = ss->trim[1] - startOffset;
+	}
+}
+int samplerExportCallback(char *command, unsigned char *mode)
+{
+	char *buffer = malloc(strlen(command) + 1);
+	wordSplit(buffer, command, 0);
+	samplerApplyTrimming(s->instrumentv[s->instrumenti[w->instrument]]);
+	exportSample(w->instrument, fileExtension(buffer, ".wav"));
+
+	free(buffer); buffer = NULL;
+	return 0;
+}
 
 void samplerInput(int *input)
 {
@@ -458,35 +499,8 @@ void samplerInput(int *input)
 					}
 					break;
 				case 't': /* apply trimming */
-					if (iv->samplelength > 0)
-					{
-						sampler_state *ss = iv->state[iv->type];
-						uint32_t newlen
-							= MAX(ss->trim[0], ss->trim[1])
-							- MIN(ss->trim[0], ss->trim[1]);
-
-						/* malloc a new buffer */
-						short *sampledata = malloc(sizeof(short) * newlen * ss->channels);
-						if (sampledata == NULL)
-						{
-							strcpy(w->command.error, "failed to apply trim, out of memory");
-							break;
-						}
-
-						uint32_t startOffset = MIN(ss->trim[0], ss->trim[1]);
-						memcpy(sampledata, iv->sampledata+startOffset, newlen * ss->channels);
-
-						free(iv->sampledata); iv->sampledata = NULL;
-						iv->sampledata = sampledata;
-						iv->samplelength = newlen * ss->channels;
-						ss->length = newlen;
-						ss->trim[0] = ss->trim[0] - startOffset;
-						ss->trim[1] = ss->trim[1] - startOffset;
-						ss->loop[0] = ss->loop[0] - startOffset;
-						ss->loop[1] = ss->loop[1] - startOffset;
-
-						redraw();
-					}
+					samplerApplyTrimming(iv);
+					redraw();
 					break;
 				case 'c': /* signed unsigned conversion */
 					if (iv->samplelength > 0)
@@ -542,6 +556,11 @@ void samplerInput(int *input)
 								break;
 						}
 					}
+					redraw();
+					break;
+				case 'e': /* export */
+					setCommand(&w->command, &samplerExportCallback, NULL, 0, "File name: ", "");
+					w->mode = 255;
 					redraw();
 					break;
 			}
@@ -746,9 +765,9 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		}
 
 
-		if (cv->r.note)
+		if (cv->r.note && pitchedpointer <= ss->length)
 		{
-			if (pitchedpointer % ss->channels != 0)
+			if (pitchedpointer % ss->channels)
 				pitchedpointer -= pitchedpointer % ss->channels;
 
 			if (!cv->mute && gain > 0.0)
