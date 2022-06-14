@@ -91,6 +91,8 @@ void redraw(void);
 void startPlayback(void);
 void stopPlayback(void);
 
+#include "config.h"
+
 #include "command.c"
 #include "structures.c"
 #include "dsp.c"
@@ -258,7 +260,10 @@ int changeDirectory(void)
 	w->dirmaxwidth = 0;
 	while (dirent != NULL)
 	{
-		if (strcmp(dirent->d_name, ".") && strcmp(dirent->d_name, ".."))
+		if (
+				   strcmp(dirent->d_name, ".")
+				&& strcmp(dirent->d_name, "..")
+				&& strcmp(dirent->d_name, "lost+found"))
 		{
 			if (strlen(dirent->d_name) > w->dirmaxwidth)
 				w->dirmaxwidth = strlen(dirent->d_name);
@@ -268,6 +273,7 @@ int changeDirectory(void)
 	}
 	rewinddir(w->dir);
 	w->dirmaxwidth = MIN(w->dirmaxwidth, INSTRUMENT_BODY_COLS - 4);
+	w->dircols = MAX(MIN((INSTRUMENT_BODY_COLS - 4) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
 	return 0;
 }
 
@@ -418,7 +424,11 @@ int main(int argc, char **argv)
 	s->songi[0] = 0;
 
 
+#ifdef SAMPLES_DIR
+	strcpy(w->dirpath, SAMPLES_DIR);
+#else
 	getcwd(w->dirpath, sizeof(w->dirpath));
+#endif
 	changeDirectory();
 
 

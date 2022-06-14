@@ -38,84 +38,62 @@ void instrumentRedraw(void)
 		unsigned short x, y;
 		x = w->instrumentcelloffset;
 		y = w->instrumentrowoffset;
-		printf(    "\033[%d;%dH┌──────────────────────────────────────────────────────────────────────────────┐", y - 1, x);
+		printf(    "\033[%d;%dH┌──────────────────────────────────────────────────────────────────────────────┐", y-1, x);
 		for (int i = 0; i < INSTRUMENT_BODY_ROWS; i++)
-			printf("\033[%d;%dH│                                                                              │", y + i, x);
-		printf(    "\033[%d;%dH└──────────────────────────────────────────────────────────────────────────────┘", y + INSTRUMENT_BODY_ROWS, x);
-		printf("\033[%d;%dH  <- INSTRUMENT (%02x) ->  ", y-1, x+27, w->instrument);
+			printf("\033[%d;%dH│                                                                              │", y+i, x);
+		printf(    "\033[%d;%dH└──────────────────────────────────────────────────────────────────────────────┘", y+INSTRUMENT_BODY_ROWS, x);
 
-		if (s->instrumenti[w->instrument] == 0)
+		if (w->popup == 2) /* file browser */
 		{
-			printf("\033[%d;%dH(not added)", y+1, x+34);
-			printf("\033[%d;%dH", y-1, x+32);
-		} else
-		{
-			instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-			printf("\033[%d;%dHtype   [%02x]", y+1, x+5, iv->type);
-			printf("\033[%d;%dHfader  [%02x%02x]", y+2, x+5, iv->fader[0], iv->fader[1]);
-			printf("\033[%d;%dHsend   [%x][%x]", y+3, x+5, w->instrumentsend, iv->send[w->instrumentsend]);
-
-			printf(    "\033[%d;%dH┌────────────────────────────────────────────────────────────────────────────┐", y+5, x+1);
-			for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
-				printf("\033[%d;%dH│                                                                            │", y+6 + i, x+1);
-			printf(    "\033[%d;%dH└────────────────────────────────────────────────────────────────────────────┘", y+6 + INSTRUMENT_TYPE_ROWS, x+1);
-
-			if (w->popup == 1 && iv->typefollow == iv->type
-					&& iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
-				t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, w->fieldpointer);
-
-			switch (w->instrumentindex)
-			{
-				case -5: printf("\033[%d;%dH", y-1, x+32); break;
-				case -4: printf("\033[%d;%dH", y+1, x+14); break;
-				case -3: printf("\033[%d;%dH", y+2, x+13 + w->fieldpointer); break;
-				case -2: printf("\033[%d;%dH", y+3, x+13); break;
-				case -1: printf("\033[%d;%dH", y+3, x+16); break;
-			}
-		}
-
-		if (w->popup == 2) /* draw the file browser overlay */
-		{
-			printf("\033[%d;%dH [filebrowser] ", y+3, x+20);
+			printf("\033[%d;%dH  FILEBROWSER  ", y-1, x+32);
 
 			if (strlen(w->dirpath) > INSTRUMENT_BODY_COLS - 4)
 			{
 				char buffer[INSTRUMENT_BODY_COLS + 1];
 				memcpy(buffer, w->dirpath + ((unsigned short)strlen(w->dirpath - INSTRUMENT_BODY_COLS - 4)), INSTRUMENT_BODY_COLS - 4);
-				printf("\033[%d;%dH%.*s", y+4, x+3, INSTRUMENT_BODY_COLS - 4, buffer);
+				printf("\033[%d;%dH%.*s", y+0, x+3, INSTRUMENT_BODY_COLS - 4, buffer);
 			} else
 			{
-				printf("\033[%d;%dH%.*s", y+4, x-1 + (INSTRUMENT_BODY_COLS - (unsigned short)strlen(w->dirpath) + 1) / 2, INSTRUMENT_BODY_COLS - 4, w->dirpath);
+				printf("\033[%d;%dH%.*s", y+0, x-1 + (INSTRUMENT_BODY_COLS - (unsigned short)strlen(w->dirpath) + 1) / 2, INSTRUMENT_BODY_COLS - 4, w->dirpath);
 			}
 
 			struct dirent *dirent = readdir(w->dir);
 			unsigned int dirc = 0;
-			unsigned short ya;
+			short yo, xo;
 			char testdirpath[NAME_MAX + 1];
 			DIR *testdir;
+			xo = x + (INSTRUMENT_BODY_COLS - (w->dirmaxwidth + 2) * w->dircols) / 2;
+			yo = y+11 - w->instrumentindex / w->dircols;
 			while (dirent)
 			{
-				if (strcmp(dirent->d_name, ".") && strcmp(dirent->d_name, ".."))
+				for (unsigned char wcol = 0; wcol < w->dircols; wcol++)
 				{
-					ya = y + 11 - w->instrumentindex + dirc;
-					if (ya > y + 4 && ya < y + INSTRUMENT_TYPE_ROWS + 4)
+					if (!dirent) break;
+					while (
+							   !strcmp(dirent->d_name, ".")
+							|| !strcmp(dirent->d_name, "..")
+							|| !strcmp(dirent->d_name, "lost+found"))
+						dirent = readdir(w->dir);
+					if (!dirent) break;
+
+					if (yo > y && yo < y + INSTRUMENT_BODY_ROWS)
 					{
 						strcpy(testdirpath, w->dirpath);
 						strcat(testdirpath, "/");
 						strcat(testdirpath, dirent->d_name);
+
 						testdir = opendir(testdirpath);
-						if (testdir == NULL) /* add a trailing slash if the file is a directory */
-							printf("\033[%d;%dH%.*s", ya, x + (INSTRUMENT_BODY_COLS - w->dirmaxwidth) / 2, INSTRUMENT_BODY_COLS - 5, dirent->d_name);
-						else
-						{
-							printf("\033[%d;%dH%.*s/", ya, x + (INSTRUMENT_BODY_COLS - w->dirmaxwidth) / 2, INSTRUMENT_BODY_COLS - 5, dirent->d_name);
-							closedir(testdir);
-						}
+						if (testdir) /* add a trailing slash if the file is a directory */
+						{ closedir(testdir);
+							printf(   "\033[%d;%dH%.*s/", yo, xo + (w->dirmaxwidth + 2) * wcol, INSTRUMENT_BODY_COLS - 4, dirent->d_name);
+						} else printf("\033[%d;%dH%.*s",  yo, xo + (w->dirmaxwidth + 2) * wcol, INSTRUMENT_BODY_COLS - 4, dirent->d_name);
 					}
-					dirc++;
+					dirent = readdir(w->dir);
 				}
-				dirent = readdir(w->dir);
+				yo++;
+				dirc += w->dircols;
 			}
+
 			rewinddir(w->dir);
 			if (dirc != w->dirc) changeDirectory(); /* recount the entries if a file gets added or removed */
 
@@ -124,7 +102,39 @@ void instrumentRedraw(void)
 				w->dirmaxwidth = INSTRUMENT_BODY_COLS - 4;
 				printf("\033[%d;%dH%.*s", y+11, x + (INSTRUMENT_BODY_COLS - (unsigned short)strlen("(empty directory)") + 1) / 2, INSTRUMENT_BODY_COLS - 4, "(empty directory)");
 				printf("\033[%d;%dH", y+11, x + (INSTRUMENT_BODY_COLS - (unsigned short)strlen("(empty directory)") + 1) / 2 + 1);
-			} else printf("\033[%d;%dH", y+11 + w->fyoffset, x + (INSTRUMENT_BODY_COLS - w->dirmaxwidth) / 2);
+			} else printf("\033[%d;%dH", y+11 + w->fyoffset, xo + (w->dirmaxwidth + 2) * (w->instrumentindex % w->dircols));
+		} else /* instrument */
+		{
+			printf("\033[%d;%dH  <- INSTRUMENT (%02x) ->  ", y-1, x+27, w->instrument);
+			if (s->instrumenti[w->instrument] == 0)
+			{
+				printf("\033[%d;%dH(not added)", y+1, x+34);
+				printf("\033[%d;%dH", y-1, x+32);
+			} else
+			{
+				instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
+				printf("\033[%d;%dHtype   [%02x]", y+1, x+5, iv->type);
+				printf("\033[%d;%dHfader  [%02x%02x]", y+2, x+5, iv->fader[0], iv->fader[1]);
+				printf("\033[%d;%dHsend   [%x][%x]", y+3, x+5, w->instrumentsend, iv->send[w->instrumentsend]);
+
+				printf(    "\033[%d;%dH┌────────────────────────────────────────────────────────────────────────────┐", y+5, x+1);
+				for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
+					printf("\033[%d;%dH│                                                                            │", y+6 + i, x+1);
+				printf(    "\033[%d;%dH└────────────────────────────────────────────────────────────────────────────┘", y+6 + INSTRUMENT_TYPE_ROWS, x+1);
+
+				if (w->popup == 1 && iv->typefollow == iv->type
+						&& iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
+					t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, w->fieldpointer);
+
+				switch (w->instrumentindex)
+				{
+					case -5: printf("\033[%d;%dH", y-1, x+32); break;
+					case -4: printf("\033[%d;%dH", y+1, x+14); break;
+					case -3: printf("\033[%d;%dH", y+2, x+13 + w->fieldpointer); break;
+					case -2: printf("\033[%d;%dH", y+3, x+13); break;
+					case -1: printf("\033[%d;%dH", y+3, x+16); break;
+				}
+			}
 		}
 	}
 }
@@ -265,7 +275,10 @@ int getSubdir(char *newpath)
 	DIR *testdir;
 	while (dirent)
 	{
-		if (strcmp(dirent->d_name, ".") && strcmp(dirent->d_name, ".."))
+		if (
+				   strcmp(dirent->d_name, ".")
+				&& strcmp(dirent->d_name, "..")
+				&& strcmp(dirent->d_name, "lost+found"))
 		{
 			if (dirc == w->instrumentindex)
 			{
@@ -501,10 +514,14 @@ int instrumentInput(int input)
 									redraw();
 									break;
 								case '5': /* page up */
-									getchar(); /* burn through the tilde */
+									getchar();
+									w->instrumentindex = MIN_INSTRUMENT_INDEX;
+									redraw();
 									break;
 								case '6': /* page down */
-									getchar(); /* burn through the tilde */
+									getchar();
+									w->instrumentindex = 0;
+									redraw();
 									break;
 								case 'M': /* mouse */
 									int button = getchar();
@@ -896,6 +913,13 @@ int instrumentInput(int input)
 					}
 					redraw();
 					break;
+				case 127: case 8: /* backspace */
+					if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
+					dirname(w->dirpath);
+					changeDirectory();
+					w->instrumentindex = 0;
+					redraw();
+					break;
 				case '\033':
 					switch (getchar())
 					{
@@ -925,43 +949,28 @@ int instrumentInput(int input)
 							{
 								case 'A': /* up arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									if (w->instrumentindex > 0)
-										w->instrumentindex--;
+									if (w->instrumentindex > w->dircols)
+										w->instrumentindex -= w->dircols;
+									else w->instrumentindex = 0;
 									redraw();
 									break;
 								case 'B': /* down arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									if (w->instrumentindex < w->dirc - 1)
-										w->instrumentindex++;
+									if (w->instrumentindex < w->dirc - 1 - w->dircols)
+										w->instrumentindex += w->dircols;
+									else w->instrumentindex = w->dirc - 1;
 									redraw();
 									break;
 								case 'D': /* left arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									dirname(w->dirpath);
-									changeDirectory();
-									w->instrumentindex = 0;
+									if (w->instrumentindex > 0)
+										w->instrumentindex--;
 									redraw();
 									break;
 								case 'C': /* right arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									char newpath[NAME_MAX + 1];
-									char oldpath[NAME_MAX + 1]; strcpy(oldpath, w->dirpath);
-									switch (getSubdir(newpath))
-									{
-										case 1: /* file */
-											loadSample(w->instrument, newpath);
-											w->popup = 1;
-											w->instrumentindex = 0;
-											break;
-										case 2: /* directory */
-											strcpy(w->dirpath, newpath);
-											if (changeDirectory())
-											{
-												strcpy(w->dirpath, oldpath);
-												changeDirectory();
-											} else w->instrumentindex = 0;
-											break;
-									}
+									if (w->instrumentindex < w->dirc - 1)
+										w->instrumentindex++;
 									redraw();
 									break;
 								case 'H': /* home */
@@ -970,8 +979,8 @@ int instrumentInput(int input)
 									redraw();
 									break;
 								case '4': /* end */
+									getchar();
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									getchar(); /* burn ~ */
 									w->instrumentindex = w->dirc - 1;
 									redraw();
 									break;

@@ -201,6 +201,7 @@ typedef struct
 	char           dirpath[NAME_MAX + 1];
 	unsigned int   dirc;
 	unsigned short dirmaxwidth;
+	unsigned char  dircols;
 	DIR           *dir;
 
 	uint8_t        songfx;
@@ -962,7 +963,6 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 	instrument *iv = cs->instrumentv[i];
 	if (iv)
 	{
-DEBUG=99;
 		if (forceindex)
 		{
 			if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
@@ -1454,7 +1454,7 @@ int exportSample(uint8_t index, char *path)
 		if (sndfile == NULL) return 1;
 
 		/* write the sample data to disk */
-		sf_writef_short(sndfile, iv->sampledata, iv->samplelength);
+		sf_writef_short(sndfile, iv->sampledata, iv->samplelength / 2);
 		sf_close(sndfile);
 		return 0;
 	}
