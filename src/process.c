@@ -3,15 +3,16 @@
 #define PLAY_LOCK_CONT 2  /* p->s and p->w are unsafe */
 typedef struct
 {
-	song *s;
-	window *w;
+	song        *s;
+	window      *w;
 	jack_port_t *inl;
 	jack_port_t *inr;
 	jack_port_t *outl;
 	jack_port_t *outr;
-	char dirty;
-	char lock;         /* PLAY_LOCK */
+	char         dirty;
+	char         lock;  /* PLAY_LOCK */
 } playbackinfo;
+playbackinfo *p;
 
 typedef struct
 {

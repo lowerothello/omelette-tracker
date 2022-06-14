@@ -1550,7 +1550,7 @@ char *fileExtension(char *path, char *ext)
 int writeSong(char *path)
 {
 	fileExtension(path, ".omlm");
-	if (!strcmp(path, ""))
+	if (!strcmp(path, ".omlm"))
 	{
 		if (!strlen(w->filepath))
 		{

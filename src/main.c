@@ -66,12 +66,12 @@ int fl;
 #define INST_HISTDEPTH 128 /* 2(?)>INST_HISTDEPTH>128 */
 
 #define INSTRUMENT_TYPE_COUNT 2
-#define MIN_INSTRUMENT_INDEX -2
+#define MIN_INSTRUMENT_INDEX -5
 #define MIN_EFFECT_INDEX 0
 
-#define INSTRUMENT_BODY_COLS 43
-#define INSTRUMENT_BODY_ROWS 20
-#define INSTRUMENT_TYPE_ROWS 13
+#define INSTRUMENT_BODY_COLS 80
+#define INSTRUMENT_BODY_ROWS 21
+#define INSTRUMENT_TYPE_ROWS 14
 #define INSTRUMENT_TYPE_COLS 41
 
 
@@ -92,7 +92,8 @@ void startPlayback(void);
 void stopPlayback(void);
 
 #include "command.c"
-#include "structures.c" /* declares typetable *t */
+#include "structures.c"
+#include "dsp.c"
 
 int ifMacro(row, char); /* (row, char) */
 
@@ -104,8 +105,6 @@ int ifMacro(row, char); /* (row, char) */
 
 #include "process.c" /* instrument dependancy */
 
-playbackinfo *p;
-
 jack_client_t *client;
 
 
@@ -114,7 +113,7 @@ void redraw(void)
 	printf("\033[2J");
 	printf("\033[0;0H%d", DEBUG);
 
-	if (ws.ws_row < INSTRUMENT_BODY_ROWS + 2 || ws.ws_col < 43)
+	if (ws.ws_row < 24 || ws.ws_col < 80)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 		return;
@@ -278,7 +277,7 @@ void resize(int)
 	w->visiblechannels =          (ws.ws_col - LINENO_COLS - 2) / ROW_COLS;
 	w->trackercelloffset =       ((ws.ws_col - LINENO_COLS - 2) % ROW_COLS) / 2 + 1;
 	w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
-	w->instrumentrowoffset =      (ws.ws_row - INSTRUMENT_BODY_ROWS - 6) / 2 + 4;
+	w->instrumentrowoffset =      (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
 	w->songvisible =               ws.ws_col / SONG_COLS;
 	w->songcelloffset =           (ws.ws_col % SONG_COLS) / 2 + 1;
 	w->centre =                    ws.ws_row / 2;

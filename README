@@ -111,17 +111,17 @@ actions:
 synth1 subset/clone
 [https://daichilab.sakura.ne.jp/softsynth/synmanu/readmeeng.html]
  ┌────────── [virtual analog] ───────────┐
- │ osc1: [    ramp]  det:[80]  fm:  [00] │
- │ osc2: [    ramp]  det:[80]  ptch:[ff] │
+ │ osc1  [    ramp]  det [80]  fm   [00] │
+ │ osc2  [    ramp]  det [80]  ptch [ff] │
  │ sub  [triangle]                       │
  │ amp[00] oct[-0]                       │
- │                  amplifier  gain:[ff] │
+ │                  amplifier  gain [ff] │
  │                  a[00]d[00]s[ff]r[00] │
  │ lfo 1[triangle]                       │
- │ --- 2[triangle]  filter    amt:  [ff] │
- │ dest  1[filter]  frq:[00]  res:  [00] │
- │ ----  2[  osc2]  trk:[00]  sat:  [00] │
- │ spd  1[80]2[80]  type:         [LP12] │
+ │ --- 2[triangle]  filter    amt   [ff] │
+ │ dest  1[filter]  frq [00]  res   [00] │
+ │ ----  2[  osc2]  trk [00]  sat   [00] │
+ │ spd  1[80]2[80]  type          [LP12] │
  │ amp  1[80]2[80]  a[00]d[00]s[ff]r[00] │
  │                                       │
  │ num[01]  det[00]  phase[00]  sprd[00] │
