@@ -529,8 +529,7 @@ int instrumentInput(int input)
 									int y = getchar() - 32;
 									switch (button)
 									{
-										case 32 + 64: /* scroll up */
-											break;
+										case 32 + 64: /* scroll up   */
 										case 33 + 64: /* scroll down */
 											break;
 										case 35: /* release click */
@@ -852,16 +851,16 @@ int instrumentInput(int input)
 						case 1: case 3: case 5: /* preview */
 							switch (input)
 							{
-								case '0': w->octave = 0; break;
-								case '1': w->octave = 1; break;
-								case '2': w->octave = 2; break;
-								case '3': w->octave = 3; break;
-								case '4': w->octave = 4; break;
-								case '5': w->octave = 5; break;
-								case '6': w->octave = 6; break;
-								case '7': w->octave = 7; break;
-								case '8': w->octave = 8; break;
-								case '9': w->octave = 9; break;
+								case '0': w->octave = 0; redraw(); break;
+								case '1': w->octave = 1; redraw(); break;
+								case '2': w->octave = 2; redraw(); break;
+								case '3': w->octave = 3; redraw(); break;
+								case '4': w->octave = 4; redraw(); break;
+								case '5': w->octave = 5; redraw(); break;
+								case '6': w->octave = 6; redraw(); break;
+								case '7': w->octave = 7; redraw(); break;
+								case '8': w->octave = 8; redraw(); break;
+								case '9': w->octave = 9; redraw(); break;
 								default:
 									previewNote(charToNote(input, w->octave), w->instrument);
 									break;

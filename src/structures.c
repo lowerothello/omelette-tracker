@@ -263,12 +263,24 @@ typedef struct
 		uint8_t        (*getOffset)(instrument *, channel *);
 		void           (*changeType)(void **); /* literally a pointer to a pointer */
 		void           (*loadSample)(instrument *, SF_INFO);
-		void           (*exportSample)(instrument *, SF_INFO *);
 		void           (*write)(instrument *, FILE *fp);
 		void           (*read)(instrument *, FILE *fp);
 	} f[INSTRUMENT_TYPE_COUNT];
 } typetable;
 typetable *t;
+
+typedef struct
+{
+	uint32_t length;
+	char     channels;
+	uint32_t c5rate;
+	uint32_t trim[2];
+	uint32_t loop[2];
+	adsr     volume;
+} sampler_state;
+
+
+
 
 typedef struct
 {
@@ -1441,24 +1453,23 @@ int exportSample(uint8_t index, char *path)
 	if (s->instrumentv[s->instrumenti[index]]->samplelength < 1) return 1; /* no sample data */
 
 	instrument *iv = s->instrumentv[s->instrumenti[index]];
-	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].exportSample != NULL)
-	{
-		SNDFILE *sndfile;
-		SF_INFO sfinfo;
-		memset(&sfinfo, 0, sizeof(sfinfo));
+	SNDFILE *sndfile;
+	SF_INFO sfinfo;
+	memset(&sfinfo, 0, sizeof(sfinfo));
 
-		t->f[iv->type].exportSample(iv, &sfinfo);
+	sampler_state *ss = iv->state[0];
+	sfinfo.samplerate = ss->c5rate;
+	sfinfo.frames = ss->length;
+	sfinfo.channels = ss->channels;
 
-		sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
-		sndfile = sf_open(path, SFM_WRITE, &sfinfo);
-		if (sndfile == NULL) return 1;
+	sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+	sndfile = sf_open(path, SFM_WRITE, &sfinfo);
+	if (sndfile == NULL) return 1;
 
-		/* write the sample data to disk */
-		sf_writef_short(sndfile, iv->sampledata, iv->samplelength / 2);
-		sf_close(sndfile);
-		return 0;
-	}
-	return 1;
+	/* write the sample data to disk */
+	sf_writef_short(sndfile, iv->sampledata, ss->length);
+	sf_close(sndfile);
+	return 0;
 };
 
 

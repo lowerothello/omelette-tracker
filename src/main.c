@@ -536,21 +536,21 @@ int main(int argc, char **argv)
 				instrument *iv = s->instrumentv[w->instrumentreci];
 				if (iv->sampledata)
 				{ free(iv->sampledata); iv->sampledata = NULL; }
-				iv->sampledata = malloc(w->recptr * sizeof(short));
+				iv->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
 				if (iv->sampledata == NULL)
 				{
 					strcpy(w->command.error, "saving recording failed, out of memory");
 				} else
 				{
-					memcpy(iv->sampledata, w->recbuffer, w->recptr * sizeof(short));
-					iv->samplelength = w->recptr;
+					memcpy(iv->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
+					iv->samplelength = w->recptr * 2;
 
 					sampler_state *ss = iv->state[iv->type];
 					ss->channels = 2;
-					ss->length = w->recptr / 2;
+					ss->length = w->recptr;
 					ss->c5rate = samplerate;
 					ss->trim[0] = 0;
-					ss->trim[1] = w->recptr / 2;
+					ss->trim[1] = w->recptr;
 					ss->loop[0] = 0;
 					ss->loop[1] = 0;
 				}

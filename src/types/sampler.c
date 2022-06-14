@@ -1,13 +1,3 @@
-typedef struct
-{
-	uint32_t length;
-	char     channels;
-	uint32_t c5rate;
-	uint32_t trim[2];
-	uint32_t loop[2];
-	adsr     volume;
-} sampler_state;
-
 void samplerIncFieldPointer(signed char *fieldpointer, short index)
 {
 	(*fieldpointer)++;
@@ -265,19 +255,27 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 }
 int samplerAkaizerCallback3(char *command, unsigned char *mode)
 {
-	char *buffer = malloc(strlen(command) + 1);
-	char *altbuffer = malloc(strlen(command) + 1);
+	char *buffer = malloc(COMMAND_LENGTH + 1);
+	char *altbuffer = malloc(COMMAND_LENGTH + 1);
 	wordSplit(altbuffer, command, 0);
 	exportSample(w->instrument, "/tmp/omelette.wav");
 	snprintf(buffer, COMMAND_LENGTH, "akaizer /tmp/omelette.wav %d %d %d",
 		w->akaizertimefactor,
 		w->akaizercyclelength,
 		(short)strtol(altbuffer, NULL, 0));
+	printf("\033[2J"); fflush(stdout);
 	system(buffer);
 	snprintf(buffer, COMMAND_LENGTH, "/tmp/omelette-%d%%_%d_%d_R.wav",
 		w->akaizertimefactor,
 		w->akaizercyclelength,
 		(short)strtol(altbuffer, NULL, 0));
+
+	FILE *fp = fopen(buffer, "r");
+	if (!fp) /* akaizer failed to create output */
+	{
+		snprintf(w->command.error, COMMAND_LENGTH, "Akaizer failed to create a file");
+		return 0;
+	}
 
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	sampler_state *ss = iv->state[iv->type];
@@ -481,19 +479,20 @@ void samplerInput(int *input)
 						else
 						{
 							uint8_t val[4];
+							printf("\033[2J"); fflush(stdout);
 							exportSample(w->instrument, "/tmp/omelette.wav");
 							system("spleeter separate -p spleeter:4stems /tmp/omelette.wav");
 							val[0] = newInstrument(w->instrument + 1);
-							val[1] = newInstrument(w->instrument + 1);
-							val[2] = newInstrument(w->instrument + 1);
-							val[3] = newInstrument(w->instrument + 1);
+							val[1] = newInstrument(w->instrument + 2);
+							val[2] = newInstrument(w->instrument + 3);
+							val[3] = newInstrument(w->instrument + 4);
 							loadSample(val[0], "/tmp/separated_audio/omelette/vocals.wav");
-							loadSample(val[1], "/tmp/separated_audio/omelette/drums.wav");
-							loadSample(val[2], "/tmp/separated_audio/omelette/bass.wav");
+							loadSample(val[1], "/tmp/separated_audio/omelette/bass.wav");
+							loadSample(val[2], "/tmp/separated_audio/omelette/drums.wav");
 							loadSample(val[3], "/tmp/separated_audio/omelette/other.wav");
 
 							snprintf(w->command.error, COMMAND_LENGTH,
-								"Separated stems into slots %x %x %x %x",
+								"Separated stems into instrument slots %x %x %x %x",
 								val[0], val[1], val[2], val[3]);
 
 							redraw();
@@ -823,14 +822,6 @@ void samplerLoadSample(instrument *iv, SF_INFO sfinfo)
 	ss->loop[1] = 0;
 }
 
-void samplerExportSample(instrument *iv, SF_INFO *sfinfo)
-{
-	sampler_state *ss = iv->state[iv->type];
-	sfinfo->samplerate = ss->c5rate;
-	sfinfo->frames = ss->length;
-	sfinfo->channels = ss->channels;
-}
-
 void samplerWrite(instrument *iv, FILE *fp)
 {
 	sampler_state *ss = iv->state[iv->type];
@@ -878,7 +869,6 @@ void samplerInit(int index)
 	t->f[index].getOffset = &samplerGetOffset;
 	t->f[index].changeType = &samplerChangeType;
 	t->f[index].loadSample = &samplerLoadSample;
-	t->f[index].exportSample = &samplerExportSample;
 	t->f[index].write = &samplerWrite;
 	t->f[index].read = &samplerRead;
 }
