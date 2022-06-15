@@ -722,9 +722,9 @@ int trackerInput(int input)
 							int y = getchar() - 32;
 							switch (button)
 							{
-								case 32 + 64: /* scroll up */
+								case WHEEL_UP: /* scroll up */
 									if (s->songi[w->songfx] == 255) break;
-									w->trackerfy -= 3;
+									w->trackerfy -= WHEEL_SPEED;
 									if (w->trackerfy < 0)
 									{
 										if (w->songfx > 0 && s->songi[w->songfx - 1] != 255)
@@ -734,9 +734,9 @@ int trackerInput(int input)
 										} else w->trackerfy = 0;
 									}
 									break;
-								case 33 + 64: /* scroll down */
+								case WHEEL_DOWN: /* scroll down */
 									if (s->songi[w->songfx] == 255) break;
-									w->trackerfy += 3;
+									w->trackerfy += WHEEL_SPEED;
 									if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
 									{
 										if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
@@ -746,7 +746,7 @@ int trackerInput(int input)
 										} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
 									}
 									break;
-								case 35: /* release click */
+								case BUTTON_RELEASE: /* release click */
 									if (s->songi[w->songfx] == 255) break;
 									w->trackerfy += w->fyoffset;
 
@@ -770,7 +770,7 @@ int trackerInput(int input)
 									break;
 								default: /* click / drag */
 									/* song indices */
-									if ((button == BUTTON1 && y < 4) || (button == BUTTON1 + 32 && w->mode == 2))
+									if ((button == BUTTON1 && y < 4) || (button == BUTTON1_HOLD && w->mode == 2))
 									{
 										w->mode = 2; /* force enter song mode */
 										if (x < w->songcelloffset) /* left */

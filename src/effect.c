@@ -513,16 +513,16 @@ void effectInput(int input)
 									int y = getchar() - 32;
 									switch (button)
 									{
-										case 32 + 64: /* scroll up */
+										case WHEEL_UP: /* scroll up */
 											w->effectoffset -= 3;
 											if (w->effectoffset < 0) w->effectoffset = 0;
 											break;
-										case 33 + 64: /* scroll down */
+										case WHEEL_DOWN: /* scroll down */
 											w->effectoffset += 3;
 											if (ev->indexc < 8 + 9) w->effectoffset = 0;
 											else if (w->effectoffset > ev->indexc - 8 - 9) w->effectoffset = ev->indexc - 8 - 9;
 											break;
-										case 35: /* release click */
+										case BUTTON_RELEASE: /* release click */
 											/* leave adjust mode */
 											if (w->mode > 0) w->mode = 0;
 											break;
@@ -559,7 +559,7 @@ void effectInput(int input)
 											w->mousey = y;
 											w->mousex = x;
 											break;
-										case BUTTON1 + 32:
+										case BUTTON1_HOLD:
 											if (w->mode > 0) // mouse adjust
 											{
 												if      (x > w->mousex) effectAdjustRight(ev, w->effectindex);
@@ -712,29 +712,23 @@ void effectInput(int input)
 									int y = getchar() - 32;
 									switch (button)
 									{
-										case 32 + 64: /* scroll up */
+										case WHEEL_UP: /* scroll up */
 											w->pluginindex -= 3;
 											if (w->pluginindex < 0)
 												w->pluginindex = 0;
 											break;
-										case 33 + 64: /* scroll down */
+										case WHEEL_DOWN: /* scroll down */
 											w->pluginindex += 3;
 											if (w->pluginindex > lv2.pluginc - 1)
 												w->pluginindex = lv2.pluginc - 1;
 											break;
-										case 35: /* release click */
+										case BUTTON_RELEASE: /* release click */
 											w->pluginindex += w->fyoffset;
 											w->fyoffset = 0;
 											/* leave adjust mode */
 											if (w->mode > 0) w->mode = 0;
 											break;
 										case BUTTON1:
-											/* if (y < w->instrumentrowoffset + 2
-													|| y > w->instrumentrowoffset + INSTRUMENT_TYPE_ROWS + 4)
-											{
-												w->popup = 1;
-												w->instrumentindex = 0;
-											} */
 											if (x < w->instrumentcelloffset
 													|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS
 													|| y < w->instrumentrowoffset - 1
@@ -743,9 +737,9 @@ void effectInput(int input)
 												w->popup = 0;
 												break;
 											}
-										case BUTTON1 + 32:
+										case BUTTON1_HOLD:
 											if (y > ws.ws_row - 1 || y < 3) break; /* ignore clicking out of range */
-											w->fyoffset = y - (w->instrumentrowoffset + 10); /* magic number */
+											w->fyoffset = y - (w->instrumentrowoffset + 10); /* magic number, visual centre */
 											if (w->fyoffset + w->pluginindex < 0)
 												w->fyoffset -= w->pluginindex + w->fyoffset;
 											if (w->fyoffset + w->pluginindex > lv2.pluginc - 1)

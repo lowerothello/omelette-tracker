@@ -529,15 +529,15 @@ int instrumentInput(int input)
 									int y = getchar() - 32;
 									switch (button)
 									{
-										case 32 + 64: /* scroll up   */
-										case 33 + 64: /* scroll down */
+										case WHEEL_UP: /* scroll up   */
+										case WHEEL_DOWN: /* scroll down */
 											break;
-										case 35: /* release click */
+										case BUTTON_RELEASE: /* release click */
 											/* leave adjust mode */
 											if (w->mode > 3) w->mode = w->mode - 4;
 											if (w->mode > 1) w->mode = w->mode - 2;
 											break;
-										case BUTTON1:
+										case BUTTON1: case BUTTON3:
 											pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 											if (x < w->instrumentcelloffset
 													|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS - 1
@@ -577,6 +577,7 @@ int instrumentInput(int input)
 														t->f[iv->type].mouseToIndex(
 																y - w->instrumentrowoffset - 5,
 																x - w->instrumentcelloffset - 2,
+																button,
 																&w->instrumentindex, &w->fieldpointer);
 													break;
 											}
@@ -587,7 +588,7 @@ int instrumentInput(int input)
 											w->mousey = y;
 											w->mousex = x;
 											break;
-										case BUTTON1 + 32:
+										case BUTTON1_HOLD:
 											if (w->mode > 3) /* mouse adjust */
 											{
 												if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex);
@@ -948,28 +949,26 @@ int instrumentInput(int input)
 							{
 								case 'A': /* up arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									if (w->instrumentindex > w->dircols)
-										w->instrumentindex -= w->dircols;
-									else w->instrumentindex = 0;
+									w->instrumentindex -= w->dircols;
+									if (w->instrumentindex < 0) w->instrumentindex = 0;
 									redraw();
 									break;
 								case 'B': /* down arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									if (w->instrumentindex < w->dirc - 1 - w->dircols)
-										w->instrumentindex += w->dircols;
-									else w->instrumentindex = w->dirc - 1;
+									w->instrumentindex += w->dircols;
+									if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
 									redraw();
 									break;
 								case 'D': /* left arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									if (w->instrumentindex > 0)
-										w->instrumentindex--;
+									w->instrumentindex--;
+									if (w->instrumentindex < 0) w->instrumentindex = 0;
 									redraw();
 									break;
 								case 'C': /* right arrow */
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-									if (w->instrumentindex < w->dirc - 1)
-										w->instrumentindex++;
+									w->instrumentindex++;
+									if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
 									redraw();
 									break;
 								case 'H': /* home */
@@ -981,6 +980,20 @@ int instrumentInput(int input)
 									getchar();
 									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 									w->instrumentindex = w->dirc - 1;
+									redraw();
+									break;
+								case '5': /* page up */
+									getchar();
+									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
+									w->instrumentindex -= w->dircols * (INSTRUMENT_BODY_ROWS - 2);
+									if (w->instrumentindex < 0) w->instrumentindex = 0;
+									redraw();
+									break;
+								case '6': /* page down */
+									getchar();
+									if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
+									w->instrumentindex += w->dircols * (INSTRUMENT_BODY_ROWS - 2);
+									if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
 									redraw();
 									break;
 								case '1': /* mod+arrow / f5 - f8 */
@@ -1006,46 +1019,72 @@ int instrumentInput(int input)
 									int y = getchar() - 32;
 									switch (button)
 									{
-										case 32 + 64: /* scroll up */
-											w->instrumentindex -= 3;
+										case WHEEL_UP: /* scroll up */
+											w->instrumentindex -= WHEEL_SPEED * w->dircols;
 											if (w->instrumentindex < 0)
 												w->instrumentindex = 0;
 											break;
-										case 33 + 64: /* scroll down */
-											w->instrumentindex += 3;
+										case WHEEL_DOWN: /* scroll down */
+											w->instrumentindex += WHEEL_SPEED * w->dircols;
 											if (w->instrumentindex > w->dirc - 1)
 												w->instrumentindex = w->dirc - 1;
 											break;
-										case 35: /* release click */
-											w->instrumentindex += w->fyoffset;
+										case BUTTON_RELEASE: /* release click */
+											w->instrumentindex += w->fyoffset * w->dircols;
 											w->fyoffset = 0;
 											/* leave adjust mode */
 											if (w->mode > 3) w->mode = w->mode - 4;
 											if (w->mode > 1) w->mode = w->mode - 2;
 											break;
-										case BUTTON1:
-											if (y < w->instrumentrowoffset + 3
-													|| y > w->instrumentrowoffset + INSTRUMENT_TYPE_ROWS + 4)
-											{
-												w->popup = 1;
-												w->instrumentindex = 0;
-											}
+										case BUTTON1: case BUTTON3:
 											if (x < w->instrumentcelloffset
-													|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS
+													|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS - 1
 													|| y < w->instrumentrowoffset - 1
 													|| y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS)
 											{
-												pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 												w->popup = 0;
 												break;
 											}
-										case BUTTON1 + 32:
-											if (y > ws.ws_row - 1 || y < 3) break; /* ignore clicking out of range */
-											w->fyoffset = y - (w->instrumentrowoffset + 11); /* magic number */
-											if (w->fyoffset + w->instrumentindex < 0)
-												w->fyoffset -= w->instrumentindex + w->fyoffset;
-											if (w->fyoffset + w->instrumentindex > w->dirc - 1)
-												w->fyoffset -= w->instrumentindex + w->fyoffset - w->dirc + 1;
+										case BUTTON1_HOLD:
+											if (y < 3) break; /* ignore clicking out of range */
+											short xo = w->instrumentcelloffset + (INSTRUMENT_BODY_COLS - (w->dirmaxwidth + 2) * w->dircols) / 2;
+											w->instrumentindex -= w->instrumentindex % w->dircols; /* pull to the first column */
+											if (x >= xo + (w->dirmaxwidth + 2) * w->dircols)
+												w->instrumentindex += w->dircols - 1;
+											else if (x >= xo)
+												w->instrumentindex += (x - xo) / (w->dirmaxwidth + 2);
+											w->fyoffset = y - (w->instrumentrowoffset + 11); /* magic number, visual centre */
+											if (w->fyoffset + w->instrumentindex / w->dircols < 0)
+												w->fyoffset -= w->instrumentindex / w->dircols + w->fyoffset;
+											if (w->fyoffset + w->instrumentindex / w->dircols > (w->dirc - 1) / w->dircols)
+												w->fyoffset -= w->instrumentindex / w->dircols + w->fyoffset - (w->dirc - 1) / w->dircols;
+											if (w->fyoffset * w->dircols + w->instrumentindex > w->dirc - 1)
+												w->fyoffset--;
+
+											if (button == BUTTON3)
+											{
+												w->instrumentindex += w->fyoffset * w->dircols;
+												w->fyoffset = 0;
+												char newpath[NAME_MAX + 1]; /* TODO: functionize, do on release */
+												char oldpath[NAME_MAX + 1]; strcpy(oldpath, w->dirpath);
+												switch (getSubdir(newpath))
+												{
+													case 1: /* file */
+														loadSample(w->instrument, newpath);
+														pushInstrumentHistory(s->instrumentv[s->instrumenti[w->instrument]]);
+														w->popup = 1;
+														w->instrumentindex = 0;
+														break;
+													case 2: /* directory */
+														strcpy(w->dirpath, newpath);
+														if (changeDirectory())
+														{
+															strcpy(w->dirpath, oldpath);
+															changeDirectory();
+														} else w->instrumentindex = 0;
+														break;
+												}
+											}
 											break;
 									}
 									redraw();

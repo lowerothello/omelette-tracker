@@ -256,15 +256,14 @@ typedef struct
 		void           (*incFieldPointer)(signed char *, short);
 		void           (*decFieldPointer)(signed char *, short);
 		void           (*endFieldPointer)(signed char *, short);
-		void           (*mouseToIndex)(int, int, short *, signed char *);
+		void           (*mouseToIndex)(int, int, int, short *, signed char *);
 		void           (*input)(int *);
 		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
 		uint32_t       (*offset)(instrument *, channel *, int);
 		uint8_t        (*getOffset)(instrument *, channel *);
 		void           (*changeType)(void **); /* literally a pointer to a pointer */
-		void           (*loadSample)(instrument *, SF_INFO);
-		void           (*write)(instrument *, FILE *fp);
-		void           (*read)(instrument *, FILE *fp);
+		void           (*write)(instrument *, uint8_t, FILE *fp);
+		void           (*read)(instrument *, uint8_t, FILE *fp);
 	} f[INSTRUMENT_TYPE_COUNT];
 } typetable;
 typetable *t;
@@ -1423,29 +1422,31 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 	}
 	return ptr;
 }
-int loadSample(uint8_t index, char *path)
+void loadSample(uint8_t index, char *path)
 {
 	instrument *iv = s->instrumentv[s->instrumenti[index]];
-	if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].loadSample != NULL)
+	SF_INFO sfinfo;
+	short *sampledata = _loadSample(path, &sfinfo);
+	if (!sampledata)
 	{
-		SF_INFO sfinfo;
-		short *sampledata = _loadSample(path, &sfinfo);
-		if (!sampledata)
-		{
-			strcpy(w->command.error, "failed to load sample, out of memory");
-			return 1;
-		}
-
-		/* unload any present sample data */
-		if (iv->samplelength > 0)
-			free(iv->sampledata);
-		iv->sampledata = sampledata;
-		iv->samplelength = sfinfo.frames * sfinfo.channels;
-
-		t->f[iv->type].loadSample(iv, sfinfo);
-		return 0;
+		strcpy(w->command.error, "failed to load sample, out of memory");
+		return;
 	}
-	return 1;
+
+	/* unload any present sample data */
+	if (iv->samplelength > 0)
+		free(iv->sampledata);
+	iv->sampledata = sampledata;
+	iv->samplelength = sfinfo.frames * sfinfo.channels;
+
+	sampler_state *ss = iv->state[1];
+	ss->channels = sfinfo.channels;
+	ss->length = sfinfo.frames;
+	ss->c5rate = sfinfo.samplerate;
+	ss->trim[0] = 0;
+	ss->trim[1] = sfinfo.frames;
+	ss->loop[0] = 0;
+	ss->loop[1] = 0;
 };
 int exportSample(uint8_t index, char *path)
 {
@@ -1641,7 +1642,7 @@ int writeSong(char *path)
 
 		if (s->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
 				&& t->f[s->instrumentv[i]->type].write != NULL)
-			t->f[s->instrumentv[i]->type].write(s->instrumentv[i], fp);
+			t->f[s->instrumentv[i]->type].write(s->instrumentv[i], i, fp);
 
 		fputc(s->instrumentv[i]->fader[0], fp);
 		fputc(s->instrumentv[i]->fader[1], fp);
@@ -1782,7 +1783,7 @@ song *readSong(char *path)
 
 		if (cs->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
 				&& t->f[cs->instrumentv[i]->type].read != NULL)
-			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], fp);
+			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], i, fp);
 
 		cs->instrumentv[i]->fader[0] = fgetc(fp);
 		cs->instrumentv[i]->fader[1] = fgetc(fp);

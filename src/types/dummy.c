@@ -4,7 +4,7 @@ void drawDummy(instrument *iv, uint8_t index, unsigned short x, unsigned short y
 	printf("\033[%d;%dH      does nothing", y + 1, x);
 }
 
-void dummyMouseToIndex(int y, int x, short *index, signed char *fieldpointer)
+void dummyMouseToIndex(int, int, int, short *index, signed char *)
 {
 	*index = 0;
 }

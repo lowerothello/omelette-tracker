@@ -273,7 +273,7 @@ int changeDirectory(void)
 	}
 	rewinddir(w->dir);
 	w->dirmaxwidth = MIN(w->dirmaxwidth, INSTRUMENT_BODY_COLS - 4);
-	w->dircols = MAX(MIN((INSTRUMENT_BODY_COLS - 4) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
+	w->dircols = MAX(MIN((INSTRUMENT_BODY_COLS - 8) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
 	return 0;
 }
 

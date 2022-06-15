@@ -1,6 +1,16 @@
 #define BUTTON1 32
 #define BUTTON2 33
 #define BUTTON3 34
+#define BUTTON_RELEASE 35
+
+#define BUTTON1_HOLD BUTTON1 + 32
+#define BUTTON2_HOLD BUTTON2 + 32
+#define BUTTON3_HOLD BUTTON3 + 32
+
+#define WHEEL_UP BUTTON1 + 64
+#define WHEEL_DOWN BUTTON2 + 64
+#define WHEEL_SPEED 3 /* how many lines the wheel should scroll */
+
 
 /* change these constants for a different keymap */
 uint8_t charToNote(int key, uint8_t octave)

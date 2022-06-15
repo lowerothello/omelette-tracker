@@ -482,14 +482,14 @@ void samplerInput(int *input)
 							printf("\033[2J"); fflush(stdout);
 							exportSample(w->instrument, "/tmp/omelette.wav");
 							system("spleeter separate -p spleeter:4stems /tmp/omelette.wav");
-							val[0] = newInstrument(w->instrument + 1);
-							val[1] = newInstrument(w->instrument + 2);
-							val[2] = newInstrument(w->instrument + 3);
-							val[3] = newInstrument(w->instrument + 4);
+							val[0] = newInstrument(w->instrument + 1); addInstrument(val[0]);
+							val[1] = newInstrument(w->instrument + 2); addInstrument(val[1]);
+							val[2] = newInstrument(w->instrument + 3); addInstrument(val[2]);
+							val[3] = newInstrument(w->instrument + 4); addInstrument(val[3]);
 							loadSample(val[0], "/tmp/separated_audio/omelette/vocals.wav");
-							loadSample(val[1], "/tmp/separated_audio/omelette/bass.wav");
-							loadSample(val[2], "/tmp/separated_audio/omelette/drums.wav");
-							loadSample(val[3], "/tmp/separated_audio/omelette/other.wav");
+							loadSample(val[1], "/tmp/separated_audio/omelette/bass.wav"  );
+							loadSample(val[2], "/tmp/separated_audio/omelette/drums.wav" );
+							loadSample(val[3], "/tmp/separated_audio/omelette/other.wav" );
 
 							snprintf(w->command.error, COMMAND_LENGTH,
 								"Separated stems into instrument slots %x %x %x %x",
@@ -619,11 +619,20 @@ void samplerInput(int *input)
 	}
 }
 
-void samplerMouseToIndex(int y, int x, short *index, signed char *fieldpointer)
+void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fieldpointer)
 {
 	switch (y)
 	{
-		case 0: case 1: *index = 0; *fieldpointer = 0; break;
+		case 0: case 1:
+			*index = 0;
+			*fieldpointer = 0;
+			if (button == BUTTON3)
+			{
+				w->popup = 2;
+				w->instrumentindex = 0;
+				w->fyoffset = 0; /* this can still be set on edge cases */
+			}
+			break;
 		default:
 			if (x < 53)
 			{
@@ -810,21 +819,9 @@ void samplerChangeType(void **state)
 	ss->volume.s = 255;
 }
 
-void samplerLoadSample(instrument *iv, SF_INFO sfinfo)
+void samplerWrite(instrument *iv, uint8_t index, FILE *fp)
 {
-	sampler_state *ss = iv->state[iv->type];
-	ss->channels = sfinfo.channels;
-	ss->length = sfinfo.frames;
-	ss->c5rate = sfinfo.samplerate;
-	ss->trim[0] = 0;
-	ss->trim[1] = sfinfo.frames;
-	ss->loop[0] = 0;
-	ss->loop[1] = 0;
-}
-
-void samplerWrite(instrument *iv, FILE *fp)
-{
-	sampler_state *ss = iv->state[iv->type];
+	sampler_state *ss = iv->state[index];
 	fwrite(&ss->length, sizeof(uint32_t), 1, fp);
 	fputc(ss->channels, fp);
 	fwrite(&ss->c5rate, sizeof(uint32_t), 1, fp);
@@ -836,9 +833,9 @@ void samplerWrite(instrument *iv, FILE *fp)
 	fputc(ss->volume.r, fp);
 }
 
-void samplerRead(instrument *iv, FILE *fp)
+void samplerRead(instrument *iv, uint8_t index, FILE *fp)
 {
-	sampler_state *ss = iv->state[iv->type];
+	sampler_state *ss = iv->state[index];
 	fread(&ss->length, sizeof(uint32_t), 1, fp);
 	ss->channels = fgetc(fp);
 	fread(&ss->c5rate, sizeof(uint32_t), 1, fp);
@@ -868,7 +865,6 @@ void samplerInit(int index)
 	t->f[index].offset = &samplerOffset;
 	t->f[index].getOffset = &samplerGetOffset;
 	t->f[index].changeType = &samplerChangeType;
-	t->f[index].loadSample = &samplerLoadSample;
 	t->f[index].write = &samplerWrite;
 	t->f[index].read = &samplerRead;
 }
