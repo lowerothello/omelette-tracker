@@ -60,8 +60,8 @@ int fl;
 #define ENVELOPE_DECAY   0.025
 #define ENVELOPE_RELEASE 0.025
 
-#define RAMP_MS 3 /* only up to about 300 is safe */
-                  /* any higher risks overflows   */
+#define RAMP_MS 3 /* only up to about 300 is safe at high sample rates */
+#define TIMESTRETCH_RAMP_MS 100
 
 #define INST_HISTDEPTH 128 /* 2(?)>INST_HISTDEPTH>128 */
 
@@ -401,6 +401,7 @@ int main(int argc, char **argv)
 	jack_activate(client);
 
 
+	_addChannel(&w->previewchannel);
 	w->previewchannel.gain = 255;
 	w->previewinstrument.type = 0;
 	w->previewinstrument.state[0] = malloc(sizeof(sampler_state));
@@ -512,7 +513,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		if (p->dirty)
+		// if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();

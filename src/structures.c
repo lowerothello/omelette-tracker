@@ -23,26 +23,31 @@ typedef struct
 
 typedef struct
 {
-	char      mute;            /* saved to disk */
-	uint32_t  samplepointer;   /* progress through the sample */
-	uint32_t  sampleoffset;    /* point to base samplepointer off of */
-	uint32_t  releasepointer;  /* 0 for no release, where releasing started */
-	uint8_t   gain;            /* two 4bit uints, one for each channel */
+	char      mute;              /* saved to disk */
+	uint32_t  samplepointer;     /* progress through the sample */
+	uint32_t  sampleoffset;      /* point to base samplepointer off of */
+	uint32_t  releasepointer;    /* 0 for no release, where releasing started */
+	uint8_t   gain;              /* two 4bit uints, one for each channel */
 	row       r;
-	float     cents;           /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
-	uint8_t   portamento;      /* portamento target, 255 for off */
-	uint8_t   portamentospeed; /* portamento m */
-	uint16_t  rtrigsamples;    /* samples per retrigger */
-	uint32_t  rtrigpointer;    /* sample ptr to ratchet back to */
-	uint8_t   rtrigblocksize;  /* number of rows block extends to */
-	uint8_t   effectholdinst;  /* 255 for no hold */
+	float     cents;             /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
+	uint8_t   portamento;        /* portamento target, 255 for off */
+	uint8_t   portamentospeed;   /* portamento m */
+	uint16_t  rtrigsamples;      /* samples per retrigger */
+	uint32_t  rtrigpointer;      /* sample ptr to ratchet back to */
+	uint8_t   rtrigblocksize;    /* number of rows block extends to */
+	uint8_t   effectholdinst;    /* 255 for no hold */
 	uint8_t   effectholdindex;
 
-	uint16_t  rampindex;       /* progress through the ramp buffer, rampmax if not ramping */
-	uint16_t  rampmax;         /* length of the ramp buffer */
-	sample_t *rampbuffer;      /* samples to ramp out */
-	uint8_t   rampinstrument;  /* old instrument, realindex */
-	uint8_t   rampgain;        /* old gain */
+	uint16_t  rampindex;         /* progress through the ramp buffer, rampmax if not ramping */
+	uint16_t  rampmax;           /* length of the ramp buffer */
+	sample_t *rampbuffer;        /* samples to ramp out */
+	uint8_t   rampinstrument;    /* old instrument, realindex */
+	uint8_t   rampgain;          /* old gain */
+
+	uint16_t  stretchrampindex;  /* progress through the ramp buffer, rampmax if not ramping */
+	uint16_t  stretchrampmax;    /* length of the ramp buffer */
+	sample_t *stretchrampbuffer; /* samples to ramp out */
+	uint32_t  cycleoffset;
 } channel;
 
 typedef struct Instrument
@@ -273,9 +278,11 @@ typedef struct
 	uint32_t length;
 	char     channels;
 	uint32_t c5rate;
+	uint16_t cyclelength;
 	uint32_t trim[2];
 	uint32_t loop[2];
 	adsr     volume;
+	uint8_t  attributes; /* %1: fixed tempo */
 } sampler_state;
 
 
@@ -283,21 +290,21 @@ typedef struct
 
 typedef struct
 {
-	LilvWorld   *world;
-	LilvPlugins *plugins;
-	unsigned int pluginc; /* indexed plugin count */
-	LilvNode    *inputport;
-	LilvNode    *outputport;
-	LilvNode    *audioport;
-	LilvNode    *controlport;
-	LilvNode    *integer;
-	LilvNode    *toggled;
-	LilvNode    *samplerate;
-	LilvNode    *render;
-	LilvNode    *unit;
-	LilvNode    *enumeration;
-	LilvNode    *logarithmic;
-	LilvNode    *rangesteps;
+	LilvWorld    *world;
+	LilvPlugins  *plugins;
+	unsigned int  pluginc; /* indexed plugin count */
+	LilvNode     *inputport;
+	LilvNode     *outputport;
+	LilvNode     *audioport;
+	LilvNode     *controlport;
+	LilvNode     *integer;
+	LilvNode     *toggled;
+	LilvNode     *samplerate;
+	LilvNode     *render;
+	LilvNode     *unit;
+	LilvNode     *enumeration;
+	LilvNode     *logarithmic;
+	LilvNode     *rangesteps;
 } lilv;
 lilv lv2;
 
@@ -551,6 +558,9 @@ void _addChannel(channel *cv)
 	cv->rampmax = samplerate / 1000 * RAMP_MS;
 	cv->rampindex = cv->rampmax;
 	cv->rampbuffer = malloc(sizeof(sample_t) * cv->rampmax * 2); /* *2 for stereo */
+	cv->stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
+	cv->stretchrampindex = cv->stretchrampmax;
+	cv->stretchrampbuffer = malloc(sizeof(sample_t) * cv->stretchrampmax * 2); /* *2 for stereo */
 }
 int addChannel(song *cs, uint8_t index)
 {
@@ -595,6 +605,8 @@ int delChannel(uint8_t index)
 	{
 		free(s->channelv[index].rampbuffer);
 		s->channelv[index].rampbuffer = NULL;
+		free(s->channelv[index].stretchrampbuffer);
+		s->channelv[index].stretchrampbuffer = NULL;
 
 		for (i = index; i < s->channelc; i++)
 		{
@@ -1439,7 +1451,7 @@ void loadSample(uint8_t index, char *path)
 	iv->sampledata = sampledata;
 	iv->samplelength = sfinfo.frames * sfinfo.channels;
 
-	sampler_state *ss = iv->state[1];
+	sampler_state *ss = iv->state[0];
 	ss->channels = sfinfo.channels;
 	ss->length = sfinfo.frames;
 	ss->c5rate = sfinfo.samplerate;
@@ -1528,7 +1540,10 @@ void delSong(song *cs)
 	free(cs->effectdryr);
 
 	for (int i = 0; i < cs->channelc; i++)
+	{
 		free(cs->channelv[i].rampbuffer);
+		free(cs->channelv[i].stretchrampbuffer);
+	}
 
 	for (int i = 1; i < cs->patternc; i++)
 	{
@@ -1553,26 +1568,36 @@ void delSong(song *cs)
 	free(cs);
 }
 
+/* free the return value */
 char *fileExtension(char *path, char *ext)
 {
-	if (strcmp(path+(strlen(path) - strlen(ext)), ext))
-		strcat(path, ext);
-	return path;
+	char *ret;
+	if (strlen(path) < strlen(ext) || strcmp(path+(strlen(path) - strlen(ext)), ext))
+	{
+		ret = malloc(strlen(path) + strlen(ext) + 1);
+		strcpy(ret, path);
+		strcat(ret, ext);
+	} else
+	{
+		ret = malloc(strlen(path) + 1);
+		strcpy(ret, path);
+	}
+	return ret;
 }
 int writeSong(char *path)
 {
-	fileExtension(path, ".omlm");
-	if (!strcmp(path, ".omlm"))
+	char *pathext = fileExtension(path, ".omlm");
+	if (!strcmp(pathext, ".omlm"))
 	{
 		if (!strlen(w->filepath))
 		{
-			strcpy(w->command.error, "No file name");
+			strcpy(w->command.error, "no file name");
 			return 1;
 		}
-		strcpy(path, w->filepath);
-	} else strcpy(w->filepath, path);
+		strcpy(pathext, w->filepath);
+	} else strcpy(w->filepath, pathext);
 
-	FILE *fp = fopen(path, "wb");
+	FILE *fp = fopen(pathext, "wb");
 	int i, j, k;
 
 	/* egg, for each and every trying time (the most important) */
@@ -1641,8 +1666,8 @@ int writeSong(char *path)
 		fputc(s->instrumentv[i]->type, fp);
 
 		if (s->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
-				&& t->f[s->instrumentv[i]->type].write != NULL)
-			t->f[s->instrumentv[i]->type].write(s->instrumentv[i], i, fp);
+				&& t->f[s->instrumentv[i]->type].write)
+			t->f[s->instrumentv[i]->type].write(s->instrumentv[i], s->instrumentv[i]->type, fp);
 
 		fputc(s->instrumentv[i]->fader[0], fp);
 		fputc(s->instrumentv[i]->fader[1], fp);
@@ -1672,7 +1697,8 @@ int writeSong(char *path)
 
 
 	fclose(fp);
-	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", path);
+	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", pathext);
+	free(pathext);
 	return 0;
 }
 
@@ -1681,14 +1707,14 @@ song *readSong(char *path)
 	FILE *fp = fopen(path, "r");
 	if (!fp) // file doesn't exist, or fopen otherwise failed
 	{
-		snprintf(w->command.error, COMMAND_LENGTH, "File '%s' doesn't exist", path);
+		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' doesn't exist", path);
 		return NULL;
 	}
 	DIR *dp = opendir(path);
 	if (dp) // file is a directory
 	{
 		closedir(dp);
-		snprintf(w->command.error, COMMAND_LENGTH, "File '%s' is a directory", path);
+		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' is a directory", path);
 		return NULL;
 	}
 
@@ -1698,7 +1724,7 @@ song *readSong(char *path)
 	/* the most important check */
 	if (!(fgetc(fp) == 'e' && fgetc(fp) == 'g' && fgetc(fp) == 'g'))
 	{
-		snprintf(w->command.error, COMMAND_LENGTH, "File '%s' isn't valid", path);
+		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' isn't valid", path);
 		return NULL;
 	}
 	fseek(fp, 0x4, SEEK_SET);
@@ -1783,7 +1809,7 @@ song *readSong(char *path)
 
 		if (cs->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
 				&& t->f[cs->instrumentv[i]->type].read != NULL)
-			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], i, fp);
+			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], cs->instrumentv[i]->type, fp);
 
 		cs->instrumentv[i]->fader[0] = fgetc(fp);
 		cs->instrumentv[i]->fader[1] = fgetc(fp);
