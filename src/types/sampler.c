@@ -83,8 +83,8 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 			break;
 	}
 
-	printf("\033[%d;%dHC-5 rate    [%08x]", y+1, x+3, ss->c5rate);
-	printf("\033[%d;%dHfixed tempo        ", y+2, x+3);
+	printf("\033[%d;%dHC-5 rate    [%08x]",     y+1, x+3, ss->c5rate);
+	printf("\033[%d;%dHfixed tempo        ",    y+2, x+3);
 	if (ss->attributes & 0b1) printf("[X]");
 	else                      printf("[ ]");
 	printf("\033[%d;%dHcycle length    [%04x]", y+3, x+3, ss->cyclelength);
@@ -92,20 +92,20 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 	for (char i = 1; i < 5; i++)
 		printf("\033[%d;%dH│", y+i, x+28);
 
-	printf("\033[%d;%dHtrim", y+1, x+35);
-	printf("\033[%d;%dHloop", y+1, x+48);
+	printf("\033[%d;%dHtrim",            y+1, x+35);
+	printf("\033[%d;%dHloop",            y+1, x+48);
 	printf("\033[%d;%dH[%08x]   [%08x]", y+2, x+32, ss->trim[0], ss->loop[0]);
 	printf("\033[%d;%dH[%08x]   [%08x]", y+3, x+32, ss->trim[1], ss->loop[1]);
-	printf("\033[%d;%dH%3d%% -> %d%%", y+4, x+31,
+	printf("\033[%d;%dH%3d%% -> %d%%",   y+4, x+31,
 			(char)((float)ss->trim[0] / (float)ss->length * 100),
 			(char)((float)ss->trim[1] / (float)ss->length * 100));
-	printf("\033[%d;%dH%3d%% -> %d%%", y+4, x+44,
+	printf("\033[%d;%dH%3d%% -> %d%%",   y+4, x+44,
 			(char)((float)ss->loop[0] / (float)ss->length * 100),
 			(char)((float)ss->loop[1] / (float)ss->length * 100));
 
 	printf("\033[%d;%dH│         a[%02x]", y+1, x+58, ss->volume.a);
-	printf("\033[%d;%dH│   env   d[%02x]", y+2, x+58, ss->volume.d);
-	printf("\033[%d;%dH│   ===   s[%02x]", y+3, x+58, ss->volume.s);
+	printf("\033[%d;%dH│   amp   d[%02x]", y+2, x+58, ss->volume.d);
+	printf("\033[%d;%dH│   env   s[%02x]", y+3, x+58, ss->volume.s);
 	printf("\033[%d;%dH│         r[%02x]", y+4, x+58, ss->volume.r);
 
 	if (w->instrumentrecv == INST_REC_LOCK_CONT)
@@ -113,18 +113,18 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 
 	switch (*cursor)
 	{
-		case 0:  printf("\033[%d;%dH", y-1,  x+2  + sampletitleoffset); break;
-		case 1:  printf("\033[%d;%dH", y+1,  x+16 + fieldpointer); break;
-		case 2:  printf("\033[%d;%dH", y+2,  x+23); break;
-		case 3:  printf("\033[%d;%dH", y+3,  x+20 + fieldpointer); break;
-		case 4:  printf("\033[%d;%dH", y+2,  x+33 + fieldpointer); break;
-		case 5:  printf("\033[%d;%dH", y+3,  x+33 + fieldpointer); break;
-		case 6:  printf("\033[%d;%dH", y+2,  x+46 + fieldpointer); break;
-		case 7:  printf("\033[%d;%dH", y+3,  x+46 + fieldpointer); break;
-		case 8:  printf("\033[%d;%dH", y+1,  x+71); break;
-		case 9:  printf("\033[%d;%dH", y+2,  x+71); break;
-		case 10: printf("\033[%d;%dH", y+3,  x+71); break;
-		case 11: printf("\033[%d;%dH", y+4,  x+71); break;
+		case 0:  printf("\033[%d;%dH", y-1, x+2  + sampletitleoffset); break;
+		case 1:  printf("\033[%d;%dH", y+1, x+16 + fieldpointer); break;
+		case 2:  printf("\033[%d;%dH", y+2, x+23); break;
+		case 3:  printf("\033[%d;%dH", y+3, x+20 + fieldpointer); break;
+		case 4:  printf("\033[%d;%dH", y+2, x+33 + fieldpointer); break;
+		case 5:  printf("\033[%d;%dH", y+3, x+33 + fieldpointer); break;
+		case 6:  printf("\033[%d;%dH", y+2, x+46 + fieldpointer); break;
+		case 7:  printf("\033[%d;%dH", y+3, x+46 + fieldpointer); break;
+		case 8:  printf("\033[%d;%dH", y+1, x+71); break;
+		case 9:  printf("\033[%d;%dH", y+2, x+71); break;
+		case 10: printf("\033[%d;%dH", y+3, x+71); break;
+		case 11: printf("\033[%d;%dH", y+4, x+71); break;
 	}
 }
 
@@ -907,34 +907,11 @@ void samplerChangeType(void **state)
 
 void samplerWrite(instrument *iv, uint8_t index, FILE *fp)
 {
-	sampler_state *ss = iv->state[index];
-	fwrite(&ss->length, sizeof(uint32_t), 1, fp);
-	fputc(ss->channels, fp);
-	fwrite(&ss->attributes, sizeof(uint8_t), 1, fp);
-	fwrite(&ss->c5rate, sizeof(uint32_t), 1, fp);
-	fwrite(&ss->cyclelength, sizeof(uint16_t), 1, fp);
-	fwrite(ss->trim, sizeof(uint32_t), 2, fp);
-	fwrite(ss->loop, sizeof(uint32_t), 2, fp);
-	fputc(ss->volume.a, fp);
-	fputc(ss->volume.d, fp);
-	fputc(ss->volume.s, fp);
-	fputc(ss->volume.r, fp);
+	fwrite(&iv->state[index], sizeof(sampler_state), 1, fp);
 }
-
 void samplerRead(instrument *iv, uint8_t index, FILE *fp)
 {
-	sampler_state *ss = iv->state[index];
-	fread(&ss->length, sizeof(uint32_t), 1, fp);
-	ss->channels = fgetc(fp);
-	fread(&ss->attributes, sizeof(uint8_t), 1, fp);
-	fread(&ss->c5rate, sizeof(uint32_t), 1, fp);
-	fread(&ss->cyclelength, sizeof(uint16_t), 1, fp);
-	fread(ss->trim, sizeof(uint32_t), 2, fp);
-	fread(ss->loop, sizeof(uint32_t), 2, fp);
-	ss->volume.a = fgetc(fp);
-	ss->volume.d = fgetc(fp);
-	ss->volume.s = fgetc(fp);
-	ss->volume.r = fgetc(fp);
+	fread(&iv->state[index], sizeof(sampler_state), 1, fp);
 }
 
 void samplerInit(int index)

@@ -1,10 +1,12 @@
 #include "types/sampler.c"
+#include "types/virtualanalogue.c"
 #include "types/dummy.c"
 
 void initInstrumentTypes(void)
 {
 	samplerInit(0);
-	dummyInit(1);
+	analogueInit(1);
+	dummyInit(2);
 }
 
 void instrumentRedraw(void)
@@ -113,9 +115,9 @@ void instrumentRedraw(void)
 			} else
 			{
 				instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-				printf("\033[%d;%dHtype   [%02x]", y+1, x+5, iv->type);
-				printf("\033[%d;%dHfader  [%02x]", y+2, x+5, iv->fader);
-				printf("\033[%d;%dHsend   [%x][%x]", y+3, x+5, w->instrumentsend, iv->send[w->instrumentsend]);
+				printf("\033[%d;%dHtype   [%02x]", y+1, x+4, iv->type);
+				printf("\033[%d;%dHfader  [%02x]", y+2, x+4, iv->fader);
+				printf("\033[%d;%dHsend   [%x][%x]", y+3, x+4, w->instrumentsend, iv->send[w->instrumentsend]);
 
 				printf(    "\033[%d;%dH┌────────────────────────────────────────────────────────────────────────────┐", y+5, x+1);
 				for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
@@ -129,10 +131,10 @@ void instrumentRedraw(void)
 				switch (w->instrumentindex)
 				{
 					case -5: printf("\033[%d;%dH", y-1, x+32); break;
-					case -4: printf("\033[%d;%dH", y+1, x+14); break;
-					case -3: printf("\033[%d;%dH", y+2, x+14); break;
-					case -2: printf("\033[%d;%dH", y+3, x+13); break;
-					case -1: printf("\033[%d;%dH", y+3, x+16); break;
+					case -4: printf("\033[%d;%dH", y+1, x+13); break;
+					case -3: printf("\033[%d;%dH", y+2, x+13); break;
+					case -2: printf("\033[%d;%dH", y+3, x+12); break;
+					case -1: printf("\033[%d;%dH", y+3, x+15); break;
 				}
 			}
 		}
@@ -145,8 +147,26 @@ void instrumentAdjustUp(instrument *iv, short index)
 	{
 		case MIN_INSTRUMENT_INDEX:
 		case MIN_INSTRUMENT_INDEX + 1:
+			if (w->instrumentlockv > INST_REC_LOCK_OK) break;
+
+			iv->type++;
+			w->instrumentlocki = s->instrumenti[w->instrument];
+			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
+			break;
 		case MIN_INSTRUMENT_INDEX + 3:
+			w->instrumentsend++;
+			if (w->instrumentsend > 15)
+				w->instrumentsend = 0;
+			break;
 		case MIN_INSTRUMENT_INDEX + 4:
+			iv->send[w->instrumentsend]++;
+			if (iv->send[w->instrumentsend] > 15)
+				iv->send[w->instrumentsend] = 0;
+			if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+			{
+				w->instrumentlocki = s->instrumenti[w->instrument];
+				w->instrumentlockv = w->instrumentsend + 16;
+			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv->fader%16 < 15)
@@ -166,8 +186,26 @@ void instrumentAdjustDown(instrument *iv, short index)
 	{
 		case MIN_INSTRUMENT_INDEX:
 		case MIN_INSTRUMENT_INDEX + 1:
+			if (w->instrumentlockv > INST_REC_LOCK_OK) break;
+
+			iv->type--;
+			w->instrumentlocki = s->instrumenti[w->instrument];
+			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
+			break;
 		case MIN_INSTRUMENT_INDEX + 3:
+			w->instrumentsend--;
+			if (w->instrumentsend < 0)
+				w->instrumentsend = 15;
+			break;
 		case MIN_INSTRUMENT_INDEX + 4:
+			iv->send[w->instrumentsend]--;
+			if (iv->send[w->instrumentsend] < 0)
+				iv->send[w->instrumentsend] = 15;
+			if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+			{
+				w->instrumentlocki = s->instrumenti[w->instrument];
+				w->instrumentlockv = w->instrumentsend + 16;
+			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv->fader%16 > 0)
@@ -193,32 +231,14 @@ void instrumentAdjustLeft(instrument *iv, short index)
 			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
-			if (w->instrumentlockv > INST_REC_LOCK_OK) break;
-
-			iv->type--;
-			w->instrumentlocki = s->instrumenti[w->instrument];
-			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
+		case MIN_INSTRUMENT_INDEX + 3:
+		case MIN_INSTRUMENT_INDEX + 4:
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv->fader%16 > iv->fader>>4)
 				iv->fader+=16;
 			else if (iv->fader%16 > 0)
 				iv->fader--;
-			break;
-		case MIN_INSTRUMENT_INDEX + 3:
-			w->instrumentsend--;
-			if (w->instrumentsend < 0)
-				w->instrumentsend = 15;
-			break;
-		case MIN_INSTRUMENT_INDEX + 4:
-			iv->send[w->instrumentsend]--;
-			if (iv->send[w->instrumentsend] < 0)
-				iv->send[w->instrumentsend] = 15;
-			if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
-			{
-				w->instrumentlocki = s->instrumenti[w->instrument];
-				w->instrumentlockv = w->instrumentsend + 16;
-			}
 			break;
 		default:
 			if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustLeft)
@@ -238,32 +258,14 @@ void instrumentAdjustRight(instrument *iv, short index)
 			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
-			if (w->instrumentlockv > INST_REC_LOCK_OK) break;
-
-			iv->type++;
-			w->instrumentlocki = s->instrumenti[w->instrument];
-			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
+		case MIN_INSTRUMENT_INDEX + 3:
+		case MIN_INSTRUMENT_INDEX + 4:
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv->fader>>4 > iv->fader%16)
 				iv->fader++;
 			else if (iv->fader>>4 > 0)
 				iv->fader-=16;
-			break;
-		case MIN_INSTRUMENT_INDEX + 3:
-			w->instrumentsend++;
-			if (w->instrumentsend > 15)
-				w->instrumentsend = 0;
-			break;
-		case MIN_INSTRUMENT_INDEX + 4:
-			iv->send[w->instrumentsend]++;
-			if (iv->send[w->instrumentsend] > 15)
-				iv->send[w->instrumentsend] = 0;
-			if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
-			{
-				w->instrumentlocki = s->instrumenti[w->instrument];
-				w->instrumentlockv = w->instrumentsend + 16;
-			}
 			break;
 		default:
 			if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustRight)
@@ -569,7 +571,7 @@ int instrumentInput(int input)
 													break;
 												case 3: case 4: /* sends */
 													w->fieldpointer = 0;
-													if (x - w->instrumentcelloffset < 15)
+													if (x - w->instrumentcelloffset < 14)
 														w->instrumentindex = MIN_INSTRUMENT_INDEX + 3;
 													else
 														w->instrumentindex = MIN_INSTRUMENT_INDEX + 4;

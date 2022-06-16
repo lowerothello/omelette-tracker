@@ -211,7 +211,10 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 			startVisual(0);
 			noteToString(r.note, altbuffer);
-			snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
+			if (r.note == 255)
+				snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
+			else
+				snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
 			if (r.note)
 			{
 				if (ifVisual(0) && !s->channelv[channel].mute)

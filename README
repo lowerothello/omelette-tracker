@@ -28,11 +28,12 @@ some eq10q mono plugins segfault on load, not sure why
 
 synth1 subset/clone
 [https://daichilab.sakura.ne.jp/softsynth/synmanu/readmeeng.html]
+[https://daichilab.sakura.ne.jp/softsynth/synth1.png]
 ┌────────── [virtual analog] ───────────┐
 │ osc1  [    ramp]  det [80]  fm   [00] │
 │ osc2  [    ramp]  det [80]  ptch [ff] │
 │ sub  [triangle]                       │
-│ amp[00] oct[-0]                       │
+│ mix[00] oct[-0]                       │
 │                  amplifier  gain [ff] │
 │                  a[00]d[00]s[ff]r[00] │
 │ lfo 1[triangle]                       │
@@ -91,20 +92,19 @@ Effect redesign:
 * should be channelwise, not instrumentwise
 * all configuration should be done in the tracker
 * changes should persist in channel memory
-* not sure how to handle initialization when starting playback from anywhere but the beginning
-* last parameter should always control a variance of "mix", 0 being completely off
+* last parameter should always control a variant of "mix", 0 being completely off
 * channel effect ideas:
-	- band pass       bxy -MEMFLTR- x: centre      y: width (0: wide, f: narrow)
-	- chorus          cxy -MEMTIME- x: lfo freq    y: gain
-	- comb / flanger  fxy -MEMTIME- x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
-	- high pass       hxy -MEMFLTR- x: resonance   y: cutoff (0: lowest, f: highest)
-	- low pass        lxy -MEMFLTR- x: resonance   y: cutoff (0: highest, f: lowest)
-	- ring mod        mxy -MEMTIME- x: rate        y: mix
-	- phaser (8pole)  pxy -MEMTIME- x: rate        y: mix
-	- reverb          rxy -       - x: tail        y: [0]: clear buffer  [1-f]: input mix
-	- saturation      sxy -       - x: input gain  y: mix
-	- wavefolder      vxy -       - x: input gain  y: mix
-	- waveloss        wxy -       - x: grain size  y: percent to drop
+	- band pass       bxy {MEMFLTR} x: centre      y: width (0: wide, f: narrow)
+	- chorus          cxy {MEMTIME} x: lfo freq    y: gain
+	- comb / flanger  fxy {MEMTIME} x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
+	- high pass       hxy {MEMFLTR} x: resonance   y: cutoff (0: lowest, f: highest)
+	- low pass        lxy {MEMFLTR} x: resonance   y: cutoff (0: highest, f: lowest)
+	- ring mod        mxy {MEMTIME} x: rate        y: mix
+	- phaser (8pole)  pxy {MEMTIME} x: rate        y: mix
+	- reverb          rxy           x: tail        y: [0]: clear buffer  [1-f]: input mix
+	- saturation      sxy           x: input gain  y: mix
+	- wavefolder      vxy           x: input gain  y: mix
+	- waveloss        wxy           x: grain size  y: percent to drop
 * mastering effect ideas:
 	- compressor
 	- limiter
