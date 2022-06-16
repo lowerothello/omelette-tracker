@@ -11,202 +11,43 @@ TODO: proper readme
 ### dev notes ###
 TODO:
 -> main
-	^ remove input.c, it's kinda stupid
 -> playback
 	^ test retrigger blocks
 -> tracker
-	^ redo mode 0 input, probably should be modal? not sure
 -> instruments
 	^ test retaining relative instrument params after processing
+	^ sample compression
+	^ change away from modal preview (preview should always be bound)
 -> effects
 
 some eq10q mono plugins segfault on load, not sure why
 
 
-MACROS
-
-tracker:
->  00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D   0E
->
->       <CHANNEL 01>     <CHANNEL 02>     <CHANNEL 03>     <CHANNEL 04>
-> 00 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 01   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 02   ... .. A17 Ba4   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 03   ... ..  L1c44    ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 04 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 05   C-5 00 1a8 S80   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 06   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 07   ... 00  2ffff    ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 08 * ... 00  2eeee  * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 09   ... 00  2dddd    ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0a   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0b   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0c * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
->       Offset:  O00     Offset:  O00     Offset:  O00     Offset:  O00
-
-
-
-
-SCREENS
-1.) patterns
-2.) instruments
-3.) effects
-
-PATTERNS
-A tracker view, for sequencing patterns.
-special notes:
-	^^^: note cut (immediately stop the playing channel)
-	===: note off (stop loop points, let sounds finish)
-
-INSTRUMENTS
-An s&h sampler
-Sample data can be loaded from a file or recorded in
-They're copied into the module, any changes won't affect the sample on disk
-TODO: sample compression
-actions:
-	non-destructive:
-		+ tuning
-		+ trimming (start and end pos)
-		+ looping (start and end pos)
-	destructive:
-		+ amplify (brick of cocaine type beat)
-		+ time-stretch (if `akaizer` is in $PATH)
-		+ split stems into new instruments (if `spleeter` is in $PATH)
-		+ signed/unsigned conversion (funny sound)
-		+ apply trimming
-		+ resample / decimate
-		+ invert phase
-	adsr envelopes:
-		+ volume
-		- filter
-		? panning
-		? pitch
-	other:
-		+ output group
-
-
-┌───────── <- [INSTRUMENT 00] -> ─────────┐
-│                                         │
-│   type: [0]                             │
-│                                         │
-│┌──────── [sampler (no sample)] ────────┐│
-││ REC                                   ││
-││           C5 rate: [00000000]         ││
-││                                       ││
-││    trim     start: [00000000]    0%   ││
-││    ----       end: [00000000]    0%   ││
-││                                       ││
-││    loop     start: [00000000]    0%   ││
-││    ----       end: [00000000]    0%   ││
-││                                       ││
-││    volume        a:[00]  d:[00]       ││
-││    ------        s:[FF]  r:[00]       ││
-││                                       ││
-││    grains    mix: [00] length: [00]   ││
-│└───────────────────────────────────────┘│
-│  fader: [FFFF]      sends  effect: [0]  │
-│                     -----     mix: [0]  │
-└─────────────────────────────────────────┘
 
 synth1 subset/clone
 [https://daichilab.sakura.ne.jp/softsynth/synmanu/readmeeng.html]
- ┌────────── [virtual analog] ───────────┐
- │ osc1  [    ramp]  det [80]  fm   [00] │
- │ osc2  [    ramp]  det [80]  ptch [ff] │
- │ sub  [triangle]                       │
- │ amp[00] oct[-0]                       │
- │                  amplifier  gain [ff] │
- │                  a[00]d[00]s[ff]r[00] │
- │ lfo 1[triangle]                       │
- │ --- 2[triangle]  filter    amt   [ff] │
- │ dest  1[filter]  frq [00]  res   [00] │
- │ ----  2[  osc2]  trk [00]  sat   [00] │
- │ spd  1[80]2[80]  type          [LP12] │
- │ amp  1[80]2[80]  a[00]d[00]s[ff]r[00] │
- │                                       │
- │ num[01]  det[00]  phase[00]  sprd[00] │
- └───────────────────────────────────────┘
+┌────────── [virtual analog] ───────────┐
+│ osc1  [    ramp]  det [80]  fm   [00] │
+│ osc2  [    ramp]  det [80]  ptch [ff] │
+│ sub  [triangle]                       │
+│ amp[00] oct[-0]                       │
+│                  amplifier  gain [ff] │
+│                  a[00]d[00]s[ff]r[00] │
+│ lfo 1[triangle]                       │
+│ --- 2[triangle]  filter    amt   [ff] │
+│ dest  1[filter]  frq [00]  res   [00] │
+│ ----  2[  osc2]  trk [00]  sat   [00] │
+│ spd  1[80]2[80]  type          [LP12] │
+│ amp  1[80]2[80]  a[00]d[00]s[ff]r[00] │
+│                                       │
+│ num[01]  det[00]  phase[00]  sprd[00] │
+└───────────────────────────────────────┘
 
 
 ^v
 /\
 |\
 n_
-
-instrument keybinds:
-	meta: (instrument indices at the top)
-		a  : add an empty instrument in the current slot
-		d  : delete the focused instrument and yank it into the buffer
-		y  : yank the focused instrument into the buffer
-		p  : put the buffer over the focused instrument
-	sample data:
-		o  : open a sample from disk
-		?  : toggle external recording
-		?  : toggle loopback recording (will record from the main outputs)
-
-		m  : amplify
-		a  : akaizer (time stretch / pitch shift)
-		l  : lame (mp3 compression, for the artifacts only)
-		p  : spleeter (stems split)
-		t  : apply trimming
-		c  : signed unsigned conversion
-		r  : resample
-		i  : invert phase
-
-
-LV2 EFFECTS:
-┌─────────── <- [EFFECT 4] -> ────────────┐
-│                                         │
-│           [no effect loaded]            │
-│                                         │
-└─────────────────────────────────────────┘
-┌─────────── <- [EFFECT 0] -> ────────────┐
-│                                         │
-│         [ACE Expander (stereo)]         │
-│                                         │
-│    Sidechain                    [ ]     │
-│    Enable                       [X]     │
-│    Attack             [   0.100 ms]     │
-│    Release            [   104.0 ms]     │
-│    Knee               [   8.000 dB]     │
-│    Ratio              [      1.768]     │
-│    Threshold          [ -60.000 dB]     │
-│    Makeup             [   0.000 dB]     │
-└─────────────────────────────────────────┘
-┌─────────── <- [EFFECT 1] -> ────────────┐
-│                                         │
-│             [MDA Bandisto]              │
-│                                         │
-│          Listen     [     Out]          │
-│          L <> M     [   0.400]          │
-│          M <> H     [   0.454]          │
-│          L Dist     [   0.433]          │
-│          M Dist     [   0.639]          │
-│          H Dist     [   0.840]          │
-│          L Out      [   0.500]          │
-│          M Out      [   0.529]          │
-│          H Out      [   0.701]          │
-│          Mode       [ Bipolar]          │
-└─────────────────────────────────────────┘
-┌─────────── <- [EFFECT 2] -> ────────────┐
-│                                         │
-│           [Micro Delay Line]            │
-│                                         │
-│      Delay Time     [  46 frames]       │
-└─────────────────────────────────────────┘
-
-
-song keybinds:
-
-tracker keybinds:
-	edit: (channel indices at the top)
-		a : add a channel after the selected one
-		y : yank the selected channel into the buffer
-		d : delete the selected channel and yank it into the buffer
-		D : delete from the selected channel to the end
-		p : put the buffer after the selected channel, shift channels
-		P : put the buffer before the selected channel, shift channels
-
 
 
 MACROS:
@@ -244,197 +85,33 @@ Sxy: note delay and cut
 
 
 
-SAMPLER TRIM/LOOP CASES:
-t1 l1 l2
-a
- a
-  a
-   a
-    a
-     a
-      a
-   a
-    a
-     a
-      a
 
-t1 l2 l1
-a
- a
-  a
-   a
-    a
-     a
-      a
-     a
-    a
-   a
-    a
-     a
-      a
+Effect redesign:
+* mainly use custom effects, lv2s are unportable
+* should be channelwise, not instrumentwise
+* all configuration should be done in the tracker
+* changes should persist in channel memory
+* not sure how to handle initialization when starting playback from anywhere but the beginning
+* last parameter should always control a variance of "mix", 0 being completely off
+* channel effect ideas:
+	- band pass       bxy -MEMFLTR- x: centre      y: width (0: wide, f: narrow)
+	- chorus          cxy -MEMTIME- x: lfo freq    y: gain
+	- comb / flanger  fxy -MEMTIME- x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
+	- high pass       hxy -MEMFLTR- x: resonance   y: cutoff (0: lowest, f: highest)
+	- low pass        lxy -MEMFLTR- x: resonance   y: cutoff (0: highest, f: lowest)
+	- ring mod        mxy -MEMTIME- x: rate        y: mix
+	- phaser (8pole)  pxy -MEMTIME- x: rate        y: mix
+	- reverb          rxy -       - x: tail        y: [0]: clear buffer  [1-f]: input mix
+	- saturation      sxy -       - x: input gain  y: mix
+	- wavefolder      vxy -       - x: input gain  y: mix
+	- waveloss        wxy -       - x: grain size  y: percent to drop
+* mastering effect ideas:
+	- compressor
+	- limiter
+	- parametric eq
 
-l1 t1 l2
-   a
-    a
-     a
-      a
-a
- a
-  a
-   a
-    a
-     a
-      a
 
-l2 t1 l1
-   a
-    a
-     a
-      a
-     a
-    a
-   a
-  a
- a
-a
- a
-  a
-   a
-    a
-     a
-      a
 
-t1 t2
-a
- a
-  a
-   a
-
-+ the inverse of all of these
 
 
 vim: wrap
-
-
-
-
-
-
-
-
->
-> 00   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==
->
->           <CHANNEL 00>     <CHANNEL 01>     <CHANNEL 02>     <CHANNEL 03>
->
->
->
->
->
->
->
->
->
->
->
->
->     00 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
->     01   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     02   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     03   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     04 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
->     05   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     06   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     07   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     08 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
->     09   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0a   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0b   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0c * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
->     0d   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0e   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0f   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->               O00              O00              O00              O00
->                                              [00] 00,00 (stopped)   &4 +0   B7d (B7d)
-
-
-
-
-
-
->
-> 00   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==   ==
->
->           <CHANNEL 00>     <CHANNEL 01>     <CHANNEL 02>     <CHANNEL 03>
->
->
->                     ┌───────── <- [INSTRUMENT 00] -> ─────────┐
->                     │                                         │
->                     │   type: [00]                            │
->                     │                                         │
->                     │┌──────── [sampler (no sample)] ────────┐│
->                     ││                                       ││
->                     ││           C5 rate: [00000000]         ││
->                     ││                                       ││
->                     ││    trim     start: [00000000]    0%   ││
->                     ││    ----       end: [00000000]    0%   ││
->     00 * ... .. ... ││                                       ││ .. ... ... *
->     01   ... .. ... ││    loop     start: [00000000]    0%   ││ .. ... ...
->     02   ... .. ... ││    ----       end: [00000000]    0%   ││ .. ... ...
->     03   ... .. ... ││                                       ││ .. ... ...
->     04 * ... .. ... ││    volume       a: [00]  d: [00]      ││ .. ... ... *
->     05   ... .. ... ││    ------       s: [ff]  r: [00]      ││ .. ... ...
->     06   ... .. ... ││                                       ││ .. ... ...
->     07   ... .. ... ││                                       ││ .. ... ...
->     08 * ... .. ... │└───────────────────────────────────────┘│ .. ... ... *
->     09   ... .. ... │  fader: [ffff]      sends  effect: [0]  │ .. ... ...
->     0a   ... .. ... │                     -----     mix: [0]  │ .. ... ...
->     0b   ... .. ... └─────────────────────────────────────────┘ .. ... ...
->     0c * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
->     0d   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0e   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->     0f   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
->               O00              O00              O00              O00
->                                              [00] 00,02 (stopped)   &4 +0   B7d (B7d)
-
-
-
-
-
-
-> 00 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 01   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 02   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 03   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 04 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 05   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 06   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 07   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 08 * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 09   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0a   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0b   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0c * ... .. ... ... * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-> 0d   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0e   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> 0f   ... .. ... ...   ... .. ... ...   ... .. ... ...   ... .. ... ...
-> ───────────────────────────────────────────────────────────────────────────
->
->
->
->
->
->
->
-
-
-
-
-
-
-
-
-
-
-
-

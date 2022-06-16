@@ -61,7 +61,7 @@ int fl;
 #define ENVELOPE_RELEASE 0.025
 
 #define RAMP_MS 3 /* only up to about 300 is safe at high sample rates */
-#define TIMESTRETCH_RAMP_MS 100
+#define TIMESTRETCH_RAMP_MS 10
 
 #define INST_HISTDEPTH 128 /* 2(?)>INST_HISTDEPTH>128 */
 
@@ -513,7 +513,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		// if (p->dirty)
+		if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();

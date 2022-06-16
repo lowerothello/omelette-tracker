@@ -49,6 +49,7 @@ void inputSamplerHex(signed char *fieldpointer, short index, sampler_state *ss, 
 	switch (index)
 	{
 		case 1:  updateField(*fieldpointer, 8, (uint32_t *)&ss->c5rate, value); break;
+		case 3:  updateField(*fieldpointer, 4, (uint32_t *)&ss->cyclelength, value); break;
 		case 4:  updateField(*fieldpointer, 8, (uint32_t *)&ss->trim[0], value); if (ss->trim[0] > ss->length) ss->trim[0] = ss->length; break;
 		case 5:  updateField(*fieldpointer, 8, (uint32_t *)&ss->trim[1], value); if (ss->trim[1] > ss->length) ss->trim[1] = ss->length; break;
 		case 6:  updateField(*fieldpointer, 8, (uint32_t *)&ss->loop[0], value); if (ss->loop[0] > ss->length) ss->loop[0] = ss->length; break;
@@ -133,6 +134,7 @@ void samplerAdjustUp(instrument *iv, short index)
 	switch (index)
 	{
 		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, 1); break;
+		case 3: ss->cyclelength += 0x20; break;
 		case 4:
 			ss->trim[0] += MAX(ss->length / 50.0, 1);
 			if (ss->trim[0] > ss->length) ss->trim[0] = ss->length;
@@ -162,6 +164,7 @@ void samplerAdjustDown(instrument *iv, short index)
 	switch (index)
 	{
 		case 1: ss->c5rate = ss->c5rate * powf(M_12_ROOT_2, -1); break;
+		case 3: ss->cyclelength -= 0x20; break;
 		case 4:
 			oldpos = ss->trim[0];
 			ss->trim[0] -= MAX(ss->length / 50.0, 1);
@@ -592,6 +595,7 @@ void samplerInput(int *input)
 					switch (w->instrumentindex)
 					{
 						case 1:  ss->c5rate++; break;
+						case 3:  ss->cyclelength++; break;
 						case 4:  if (ss->trim[0] == ss->length) ss->trim[0] = 0; else ss->trim[0]++; break;
 						case 5:  if (ss->trim[1] == ss->length) ss->trim[1] = 0; else ss->trim[1]++; break;
 						case 6:  if (ss->loop[0] == ss->length) ss->loop[0] = 0; else ss->loop[0]++; break;
@@ -605,7 +609,8 @@ void samplerInput(int *input)
 				case 24: /* ^x */
 					switch (w->instrumentindex)
 					{
-						case 3:  ss->c5rate--; break;
+						case 1:  ss->c5rate--; break;
+						case 3:  ss->cyclelength--; break;
 						case 4:  ss->trim[0]--; if (ss->trim[0] > ss->length) ss->trim[0] = ss->length; break;
 						case 5:  ss->trim[1]--; if (ss->trim[1] > ss->length) ss->trim[1] = ss->length; break;
 						case 6:  ss->loop[0]--; if (ss->loop[0] > ss->length) ss->loop[0] = ss->length; break;
@@ -723,8 +728,6 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 	}
 }
 
-const int cyclelength = 4096; /* TODO: make this changable in the interface */
-
 uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer, channel *cv, sampler_state *ss)
 {
 	if (ss->trim[0] < ss->trim[1])
@@ -793,7 +796,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		/* 61 is C-5 */
 		if (ss->attributes & 0b1) /* tempo match */
 		{
-			if (pointer % cyclelength == 0) /* first sample of a cycle */
+			if (pointer % MAX(ss->cyclelength, cv->stretchrampmax) == 0) /* first sample of a cycle */
 			{
 				/* don't ramp the first cycle */
 				if (pointer == 0) cv->stretchrampindex = cv->stretchrampmax;
@@ -803,7 +806,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 					cv->stretchrampindex = 0;
 					for (uint16_t i = 0; i < cv->stretchrampmax; i++)
 					{
-						ramppointer = cv->cycleoffset + (float)(cyclelength + i + 1)
+						ramppointer = cv->cycleoffset + (float)(MAX(ss->cyclelength, cv->stretchrampmax) + i + 1)
 								/ (float)samplerate * ss->c5rate
 								* powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents);
 						ramppointer = trimloop(ramppointer, pointer + i + 1, cv, ss);
@@ -824,7 +827,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 				cv->cycleoffset = (float)(pointer + cv->sampleoffset)
 					/ (float)samplerate * ss->c5rate;
 			}
-			pitchedpointer = cv->cycleoffset + (float)(pointer % cyclelength)
+			pitchedpointer = cv->cycleoffset + (float)(pointer % MAX(ss->cyclelength, cv->stretchrampmax))
 				/ (float)samplerate * ss->c5rate
 				* powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents);
 		} else
@@ -906,6 +909,7 @@ void samplerChangeType(void **state)
 	*state = calloc(1, sizeof(sampler_state));
 	sampler_state *ss = *state;
 	ss->volume.s = 255;
+	ss->cyclelength = 0x6ff; /* feels like a good default? hard to be sure */
 }
 
 void samplerWrite(instrument *iv, uint8_t index, FILE *fp)
