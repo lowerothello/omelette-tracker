@@ -14,6 +14,8 @@ TODO:
 -> playback
 	^ test retrigger blocks
 -> tracker
+	^ visual delete misses the bottom row of the selection
+	^ channel delete can fail to yank, not sure why
 -> instruments
 	^ test retaining relative instrument params after processing
 	^ sample compression
@@ -51,26 +53,24 @@ n_
 
 
 MACROS:
-// Pxx: portamento to target
+Bxx: set bpm to xx
+Cxy: send a note cut at x/y through the row
+Dxy: start the note at x/y through the row
+Pxx: portamento to target
 	xx is the portamento speed
 	the note field sets the target
-// Mxy: channel multiplier
+Mxy: channel multiplier
 	x is the volume for the left channel
 	y is the volume for the right channel
-// Rxy: s&h retrigger
+Rxy: s&h retrigger
 	x is the number of rows the block continues to
 	y is the number of slices in the block
 	(y < 2) does nothing
 	->	will ratchet the current point in the sample
 		and continue as if nothing happened after the block
-Sxy: note delay and cut
-		x is the delay before triggering
-		x only applies if the note field is populated
-		y is the delay before cutting
-		(y == 0) will NOT cut, use ^^^ for this
-// Oxx: offset
+Oxx: offset
 	start the triggered sample at xx 255ths through
-// Exy: effect mix
+Exy: effect mix
 	x is the effect index to target
 	y is the new mix (
 		0 - off (instance disabled)

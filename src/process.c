@@ -35,18 +35,42 @@ void changeBpm(song *s, uint8_t newbpm)
 	s->spr = samplerate * (60.0 / newbpm) / (s->rowhighlight * 2);
 }
 
-/* freewheel to fill up the ramp buffer, potential speed issues? */
+/* freewheel to fill up the ramp buffer */
 void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointeroffset)
 {
+	/* clear the rampbuffer so cruft isn't played in edge cases */
+	memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 	instrument *iv = p->s->instrumentv[realinstrument];
 	cv->rampinstrument = realinstrument;
 	cv->rampgain = cv->gain;
 	for (uint16_t i = 0; i < cv->rampmax; i++)
 	{
 		if (!cv->r.note) break;
-		t->f[iv->type].process(iv, cv, cv->samplepointer + i,
+		t->f[iv->type].process(iv, cv, pointeroffset + i,
 				&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 	}
+}
+
+void triggerNote(channel *cv, uint8_t note, uint8_t inst)
+{
+	if (cv->r.note) /* old note, ramp it out */
+	{
+		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+				&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
+				&& t->f[iv->type].process)
+			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
+	}
+	cv->rampindex = 0; /* set this even if it's not populated */
+	cv->r.inst = inst;
+	cv->r.note = note;
+	cv->portamento = 0;
+	cv->samplepointer = 0;
+	cv->cents = 0.0;
+	cv->gain = 255;
+	cv->sampleoffset = 0;
+	cv->releasepointer = 0;
 }
 
 
@@ -56,9 +80,23 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	instrument *iv;
 	if (inst == 255)                  iv = &p->w->previewinstrument;
 	else if (p->s->instrumenti[inst]) iv = p->s->instrumentv[p->s->instrumenti[inst]];
+
+	if (cv->cutsamples && p->s->sprp > cv->cutsamples)
+	{
+		ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
+		cv->rampindex = 0;
+		cv->r.note = 0;
+		cv->cutsamples = 0;
+	}
+	if (cv->delaysamples && p->s->sprp > cv->delaysamples)
+	{
+		triggerNote(cv, cv->delaynote, cv->delayinst);
+		cv->delaysamples = 0;
+	}
+
 	/* process the type */
 	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-			&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
+			&& cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
 	{
 		if (cv->rtrigsamples > 0 && inst < 255)
 		{
@@ -151,7 +189,6 @@ void bendDown(channel *cv, uint32_t spr)
 		cv->portamento = 0;
 	}
 }
-
 
 int process(jack_nframes_t nfptr, void *arg)
 {
@@ -354,33 +391,21 @@ int process(jack_nframes_t nfptr, void *arg)
 					if (m >= 32) // bpm
 						changeBpm(p->s, m);
 
-					if (r.note) switch (r.note)
+					m = ifMacro(r, 'C'); /* cut */
+					if (r.note == 255 || (m >= 0 && m>>4 == 0))
 					{
-						case 255:
-							cv->releasepointer = cv->samplepointer;
-							break;
-						case 254:
-							/* clear the rampbuffer so cruft isn't played in edge cases */
-							memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
-							if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-									&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
-							{
-								iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-								if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
-								{
-									/* freewheel to fill up the ramp buffer, potential speed issues? */
-									for (uint16_t i = 0; i < cv->rampmax; i++)
-									{
-										if (!cv->r.note) break;
-										t->f[iv->type].process(iv, cv, cv->samplepointer + i,
-												&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-									}
-								}
-							}
-							cv->rampindex = 0;
-							cv->r.note = 0;
-							break;
-						default:
+						if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+								&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
+							ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
+						cv->rampindex = 0;
+						cv->r.note = 0;
+					} else
+					{
+						if (m >= 0 && m%16 != 0) /* cut, don't divide by 0 */
+							cv->cutsamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+
+						if (r.note)
+						{
 							m = ifMacro(r, 'P');
 							if (m >= 0) // portamento
 							{
@@ -388,27 +413,16 @@ int process(jack_nframes_t nfptr, void *arg)
 								cv->portamentospeed = m;
 							} else
 							{
-								/* clear the rampbuffer so cruft isn't played in edge cases */
-								memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
-								if (cv->r.note) /* old note, ramp it out */
+								m = ifMacro(r, 'D'); /* delay */
+								if (m >= 0 && m>>4 != 0)
 								{
-									if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-											&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-											&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
-											&& t->f[iv->type].process)
-										ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
-								}
-								cv->rampindex = 0; /* set this even if it's not populated */
-								cv->r.inst = r.inst;
-								cv->r.note = r.note;
-								cv->portamento = 0;
-								cv->samplepointer = 0;
-								cv->cents = 0.0;
-								cv->gain = 255;
-								cv->sampleoffset = 0;
-								cv->releasepointer = 0;
+									cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+									cv->delaynote = r.note;
+									cv->delayinst = r.inst;
+								} else
+									triggerNote(cv, r.note, r.inst);
 							}
-							break;
+						}
 					}
 
 					m = ifMacro(r, 'M');
@@ -423,8 +437,6 @@ int process(jack_nframes_t nfptr, void *arg)
 						{
 							if (!r.note)
 							{
-								/* clear the rampbuffer so cruft isn't played in edge cases */
-								memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
 								if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 										&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 								{
@@ -641,9 +653,15 @@ int process(jack_nframes_t nfptr, void *arg)
 		/* fader and output */
 		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			pb.outl[fptr] += iv->outbufferl[fptr] * iv->fader[0] / 256.0;
-			pb.outr[fptr] += iv->outbufferr[fptr] * iv->fader[1] / 256.0;
+			pb.outl[fptr] += iv->outbufferl[fptr] * (iv->fader>>4) / 16.0;
+			pb.outr[fptr] += iv->outbufferr[fptr] * (iv->fader%16) / 16.0;
 		}
+	}
+	/* master output volume */
+	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+	{
+		pb.outl[fptr] *= 0.25;
+		pb.outr[fptr] *= 0.25;
 	}
 
 	return 0;

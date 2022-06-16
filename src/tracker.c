@@ -2,8 +2,7 @@
 void noteToString(uint8_t note, char *buffer)
 {
 	if (note == 0)   { snprintf(buffer, 4, "..."); return; }
-	if (note == 255) { snprintf(buffer, 4, "==="); return; }
-	if (note == 254) { snprintf(buffer, 4, "^^^"); return; }
+	if (note == 255) { snprintf(buffer, 4, "OFF"); return; }
 
 	note = note - 1;
 
@@ -48,6 +47,8 @@ void changeMacro(int input, char *dest)
 	else switch (input)
 	{
 		case 'B': case 'b': *dest = 'B'; break;
+		case 'C': case 'c': *dest = 'C'; break;
+		case 'D': case 'd': *dest = 'D'; break;
 		case 'E': case 'e': *dest = 'E'; break;
 		case 'M': case 'm': *dest = 'M'; break;
 		case 'O': case 'o': *dest = 'O'; break;
@@ -57,34 +58,20 @@ void changeMacro(int input, char *dest)
 	}
 }
 
-int drawPatternLineNumbers(uint8_t pattern, char rightside)
+int drawPatternLineNumbers(uint8_t pattern)
 {
 	if (s->patterni[pattern] < 1) return 1; /* invalid pattern */
-
-	/* if (!rightside)
-	{
-		printf("\033[%d;%dH[%02x]", 5, w->trackercelloffset - 1, pattern);
-	} */
 
 	for (int i = 0; i <= s->patternv[s->patterni[pattern]]->rowc; i++)
 	{
 		if (w->centre - w->trackerfy + i > 4 && w->centre - w->trackerfy + i < ws.ws_row - 1)
 		{
-			if (rightside)
-			{
-				printf("\033[%d;%dH", w->centre - w->trackerfy + i,
-					w->trackercelloffset + LINENO_COLS + ROW_COLS * w->visiblechannels);
-				printf("%02x", i);
-			}
+			printf("\033[%d;%dH", w->centre - w->trackerfy + i, w->trackercelloffset);
+			printf("%02x", i);
+			if (s->rowhighlight > 0 && i % s->rowhighlight == 0)
+				printf(" * ");
 			else
-			{
-				printf("\033[%d;%dH", w->centre - w->trackerfy + i, w->trackercelloffset);
-				printf("%02x", i);
-				if (s->rowhighlight > 0 && i % s->rowhighlight == 0)
-					printf(" * ");
-				else
-					printf("   ");
-			}
+				printf("   ");
 		}
 	}
 	return 0;
@@ -389,8 +376,7 @@ void trackerRedraw(void)
 	drawSong();
 	if (s->songi[w->songfx] != 255)
 	{
-		drawPatternLineNumbers(s->songi[w->songfx], 0);
-		// drawPatternLineNumbers(s->songi[w->songfx], 1);
+		drawPatternLineNumbers(s->songi[w->songfx]);
 
 		if (w->visiblechannels > 1)
 		{ // try to follow the focus in a smooth way (broken with 2 channels)
@@ -1071,47 +1057,60 @@ int trackerInput(int input)
 										case 24: /* ^x */
 											r->note--;
 											break;
-										case ' ':
+										case ' ': /* space */
 											previewNote(255, 0);
 											r->note = 255;
 											w->trackerfy += w->step;
+											if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
+											{
+												if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
+												{
+													w->trackerfy = 0;
+													w->songfx++;
+												} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
+											}
 											break;
 										case 127: case 8: /* backspace */
-											previewNote(254, 0);
+											previewNote(0, 0);
 											r->note = 0;
 											r->inst = 255;
-											w->trackerfy += w->step;
+											w->trackerfy -= w->step;
+											if (w->trackerfy < 0)
+											{
+												if (w->songfx > 0 && s->songi[w->songfx - 1] != 255)
+												{
+													w->songfx--;
+													w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
+												} else w->trackerfy = 0;
+											}
 											break;
-										case '=':
-											previewNote(255, 0);
-											r->note = 255;
-											w->trackerfy += w->step;
-											break;
-										case '^':
-											previewNote(254, 0);
-											r->note = 254;
-											w->trackerfy += w->step;
-											break;
-										case '0': r->note = changeNoteOctave(0, r->note); break;
-										case '1': r->note = changeNoteOctave(1, r->note); break;
-										case '2': r->note = changeNoteOctave(2, r->note); break;
-										case '3': r->note = changeNoteOctave(3, r->note); break;
-										case '4': r->note = changeNoteOctave(4, r->note); break;
-										case '5': r->note = changeNoteOctave(5, r->note); break;
-										case '6': r->note = changeNoteOctave(6, r->note); break;
-										case '7': r->note = changeNoteOctave(7, r->note); break;
-										case '8': r->note = changeNoteOctave(8, r->note); break;
-										case '9': r->note = changeNoteOctave(9, r->note); break;
+										case '0': r->note = changeNoteOctave(0, r->note); r->inst = w->instrument; break;
+										case '1': r->note = changeNoteOctave(1, r->note); r->inst = w->instrument; break;
+										case '2': r->note = changeNoteOctave(2, r->note); r->inst = w->instrument; break;
+										case '3': r->note = changeNoteOctave(3, r->note); r->inst = w->instrument; break;
+										case '4': r->note = changeNoteOctave(4, r->note); r->inst = w->instrument; break;
+										case '5': r->note = changeNoteOctave(5, r->note); r->inst = w->instrument; break;
+										case '6': r->note = changeNoteOctave(6, r->note); r->inst = w->instrument; break;
+										case '7': r->note = changeNoteOctave(7, r->note); r->inst = w->instrument; break;
+										case '8': r->note = changeNoteOctave(8, r->note); r->inst = w->instrument; break;
+										case '9': r->note = changeNoteOctave(9, r->note); r->inst = w->instrument; break;
 										default:
 											uint8_t note = charToNote(input, w->octave);
 											if (note) /* ignore nothing */
 											{
-												if (r->inst == 255)
-													r->inst = w->instrument;
 												r->note = note;
+												r->inst = w->instrument;
 												previewNote(note, r->inst);
 											}
 											w->trackerfy += w->step;
+											if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
+											{
+												if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
+												{
+													w->trackerfy = 0;
+													w->songfx++;
+												} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
+											}
 											break;
 									}
 									break;

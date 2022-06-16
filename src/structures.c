@@ -37,6 +37,10 @@ typedef struct
 	uint8_t   rtrigblocksize;    /* number of rows block extends to */
 	uint8_t   effectholdinst;    /* 255 for no hold */
 	uint8_t   effectholdindex;
+	uint32_t  cutsamples;        /* samples into the row to cut, 0 for no cut */
+	uint32_t  delaysamples;      /* samples into the row to delay, 0 for no delay */
+	uint8_t   delaynote;
+	uint8_t   delayinst;
 
 	uint16_t  rampindex;         /* progress through the ramp buffer, rampmax if not ramping */
 	uint16_t  rampmax;           /* length of the ramp buffer */
@@ -57,7 +61,7 @@ typedef struct Instrument
 	short              *sampledata;         /* variable size, persists between types */
 	uint32_t            samplelength;       /* raw samples allocated for sampledata */
 	void               *state[256];         /* instrument working memory */
-	uint8_t             fader[2];
+	uint8_t             fader;
 	char                send[16];           /* set to [0-15] */
 	char                processsend[16];    /* used during playback only */
 	LilvInstance       *plugininstance[16]; /* pointer to lv2 instances */
@@ -1015,7 +1019,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 				instrument *src = iv->history[iv->historyptr%128];
 
 				dest->type = src->type;
-				memcpy(dest->fader, src->fader, sizeof(uint8_t) * 2);
+				dest->fader = src->fader;
 				memcpy(dest->send, src->send, sizeof(char) * 16);
 
 				for (int j = 0; j < 256; j++)
@@ -1139,7 +1143,7 @@ void pushInstrumentHistory(instrument *iv)
 			t->f[i].changeType(&ivh->state[i]);
 			memcpy(ivh->state[i], iv->state[i], t->f[i].statesize);
 		}
-	memcpy(ivh->fader, iv->fader, sizeof(uint8_t) * 2);
+	ivh->fader = iv->fader;
 	memcpy(ivh->send, iv->send, sizeof(char) * 16);
 
 	ivh->samplelength = iv->samplelength;
@@ -1157,7 +1161,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 	if (ivh && iv->type < INSTRUMENT_TYPE_COUNT)
 	{
 		if (!iv->state[iv->type]
-				|| memcmp(ivh->fader, iv->fader, sizeof(uint8_t) * 2)
+				|| ivh->fader != iv->fader
 				|| memcmp(ivh->send, iv->send, sizeof(char) * 16)
 				|| ivh->samplelength != iv->samplelength)
 			pushInstrumentHistory(iv);
@@ -1217,8 +1221,7 @@ int addInstrument(uint8_t index)
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
-	s->instrumentv[s->instrumentc]->fader[0] = 0xFF;
-	s->instrumentv[s->instrumentc]->fader[1] = 0xFF;
+	s->instrumentv[s->instrumentc]->fader = 0xFF;
 	changeInstrumentType(s, s->instrumentc);
 	t->f[s->instrumentv[s->instrumentc]->type].changeType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
 	s->instrumenti[index] = s->instrumentc;
@@ -1259,7 +1262,7 @@ int yankInstrument(uint8_t index)
 
 	s->instrumentbuffer.type = s->instrumentv[s->instrumenti[index]]->type;
 	s->instrumentbuffer.samplelength = s->instrumentv[s->instrumenti[index]]->samplelength;
-	memcpy(s->instrumentbuffer.fader, s->instrumentv[s->instrumenti[index]]->fader, sizeof(uint8_t) * 2);
+	s->instrumentbuffer.fader = s->instrumentv[s->instrumenti[index]]->fader;
 	memcpy(s->instrumentbuffer.send,  s->instrumentv[s->instrumenti[index]]->send, 1 * 16);
 
 	if (s->instrumentbuffer.samplelength > 0)
@@ -1304,7 +1307,7 @@ int putInstrument(uint8_t index)
 
 	s->instrumentv[s->instrumenti[index]]->type = s->instrumentbuffer.type;
 	s->instrumentv[s->instrumenti[index]]->samplelength = s->instrumentbuffer.samplelength;
-	memcpy(s->instrumentv[s->instrumenti[index]]->fader, s->instrumentbuffer.fader, sizeof(uint8_t) * 2);
+	s->instrumentv[s->instrumenti[index]]->fader = s->instrumentbuffer.fader;
 	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send, 1 * 16);
 	changeInstrumentType(s, s->instrumenti[index]); /* is this safe to force? */
 
@@ -1669,8 +1672,7 @@ int writeSong(char *path)
 				&& t->f[s->instrumentv[i]->type].write)
 			t->f[s->instrumentv[i]->type].write(s->instrumentv[i], s->instrumentv[i]->type, fp);
 
-		fputc(s->instrumentv[i]->fader[0], fp);
-		fputc(s->instrumentv[i]->fader[1], fp);
+		fputc(s->instrumentv[i]->fader, fp);
 		fwrite(&s->instrumentv[i]->send, 1, 16, fp);
 		fwrite(&s->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
 		if (s->instrumentv[i]->samplelength > 0)
@@ -1811,8 +1813,7 @@ song *readSong(char *path)
 				&& t->f[cs->instrumentv[i]->type].read != NULL)
 			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], cs->instrumentv[i]->type, fp);
 
-		cs->instrumentv[i]->fader[0] = fgetc(fp);
-		cs->instrumentv[i]->fader[1] = fgetc(fp);
+		cs->instrumentv[i]->fader = fgetc(fp);
 		fread(&cs->instrumentv[i]->send, 1, 16, fp);
 		fread(&cs->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
 		if (cs->instrumentv[i]->samplelength > 0)

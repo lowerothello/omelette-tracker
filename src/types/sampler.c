@@ -654,6 +654,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 			*fieldpointer = 0;
 			if (button == BUTTON3)
 			{
+				w->previewchanneltrigger = 0;
 				w->popup = 2;
 				w->instrumentindex = 0;
 				w->fyoffset = 0; /* this can still be set on edge cases */
@@ -778,14 +779,6 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer, channel *cv, sample
 /* must accept arbitrary pointers */
 void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, float *r)
 {
-	if (cv->r.note == 254) /* skip note cut */
-	{
-		cv->r.note = 0;
-		*l = 0.0;
-		*r = 0.0;
-		return;
-	}
-
 	float gain = 1.0;
 	uint32_t pitchedpointer;
 

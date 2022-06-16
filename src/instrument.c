@@ -114,7 +114,7 @@ void instrumentRedraw(void)
 			{
 				instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 				printf("\033[%d;%dHtype   [%02x]", y+1, x+5, iv->type);
-				printf("\033[%d;%dHfader  [%02x%02x]", y+2, x+5, iv->fader[0], iv->fader[1]);
+				printf("\033[%d;%dHfader  [%02x]", y+2, x+5, iv->fader);
 				printf("\033[%d;%dHsend   [%x][%x]", y+3, x+5, w->instrumentsend, iv->send[w->instrumentsend]);
 
 				printf(    "\033[%d;%dH┌────────────────────────────────────────────────────────────────────────────┐", y+5, x+1);
@@ -130,7 +130,7 @@ void instrumentRedraw(void)
 				{
 					case -5: printf("\033[%d;%dH", y-1, x+32); break;
 					case -4: printf("\033[%d;%dH", y+1, x+14); break;
-					case -3: printf("\033[%d;%dH", y+2, x+13 + w->fieldpointer); break;
+					case -3: printf("\033[%d;%dH", y+2, x+14); break;
 					case -2: printf("\033[%d;%dH", y+3, x+13); break;
 					case -1: printf("\033[%d;%dH", y+3, x+16); break;
 				}
@@ -149,8 +149,10 @@ void instrumentAdjustUp(instrument *iv, short index)
 		case MIN_INSTRUMENT_INDEX + 4:
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
-			iv->fader[0]++;
-			iv->fader[1]++;
+			if (iv->fader%16 < 15)
+				iv->fader++;
+			if (iv->fader>>4 < 15)
+				iv->fader+=16;
 			break;
 		default:
 			if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustUp)
@@ -168,8 +170,10 @@ void instrumentAdjustDown(instrument *iv, short index)
 		case MIN_INSTRUMENT_INDEX + 4:
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
-			iv->fader[0]--;
-			iv->fader[1]--;
+			if (iv->fader%16 > 0)
+				iv->fader--;
+			if (iv->fader>>4 > 0)
+				iv->fader-=16;
 			break;
 		default:
 			if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustDown)
@@ -196,10 +200,10 @@ void instrumentAdjustLeft(instrument *iv, short index)
 			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
-			if (iv->fader[1] > iv->fader[0])
-				iv->fader[0]++;
-			else
-				iv->fader[1]--;
+			if (iv->fader%16 > iv->fader>>4)
+				iv->fader+=16;
+			else if (iv->fader%16 > 0)
+				iv->fader--;
 			break;
 		case MIN_INSTRUMENT_INDEX + 3:
 			w->instrumentsend--;
@@ -241,10 +245,10 @@ void instrumentAdjustRight(instrument *iv, short index)
 			w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
 			break;
 		case MIN_INSTRUMENT_INDEX + 2:
-			if (iv->fader[0] > iv->fader[1])
-				iv->fader[1]++;
-			else
-				iv->fader[0]--;
+			if (iv->fader>>4 > iv->fader%16)
+				iv->fader++;
+			else if (iv->fader>>4 > 0)
+				iv->fader-=16;
 			break;
 		case MIN_INSTRUMENT_INDEX + 3:
 			w->instrumentsend++;
@@ -315,10 +319,10 @@ int instrumentInput(int input)
 			switch (input)
 			{
 				case '\033':
-					w->previewchanneltrigger = 0;
 					switch (getchar())
 					{
 						case 'O':
+							w->previewchanneltrigger = 0;
 							switch (getchar())
 							{
 								case 'P':
@@ -544,6 +548,7 @@ int instrumentInput(int input)
 													|| y < w->instrumentrowoffset - 1
 													|| y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS)
 											{
+												w->previewchanneltrigger = 0;
 												w->popup = 0;
 												break;
 											}
@@ -559,10 +564,8 @@ int instrumentInput(int input)
 													w->instrumentindex = MIN_INSTRUMENT_INDEX + 1;
 													break;
 												case 2: /* fader */
+													w->fieldpointer = 0;
 													w->instrumentindex = MIN_INSTRUMENT_INDEX + 2;
-													if (x - w->instrumentcelloffset < 13)          w->fieldpointer = 0;
-													else if (x - w->instrumentcelloffset > 13 + 3) w->fieldpointer = 3;
-													else w->fieldpointer = x - w->instrumentcelloffset - 13;
 													break;
 												case 3: case 4: /* sends */
 													w->fieldpointer = 0;
@@ -607,6 +610,7 @@ int instrumentInput(int input)
 							}
 							break;
 						default:
+							w->previewchanneltrigger = 0;
 							switch (w->mode)
 							{
 								case 0: case 2: case 4: /* leave the popup */
@@ -718,55 +722,27 @@ int instrumentInput(int input)
 											switch (input)
 											{
 												case 1: /* ^a */
-													iv->fader[0]++;
-													iv->fader[1]++;
+													iv->fader++;
 													break;
 												case 24: /* ^x */
-													iv->fader[0]--;
-													iv->fader[1]--;
+													iv->fader--;
 													break;
-												default: /* 2 stages cos each half of the field points to a different memory address */
-													if (w->fieldpointer < 2)
-														switch (input)
-														{
-															case '0':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 0);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '1':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 1);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '2':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 2);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '3':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 3);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '4':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 4);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '5':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 5);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '6':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 6);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '7':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 7);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '8':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 8);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '9':           updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 9);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'A': case 'a': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 10); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'B': case 'b': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 11); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'C': case 'c': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 12); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'D': case 'd': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 13); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'E': case 'e': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 14); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'F': case 'f': updateField(w->fieldpointer, 2, (uint32_t *)&iv->fader[0], 15); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-														}
-													else
-														switch (input)
-														{
-															case '0':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 0);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '1':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 1);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '2':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 2);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '3':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 3);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '4':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 4);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '5':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 5);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '6':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 6);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '7':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 7);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '8':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 8);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case '9':           updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 9);  w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'A': case 'a': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 10); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'B': case 'b': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 11); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'C': case 'c': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 12); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'D': case 'd': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 13); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'E': case 'e': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 14); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-															case 'F': case 'f': updateField(w->fieldpointer - 2, 2, (uint32_t *)&iv->fader[1], 15); w->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-														}
-													break;
+												case '0':           updateFieldPush(&iv->fader, 0);  break;
+												case '1':           updateFieldPush(&iv->fader, 1);  break;
+												case '2':           updateFieldPush(&iv->fader, 2);  break;
+												case '3':           updateFieldPush(&iv->fader, 3);  break;
+												case '4':           updateFieldPush(&iv->fader, 4);  break;
+												case '5':           updateFieldPush(&iv->fader, 5);  break;
+												case '6':           updateFieldPush(&iv->fader, 6);  break;
+												case '7':           updateFieldPush(&iv->fader, 7);  break;
+												case '8':           updateFieldPush(&iv->fader, 8);  break;
+												case '9':           updateFieldPush(&iv->fader, 9);  break;
+												case 'A': case 'a': updateFieldPush(&iv->fader, 10); break;
+												case 'B': case 'b': updateFieldPush(&iv->fader, 11); break;
+												case 'C': case 'c': updateFieldPush(&iv->fader, 12); break;
+												case 'D': case 'd': updateFieldPush(&iv->fader, 13); break;
+												case 'E': case 'e': updateFieldPush(&iv->fader, 14); break;
+												case 'F': case 'f': updateFieldPush(&iv->fader, 15); break;
 											}
 											redraw();
 											break;
