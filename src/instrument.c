@@ -324,7 +324,7 @@ int instrumentInput(int input)
 					switch (getchar())
 					{
 						case 'O':
-							w->previewchanneltrigger = 0;
+							previewNote(0, 255);
 							switch (getchar())
 							{
 								case 'P':
@@ -550,7 +550,7 @@ int instrumentInput(int input)
 													|| y < w->instrumentrowoffset - 1
 													|| y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS)
 											{
-												w->previewchanneltrigger = 0;
+												previewNote(0, 255);
 												w->popup = 0;
 												break;
 											}
@@ -612,7 +612,7 @@ int instrumentInput(int input)
 							}
 							break;
 						default:
-							w->previewchanneltrigger = 0;
+							previewNote(0, 255);
 							switch (w->mode)
 							{
 								case 0: case 2: case 4: /* leave the popup */

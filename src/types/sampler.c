@@ -151,10 +151,10 @@ void samplerAdjustUp(instrument *iv, short index)
 			ss->loop[1] += MAX(ss->length / 50.0, 1);
 			if (ss->loop[1] > ss->length) ss->loop[1] = ss->length;
 			break;
-		case 8:  ss->volume.a++; break;
-		case 9:  ss->volume.d++; break;
-		case 10: ss->volume.s++; break;
-		case 11: ss->volume.r++; break;
+		case 8:  if (w->fieldpointer) ss->volume.a+=16; else ss->volume.a++; break;
+		case 9:  if (w->fieldpointer) ss->volume.d+=16; else ss->volume.d++; break;
+		case 10: if (w->fieldpointer) ss->volume.s+=16; else ss->volume.s++; break;
+		case 11: if (w->fieldpointer) ss->volume.r+=16; else ss->volume.r++; break;
 	}
 }
 void samplerAdjustDown(instrument *iv, short index)
@@ -185,10 +185,10 @@ void samplerAdjustDown(instrument *iv, short index)
 			ss->loop[1] -= MAX(ss->length / 50.0, 1);
 			if (ss->loop[1] > oldpos) ss->loop[1] = 0;
 			break;
-		case 8:  ss->volume.a--; break;
-		case 9:  ss->volume.d--; break;
-		case 10: ss->volume.s--; break;
-		case 11: ss->volume.r--; break;
+		case 8:  if (w->fieldpointer) ss->volume.a-=16; else ss->volume.a--; break;
+		case 9:  if (w->fieldpointer) ss->volume.d-=16; else ss->volume.d--; break;
+		case 10: if (w->fieldpointer) ss->volume.s-=16; else ss->volume.s--; break;
+		case 11: if (w->fieldpointer) ss->volume.r-=16; else ss->volume.r--; break;
 	}
 }
 void samplerAdjustLeft(instrument *iv, short index)
@@ -643,7 +643,7 @@ void samplerInput(int *input)
 	}
 }
 
-void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fieldpointer)
+void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fp)
 {
 	instrument    *iv;
 	sampler_state *ss;
@@ -651,10 +651,10 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 	{
 		case 0: case 1:
 			*index = 0;
-			*fieldpointer = 0;
+			*fp = 0;
 			if (button == BUTTON3)
 			{
-				w->previewchanneltrigger = 0;
+				previewNote(0, 255);
 				w->popup = 2;
 				w->instrumentindex = 0;
 				w->fyoffset = 0; /* this can still be set on edge cases */
@@ -666,9 +666,9 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 				switch (y)
 				{
 					case 2: *index = 1;
-						if (x < 16)          *fieldpointer = 0;
-						else if (x > 16 + 7) *fieldpointer = 7;
-						else *fieldpointer = x - 16;
+						if (x < 16)          *fp = 0;
+						else if (x > 16 + 7) *fp = 7;
+						else *fp = x - 16;
 						break;
 					case 3: *index = 2;
 						iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -676,9 +676,9 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 						ss->attributes ^= 0b1; /* invert the first bit */
 						break;
 					default: *index = 3;
-						if (x < 20)          *fieldpointer = 0;
-						else if (x > 20 + 3) *fieldpointer = 3;
-						else *fieldpointer = x - 20;
+						if (x < 20)          *fp = 0;
+						else if (x > 20 + 3) *fp = 3;
+						else *fp = x - 20;
 						break;
 				}
 			} else if (x < 58)
@@ -688,14 +688,14 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 					switch (y)
 					{
 						case 2: case 3: *index = 4;
-							if (x < 33)          *fieldpointer = 0;
-							else if (x > 33 + 7) *fieldpointer = 7;
-							else *fieldpointer = x - 33;
+							if (x < 33)          *fp = 0;
+							else if (x > 33 + 7) *fp = 7;
+							else *fp = x - 33;
 							break;
 						default: *index = 5;
-							if (x < 33)          *fieldpointer = 0;
-							else if (x > 33 + 7) *fieldpointer = 7;
-							else *fieldpointer = x - 33;
+							if (x < 33)          *fp = 0;
+							else if (x > 33 + 7) *fp = 7;
+							else *fp = x - 33;
 							break;
 					}
 				} else
@@ -703,26 +703,26 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fi
 					switch (y)
 					{
 						case 2: case 3: *index = 6;
-							if (x < 46)          *fieldpointer = 0;
-							else if (x > 46 + 7) *fieldpointer = 7;
-							else *fieldpointer = x - 46;
+							if (x < 46)          *fp = 0;
+							else if (x > 46 + 7) *fp = 7;
+							else *fp = x - 46;
 							break;
 						default: *index = 7;
-							if (x < 46)          *fieldpointer = 0;
-							else if (x > 46 + 7) *fieldpointer = 7;
-							else *fieldpointer = x - 46;
+							if (x < 46)          *fp = 0;
+							else if (x > 46 + 7) *fp = 7;
+							else *fp = x - 46;
 							break;
 					}
 				}
 			} else
 			{
-				*fieldpointer = 0;
+				*fp = 0;
 				switch (y)
 				{
-					case 2:  *index = 8;  break;
-					case 3:  *index = 9;  break;
-					case 4:  *index = 10; break;
-					default: *index = 11; break;
+					case 2:  *index = 8;  if (x < 71) *fp = 1; else *fp = 0; break;
+					case 3:  *index = 9;  if (x < 71) *fp = 1; else *fp = 0; break;
+					case 4:  *index = 10; if (x < 71) *fp = 1; else *fp = 0; break;
+					default: *index = 11; if (x < 71) *fp = 1; else *fp = 0; break;
 				}
 			}
 			break;
@@ -847,7 +847,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 				if (pitchedpointer % ss->channels)
 					pitchedpointer -= pitchedpointer % ss->channels;
 
-				if (!cv->mute && gain > 0.0)
+				if (gain > 0.0)
 				{
 					*l = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * gain;
 					if (ss->channels > 1)
@@ -897,7 +897,7 @@ uint8_t samplerGetOffset(instrument *iv, channel *cv)
 }
 
 /* called when state's type is changed to this file's */
-void samplerChangeType(void **state)
+void samplerInitType(void **state)
 {
 	*state = calloc(1, sizeof(sampler_state));
 	sampler_state *ss = *state;
@@ -931,7 +931,7 @@ void samplerInit(int index)
 	t->f[index].process = &samplerProcess;
 	t->f[index].offset = &samplerOffset;
 	t->f[index].getOffset = &samplerGetOffset;
-	t->f[index].changeType = &samplerChangeType;
+	t->f[index].initType = &samplerInitType;
 	t->f[index].write = &samplerWrite;
 	t->f[index].read = &samplerRead;
 }

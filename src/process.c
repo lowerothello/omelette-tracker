@@ -71,6 +71,8 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 	cv->gain = 255;
 	cv->sampleoffset = 0;
 	cv->releasepointer = 0;
+	cv->ln_1 = cv->ln_2 = 0.0;
+	cv->rn_1 = cv->rn_2 = 0.0;
 }
 
 
@@ -96,7 +98,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 
 	/* process the type */
 	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-			&& cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
+			&& !cv->mute && cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
 	{
 		if (cv->rtrigsamples > 0 && inst < 255)
 		{
@@ -266,18 +268,33 @@ int process(jack_nframes_t nfptr, void *arg)
 	if (p->w->previewchanneltrigger) switch (p->w->previewchanneltrigger)
 	{
 		case 1: // start instrument preview
+			if (p->w->previewchannelplay.r.note) /* old note, ramp it out */
+			{
+				instrument *iv = p->s->instrumentv[p->s->instrumenti[p->w->previewchannelplay.r.inst]];
+				if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+						&& p->w->instrumentlocki == p->s->instrumenti[p->w->previewchannelplay.r.inst])
+						&& p->w->previewchannelplay.r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
+						&& t->f[iv->type].process)
+				{
+					ramp(p, &p->w->previewchannelplay, p->s->instrumenti[p->w->previewchannelplay.r.inst], p->w->previewchannelplay.samplepointer);
+					p->w->previewchannelplay.rampindex = 0;
+				}
+			}
 			if (!p->s->instrumentv[p->s->instrumenti[p->w->previewchannel.r.inst]])
 			{
-				p->w->previewchanneltrigger = 0;
+				p->w->previewchannelplay.r.note = 0;
 				break;
 			}
 		case 3: // start sample preview
-			p->w->previewchannel.portamento = 0;
-			p->w->previewchannel.samplepointer = 0;
-			p->w->previewchannel.cents = 0.0;
-			p->w->previewchannel.gain = 255;
-			p->w->previewchannel.sampleoffset = 0;
-			p->w->previewchannel.releasepointer = 0;
+			p->w->previewchannelplay.r = p->w->previewchannel.r;
+			p->w->previewchannelplay.portamento = 0;
+			p->w->previewchannelplay.samplepointer = 0;
+			p->w->previewchannelplay.cents = 0.0;
+			p->w->previewchannelplay.gain = 255;
+			p->w->previewchannelplay.sampleoffset = 0;
+			p->w->previewchannelplay.releasepointer = 0;
+			p->w->previewchannelplay.ln_1 = p->w->previewchannelplay.ln_2 = 0.0;
+			p->w->previewchannelplay.rn_1 = p->w->previewchannelplay.rn_2 = 0.0;
 			p->w->previewchanneltrigger++;
 			break;
 		case 5: // unload sample
@@ -287,12 +304,7 @@ int process(jack_nframes_t nfptr, void *arg)
 
 		case 4: // continue sample preview
 			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				playChannel(fptr, p, pb, &p->w->previewchannel, 255);
-			break;
-		case 2: // continue instrument preview
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				playChannel(fptr, p, pb, &p->w->previewchannel,
-						p->w->previewchannel.r.inst);
+				playChannel(fptr, p, pb, &p->w->previewchannelplay, 255);
 			break;
 	}
 
@@ -351,6 +363,11 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->request = REQ_OK;
 	}
 
+
+	/* play back the instrument preview */
+	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+		playChannel(fptr, p, pb, &p->w->previewchannelplay,
+				p->w->previewchannelplay.r.inst);
 
 	if (p->s->playing == PLAYING_CONT)
 	{

@@ -46,15 +46,15 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
-		case 'B': case 'b': *dest = 'B'; break;
-		case 'C': case 'c': *dest = 'C'; break;
-		case 'D': case 'd': *dest = 'D'; break;
-		case 'E': case 'e': *dest = 'E'; break;
-		case 'M': case 'm': *dest = 'M'; break;
-		case 'O': case 'o': *dest = 'O'; break;
-		case 'P': case 'p': *dest = 'P'; break;
-		case 'R': case 'r': *dest = 'R'; break;
-		case 'S': case 's': *dest = 'S'; break;
+		case 'b': *dest = 'B'; break;
+		case 'c': *dest = 'C'; break;
+		case 'd': *dest = 'D'; break;
+		case 'e': *dest = 'E'; break;
+		case 'm': *dest = 'M'; break;
+		case 'o': *dest = 'O'; break;
+		case 'p': *dest = 'P'; break;
+		case 'r': *dest = 'R'; break;
+		case 's': *dest = 'S'; break;
 	}
 }
 
@@ -525,7 +525,7 @@ int trackerInput(int input)
 			redraw();
 			break;
 		case '\033': /* escape */
-			w->previewchanneltrigger = 0;
+			previewNote(0, 255);
 			switch (getchar())
 			{
 				case 'O':
@@ -542,8 +542,6 @@ int trackerInput(int input)
 							w->effectindex = MIN_EFFECT_INDEX;
 							w->effectoffset = 0;
 							break;
-						// case 'R': w->tab = 3; break;
-						// case 'S': w->tab = 4; break;
 					}
 					redraw();
 					break;

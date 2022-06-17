@@ -30,18 +30,18 @@
 │┌──────────────────────────── [virtual analogue] ────────────────────────────┐│
 ││         OSCILLATOR 1    │           FILTER          │    AMPLIFIER         ││
 ││       wave    [   saw]  │  type    [ low]    a[00]  │  attack   [00]       ││
-││       lfo mod     [00]  │  cutoff    [ff]    d[00]  │  decay    [00]       ││
+││       fm/am   [00][00]  │  cutoff    [ff]    d[00]  │  decay    [00]       ││
 ││       ──────────────────┤  resonance [00]    s[ff]  │  sustain  [ff]       ││
 ││         OSCILLATOR 2    │  lfo mod   [00]    r[00]  │  release  [00]       ││
-││       wave    [   saw]  │                           │                      ││
+││       wave    [   saw]  │  tracking   [ ]           │                      ││
 ││       oct/det [+0][7f]  ├───────────────────┬───────┴───────────────       ││
-││       lfo mod     [00]  │        LFO        │          MIXER               ││
-││       ──────────────────┤  rate       [7f]  │  oscillator 1     [7f]       ││
-││        SUB OSCILLATOR   │  wave   [   tri]  │  oscillator 2     [7f]       ││
-││       wave    [square]  │  pwm        [00]  │  sub oscillator   [7f]       ││
-││       octave      [-1]  │                   │  noise            [7f]       ││
+││       fm/am   [00][00]  │        LFO        │          MIXER               ││
+││       ──────────────────┤  rate       [7f]  │  oscillator 1     [ff]       ││
+││        SUB OSCILLATOR   │  wave   [   tri]  │  oscillator 2     [ff]       ││
+││       wave    [square]  │  pwm        [00]  │  sub oscillator   [00]       ││
+││       octave      [-1]  │                   │  noise            [00]       ││
 ││                                                                            ││
-││                       mult [00]    detune range [00]                       ││
+││                 multi [00]     detune [00]     stereo [00]                 ││
 │└────────────────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────────────┘
 

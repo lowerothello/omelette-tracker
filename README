@@ -19,38 +19,11 @@ TODO:
 -> instruments
 	^ test retaining relative instrument params after processing
 	^ sample compression
-	^ change away from modal preview (preview should always be bound)
+	^ change away from modal input (preview should always be bound)
 -> effects
 
 some eq10q mono plugins segfault on load, not sure why
 
-
-
-synth1 subset/clone
-[https://daichilab.sakura.ne.jp/softsynth/synmanu/readmeeng.html]
-[https://daichilab.sakura.ne.jp/softsynth/synth1.png]
-┌────────── [virtual analog] ───────────┐
-│ osc1  [    ramp]  det [80]  fm   [00] │
-│ osc2  [    ramp]  det [80]  ptch [ff] │
-│ sub  [triangle]                       │
-│ mix[00] oct[-0]                       │
-│                  amplifier  gain [ff] │
-│                  a[00]d[00]s[ff]r[00] │
-│ lfo 1[triangle]                       │
-│ --- 2[triangle]  filter    amt   [ff] │
-│ dest  1[filter]  frq [00]  res   [00] │
-│ ----  2[  osc2]  trk [00]  sat   [00] │
-│ spd  1[80]2[80]  type          [LP12] │
-│ amp  1[80]2[80]  a[00]d[00]s[ff]r[00] │
-│                                       │
-│ num[01]  det[00]  phase[00]  sprd[00] │
-└───────────────────────────────────────┘
-
-
-^v
-/\
-|\
-n_
 
 
 MACROS:
@@ -88,7 +61,7 @@ Exy: effect mix
 
 
 Effect redesign:
-* mainly use custom effects, lv2s are unportable
+* use custom effects, lv2s are unportable
 * should be channelwise, not instrumentwise
 * all configuration should be done in the tracker
 * changes should persist in channel memory
@@ -97,6 +70,7 @@ Effect redesign:
 	- band pass       bxy {MEMFLTR} x: centre      y: width (0: wide, f: narrow)
 	- chorus          cxy {MEMTIME} x: lfo freq    y: gain
 	- comb / flanger  fxy {MEMTIME} x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
+	- gate            gxy           x: speed       y: threshold
 	- high pass       hxy {MEMFLTR} x: resonance   y: cutoff (0: lowest, f: highest)
 	- low pass        lxy {MEMFLTR} x: resonance   y: cutoff (0: highest, f: lowest)
 	- ring mod        mxy {MEMTIME} x: rate        y: mix

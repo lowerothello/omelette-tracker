@@ -13,7 +13,7 @@ void dummyMouseToIndex(int, int, int, short *index, signed char *)
 void dummyProcess(instrument *iv, channel *cv, uint32_t pointer, sample_t *l, sample_t *r)
 {}
 
-void dummyChangeType(void **state)
+void dummyInitType(void **state)
 {
 	*state = malloc(1);
 }
@@ -25,5 +25,5 @@ void dummyInit(int index)
 	t->f[index].draw = &drawDummy;
 	t->f[index].mouseToIndex = &dummyMouseToIndex;
 	t->f[index].process = &dummyProcess;
-	t->f[index].changeType = &dummyChangeType;
+	t->f[index].initType = &dummyInitType;
 }

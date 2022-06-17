@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+// #define _POSIX_C_SOURCE 199309L
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -56,9 +56,13 @@ int fl;
 #define ROW_FIELDS 6
 #define SONG_COLS 5
 
-#define ENVELOPE_ATTACK  0.025
+/* <seconds> */
+#define ENVELOPE_ATTACK  0.007
 #define ENVELOPE_DECAY   0.025
 #define ENVELOPE_RELEASE 0.025
+#define LFO_MIN 2.00
+#define LFO_MAX 0.005
+/* </seconds> */
 
 #define RAMP_MS 3 /* only up to about 300 is safe at high sample rates */
 #define TIMESTRETCH_RAMP_MS 10
@@ -94,8 +98,8 @@ void stopPlayback(void);
 #include "config.h"
 
 #include "command.c"
-#include "structures.c"
 #include "dsp.c"
+#include "structures.c"
 
 int ifMacro(row, char); /* (row, char) */
 
@@ -403,6 +407,8 @@ int main(int argc, char **argv)
 
 	_addChannel(&w->previewchannel);
 	w->previewchannel.gain = 255;
+	_addChannel(&w->previewchannelplay);
+	w->previewchannelplay.gain = 255;
 	w->previewinstrument.type = 0;
 	w->previewinstrument.state[0] = malloc(sizeof(sampler_state));
 	if (!w->previewinstrument.state)
@@ -513,7 +519,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		if (p->dirty)
+		// if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();

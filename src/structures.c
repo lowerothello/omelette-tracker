@@ -15,14 +15,6 @@ typedef struct
 
 typedef struct
 {
-	uint8_t a;
-	uint8_t d;
-	uint8_t s;
-	uint8_t r;
-} adsr;
-
-typedef struct
-{
 	char      mute;              /* saved to disk */
 	uint32_t  samplepointer;     /* progress through the sample */
 	uint32_t  sampleoffset;      /* point to base samplepointer off of */
@@ -52,6 +44,16 @@ typedef struct
 	uint16_t  stretchrampmax;    /* length of the ramp buffer */
 	sample_t *stretchrampbuffer; /* samples to ramp out */
 	uint32_t  cycleoffset;
+
+	float     ln_1, ln_2;        /* previous samples, used by the filter */
+	float     rn_1, rn_2;
+	struct
+	{
+		float osc1phase;         /* stored phase, for freewheel oscillators */
+		float osc2phase;
+		float subphase;
+		float lfophase;
+	} analogue[33];             /* one for each potential instance */
 } channel;
 
 typedef struct Instrument
@@ -60,7 +62,7 @@ typedef struct Instrument
 	uint8_t             typefollow;         /* follows the type, set once state is guaranteed to be mallocced */
 	short              *sampledata;         /* variable size, persists between types */
 	uint32_t            samplelength;       /* raw samples allocated for sampledata */
-	void               *state[256];         /* instrument working memory */
+	void               *state[256];         /* type working memory */
 	uint8_t             fader;
 	char                send[16];           /* set to [0-15] */
 	char                processsend[16];    /* used during playback only */
@@ -227,8 +229,9 @@ typedef struct
 	uint8_t        songnext;
 
 	channel        previewchannel;
+	channel        previewchannelplay;          /* actually playing channel */
 	instrument     previewinstrument;           /* used by the file browser */
-	char           previewchanneltrigger;       /* 0:stopped
+	char           previewchanneltrigger;       /* 0:cut
 	                                               1:start inst
 	                                               2:still inst
 	                                               3:start sample
@@ -270,7 +273,7 @@ typedef struct
 		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
 		uint32_t       (*offset)(instrument *, channel *, int);
 		uint8_t        (*getOffset)(instrument *, channel *);
-		void           (*changeType)(void **); /* literally a pointer to a pointer */
+		void           (*initType)(void **);
 		void           (*write)(instrument *, uint8_t, FILE *fp);
 		void           (*read)(instrument *, uint8_t, FILE *fp);
 	} f[INSTRUMENT_TYPE_COUNT];
@@ -565,6 +568,13 @@ void _addChannel(channel *cv)
 	cv->stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
 	cv->stretchrampindex = cv->stretchrampmax;
 	cv->stretchrampbuffer = malloc(sizeof(sample_t) * cv->stretchrampmax * 2); /* *2 for stereo */
+	for (int i = 0; i < 33; i++)
+	{
+		cv->analogue[i].osc1phase = 0.0;
+		cv->analogue[i].osc2phase = 0.0;
+		cv->analogue[i].subphase = 0.0;
+		cv->analogue[i].lfophase = 0.0;
+	}
 }
 int addChannel(song *cs, uint8_t index)
 {
@@ -994,7 +1004,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 		{
 			if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
 			{
-				t->f[iv->type].changeType(&iv->state[iv->type]);
+				t->f[iv->type].initType(&iv->state[iv->type]);
 				if (!iv->state[iv->type])
 				{
 					strcpy(w->command.error, "failed to allocate instrument type, out of memory");
@@ -1006,7 +1016,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 			case INST_GLOBAL_LOCK_FREE:
 				if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
 				{
-					t->f[iv->type].changeType(&iv->state[iv->type]);
+					t->f[iv->type].initType(&iv->state[iv->type]);
 					if (!iv->state[iv->type])
 					{
 						strcpy(w->command.error, "failed to allocate instrument type, out of memory");
@@ -1025,7 +1035,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 				for (int j = 0; j < 256; j++)
 					if (src->state[j])
 					{
-						if (!dest->state[j]) t->f[j].changeType(&dest->state[j]);
+						if (!dest->state[j]) t->f[j].initType(&dest->state[j]);
 						memcpy(dest->state[j], src->state[j], t->f[j].statesize);
 					}
 
@@ -1140,7 +1150,7 @@ void pushInstrumentHistory(instrument *iv)
 	for (int i = 0; i < 256; i++)
 		if (iv->state[i])
 		{
-			t->f[i].changeType(&ivh->state[i]);
+			t->f[i].initType(&ivh->state[i]);
 			memcpy(ivh->state[i], iv->state[i], t->f[i].statesize);
 		}
 	ivh->fader = iv->fader;
@@ -1223,7 +1233,7 @@ int addInstrument(uint8_t index)
 	}
 	s->instrumentv[s->instrumentc]->fader = 0xFF;
 	changeInstrumentType(s, s->instrumentc);
-	t->f[s->instrumentv[s->instrumentc]->type].changeType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
+	t->f[s->instrumentv[s->instrumentc]->type].initType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
 	s->instrumenti[index] = s->instrumentc;
 
 	_instantiateInstrumentEffect(s->instrumentc);
@@ -1281,7 +1291,7 @@ int yankInstrument(uint8_t index)
 			sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
 	}
 
-	t->f[s->instrumentbuffer.type].changeType(&s->instrumentbuffer.state[s->instrumentbuffer.type]);
+	t->f[s->instrumentbuffer.type].initType(&s->instrumentbuffer.state[s->instrumentbuffer.type]);
 	memcpy(s->instrumentbuffer.state[s->instrumentbuffer.type],
 			s->instrumentv[s->instrumenti[index]]->state[s->instrumentbuffer.type],
 			t->f[s->instrumentbuffer.type].statesize);

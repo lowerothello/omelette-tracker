@@ -11,13 +11,13 @@ run() {
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
-		-lm -Wall -std=c99 \
+		-lm -Wall \
 		src/main.c -o omelette
 } || {
 	run ${CC:-gcc} \
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
-		-lm -Wall -std=c99 -g \
+		-lm -Wall -g \
 		src/main.c -o omelette
 }
