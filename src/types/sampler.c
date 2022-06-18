@@ -311,7 +311,7 @@ int samplerAkaizerCallback2(char *command, unsigned char *mode)
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	w->akaizercyclelength = strtol(buffer, NULL, 0);
-	setCommand(&w->command, &samplerAkaizerCallback3, NULL, 0, "Akaizer transpose [-24 to +24]: ", "0");
+	setCommand(&w->command, &samplerAkaizerCallback3, NULL, NULL, 0, "Akaizer transpose [-24 to +24]: ", "0");
 	*mode = 255;
 	free(buffer); buffer = NULL;
 	return 0;
@@ -321,7 +321,7 @@ int samplerAkaizerCallback1(char *command, unsigned char *mode)
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
 	w->akaizertimefactor = strtol(buffer, NULL, 0);
-	setCommand(&w->command, &samplerAkaizerCallback2, NULL, 0, "Akaizer cycle length [20 to 2000]: ", "1000");
+	setCommand(&w->command, &samplerAkaizerCallback2, NULL, NULL, 0, "Akaizer cycle length [20 to 2000]: ", "1000");
 	*mode = 255;
 	free(buffer); buffer = NULL;
 	return 0;
@@ -452,7 +452,7 @@ void samplerInput(int *input)
 				case 'm': /* amplify */
 					if (iv->samplelength > 0)
 					{
-						setCommand(&w->command, &samplerAmplifyCallback, NULL, 0, "Amplify %: ", "100");
+						setCommand(&w->command, &samplerAmplifyCallback, NULL, NULL, 0, "Amplify %: ", "100");
 						w->mode = 255;
 						redraw();
 					}
@@ -464,7 +464,7 @@ void samplerInput(int *input)
 							strcpy(w->command.error, "\"akaizer\" not found in $PATH");
 						else
 						{
-							setCommand(&w->command, &samplerAkaizerCallback1, NULL, 0, "Akaizer time factor % [25 to 2000]: ", "100");
+							setCommand(&w->command, &samplerAkaizerCallback1, NULL, NULL, 0, "Akaizer time factor % [25 to 2000]: ", "100");
 							w->mode = 255;
 							redraw();
 						}
@@ -477,7 +477,7 @@ void samplerInput(int *input)
 							strcpy(w->command.error, "\"lame\" not found in $PATH");
 						else
 						{
-							setCommand(&w->command, &samplerLameCallback, NULL, 0, "MP3 bitrate: ", "128");
+							setCommand(&w->command, &samplerLameCallback, NULL, NULL, 0, "MP3 bitrate: ", "128");
 							w->mode = 255;
 							redraw();
 						}
@@ -542,7 +542,7 @@ void samplerInput(int *input)
 						char buffer[COMMAND_LENGTH];
 						snprintf(buffer, COMMAND_LENGTH, "%d",
 							ss->c5rate);
-						setCommand(&w->command, &samplerResampleCallback, NULL, 0, "New C-5 rate: ", buffer);
+						setCommand(&w->command, &samplerResampleCallback, NULL, NULL, 0, "New C-5 rate: ", buffer);
 						w->mode = 255;
 						redraw();
 					}
@@ -572,7 +572,7 @@ void samplerInput(int *input)
 					redraw();
 					break;
 				case 'e': /* export */
-					setCommand(&w->command, &samplerExportCallback, NULL, 0, "File name: ", "");
+					setCommand(&w->command, &samplerExportCallback, NULL, NULL, 0, "File name: ", "");
 					w->mode = 255;
 					redraw();
 					break;
@@ -654,7 +654,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fp
 			*fp = 0;
 			if (button == BUTTON3)
 			{
-				previewNote(0, 255);
+				previewNote(0, 255, w->channel);
 				w->popup = 2;
 				w->instrumentindex = 0;
 				w->fyoffset = 0; /* this can still be set on edge cases */
@@ -905,14 +905,11 @@ void samplerInitType(void **state)
 	ss->cyclelength = 0x6ff; /* feels like a good default? hard to be sure */
 }
 
-void samplerWrite(instrument *iv, uint8_t index, FILE *fp)
-{
-	fwrite(&iv->state[index], sizeof(sampler_state), 1, fp);
-}
-void samplerRead(instrument *iv, uint8_t index, FILE *fp)
-{
-	fread(&iv->state[index], sizeof(sampler_state), 1, fp);
-}
+void samplerWrite(void **state, FILE *fp)
+{ fwrite(*state, sizeof(sampler_state), 1, fp); }
+
+void samplerRead(void **state, FILE *fp)
+{ fread(*state, sizeof(sampler_state), 1, fp); }
 
 void samplerInit(int index)
 {

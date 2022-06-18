@@ -59,20 +59,20 @@ typedef struct
 typedef struct Instrument
 {
 	uint8_t             type;
-	uint8_t             typefollow;         /* follows the type, set once state is guaranteed to be mallocced */
-	short              *sampledata;         /* variable size, persists between types */
-	uint32_t            samplelength;       /* raw samples allocated for sampledata */
-	void               *state[256];         /* type working memory */
+	uint8_t             typefollow;                   /* follows the type, set once state is guaranteed to be mallocced */
+	short              *sampledata;                   /* variable size, persists between types */
+	uint32_t            samplelength;                 /* raw samples allocated for sampledata */
+	void               *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 	uint8_t             fader;
-	char                send[16];           /* set to [0-15] */
-	char                processsend[16];    /* used during playback only */
-	LilvInstance       *plugininstance[16]; /* pointer to lv2 instances */
+	char                send[16];                     /* set to [0-15] */
+	char                processsend[16];              /* used during playback only */
+	LilvInstance       *plugininstance[16];           /* pointer to lv2 instances */
 	sample_t           *outbufferl;
 	sample_t           *outbufferr;
 	struct Instrument  *history[128];
-	uint8_t             historyptr;         /* highest bit is an overflow bit */
-	uint8_t             historybehind;      /* tracks how many less than 128 safe indices there are */
-	uint8_t             historyahead;       /* tracks how many times it's safe to redo */
+	uint8_t             historyptr;                   /* highest bit is an overflow bit */
+	uint8_t             historybehind;                /* tracks how many less than 128 safe indices there are */
+	uint8_t             historyahead;                 /* tracks how many times it's safe to redo */
 } instrument;
 
 #define LV2_TYPE_INPUT 0
@@ -228,10 +228,10 @@ typedef struct
 
 	uint8_t        songnext;
 
-	channel        previewchannel;
-	channel        previewchannelplay;          /* actually playing channel */
+	uint8_t        previewnote, previewinst;
+	uint8_t        previewchannel;
 	instrument     previewinstrument;           /* used by the file browser */
-	char           previewchanneltrigger;       /* 0:cut
+	char           previewtrigger;              /* 0:cut
 	                                               1:start inst
 	                                               2:still inst
 	                                               3:start sample
@@ -274,8 +274,8 @@ typedef struct
 		uint32_t       (*offset)(instrument *, channel *, int);
 		uint8_t        (*getOffset)(instrument *, channel *);
 		void           (*initType)(void **);
-		void           (*write)(instrument *, uint8_t, FILE *fp);
-		void           (*read)(instrument *, uint8_t, FILE *fp);
+		void           (*write)(void **, FILE *fp);
+		void           (*read)(void **, FILE *fp);
 	} f[INSTRUMENT_TYPE_COUNT];
 } typetable;
 typetable *t;
@@ -1032,7 +1032,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 				dest->fader = src->fader;
 				memcpy(dest->send, src->send, sizeof(char) * 16);
 
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 					if (src->state[j])
 					{
 						if (!dest->state[j]) t->f[j].initType(&dest->state[j]);
@@ -1141,13 +1141,13 @@ void pushInstrumentHistory(instrument *iv)
 	if (!iv->history[iv->historyptr%128])
 		iv->history[iv->historyptr%128] = calloc(1, sizeof(instrument));
 	else
-		for (int i = 0; i < 256; i++)
+		for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 			if (iv->history[iv->historyptr%128]->state[i])
 				free(iv->history[iv->historyptr%128]->state[i]);
 
 	instrument *ivh = iv->history[iv->historyptr%128];
 	ivh->type = iv->type;
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (iv->state[i])
 		{
 			t->f[i].initType(&ivh->state[i]);
@@ -1176,7 +1176,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 				|| ivh->samplelength != iv->samplelength)
 			pushInstrumentHistory(iv);
 		else
-			for (int i = 0; i < 256; i++)
+			for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 				if (ivh->state[i] || iv->state[i])
 					if (!ivh->state[i] || !iv->state[i] || memcmp(ivh->state[i], iv->state[i], t->f[i].statesize))
 					{ pushInstrumentHistory(iv); break; }
@@ -1263,7 +1263,7 @@ int yankInstrument(uint8_t index)
 		s->instrumentbuffer.sampledata = NULL;
 	}
 
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (s->instrumentbuffer.state[i])
 		{
 			free(s->instrumentbuffer.state[i]);
@@ -1346,7 +1346,7 @@ int putInstrument(uint8_t index)
 void _delInstrument(song *cs, uint8_t realindex)
 {
 	/* free the sample data */
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (cs->instrumentv[realindex]->state[i])
 			free(cs->instrumentv[realindex]->state[i]);
 	if (cs->instrumentv[realindex]->samplelength > 0)
@@ -1357,7 +1357,7 @@ void _delInstrument(song *cs, uint8_t realindex)
 	for (int i = 0; i < 128; i++)
 	{
 		if (!cs->instrumentv[realindex]->history[i]) continue;
-		for (int j = 0; j < 256; j++)
+		for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 			if (cs->instrumentv[realindex]->history[i]->state[j])
 				free(cs->instrumentv[realindex]->history[i]->state[j]);
 		if (cs->instrumentv[realindex]->history[i]->sampledata)
@@ -1572,7 +1572,7 @@ void delSong(song *cs)
 	for (int i = 1; i < cs->instrumentc; i++)
 		_delInstrument(cs, i);
 
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (s->instrumentbuffer.state[i])
 			free(s->instrumentbuffer.state[i]);
 	if (cs->instrumentbuffer.samplelength > 0)
@@ -1674,19 +1674,25 @@ int writeSong(char *path)
 	}
 
 	/* instrumentv */
+	instrument *iv;
 	for (i = 1; i < s->instrumentc; i++)
 	{
-		fputc(s->instrumentv[i]->type, fp);
+		iv = s->instrumentv[i];
+		fputc(iv->type, fp);
 
-		if (s->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
-				&& t->f[s->instrumentv[i]->type].write)
-			t->f[s->instrumentv[i]->type].write(s->instrumentv[i], s->instrumentv[i]->type, fp);
+		for (uint8_t j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
+			if (iv->state[j])
+			{
+				fputc(j + 1, fp); // type index
+				t->f[j].write(&iv->state[j], fp);
+			}
+		fputc(0, fp); // no more types
 
-		fputc(s->instrumentv[i]->fader, fp);
-		fwrite(&s->instrumentv[i]->send, 1, 16, fp);
-		fwrite(&s->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
-		if (s->instrumentv[i]->samplelength > 0)
-			fwrite(s->instrumentv[i]->sampledata, sizeof(short), s->instrumentv[i]->samplelength, fp);
+		fputc(iv->fader, fp);
+		fwrite(&iv->send, 1, 16, fp);
+		fwrite(&iv->samplelength, sizeof(uint32_t), 1, fp);
+		if (iv->samplelength > 0)
+			fwrite(iv->sampledata, sizeof(short), iv->samplelength, fp);
 	}
 
 	/* effectv */
@@ -1812,16 +1818,22 @@ song *readSong(char *path)
 	}
 
 	/* instrumentv */
+	instrument *iv;
 	for (i = 1; i < cs->instrumentc; i++)
 	{
 		_addInstrument(cs, i);
 
-		cs->instrumentv[i]->type = fgetc(fp);
-		changeInstrumentType(cs, i);
+		iv = cs->instrumentv[i];
+		iv->type = fgetc(fp);
+		iv->typefollow = iv->type; /* confirm the type is safe to use */
 
-		if (cs->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
-				&& t->f[cs->instrumentv[i]->type].read != NULL)
-			t->f[cs->instrumentv[i]->type].read(cs->instrumentv[i], cs->instrumentv[i]->type, fp);
+		uint8_t j;
+		while ((j = fgetc(fp))) /* read until there's no more */
+			if (t->f[j-1].read)
+			{
+				t->f[j-1].initType(&iv->state[j-1]);
+				t->f[j-1].read(&iv->state[j-1], fp);
+			}
 
 		cs->instrumentv[i]->fader = fgetc(fp);
 		fread(&cs->instrumentv[i]->send, 1, 16, fp);

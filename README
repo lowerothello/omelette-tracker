@@ -67,23 +67,22 @@ Effect redesign:
 * changes should persist in channel memory
 * last parameter should always control a variant of "mix", 0 being completely off
 * channel effect ideas:
-	- band pass       bxy {MEMFLTR} x: centre      y: width (0: wide, f: narrow)
-	- chorus          cxy {MEMTIME} x: lfo freq    y: gain
-	- comb / flanger  fxy {MEMTIME} x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
-	- gate            gxy           x: speed       y: threshold
-	- high pass       hxy {MEMFLTR} x: resonance   y: cutoff (0: lowest, f: highest)
-	- low pass        lxy {MEMFLTR} x: resonance   y: cutoff (0: highest, f: lowest)
-	- ring mod        mxy {MEMTIME} x: rate        y: mix
+	- ring mod        axy {MEMTIME} x: rate        y: mix
+	- chorus           xy {MEMTIME} x: lfo freq    y: gain
+	- comb / flanger   xy {MEMTIME} x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
 	- phaser (8pole)  pxy {MEMTIME} x: rate        y: mix
-	- reverb          rxy           x: tail        y: [0]: clear buffer  [1-f]: input mix
+	- reverb          vxy           x: tone        y: input mix
 	- saturation      sxy           x: input gain  y: mix
-	- wavefolder      vxy           x: input gain  y: mix
-	- waveloss        wxy           x: grain size  y: percent to drop
-* mastering effect ideas:
-	- compressor
-	- limiter
-	- parametric eq
+	- wavefolder       xy           x: input gain  y: mix
+	- gate            gxy           x: speed       y: threshold
+	- low pass         xy {MEMFLTR} x: resonance   y: cutoff (0: highest, f: lowest)
+	- high pass        xy {MEMFLTR} x: resonance   y: cutoff (0: lowest, f: highest)
+	- band pass        xy {MEMFLTR} x: centre      y: width (0: wide, f: narrow)
+	- sidechain        xy           x: channel     y: input gain
+	- vocoder          xy           x: channel     y: mix
 
+glossary:
+*channel = a channel index to pull sample data from, only channels 0-15 are indexable
 
 
 

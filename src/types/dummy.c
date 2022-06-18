@@ -18,6 +18,9 @@ void dummyInitType(void **state)
 	*state = malloc(1);
 }
 
+void dummyWrite(void **, FILE *) {}
+void dummyRead(void **, FILE *) {}
+
 void dummyInit(int index)
 {
 	t->f[index].indexc = 0;
@@ -26,4 +29,6 @@ void dummyInit(int index)
 	t->f[index].mouseToIndex = &dummyMouseToIndex;
 	t->f[index].process = &dummyProcess;
 	t->f[index].initType = &dummyInitType;
+	t->f[index].write = &dummyWrite;
+	t->f[index].read = &dummyRead;
 }

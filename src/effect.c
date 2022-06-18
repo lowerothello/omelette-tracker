@@ -357,9 +357,7 @@ void effectListRevSearch(char *input, short index)
 	/* no occurrances */
 }
 inline static void effectListSearchChar(char *input)
-{
-	effectListSearch(input, w->pluginindex);
-}
+{ effectListSearch(input, w->pluginindex); }
 
 
 void effectInput(int input)
@@ -590,7 +588,7 @@ void effectInput(int input)
 			switch (input)
 			{
 				case '/': /* search */
-					setCommand(&w->command, &effectListSearchEnd, &effectListSearchChar, 0, "/", "");
+					setCommand(&w->command, &effectListSearchEnd, &effectListSearchChar, NULL, 0, "/", "");
 					w->mode = 255;
 					redraw();
 					break;

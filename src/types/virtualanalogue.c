@@ -75,7 +75,7 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 	printf("\033[%d;%dHcutoff    [%02x]    d[%02x]", y+2, x+28, as->filter.cutoff, as->filter.env.d);
 	printf("\033[%d;%dHresonance [%02x]    s[%02x]", y+3, x+28, as->filter.resonance, as->filter.env.s);
 	printf("\033[%d;%dHlfo mod   [%02x]    r[%02x]", y+4, x+28, as->filter.mod, as->filter.env.r);
-	printf("\033[%d;%dHtracking   ",                 y+5, x+28);
+	printf("\033[%d;%dHkeyboard tracking   ",        y+5, x+28);
 	if (as->filter.tracking) printf("[X]");
 	else                     printf("[ ]");
 	printf("\033[%d;%dH\033[1m  AMPLIFIER  \033[m",   y+0, x+56);
@@ -112,11 +112,11 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 		case 11: printf("\033[%d;%dH", y+2,  x+40); break;
 		case 12: printf("\033[%d;%dH", y+3,  x+40); break;
 		case 13: printf("\033[%d;%dH", y+4,  x+40); break;
-		case 14: printf("\033[%d;%dH", y+5,  x+40); break;
-		case 15: printf("\033[%d;%dH", y+1,  x+49); break;
-		case 16: printf("\033[%d;%dH", y+2,  x+49); break;
-		case 17: printf("\033[%d;%dH", y+3,  x+49); break;
-		case 18: printf("\033[%d;%dH", y+4,  x+49); break;
+		case 14: printf("\033[%d;%dH", y+1,  x+49); break;
+		case 15: printf("\033[%d;%dH", y+2,  x+49); break;
+		case 16: printf("\033[%d;%dH", y+3,  x+49); break;
+		case 17: printf("\033[%d;%dH", y+4,  x+49); break;
+		case 18: printf("\033[%d;%dH", y+5,  x+49); break;
 		case 19: printf("\033[%d;%dH", y+8,  x+41); break;
 		case 20: printf("\033[%d;%dH", y+9,  x+41); break;
 		case 21: printf("\033[%d;%dH", y+10, x+41); break;
@@ -153,10 +153,10 @@ void analogueAdjustUp(instrument *iv, short index)
 		case 11: if (w->fieldpointer) as->filter.cutoff+=16; else as->filter.cutoff++; break;
 		case 12: if (w->fieldpointer) as->filter.resonance+=16; else as->filter.resonance++; break;
 		case 13: if (w->fieldpointer) as->filter.mod+=16; else as->filter.mod++; break;
-		case 15: if (w->fieldpointer) as->filter.env.a+=16; else as->filter.env.a++; break;
-		case 16: if (w->fieldpointer) as->filter.env.d+=16; else as->filter.env.d++; break;
-		case 17: if (w->fieldpointer) as->filter.env.s+=16; else as->filter.env.s++; break;
-		case 18: if (w->fieldpointer) as->filter.env.r+=16; else as->filter.env.r++; break;
+		case 14: if (w->fieldpointer) as->filter.env.a+=16; else as->filter.env.a++; break;
+		case 15: if (w->fieldpointer) as->filter.env.d+=16; else as->filter.env.d++; break;
+		case 16: if (w->fieldpointer) as->filter.env.s+=16; else as->filter.env.s++; break;
+		case 17: if (w->fieldpointer) as->filter.env.r+=16; else as->filter.env.r++; break;
 		case 19: if (w->fieldpointer) as->lfo.rate+=16; else as->lfo.rate++; break;
 		case 20: if (as->lfo.wave < WAVE_COUNT) as->lfo.wave++; break;
 		case 21: if (w->fieldpointer) as->lfo.pwm+=16; else as->lfo.pwm++; break;
@@ -192,10 +192,10 @@ void analogueAdjustDown(instrument *iv, short index)
 		case 11: if (w->fieldpointer) as->filter.cutoff-=16; else as->filter.cutoff--; break;
 		case 12: if (w->fieldpointer) as->filter.resonance-=16; else as->filter.resonance--; break;
 		case 13: if (w->fieldpointer) as->filter.mod-=16; else as->filter.mod--; break;
-		case 15: if (w->fieldpointer) as->filter.env.a-=16; else as->filter.env.a--; break;
-		case 16: if (w->fieldpointer) as->filter.env.d-=16; else as->filter.env.d--; break;
-		case 17: if (w->fieldpointer) as->filter.env.s-=16; else as->filter.env.s--; break;
-		case 18: if (w->fieldpointer) as->filter.env.r-=16; else as->filter.env.r--; break;
+		case 14: if (w->fieldpointer) as->filter.env.a-=16; else as->filter.env.a--; break;
+		case 15: if (w->fieldpointer) as->filter.env.d-=16; else as->filter.env.d--; break;
+		case 16: if (w->fieldpointer) as->filter.env.s-=16; else as->filter.env.s--; break;
+		case 17: if (w->fieldpointer) as->filter.env.r-=16; else as->filter.env.r--; break;
 		case 19: if (w->fieldpointer) as->lfo.rate-=16; else as->lfo.rate--; break;
 		case 20: if (as->lfo.wave > 0) as->lfo.wave--; break;
 		case 21: if (w->fieldpointer) as->lfo.pwm-=16; else as->lfo.pwm--; break;
@@ -224,11 +224,11 @@ void inputAnalogueHex(short index, analogue_state *as, char value)
 		case 7:  updateFieldPush(&as->osc2.am, value); break;
 		case 11: updateFieldPush(&as->filter.cutoff, value); break;
 		case 12: updateFieldPush(&as->filter.resonance, value); break;
-		case 14: updateFieldPush(&as->filter.mod, value); break;
-		case 15: updateFieldPush(&as->filter.env.a, value); break;
-		case 16: updateFieldPush(&as->filter.env.d, value); break;
-		case 17: updateFieldPush(&as->filter.env.s, value); break;
-		case 18: updateFieldPush(&as->filter.env.r, value); break;
+		case 13: updateFieldPush(&as->filter.mod, value); break;
+		case 14: updateFieldPush(&as->filter.env.a, value); break;
+		case 15: updateFieldPush(&as->filter.env.d, value); break;
+		case 16: updateFieldPush(&as->filter.env.s, value); break;
+		case 17: updateFieldPush(&as->filter.env.r, value); break;
 		case 19: updateFieldPush(&as->lfo.rate, value); break;
 		case 21: updateFieldPush(&as->lfo.pwm, value); break;
 		case 22: updateFieldPush(&as->amp.a, value); break;
@@ -251,7 +251,7 @@ void analogueInput(int *input)
 	switch (*input)
 	{
 		case 10: case 13: /* return */
-			if (w->instrumentindex == 14)
+			if (w->instrumentindex == 18)
 				as->filter.tracking = !as->filter.tracking;
 			*input = 0; /* don't reprocess */
 			break;
@@ -288,8 +288,7 @@ void analogueMouseToIndex(int y, int x, int button, short *index, signed char *f
 		else             { *index = 30; if (x < 25) *fp = 1; else *fp = 0; }
 	} else
 	{
-		if (x < 25)
-			switch (y)
+		if (x < 25) switch (y)
 			{
 				case 1:  case 2:  *index = 0; break;
 				case 3:  case 4:
@@ -310,27 +309,32 @@ void analogueMouseToIndex(int y, int x, int button, short *index, signed char *f
 			}
 		else if (y < 8)
 		{
-			if (x < 43)
+			if (x < 53)
+			{
 				switch (y)
 				{
-					case 1: case 2: *index = 10; break;
-					case 3:         *index = 11; if (x < 40) *fp = 1; else *fp = 0; break;
-					case 4:         *index = 12; if (x < 40) *fp = 1; else *fp = 0; break;
-					case 5:         *index = 13; if (x < 40) *fp = 1; else *fp = 0; break;
-					case 6: case 7: *index = 14;
+					case 6: case 7: *index = 18;
 						as->filter.tracking = !as->filter.tracking;
 						break;
+					default:
+						if (x < 44) switch (y)
+							{
+								case 1: case 2: *index = 10; break;
+								case 3:         *index = 11; if (x < 40) *fp = 1; else *fp = 0; break;
+								case 4:         *index = 12; if (x < 40) *fp = 1; else *fp = 0; break;
+								case 5:         *index = 13; if (x < 40) *fp = 1; else *fp = 0; break;
+							}
+						else switch (y)
+							{
+								case 1: case 2: *index = 14; if (x < 49) *fp = 1; else *fp = 0; break;
+								case 3:         *index = 15; if (x < 49) *fp = 1; else *fp = 0; break;
+								case 4:         *index = 16; if (x < 49) *fp = 1; else *fp = 0; break;
+								case 5:         *index = 17; if (x < 49) *fp = 1; else *fp = 0; break;
+							}
+						break;
 				}
-			else if (x < 53)
-				switch (y)
-				{
-					case 1: case 2:         *index = 15; if (x < 49) *fp = 1; else *fp = 0; break;
-					case 3:                 *index = 16; if (x < 49) *fp = 1; else *fp = 0; break;
-					case 4:                 *index = 17; if (x < 49) *fp = 1; else *fp = 0; break;
-					case 5: case 6: case 7: *index = 18; if (x < 49) *fp = 1; else *fp = 0; break;
-				}
-			else
-				switch (y)
+			}
+			else switch (y)
 				{
 					case 1: case 2:         *index = 22; if (x < 67) *fp = 1; else *fp = 0; break;
 					case 3:                 *index = 23; if (x < 67) *fp = 1; else *fp = 0; break;
@@ -339,15 +343,13 @@ void analogueMouseToIndex(int y, int x, int button, short *index, signed char *f
 				}
 		} else
 		{
-			if (x < 45)
-				switch (y)
+			if (x < 45) switch (y)
 				{
 					case 8:  case 9:  *index = 19; if (x < 41) *fp = 1; else *fp = 0; break;
 					case 10:          *index = 20; break;
 					case 11: case 12: *index = 21; if (x < 41) *fp = 1; else *fp = 0; break;
 				}
-			else
-				switch (y)
+			else switch (y)
 				{
 					case 8:  case 9:  *index = 26; if (x < 67) *fp = 1; else *fp = 0; break;
 					case 10:          *index = 27; if (x < 67) *fp = 1; else *fp = 0; break;
@@ -511,10 +513,11 @@ void analogueInitType(void **state)
 	as->mix.noise = 0;
 }
 
-void analogueWrite(instrument *iv, uint8_t index, FILE *fp)
-{ fwrite(&iv->state[index], sizeof(analogue_state), 1, fp); }
-void analogueRead(instrument *iv, uint8_t index, FILE *fp)
-{ fread(&iv->state[index], sizeof(analogue_state), 1, fp); }
+void analogueWrite(void **state, FILE *fp)
+{ fwrite(*state, sizeof(analogue_state), 1, fp); }
+
+void analogueRead(void **state, FILE *fp)
+{ fread(*state, sizeof(analogue_state), 1, fp); }
 
 void analogueInit(int index)
 {

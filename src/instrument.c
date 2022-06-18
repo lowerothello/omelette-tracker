@@ -324,7 +324,7 @@ int instrumentInput(int input)
 					switch (getchar())
 					{
 						case 'O':
-							previewNote(0, 255);
+							previewNote(0, 255, w->channel);
 							switch (getchar())
 							{
 								case 'P':
@@ -550,7 +550,7 @@ int instrumentInput(int input)
 													|| y < w->instrumentrowoffset - 1
 													|| y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS)
 											{
-												previewNote(0, 255);
+												previewNote(0, 255, w->channel);
 												w->popup = 0;
 												break;
 											}
@@ -612,7 +612,7 @@ int instrumentInput(int input)
 							}
 							break;
 						default:
-							previewNote(0, 255);
+							previewNote(0, 255, w->channel);
 							switch (w->mode)
 							{
 								case 0: case 2: case 4: /* leave the popup */
@@ -841,7 +841,7 @@ int instrumentInput(int input)
 								case '8': w->octave = 8; redraw(); break;
 								case '9': w->octave = 9; redraw(); break;
 								default:
-									previewNote(charToNote(input, w->octave), w->instrument);
+									previewNote(charToNote(input, w->octave), w->instrument, w->channel);
 									break;
 							}
 							break;
@@ -1133,8 +1133,10 @@ int instrumentInput(int input)
 									}
 									if (w->previewsamplestatus == 1)
 									{
-										w->previewchannel.r.note = charToNote(input, w->octave);
-										w->previewchanneltrigger = 3; // trigger the preview sample
+										w->previewnote = charToNote(input, w->octave);
+										w->previewchannel = w->channel;
+										w->previewinst = 255;
+										w->previewtrigger = 3; // trigger the preview sample
 									}
 									break;
 							}

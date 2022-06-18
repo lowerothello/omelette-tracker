@@ -58,11 +58,12 @@ uint8_t charToNote(int key, uint8_t octave)
 	return 0;
 }
 
-void previewNote(uint8_t note, uint8_t inst)
+void previewNote(uint8_t note, uint8_t inst, uint8_t channel)
 {
-	w->previewchannel.r.inst = inst;
-	w->previewchannel.r.note = note;
-	w->previewchanneltrigger = 1;
+	w->previewchannel = channel;
+	w->previewnote = note;
+	w->previewinst = inst;
+	w->previewtrigger = 1;
 }
 
 

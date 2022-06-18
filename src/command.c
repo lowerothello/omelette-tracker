@@ -9,12 +9,13 @@ typedef struct
 	short historyc; /* count of history entries */
 	char historyv[HISTORY_LENGTH][COMMAND_LENGTH + 1]; /* history entries */
 
-	short history; /* current point in history */
-	unsigned short commandptr; /* command char */
-	char error[COMMAND_LENGTH + 1]; /* error code */
-	char prompt[COMMAND_LENGTH + 1]; /* prompt */
-	int (*callback)(char *, unsigned char *); /* (command, mode) mode is *window->mode */
-	void (*keycallback)(char *); /* (command) */
+	short          history;                             /* current point in history */
+	unsigned short commandptr;                          /* command char */
+	char           error[COMMAND_LENGTH + 1];           /* visual error code */
+	char           prompt[COMMAND_LENGTH + 1];          /* prompt */
+	int           (*callback)(char *, unsigned char *); /* (command, mode) mode is *window->mode */
+	void          (*keycallback)(char *);               /* (text) */
+	void          (*tabcallback)(char *);               /* (text) */
 } command_t;
 
 void wordSplit(char *output, char *line, int wordt)
@@ -44,10 +45,17 @@ void wordSplit(char *output, char *line, int wordt)
 	}
 }
 
-void setCommand(command_t *command, int (*callback)(char *, unsigned char *), void (*keycallback)(char *), char historyenabled, char *prompt, char *startvalue)
+void setCommand(command_t *command,
+		int (*callback)(char *, unsigned char *),
+		void (*keycallback)(char *),
+		void (*tabcallback)(char *),
+		char historyenabled,
+		char *prompt,
+		char *startvalue)
 {
 	command->callback = callback;
 	command->keycallback = keycallback;
+	command->tabcallback = tabcallback;
 	if (historyenabled)
 		command->history = 0;
 	else
@@ -118,6 +126,10 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 				*mode = 0;
 				break;
 			}
+		case 9: /* tab */
+			if (command->tabcallback) command->tabcallback(command->historyv[command->historyc]);
+			command->commandptr = strlen(command->historyv[command->historyc]);
+			break;
 		case 10: case 13: /* return */
 			*mode = 0;
 
@@ -155,12 +167,11 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 			break;
 		default:
 			command->historyv[command->historyc][strlen(command->historyv[command->historyc]) + 1] = '\0';
-			for (int i = strlen(command->historyv[command->historyc]); i >= 0; i--)
-			{
-				if      (i >  command->commandptr) command->historyv[command->historyc][i + 1] = command->historyv[command->historyc][i];
-				else if (i == command->commandptr) command->historyv[command->historyc][i] = input;
+			for (int i = strlen(command->historyv[command->historyc]); i > 0; i--)
+				if (i > command->commandptr - 1) command->historyv[command->historyc][i + 1] = command->historyv[command->historyc][i];
 				else break;
-			}
+
+			command->historyv[command->historyc][command->commandptr] = input;
 			command->commandptr++;
 			if (command->keycallback) command->keycallback(command->historyv[command->historyc]);
 			break;

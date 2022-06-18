@@ -51,6 +51,20 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 	}
 }
 
+void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
+{
+	cv->r.inst = inst;
+	cv->r.note = note;
+	cv->portamento = 0;
+	cv->samplepointer = 0;
+	cv->cents = 0.0;
+	cv->gain = 255;
+	cv->sampleoffset = 0;
+	cv->releasepointer = 0;
+	cv->ln_1 = cv->ln_2 = 0.0;
+	cv->rn_1 = cv->rn_2 = 0.0;
+}
+/* ramping */
 void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
 	if (cv->r.note) /* old note, ramp it out */
@@ -63,25 +77,14 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
 	}
 	cv->rampindex = 0; /* set this even if it's not populated */
-	cv->r.inst = inst;
-	cv->r.note = note;
-	cv->portamento = 0;
-	cv->samplepointer = 0;
-	cv->cents = 0.0;
-	cv->gain = 255;
-	cv->sampleoffset = 0;
-	cv->releasepointer = 0;
-	cv->ln_1 = cv->ln_2 = 0.0;
-	cv->rn_1 = cv->rn_2 = 0.0;
+	_triggerNote(cv, note, inst);
 }
 
 
-/* inst==255 for previewinstrument */
+/* inst==255 for off */
 void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, uint8_t inst)
 {
-	instrument *iv;
-	if (inst == 255)                  iv = &p->w->previewinstrument;
-	else if (p->s->instrumenti[inst]) iv = p->s->instrumentv[p->s->instrumenti[inst]];
+	instrument *iv= p->s->instrumentv[p->s->instrumenti[inst]];
 
 	if (cv->cutsamples && p->s->sprp > cv->cutsamples)
 	{
@@ -122,7 +125,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		*p->s->effectoutr = 0.0;
 	}
 
-	if (!cv->mute)
+	if (!cv->mute && inst != 255)
 	{
 		/* mix in ramp data */
 		if (cv->rampindex < cv->rampmax)
@@ -130,11 +133,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 			float rampgain = (float)cv->rampindex / (float)cv->rampmax;
 			*p->s->effectoutl *= rampgain;
 			*p->s->effectoutr *= rampgain;
-			if (inst == 255) /* special case for sample preview */
-			{
-				*p->s->effectoutl += cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain);
-				*p->s->effectoutr += cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - rampgain);
-			} else if (cv->rampinstrument)
+			if (cv->rampinstrument)
 			{
 				instrument *jv = p->s->instrumentv[cv->rampinstrument];
 				jv->outbufferl[fptr] += cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain) * ((cv->rampgain>>4) / 16.0);
@@ -148,11 +147,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		*p->s->effectoutl *= (cv->gain>>4) / 16.0;
 		*p->s->effectoutr *= (cv->gain%16) / 16.0;
 
-		if (inst == 255) /* special case for sample preview */
-		{
-			pb.outl[fptr] += *p->s->effectoutl;
-			pb.outr[fptr] += *p->s->effectoutr;
-		} else if (iv)
+		if (iv)
 		{
 			iv->outbufferl[fptr] += *p->s->effectoutl;
 			iv->outbufferr[fptr] += *p->s->effectoutr;
@@ -160,15 +155,15 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	}
 }
 
-void bendUp(channel *cv, uint32_t spr)
+void bendUp(channel *cv, uint32_t spr, uint32_t count)
 {
-	cv->cents += (12.0 / spr) * (cv->portamentospeed / 255.0);
+	cv->cents += (12.0 / spr) * (cv->portamentospeed / 255.0) * count;
 	while (cv->cents > 0.5)
 	{
 		cv->cents -= 1.0;
 		cv->r.note++;
 	}
-	if (cv->r.note >= cv->portamento && cv->cents >= 0.0)
+	if (cv->r.note > cv->portamento || (cv->r.note == cv->portamento && cv->cents >= 0.0))
 	{
 		cv->cents = 0.0;
 		cv->r.note = cv->portamento;
@@ -176,7 +171,7 @@ void bendUp(channel *cv, uint32_t spr)
 	}
 }
 
-void bendDown(channel *cv, uint32_t spr)
+void bendDown(channel *cv, uint32_t spr, uint32_t count)
 {
 	cv->cents -= (12.0 / spr) * (cv->portamentospeed / 255.0);
 	while (cv->cents < 0.5)
@@ -192,13 +187,142 @@ void bendDown(channel *cv, uint32_t spr)
 	}
 }
 
+void preprocessRow(channel *cv, row r)
+{
+	int m;
+	instrument *iv;
+
+	m = ifMacro(r, 'B');
+	if (m >= 32) // bpm
+		changeBpm(p->s, m);
+
+	m = ifMacro(r, 'C'); /* cut */
+	if (r.note == 255 || (m >= 0 && m>>4 == 0))
+	{
+		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
+			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
+		cv->rampindex = 0;
+		cv->r.note = 0;
+	} else
+	{
+		if (m >= 0 && m%16 != 0) /* cut, don't divide by 0 */
+			cv->cutsamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+
+		if (r.note)
+		{
+			m = ifMacro(r, 'P');
+			if (m >= 0) // portamento
+			{
+				cv->portamento = r.note;
+				cv->portamentospeed = m;
+			} else
+			{
+				m = ifMacro(r, 'D'); /* delay */
+				if (m >= 0 && m>>4 != 0)
+				{
+					cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+					cv->delaynote = r.note;
+					cv->delayinst = r.inst;
+				} else
+					triggerNote(cv, r.note, r.inst);
+			}
+		}
+	}
+
+	m = ifMacro(r, 'M');
+	if (m >= 0) // volume
+		cv->gain = m;
+
+	m = ifMacro(r, 'O');
+	if (m >= 0) // offset
+	{
+		iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+		if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
+		{
+			if (!r.note)
+			{
+				if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+						&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
+				{
+					iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+					if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
+					{
+						/* freewheel to fill up the ramp buffer, potential speed issues? */
+						for (uint16_t i = 0; i < cv->rampmax; i++)
+						{
+							if (!cv->r.note) break;
+							t->f[iv->type].process(iv, cv, cv->samplepointer + i,
+									&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+						}
+					}
+				}
+				cv->rampindex = 0;
+			}
+			cv->sampleoffset = t->f[iv->type].offset(iv, cv, m);
+			cv->samplepointer = 0;
+		}
+	}
+
+	m = ifMacro(r, 'R');
+	if (m >= 0) // retrigger
+	{
+		cv->rtrigpointer = cv->samplepointer;
+		cv->rtrigsamples = (p->s->spr / (m%16)) * ((m<<4) + 1);
+		cv->rtrigblocksize = m<<4;
+	} else if (cv->rtrigsamples)
+	{
+		if (cv->rtrigblocksize)
+			cv->rtrigblocksize--;
+		else
+			cv->rtrigsamples = 0;
+	}
+
+	m = ifMacro(r, 'E');
+	if (m >= 0) // effect mix
+	{
+		iv = p->s->instrumentv[p->s->instrumenti[r.inst]];
+		if (iv && p->s->effectv[m>>4].type)
+		{
+			/* off to on */
+			if (!iv->processsend[cv->effectholdindex] && m%16)
+				lilv_instance_activate(iv->plugininstance[m>>4]);
+			/* on to off */
+			else if (iv->processsend[cv->effectholdindex] && !m%16)
+				lilv_instance_deactivate(iv->plugininstance[m>>4]);
+
+			iv->processsend[m>>4] = m%16;
+			cv->effectholdinst = r.inst;
+			cv->effectholdindex =   m>>4;
+		}
+	} else if (cv->effectholdinst < 255) /* reset the state */
+	{
+		iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
+		if (iv && p->s->effectv[cv->effectholdindex].type)
+		{
+			/* off to on */
+			if (!iv->processsend[cv->effectholdindex] && iv->send[cv->effectholdindex])
+				lilv_instance_activate(iv->plugininstance[cv->effectholdindex]);
+			/* on to off */
+			else if (iv->processsend[cv->effectholdindex] && !iv->send[cv->effectholdindex])
+				lilv_instance_deactivate(iv->plugininstance[cv->effectholdindex]);
+
+			iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
+		}
+		cv->effectholdinst = 255;
+	}
+
+	cv->r.macroc[0] = r.macroc[0];
+	cv->r.macrov[0] = r.macrov[0];
+	cv->r.macroc[1] = r.macroc[1];
+	cv->r.macrov[1] = r.macrov[1];
+}
+
 int process(jack_nframes_t nfptr, void *arg)
 {
 	playbackinfo *p = arg;
 	channel *cv;
 	instrument *iv;
-	row r;
-	int m;
 	portbuffers pb;
 	pb.inl =  jack_port_get_buffer(p->inl, nfptr);
 	pb.inr =  jack_port_get_buffer(p->inr, nfptr);
@@ -265,37 +389,16 @@ int process(jack_nframes_t nfptr, void *arg)
 
 
 
-	if (p->w->previewchanneltrigger) switch (p->w->previewchanneltrigger)
+	if (p->w->previewtrigger) switch (p->w->previewtrigger)
 	{
 		case 1: // start instrument preview
-			if (p->w->previewchannelplay.r.note) /* old note, ramp it out */
-			{
-				instrument *iv = p->s->instrumentv[p->s->instrumenti[p->w->previewchannelplay.r.inst]];
-				if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-						&& p->w->instrumentlocki == p->s->instrumenti[p->w->previewchannelplay.r.inst])
-						&& p->w->previewchannelplay.r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
-						&& t->f[iv->type].process)
-				{
-					ramp(p, &p->w->previewchannelplay, p->s->instrumenti[p->w->previewchannelplay.r.inst], p->w->previewchannelplay.samplepointer);
-					p->w->previewchannelplay.rampindex = 0;
-				}
-			}
-			if (!p->s->instrumentv[p->s->instrumenti[p->w->previewchannel.r.inst]])
-			{
-				p->w->previewchannelplay.r.note = 0;
-				break;
-			}
+			channel *cv = &p->s->channelv[p->w->previewchannel];
+			triggerNote(cv, p->w->previewnote, p->w->previewinst);
+			p->w->previewtrigger++;
+			break;
 		case 3: // start sample preview
-			p->w->previewchannelplay.r = p->w->previewchannel.r;
-			p->w->previewchannelplay.portamento = 0;
-			p->w->previewchannelplay.samplepointer = 0;
-			p->w->previewchannelplay.cents = 0.0;
-			p->w->previewchannelplay.gain = 255;
-			p->w->previewchannelplay.sampleoffset = 0;
-			p->w->previewchannelplay.releasepointer = 0;
-			p->w->previewchannelplay.ln_1 = p->w->previewchannelplay.ln_2 = 0.0;
-			p->w->previewchannelplay.rn_1 = p->w->previewchannelplay.rn_2 = 0.0;
-			p->w->previewchanneltrigger++;
+			// _triggerNote(&p->w->previewchannelplay, p->w->previewnote, p->w->previewinst);
+			p->w->previewtrigger++;
 			break;
 		case 5: // unload sample
 			free(p->w->previewinstrument.sampledata);
@@ -303,8 +406,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			break;
 
 		case 4: // continue sample preview
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				playChannel(fptr, p, pb, &p->w->previewchannelplay, 255);
+			/* for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+				playChannel(fptr, p, pb, &p->w->previewchannelplay, 255); */
 			break;
 	}
 
@@ -341,9 +444,87 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv->rtrigblocksize = 0;
 		}
 
+		/* non-volatile state */
+		/* start at the beginning of the block */
+		uint8_t blockstart = 0;
+		for (uint8_t i = p->s->songp; i >= 0; i--)
+			if (p->s->songi[i] == 255)
+			{
+				blockstart = i + 1;
+				break;
+			}
+
+		/* for each pattern in the block */
+		pattern *pt;
+		channel *cv;
+		for (uint8_t b = blockstart; b < p->s->songp; b++)
+		{
+			pt = p->s->patternv[p->s->patterni[p->s->songi[b]]];
+			/* for each row */
+			for (uint8_t r = 0; r < pt->rowc; r++)
+			{
+				for (uint8_t c = 0; c < p->s->channelc; c++)
+				{
+					cv = &p->s->channelv[c];
+					preprocessRow(cv, pt->rowv[c][r]);
+
+					if (cv->cutsamples && cv->delaysamples)
+					{
+						if (cv->cutsamples > cv->delaysamples)
+						{
+							cv->r.note = 0;
+							cv->cutsamples = 0;
+						} else
+						{
+							_triggerNote(cv, cv->delaynote, cv->delayinst);
+							cv->samplepointer = p->s->spr - cv->samplepointer;
+							cv->delaysamples = 0;
+						}
+					}
+					else if (cv->cutsamples)
+					{
+						cv->r.note = 0;
+						cv->cutsamples = 0;
+					}
+					else if (cv->delaysamples)
+					{
+						_triggerNote(cv, cv->delaynote, cv->delayinst);
+						cv->samplepointer = p->s->spr - cv->samplepointer;
+						cv->delaysamples = 0;
+					} else if (cv->r.note) cv->samplepointer += p->s->spr;
+
+					if (cv->r.note && cv->portamento)
+					{
+						if (cv->r.note == cv->portamento)
+						{ /* fine bend */
+							if (cv->cents < 0.0) bendUp(cv, p->s->spr, p->s->spr);
+							else                 bendDown(cv, p->s->spr, p->s->spr);
+						} else if (cv->r.note < cv->portamento)
+						{ /* bend up */
+							bendUp(cv, p->s->spr, p->s->spr);
+						} else
+						{ /* bend down */
+							bendDown(cv, p->s->spr, p->s->spr);
+						}
+					}
+				}
+			}
+		}
+
 		p->s->playing = PLAYING_CONT;
 	} else if (p->s->playing == PLAYING_PREP_STOP)
 	{
+		/* stop channels */
+		for (uint8_t i = 0; i < p->s->channelc; i++)
+		{
+			if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+					&& p->w->instrumentlocki == p->s->instrumenti[p->s->channelv[i].r.inst]))
+				ramp(p, &p->s->channelv[i],
+						p->s->instrumenti[p->s->channelv[i].r.inst],
+						p->s->channelv[i].samplepointer);
+			p->s->channelv[i].r.note = 0;
+		}
+
 		/* deactivate plugin instances */
 		for (int i = 1; i < p->s->instrumentc; i++)
 		{
@@ -364,15 +545,10 @@ int process(jack_nframes_t nfptr, void *arg)
 	}
 
 
-	/* play back the instrument preview */
+	/* loop over samples */
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-		playChannel(fptr, p, pb, &p->w->previewchannelplay,
-				p->w->previewchannelplay.r.inst);
-
-	if (p->s->playing == PLAYING_CONT)
 	{
-		/* loop over samples */
-		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+		if (p->s->playing == PLAYING_CONT)
 		{
 			/* record */
 			if (p->w->instrumentrecv == INST_REC_LOCK_CONT)
@@ -398,221 +574,88 @@ int process(jack_nframes_t nfptr, void *arg)
 
 			/* preprocess the channel */
 			if (p->s->sprp == 0)
-			{
 				for (uint8_t c = 0; c < p->s->channelc; c++)
-				{
-					r = p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr];
-					cv = &p->s->channelv[c];
+					preprocessRow(&p->s->channelv[c],
+							p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr]);
+		}
 
-					m = ifMacro(r, 'B');
-					if (m >= 32) // bpm
-						changeBpm(p->s, m);
-
-					m = ifMacro(r, 'C'); /* cut */
-					if (r.note == 255 || (m >= 0 && m>>4 == 0))
-					{
-						if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-								&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
-							ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
-						cv->rampindex = 0;
-						cv->r.note = 0;
-					} else
-					{
-						if (m >= 0 && m%16 != 0) /* cut, don't divide by 0 */
-							cv->cutsamples = p->s->spr * (float)(m>>4) / (float)(m%16);
-
-						if (r.note)
-						{
-							m = ifMacro(r, 'P');
-							if (m >= 0) // portamento
-							{
-								cv->portamento = r.note;
-								cv->portamentospeed = m;
-							} else
-							{
-								m = ifMacro(r, 'D'); /* delay */
-								if (m >= 0 && m>>4 != 0)
-								{
-									cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
-									cv->delaynote = r.note;
-									cv->delayinst = r.inst;
-								} else
-									triggerNote(cv, r.note, r.inst);
-							}
-						}
-					}
-
-					m = ifMacro(r, 'M');
-					if (m >= 0) // volume
-						cv->gain = m;
-
-					m = ifMacro(r, 'O');
-					if (m >= 0) // offset
-					{
-						iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-						if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
-						{
-							if (!r.note)
-							{
-								if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-										&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
-								{
-									iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-									if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
-									{
-										/* freewheel to fill up the ramp buffer, potential speed issues? */
-										for (uint16_t i = 0; i < cv->rampmax; i++)
-										{
-											if (!cv->r.note) break;
-											t->f[iv->type].process(iv, cv, cv->samplepointer + i,
-													&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-										}
-									}
-								}
-								cv->rampindex = 0;
-							}
-							cv->sampleoffset = t->f[iv->type].offset(iv, cv, m);
-							cv->samplepointer = 0;
-						}
-					}
-
-					m = ifMacro(r, 'R');
-					if (m >= 0) // retrigger
-					{
-						cv->rtrigpointer = cv->samplepointer;
-						cv->rtrigsamples = (p->s->spr / (m%16)) * ((m<<4) + 1);
-						cv->rtrigblocksize = m<<4;
-					} else if (cv->rtrigsamples)
-					{
-						if (cv->rtrigblocksize)
-							cv->rtrigblocksize--;
-						else
-							cv->rtrigsamples = 0;
-					}
-
-					m = ifMacro(r, 'E');
-					if (m >= 0) // effect mix
-					{
-						iv = p->s->instrumentv[p->s->instrumenti[r.inst]];
-						if (iv && p->s->effectv[m>>4].type)
-						{
-							/* off to on */
-							if      (!iv->processsend[cv->effectholdindex] && m%16)
-								lilv_instance_activate(iv->plugininstance[    m>>4]);
-							/* on to off */
-							else if (iv->processsend[cv->effectholdindex] && !m%16)
-								lilv_instance_deactivate(iv->plugininstance[  m>>4]);
-
-							iv->processsend[m>>4] = m%16;
-							cv->effectholdinst = r.inst;
-							cv->effectholdindex =   m>>4;
-						}
-					} else if (cv->effectholdinst < 255) /* reset the state */
-					{
-						iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
-						if (iv && p->s->effectv[cv->effectholdindex].type)
-						{
-							/* off to on */
-							if      (!iv->processsend[cv->effectholdindex] && iv->send[cv->effectholdindex])
-								lilv_instance_activate(iv->plugininstance[cv->effectholdindex]);
-							/* on to off */
-							else if (iv->processsend[cv->effectholdindex] && !iv->send[cv->effectholdindex])
-								lilv_instance_deactivate(iv->plugininstance[cv->effectholdindex]);
-
-							iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
-						}
-						cv->effectholdinst = 255;
-					}
-
-					cv->r.macroc[0] = r.macroc[0];
-					cv->r.macrov[0] = r.macrov[0];
-					cv->r.macroc[1] = r.macroc[1];
-					cv->r.macrov[1] = r.macrov[1];
-				}
-			}
-
-
-			for (uint8_t c = 0; c < p->s->channelc; c++)
+		for (uint8_t c = 0; c < p->s->channelc; c++)
+		{
+			cv = &p->s->channelv[c];
+			if (p->s->playing == PLAYING_CONT && cv->portamento)
 			{
-				cv = &p->s->channelv[c];
-
-				if (cv->portamento)
-				{
-					if (cv->r.note == cv->portamento)
-					{ /* fine bend */
-						if (cv->cents < 0.0) bendUp(cv, p->s->spr);
-						else                 bendDown(cv, p->s->spr);
-					} else if (cv->r.note < cv->portamento)
-					{ /* bend up */
-						bendUp(cv, p->s->spr);
-					} else
-					{ /* bend down */
-						bendDown(cv, p->s->spr);
-					}
-				}
-
-				playChannel(fptr, p, pb, cv, cv->r.inst);
-			}
-
-
-			/* next row */
-			if (p->s->sprp++ > p->s->spr)
-			{
-				p->s->sprp = 0;
-				/* next pattern */
-				if (p->s->songr++ >= p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowc)
-				{
-					p->s->songr = 0;
-					if (p->w->songfx == p->s->songp)
-					{
-						p->w->trackerfy = 0;
-						p->dirty = 1;
-					}
-					
-					if (p->w->songnext)
-					{
-						if (p->w->songfx == p->s->songp)
-						{
-							p->w->songfx = p->w->songnext - 1;
-							p->dirty = 1;
-						}
-						p->s->songp = p->w->songnext - 1;
-						p->w->songnext = 0;
-					} else if (p->s->songa[p->s->songp]) /* loop */
-					{
-						/* do nothing, don't inc the song pointer */
-					} else if (p->s->songi[p->s->songp + 1] == 255)
-					{ /* no next pattern, go to the beginning of the block */
-						uint8_t blockstart = 0;
-						for (uint8_t i = p->s->songp; i >= 0; i--)
-							if (p->s->songi[i] == 255)
-							{
-								blockstart = i + 1;
-								break;
-							}
-
-						if (p->w->songfx == p->s->songp)
-						{
-							p->w->songfx = blockstart;
-							p->dirty = 1;
-						}
-						p->s->songp = blockstart;
-					} else
-					{
-						if (p->w->songfx == p->s->songp)
-						{
-							p->w->songfx++;
-							p->dirty = 1;
-						}
-						p->s->songp++;
-					}
+				if (cv->r.note == cv->portamento)
+				{ /* fine bend */
+					if (cv->cents < 0.0) bendUp(cv, p->s->spr, 1);
+					else                 bendDown(cv, p->s->spr, 1);
+				} else if (cv->r.note < cv->portamento)
+				{ /* bend up */
+					bendUp(cv, p->s->spr, 1);
 				} else
+				{ /* bend down */
+					bendDown(cv, p->s->spr, 1);
+				}
+			}
+			playChannel(fptr, p, pb, cv, cv->r.inst);
+		}
+
+		/* next row */
+		if (p->s->playing == PLAYING_CONT && p->s->sprp++ > p->s->spr)
+		{
+			p->s->sprp = 0;
+			/* next pattern */
+			if (p->s->songr++ >= p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowc)
+			{
+				p->s->songr = 0;
+				if (p->w->songfx == p->s->songp)
+				{
+					p->w->trackerfy = 0;
+					p->dirty = 1;
+				}
+				
+				if (p->w->songnext)
+				{
 					if (p->w->songfx == p->s->songp)
 					{
-						p->w->trackerfy = p->s->songr;
+						p->w->songfx = p->w->songnext - 1;
 						p->dirty = 1;
 					}
-			}
+					p->s->songp = p->w->songnext - 1;
+					p->w->songnext = 0;
+				} else if (p->s->songa[p->s->songp]) /* loop */
+				{
+					/* do nothing, don't inc the song pointer */
+				} else if (p->s->songi[p->s->songp + 1] == 255)
+				{ /* no next pattern, go to the beginning of the block */
+					uint8_t blockstart = 0;
+					for (uint8_t i = p->s->songp; i >= 0; i--)
+						if (p->s->songi[i] == 255)
+						{
+							blockstart = i + 1;
+							break;
+						}
+
+					if (p->w->songfx == p->s->songp)
+					{
+						p->w->songfx = blockstart;
+						p->dirty = 1;
+					}
+					p->s->songp = blockstart;
+				} else
+				{
+					if (p->w->songfx == p->s->songp)
+					{
+						p->w->songfx++;
+						p->dirty = 1;
+					}
+					p->s->songp++;
+				}
+			} else
+				if (p->w->songfx == p->s->songp)
+				{
+					p->w->trackerfy = p->s->songr;
+					p->dirty = 1;
+				}
 		}
 	}
 

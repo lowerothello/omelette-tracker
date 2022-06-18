@@ -55,6 +55,20 @@ void changeMacro(int input, char *dest)
 		case 'p': *dest = 'P'; break;
 		case 'r': *dest = 'R'; break;
 		case 's': *dest = 'S'; break;
+
+		/* effects */
+		case 'A': *dest = 'a'; break;
+		case 'B': *dest = 'b'; break;
+		case 'C': *dest = 'c'; break;
+		case 'F': *dest = 'f'; break;
+		case 'G': *dest = 'g'; break;
+		case 'H': *dest = 'h'; break;
+		case 'L': *dest = 'l'; break;
+		case 'P': *dest = 'p'; break;
+		case 'R': *dest = 'r'; break;
+		case 'S': *dest = 's'; break;
+		case 'V': *dest = 'v'; break;
+		case 'W': *dest = 'w'; break;
 	}
 }
 
@@ -525,7 +539,7 @@ int trackerInput(int input)
 			redraw();
 			break;
 		case '\033': /* escape */
-			previewNote(0, 255);
+			previewNote(0, 255, w->channel);
 			switch (getchar())
 			{
 				case 'O':
@@ -1059,7 +1073,7 @@ int trackerInput(int input)
 											r->note--;
 											break;
 										case ' ': /* space */
-											previewNote(255, 0);
+											previewNote(255, 255, w->channel);
 											r->note = 255;
 											w->trackerfy += w->step;
 											if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
@@ -1072,7 +1086,7 @@ int trackerInput(int input)
 											}
 											break;
 										case 127: case 8: /* backspace */
-											previewNote(0, 0);
+											previewNote(0, 255, w->channel);
 											r->note = 0;
 											r->inst = 255;
 											w->trackerfy -= w->step;
@@ -1101,7 +1115,7 @@ int trackerInput(int input)
 											{
 												r->note = note;
 												r->inst = w->instrument;
-												previewNote(note, r->inst);
+												previewNote(note, r->inst, w->channel);
 											}
 											w->trackerfy += w->step;
 											if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)

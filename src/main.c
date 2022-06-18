@@ -133,6 +133,17 @@ void redraw(void)
 	fflush(stdout);
 }
 
+void commandTabCallback(char *text)
+{
+	char *buffer = malloc(strlen(text) + 1);
+	wordSplit(buffer, text, 0);
+	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %02x", s->bpm);
+	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows %02x", s->patternv[s->patterni[s->songi[w->songfx]]]->rowc);
+	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight %02x", s->rowhighlight);
+	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step %02x", w->step);
+	else if (!strcmp(buffer, "octave")) snprintf(text, COMMAND_LENGTH + 1, "octave %d", w->octave);
+	free(buffer);
+}
 int commandCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
@@ -156,24 +167,24 @@ int commandCallback(char *command, unsigned char *mode)
 		wordSplit(buffer, command, 1);
 		char update = 0;
 		if (s->songbpm == s->bpm) update = 1;
-		s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
+		s->songbpm = MIN(MAX(strtol(buffer, NULL, 16), 32), 255);
 		if (update) w->request = REQ_BPM;
 	} else if (!strcmp(buffer, "rows")) /* pattern length */
 	{
 		wordSplit(buffer, command, 1);
 		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfx]]];
-		pattern->rowc = strtol(buffer, NULL, 0);
+		pattern->rowc = strtol(buffer, NULL, 16);
 		s->defpatternlength = pattern->rowc;
 		if (w->trackerfy > pattern->rowc)
 			w->trackerfy = pattern->rowc;
 	} else if (!strcmp(buffer, "highlight")) /* row highlight */
 	{
 		wordSplit(buffer, command, 1);
-		s->rowhighlight = strtol(buffer, NULL, 0);
+		s->rowhighlight = strtol(buffer, NULL, 16);
 	} else if (!strcmp(buffer, "step"))
 	{
 		wordSplit(buffer, command, 1);
-		w->step = strtol(buffer, NULL, 0);
+		w->step = strtol(buffer, NULL, 16);
 	} else if (!strcmp(buffer, "octave"))
 	{
 		wordSplit(buffer, command, 1);
@@ -219,7 +230,7 @@ int input(void)
 			redraw();
 		} else if (input == ':') /* enter command mode */
 		{
-			setCommand(&w->command, &commandCallback, NULL, 1, ":", "");
+			setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
 			w->mode = 255;
 			redraw();
 		} else if (input == 7) /* ^G, show file info */
@@ -405,10 +416,6 @@ int main(int argc, char **argv)
 	jack_activate(client);
 
 
-	_addChannel(&w->previewchannel);
-	w->previewchannel.gain = 255;
-	_addChannel(&w->previewchannelplay);
-	w->previewchannelplay.gain = 255;
 	w->previewinstrument.type = 0;
 	w->previewinstrument.state[0] = malloc(sizeof(sampler_state));
 	if (!w->previewinstrument.state)
@@ -569,7 +576,7 @@ int main(int argc, char **argv)
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
-		req.tv_nsec = 10000000; // wait ~>10ms
+		req.tv_nsec = 16666666; // wait ~>16.8ms (60hz)
 		while(nanosleep(&req, &req) < 0);
 	}
 
