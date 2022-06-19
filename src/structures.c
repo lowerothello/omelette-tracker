@@ -217,7 +217,6 @@ typedef struct
 		void           (*input)(int *);
 		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
 		uint32_t       (*offset)(instrument *, channel *, int);
-		uint8_t        (*getOffset)(instrument *, channel *);
 		void           (*initType)(void **);
 		void           (*write)(void **, FILE *fp);
 		void           (*read)(void **, FILE *fp);

@@ -814,14 +814,6 @@ uint32_t samplerOffset(instrument *iv, channel *cv, int m)
 	return ss->trim[0] + m / 255.0 * (ss->trim[1] - ss->trim[0]);
 }
 
-
-uint8_t samplerGetOffset(instrument *iv, channel *cv)
-{
-	if (!cv->r.note) return 0;
-	sampler_state *ss = iv->state[iv->type];
-	return (cv->samplepointer - ss->trim[0]) / (float)(ss->trim[1] - ss->trim[0]) * 255.0;
-}
-
 /* called when state's type is changed to this file's */
 void samplerInitType(void **state)
 {
@@ -853,7 +845,6 @@ void samplerInit(int index)
 	t->f[index].input = &samplerInput;
 	t->f[index].process = &samplerProcess;
 	t->f[index].offset = &samplerOffset;
-	t->f[index].getOffset = &samplerGetOffset;
 	t->f[index].initType = &samplerInitType;
 	t->f[index].write = &samplerWrite;
 	t->f[index].read = &samplerRead;

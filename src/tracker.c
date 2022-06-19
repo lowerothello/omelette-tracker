@@ -78,7 +78,7 @@ int drawPatternLineNumbers(uint8_t pattern)
 
 	for (int i = 0; i <= s->patternv[s->patterni[pattern]]->rowc; i++)
 	{
-		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row - 1)
+		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, w->trackercelloffset);
 			printf("%02x", i);
@@ -133,7 +133,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 	for (i = 0; i <= s->patternv[s->patterni[s->songi[w->songfx]]]->rowc; i++)
 	{
-		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row - 1)
+		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
 
@@ -331,11 +331,11 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 			c++;
 		}
 	}
-	if (w->centre - w->trackerfy + s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1 < ws.ws_row - 1
+	if (w->centre - w->trackerfy + s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1 < ws.ws_row
 		&& w->songfx < 254 && s->songi[w->songfx + 1] != 255)
 	{
 		c = 0;
-		for (i = w->centre - w->trackerfy + s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1; i < ws.ws_row - 1; i++)
+		for (i = w->centre - w->trackerfy + s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1; i < ws.ws_row; i++)
 		{
 			if (c > s->patternv[s->patterni[s->songi[w->songfx + 1]]]->rowc) break;
 			printf("\033[%d;%dH\033[2m", i, x);
@@ -363,15 +363,6 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 		}
 	}
 
-	if (s->playing && s->channelv[channel].r.inst < 255 && s->instrumenti[s->channelv[channel].r.inst])
-	{
-		instrument *iv = s->instrumentv[s->instrumenti[s->channelv[channel].r.inst]];
-		if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].getOffset != NULL)
-			printf("\033[%d;%dHO%02x", ws.ws_row - 1, x + 5, t->f[iv->type].getOffset(iv, &s->channelv[channel]));
-		else
-			printf("\033[%d;%dHO00", ws.ws_row - 1, x + 5);
-	} else printf("\033[%d;%dHO00", ws.ws_row - 1, x + 5);
-	
 	return 0;
 }
 
@@ -790,7 +781,7 @@ int trackerInput(int input)
 										break;
 									}
 
-									if (y > ws.ws_row - 2) break; /* ignore clicking out of range */
+									if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
 									if (s->songi[w->songfx] == 255) break;
 
 									/* channel row, for mute/solo */
