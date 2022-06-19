@@ -6,12 +6,27 @@
 #define MAX_RESONANCE 0.0 /* lower numbers are harsher */
 #define MAX_CUTOFF 12000
 
-#define FM_DEPTH 2 /* fase modulation depth */
+#define PM_DEPTH 2 /* phase modulation depth */
+
+
 
 /* https://www.musicdsp.org/en/latest/Synthesis/216-fast-whitenoise-generator.html */
-const float g_fScale = 2.0f / 0xffffffff;
-int g_x1 = 0x67452301;
-int g_x2 = 0xefcdab89;
+const float wnoisescale = 2.0f / 0xffffffff;
+typedef struct { int x1, x2; } wnoise;
+void initWnoise(wnoise *w)
+{
+	w->x1 = 0x67452301;
+	w->x2 = 0xefcdab89;
+}
+float getWnoise(wnoise *w)
+{
+	w->x1 ^= w->x2;
+	float out = w->x2 * wnoisescale;
+	w->x2 += w->x1;
+	return out;
+}
+
+
 
 typedef struct
 {
@@ -133,61 +148,114 @@ float xSin(double x)
 	return (float)y;
 }
 
-void drawWave(char wave)
+void drawWave(char wave, unsigned short y, unsigned short x, char adjust)
 {
 	switch (wave)
 	{
-		case 0:  printf("[   tri]"); break;
-		case 1:  printf("[   saw]"); break;
-		case 2:  printf("[  ramp]"); break;
-		case 3:  printf("[square]"); break;
-		case 4:  printf("[  sine]"); break;
-		default: printf("[ ?????]"); break;
+		case 0:
+			if (adjust)
+			{
+				printf("\033[%d;%dH [   tri] ", y+0, x);
+				printf("\033[%d;%dH     saw  ", y+1, x);
+				printf("\033[%d;%dH    ramp  ", y+2, x);
+				printf("\033[%d;%dH  square  ", y+3, x);
+				printf("\033[%d;%dH    sine  ", y+4, x);
+			} else printf("\033[%d;%dH [   tri] ", y+0, x);
+			break;
+		case 1:
+			if (adjust)
+			{
+				printf("\033[%d;%dH     tri  ", y-1, x);
+				printf("\033[%d;%dH [   saw] ", y+0, x);
+				printf("\033[%d;%dH    ramp  ", y+1, x);
+				printf("\033[%d;%dH  square  ", y+2, x);
+				printf("\033[%d;%dH    sine  ", y+3, x);
+			} else printf("\033[%d;%dH [   saw] ", y+0, x);
+			break;
+		case 2:
+			if (adjust)
+			{
+				printf("\033[%d;%dH     tri  ", y-2, x);
+				printf("\033[%d;%dH     saw  ", y-1, x);
+				printf("\033[%d;%dH [  ramp] ", y+0, x);
+				printf("\033[%d;%dH  square  ", y+1, x);
+				printf("\033[%d;%dH    sine  ", y+2, x);
+			} else printf("\033[%d;%dH [  ramp] ", y+0, x);
+			break;
+		case 3:
+			if (adjust)
+			{
+				printf("\033[%d;%dH     tri  ", y-3, x);
+				printf("\033[%d;%dH     saw  ", y-2, x);
+				printf("\033[%d;%dH    ramp  ", y-1, x);
+				printf("\033[%d;%dH [square] ", y+0, x);
+				printf("\033[%d;%dH    sine  ", y+1, x);
+			} else printf("\033[%d;%dH [square] ", y+0, x);
+			break;
+		case 4:
+			if (adjust)
+			{
+				printf("\033[%d;%dH     tri  ", y-4, x);
+				printf("\033[%d;%dH     saw  ", y-3, x);
+				printf("\033[%d;%dH    ramp  ", y-2, x);
+				printf("\033[%d;%dH  square  ", y-1, x);
+				printf("\033[%d;%dH [  sine] ", y+0, x);
+			} else printf("\033[%d;%dH [  sine] ", y+0, x);
+			break;
 	}
 }
-void drawFilterType(char type)
+void drawFilterType(char type, unsigned short y, unsigned short x, char adjust)
 {
 	switch (type)
 	{
-		case 0:  printf("[ low]"); break;
-		case 1:  printf("[high]"); break;
+		case 0:
+			if (adjust)
+			{
+				printf("\033[%d;%dH[ low]", y+0, x);
+				printf("\033[%d;%dH high ", y+1, x);
+			} else printf("\033[%d;%dH[ low]", y+0, x);
+			break;
+		case 1:
+			if (adjust)
+			{
+				printf("\033[%d;%dH  low ", y-1, x);
+				printf("\033[%d;%dH[high]", y+0, x);
+			} else printf("\033[%d;%dH[high]", y+0, x);
+			break;
 		// case 2:  printf("[band]"); break;
-		default: printf("[????]"); break;
 	}
 }
 
 
-void adsrEnvelope(adsr env, float *gain,
+/* curve 0: linear */
+/* curve 1: exponential */
+float adsrEnvelope(adsr env, float curve,
 		uint32_t pointer,
 		uint32_t releasepointer)
 {
+	float linear;
 	if (releasepointer && releasepointer < pointer)
 	{ /* release */
-		if (env.r)
-		{
-			uint32_t releaselength = env.r * ENVELOPE_RELEASE * samplerate;
-			if (pointer - releasepointer < releaselength)
-				*gain *= 1.0 - (float)(pointer - releasepointer)
-					/ (float)releaselength * env.s / 255.0;
-			else { gain = NULL; return; }
-		} else { gain = NULL; return; }
-	}
-
-	uint32_t attacklength = env.a * ENVELOPE_ATTACK * samplerate;
-	uint32_t decaylength = env.d * ENVELOPE_DECAY * samplerate;
-	if (pointer < attacklength)
-	{ /* attack */
-		*gain *= (float)pointer / (float)attacklength;
-		/* attack straight to sustain if there's no decay stage */
-		if (!env.d) *gain *= env.s / 255.0;
-	} else if (env.s < 255 && pointer < attacklength + decaylength)
-	{ /* decay */
-		*gain *= 1.0 - (float)(pointer - attacklength)
-			/ (float)decaylength * (1.0 - env.s / 255.0);
+		uint32_t releaselength = env.r * ENVELOPE_RELEASE * samplerate;
+		linear = 1.0 - (float)MIN(pointer - releasepointer, releaselength)
+			/ (float)releaselength * env.s / 255.0;
 	} else
-	{ /* sustain */
-		*gain *= env.s / 255.0;
+	{
+		uint32_t attacklength = env.a * ENVELOPE_ATTACK * samplerate;
+		uint32_t decaylength = env.d * ENVELOPE_DECAY * samplerate;
+		if (pointer < attacklength)
+		{ /* attack */
+			linear = (float)pointer / (float)attacklength;
+			/* ramp to sustain if there's no decay stage */
+			if (!env.d) linear *= env.s / 255.0;
+		} else if (env.s < 255 && pointer < attacklength + decaylength)
+		{ /* decay */
+			linear = 1.0 - (float)(pointer - attacklength)
+				/ (float)decaylength * env.s / 255.0;
+		} else linear = env.s / 255.0; /* sustain */
 	}
+	/* lerp between linear and exponential */
+	return linear + (powf(2.0, linear) - 1.0 - linear) * curve;
 }
 
 /* phase is modulod to 0-1 */

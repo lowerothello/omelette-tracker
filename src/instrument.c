@@ -124,7 +124,12 @@ void instrumentRedraw(void)
 
 				if (w->popup == 1 && iv->typefollow == iv->type
 						&& iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
-					t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, w->fieldpointer);
+				{
+					if (w->mode > 1 && w->mode < 6)
+						t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, 1);
+					else
+						t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, 0);
+				}
 
 				switch (w->instrumentindex)
 				{
@@ -346,7 +351,7 @@ int instrumentInput(int input)
 												if (w->instrumentindex >= 0
 														&& iv && iv->type < INSTRUMENT_TYPE_COUNT
 														&& t->f[iv->type].endFieldPointer)
-													t->f[iv->type].endFieldPointer(&w->fieldpointer, w->instrumentindex);
+													t->f[iv->type].endFieldPointer(w->instrumentindex);
 												break;
 										}
 									}
@@ -382,7 +387,7 @@ int instrumentInput(int input)
 												if (w->instrumentindex >= 0
 														&& iv && iv->type < INSTRUMENT_TYPE_COUNT
 														&& t->f[iv->type].endFieldPointer)
-													t->f[iv->type].endFieldPointer(&w->fieldpointer, w->instrumentindex);
+													t->f[iv->type].endFieldPointer(w->instrumentindex);
 												break;
 										}
 									}
@@ -406,7 +411,7 @@ int instrumentInput(int input)
 										default:
 											if (iv && iv->type < INSTRUMENT_TYPE_COUNT
 													&& t->f[iv->type].decFieldPointer)
-												t->f[iv->type].decFieldPointer(&w->fieldpointer, w->instrumentindex);
+												t->f[iv->type].decFieldPointer(w->instrumentindex);
 											break;
 									}
 									redraw();
@@ -429,7 +434,7 @@ int instrumentInput(int input)
 										default:
 											if (iv && iv->type < INSTRUMENT_TYPE_COUNT
 													&& t->f[iv->type].incFieldPointer)
-												t->f[iv->type].incFieldPointer(&w->fieldpointer, w->instrumentindex);
+												t->f[iv->type].incFieldPointer(w->instrumentindex);
 											break;
 									}
 									redraw();
@@ -481,7 +486,7 @@ int instrumentInput(int input)
 										default:
 											if (iv && iv->type < INSTRUMENT_TYPE_COUNT
 													&& t->f[iv->type].endFieldPointer)
-												t->f[iv->type].endFieldPointer(&w->fieldpointer, w->instrumentindex);
+												t->f[iv->type].endFieldPointer(w->instrumentindex);
 											break;
 									}
 									redraw();
@@ -543,7 +548,7 @@ int instrumentInput(int input)
 																y - w->instrumentrowoffset - 5,
 																x - w->instrumentcelloffset - 2,
 																button,
-																&w->instrumentindex, &w->fieldpointer);
+																&w->instrumentindex);
 													break;
 											}
 

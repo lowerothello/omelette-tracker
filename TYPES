@@ -2,48 +2,46 @@ STAGING DESIGNS
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
 │                                                                              │
 │   type   [00]                                                                │
-│   fader  [ff]                                                                │
+│   fader  [88]                                                                │
 │                                                                              │
-│┌────────────────────────── [sampler (no sample)] ───────────────────────────┐│
+│┌──────────────────────────────── [sampler] ─────────────────────────────────┐│
 ││                                                                            ││
-││    C-5 rate    [00000000]  │     TRIM         LOOP     │    AMPLIFIER      ││
-││    fixed tempo        [ ]  │  [00000000]   [00000000]  │  attack   [00]    ││
-││    ────────────────────────┤  [00000000]   [00000000]  │  decay    [00]    ││
-││         TIME STRETCH       │   0% -> 0%     0% -> 0%   │  sustain  [ff]    ││
-││    algorithm     [cyclic]  │                           │  release  [00]    ││
-││    grain size      [06ff]  │  loop ramping        [ ]  │                   ││
-││                                                                            ││
-││                                                                            ││
-││                                                                            ││
-││                                                                            ││
-││                                                                            ││
+││                      GENERAL         │       AMPLIFIER                     ││
+││              C-5 rate     [00000000] │ attack           [00]               ││
+││         TODO samplerate         [ff] │ decay            [00]               ││
+││              mono/8-bit       [ ][ ] │ sustain          [ff]               ││
+││              unsigned            [ ] │ release          [00]               ││
+││              invert phase        [ ] ├──────────────────────               ││
+││              ────────────────────────┤    TRIM       LOOP                  ││
+││                    TIMESTRETCH       │ [00000000] [00000000]               ││
+││              persistent tempo    [ ] │ [00000000] [00000000]               ││
+││              cycle length     [06ff] │   00->ff     00->00                 ││
+││         TODO quantize cycles     [ ] │ loop ramping      [X]               ││
 ││                                                                            ││
 ││                                                                            ││
 │└────────────────────────────────────────────────────────────────────────────┘│
-│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
 │                                                                              │
-│   type   [00]                                                                │
-│   fader  [ff]                                                                │
+│   type   [01]                                                                │
+│   fader  [88]                                                                │
 │                                                                              │
 │┌──────────────────────────── [virtual analogue] ────────────────────────────┐│
 ││         OSCILLATOR 1    │           FILTER          │    AMPLIFIER         ││
-││       wave    [   saw]  │  type    [ low]    a[00]  │  attack   [00]       ││
-││       fm/am   [00][00]  │  cutoff    [ff]    d[00]  │  decay    [00]       ││
+││       wave    [   tri]  │  type    [ low]    a[00]  │  attack   [00]       ││
+││       pm/am   [00][00]  │  cutoff    [ff]    d[00]  │  decay    [00]       ││
 ││       ──────────────────┤  resonance [00]    s[ff]  │  sustain  [ff]       ││
 ││         OSCILLATOR 2    │  lfo mod   [00]    r[00]  │  release  [00]       ││
-││       wave    [   saw]  │  keyboard tracking   [ ]  │                      ││
+││       wave    [   tri]  │  keyboard tracking   [ ]  │                      ││
 ││       oct/det [+0][7f]  ├───────────────────┬───────┴───────────────       ││
-││       fm/am   [00][00]  │        LFO        │          MIXER               ││
-││       ──────────────────┤  rate       [7f]  │  oscillator 1     [ff]       ││
-││        SUB OSCILLATOR   │  wave   [   tri]  │  oscillator 2     [ff]       ││
-││       wave    [square]  │  pwm        [00]  │  sub oscillator   [00]       ││
+││       pm/am   [00][00]  │        LFO        │          MIXER               ││
+││       ──────────────────┤  rate       [7f]  │  oscillator 1     [7f]       ││
+││        SUB OSCILLATOR   │  wave   [   tri]  │  oscillator 2     [7f]       ││
+││       wave    [  sine]  │  pwm        [00]  │  sub oscillator   [00]       ││
 ││       octave      [-1]  │                   │  noise            [00]       ││
 ││                                                                            ││
-││                 multi [00]     detune [00]     stereo [00]                 ││
+││                  multi [0]     detune [00]     stereo [0]                  ││
 │└────────────────────────────────────────────────────────────────────────────┘│
-│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
 vim: sidescrolloff=0

@@ -106,10 +106,10 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	{
 		if (cv->rtrigsamples > 0 && inst < 255)
 		{
-			uint8_t oldnote = cv->r.note;
+			uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
 			uint32_t rtrigoffset = (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples;
-			if (rtrigoffset == 0 && cv->samplepointer > cv->rtrigpointer) /* first sample */
-			{
+			if (rtrigoffset == 0 && cv->samplepointer > cv->rtrigpointer)
+			{ /* first sample of any retrigger but the first */
 				ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
 				cv->rampindex = 0;
 			}
@@ -217,7 +217,7 @@ void preprocessRow(channel *cv, row r)
 			} else
 			{
 				m = ifMacro(r, 'D'); /* delay */
-				if (m >= 0 && m>>4 != 0)
+				if (m >= 0 && m%16 != 0)
 				{
 					cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
 					cv->delaynote = r.note;
@@ -232,42 +232,12 @@ void preprocessRow(channel *cv, row r)
 	if (m >= 0) // volume
 		cv->gain = m;
 
-	m = ifMacro(r, 'O');
-	if (m >= 0) // offset
-	{
-		iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-		if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].offset != NULL)
-		{
-			if (!r.note)
-			{
-				if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-						&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
-				{
-					iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-					if (cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process != NULL)
-					{
-						/* freewheel to fill up the ramp buffer, potential speed issues? */
-						for (uint16_t i = 0; i < cv->rampmax; i++)
-						{
-							if (!cv->r.note) break;
-							t->f[iv->type].process(iv, cv, cv->samplepointer + i,
-									&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
-						}
-					}
-				}
-				cv->rampindex = 0;
-			}
-			cv->sampleoffset = t->f[iv->type].offset(iv, cv, m);
-			cv->samplepointer = 0;
-		}
-	}
-
 	m = ifMacro(r, 'R');
-	if (m >= 0) // retrigger
+	if (m >= 0 && m%16 != 0) // retrigger
 	{
 		cv->rtrigpointer = cv->samplepointer;
-		cv->rtrigsamples = (p->s->spr / (m%16)) * ((m<<4) + 1);
-		cv->rtrigblocksize = m<<4;
+		cv->rtrigsamples = (p->s->spr / (m%16)) * ((m>>4) + 1);
+		cv->rtrigblocksize = m>>4;
 	} else if (cv->rtrigsamples)
 	{
 		if (cv->rtrigblocksize)
@@ -275,6 +245,25 @@ void preprocessRow(channel *cv, row r)
 		else
 			cv->rtrigsamples = 0;
 	}
+
+	/* type macros */
+	/* only 1 allowed per row */
+	uint8_t num;
+	m = -1;
+
+	if (isdigit(r.macroc[0]))
+	{ num = r.macroc[0] - 48; m = r.macrov[0]; }
+	else if (isdigit(r.macroc[1]))
+	{ num = r.macroc[1] - 48; m = r.macrov[1]; }
+
+	if (m >= 0)
+	{
+		iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+		if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].macro)
+			t->f[iv->type].macro(iv, cv, r, num, m);
+	}
+
+
 
 	cv->r.macroc[0] = r.macroc[0];
 	cv->r.macrov[0] = r.macrov[0];

@@ -56,7 +56,8 @@ int fl;
 #define LFO_MAX 0.005
 /* </seconds> */
 
-#define RAMP_MS 3 /* only up to about 300 is safe at high sample rates */
+#define RAMP_MS 2 /* only up to about 300 is safe at high sample rates */
+#define LOOP_RAMP_MS 50 /* will auto-lower to half the loop range */
 #define TIMESTRETCH_RAMP_MS 10
 
 #define INST_HISTDEPTH 128 /* ~2(?)>INST_HISTDEPTH>=128 */

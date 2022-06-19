@@ -43,8 +43,9 @@ typedef struct
 	sample_t *stretchrampbuffer; /* samples to ramp out */
 	uint32_t  cycleoffset;
 
-	float     ln_1, ln_2;        /* previous samples, used by the filter */
+	float     ln_1, ln_2;        /* previous samples, used by filters */
 	float     rn_1, rn_2;
+	wnoise    wn;
 	struct
 	{
 		float osc1phase;         /* stored phase, for freewheel oscillators */
@@ -205,18 +206,18 @@ typedef struct
 	{
 		unsigned short   indexc;               /* index count used (0 inclusive) */
 		size_t           statesize;
-		void           (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, unsigned char);
+		void           (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, char);
 		void           (*adjustUp)(instrument *, short);
 		void           (*adjustDown)(instrument *, short);
 		void           (*adjustLeft)(instrument *, short);
 		void           (*adjustRight)(instrument *, short);
-		void           (*incFieldPointer)(signed char *, short);
-		void           (*decFieldPointer)(signed char *, short);
-		void           (*endFieldPointer)(signed char *, short);
-		void           (*mouseToIndex)(int, int, int, short *, signed char *);
+		void           (*incFieldPointer)(short);
+		void           (*decFieldPointer)(short);
+		void           (*endFieldPointer)(short);
+		void           (*mouseToIndex)(int, int, int, short *);
 		void           (*input)(int *);
 		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
-		uint32_t       (*offset)(instrument *, channel *, int);
+		void           (*macro)(instrument *, channel *, row, uint8_t, int);
 		void           (*initType)(void **);
 		void           (*write)(void **, FILE *fp);
 		void           (*read)(void **, FILE *fp);
@@ -229,11 +230,19 @@ typedef struct
 	uint32_t length;
 	char     channels;
 	uint32_t c5rate;
+	uint8_t  samplerate;  /* percent of c5rate to actually use */
 	uint16_t cyclelength;
 	uint32_t trim[2];
 	uint32_t loop[2];
-	adsr     volume;
-	uint8_t  attributes; /* %1: fixed tempo */
+	adsr     volume;      /* decay unused */
+	uint8_t  attributes;  /* %1: persistent tempo
+	                       * %2: quantize cycles
+	                       * %3: loop ramping
+	                       * %4: mono
+	                       * %5: 8-bit
+	                       * %6: unsigned
+	                       * %7: invert phase
+	                       */
 } sampler_state;
 
 
@@ -268,6 +277,7 @@ void _addChannel(channel *cv)
 	cv->stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
 	cv->stretchrampindex = cv->stretchrampmax;
 	cv->stretchrampbuffer = malloc(sizeof(sample_t) * cv->stretchrampmax * 2); /* *2 for stereo */
+	initWnoise(&cv->wn);
 	for (int i = 0; i < 33; i++)
 	{
 		cv->analogue[i].osc1phase = 0.0;
@@ -879,7 +889,7 @@ int addInstrument(uint8_t index)
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
-	s->instrumentv[s->instrumentc]->fader = 0xFF;
+	s->instrumentv[s->instrumentc]->fader = 0x88;
 	changeInstrumentType(s, s->instrumentc);
 	t->f[s->instrumentv[s->instrumentc]->type].initType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
 	s->instrumenti[index] = s->instrumentc;

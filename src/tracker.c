@@ -51,13 +51,12 @@ void changeMacro(int input, char *dest)
 		case 'd': *dest = 'D'; break;
 		case 'e': *dest = 'E'; break;
 		case 'm': *dest = 'M'; break;
-		case 'o': *dest = 'O'; break;
 		case 'p': *dest = 'P'; break;
 		case 'r': *dest = 'R'; break;
 		case 's': *dest = 'S'; break;
 
 		/* effects */
-		case 'A': *dest = 'a'; break;
+		/* case 'A': *dest = 'a'; break;
 		case 'B': *dest = 'b'; break;
 		case 'C': *dest = 'c'; break;
 		case 'F': *dest = 'f'; break;
@@ -68,7 +67,7 @@ void changeMacro(int input, char *dest)
 		case 'R': *dest = 'r'; break;
 		case 'S': *dest = 's'; break;
 		case 'V': *dest = 'v'; break;
-		case 'W': *dest = 'w'; break;
+		case 'W': *dest = 'w'; break; */
 	}
 }
 
@@ -413,7 +412,7 @@ void trackerRedraw(void)
 
 	/* top ruler */
 	printf("\033[0;0H\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
-			ws.ws_col - 14, MAJOR, MINOR, DEBUG);
+			ws.ws_col - 19, MAJOR, MINOR, DEBUG);
 	/* bottom ruler */
 	if (w->mode < 255)
 	{
