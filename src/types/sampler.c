@@ -265,67 +265,6 @@ int samplerAmplifyCallback(char *command, unsigned char *mode)
 	pushInstrumentHistory(iv);
 	return 0;
 }
-int samplerAkaizerCallback3(char *command, unsigned char *mode)
-{
-	char *buffer = malloc(COMMAND_LENGTH + 1);
-	char *altbuffer = malloc(COMMAND_LENGTH + 1);
-	wordSplit(altbuffer, command, 0);
-	exportSample(w->instrument, "/tmp/omelette.wav");
-	snprintf(buffer, COMMAND_LENGTH, "akaizer /tmp/omelette.wav %d %d %d",
-		w->akaizertimefactor,
-		w->akaizercyclelength,
-		(short)strtol(altbuffer, NULL, 0));
-	printf("\033[2J"); fflush(stdout);
-	system(buffer);
-	snprintf(buffer, COMMAND_LENGTH, "/tmp/omelette-%d%%_%d_%d_R.wav",
-		w->akaizertimefactor,
-		w->akaizercyclelength,
-		(short)strtol(altbuffer, NULL, 0));
-
-	FILE *fp = fopen(buffer, "r");
-	if (!fp) /* akaizer failed to create output */
-	{
-		snprintf(w->command.error, COMMAND_LENGTH, "Akaizer failed to create a file");
-		return 0;
-	}
-
-	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-	sampler_state *ss = iv->state[iv->type];
-	free(iv->sampledata); iv->sampledata = NULL;
-	SF_INFO sfinfo;
-	iv->sampledata = _loadSample(buffer, &sfinfo);
-
-	ss->trim[0] = ss->trim[0] * (float)sfinfo.frames / (float)ss->length;
-	ss->trim[1] = ss->trim[1] * (float)sfinfo.frames / (float)ss->length;
-	ss->loop[0] = ss->loop[0] * (float)sfinfo.frames / (float)ss->length;
-	ss->loop[1] = ss->loop[1] * (float)sfinfo.frames / (float)ss->length;
-
-	ss->length = sfinfo.frames;
-	free(buffer);    buffer = NULL;
-	free(altbuffer); altbuffer = NULL;
-	pushInstrumentHistory(iv);
-	return 0;
-}
-int samplerAkaizerCallback2(char *command, unsigned char *mode)
-{
-	char *buffer = malloc(strlen(command) + 1);
-	wordSplit(buffer, command, 0);
-	w->akaizercyclelength = strtol(buffer, NULL, 0);
-	setCommand(&w->command, &samplerAkaizerCallback3, NULL, NULL, 0, "Akaizer transpose [-24 to +24]: ", "0");
-	*mode = 255;
-	free(buffer); buffer = NULL;
-	return 0;
-}
-int samplerAkaizerCallback1(char *command, unsigned char *mode)
-{
-	char *buffer = malloc(strlen(command) + 1);
-	wordSplit(buffer, command, 0);
-	w->akaizertimefactor = strtol(buffer, NULL, 0);
-	setCommand(&w->command, &samplerAkaizerCallback2, NULL, NULL, 0, "Akaizer cycle length [20 to 2000]: ", "1000");
-	*mode = 255;
-	free(buffer); buffer = NULL;
-	return 0;
-}
 int samplerLameCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
@@ -455,19 +394,6 @@ void samplerInput(int *input)
 						setCommand(&w->command, &samplerAmplifyCallback, NULL, NULL, 0, "Amplify %: ", "100");
 						w->mode = 255;
 						redraw();
-					}
-					break;
-				case 'a': /* akaizer */
-					if (iv->samplelength > 0)
-					{
-						if (system("type akaizer >/dev/null"))
-							strcpy(w->command.error, "\"akaizer\" not found in $PATH");
-						else
-						{
-							setCommand(&w->command, &samplerAkaizerCallback1, NULL, NULL, 0, "Akaizer time factor % [25 to 2000]: ", "100");
-							w->mode = 255;
-							redraw();
-						}
 					}
 					break;
 				case 'l': /* lame */
@@ -654,7 +580,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index, signed char *fp
 			*fp = 0;
 			if (button == BUTTON3)
 			{
-				previewNote(0, 255, w->channel);
+				previewNote(0, 255, w->channel, 1);
 				w->popup = 2;
 				w->instrumentindex = 0;
 				w->fyoffset = 0; /* this can still be set on edge cases */

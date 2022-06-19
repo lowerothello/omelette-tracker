@@ -63,7 +63,7 @@ Exy: effect mix
 Effect redesign:
 * use custom effects, lv2s are unportable
 * should be channelwise, not instrumentwise
-* all configuration should be done in the tracker
+* all configuration should be done in the tracker, no additional dialogue box
 * changes should persist in channel memory
 * last parameter should always control a variant of "mix", 0 being completely off
 * channel effect ideas:
@@ -80,6 +80,7 @@ Effect redesign:
 	- band pass        xy {MEMFLTR} x: centre      y: width (0: wide, f: narrow)
 	- sidechain        xy           x: channel     y: input gain
 	- vocoder          xy           x: channel     y: mix
+	- autopan          xy           x: rate        y: width
 
 glossary:
 *channel = a channel index to pull sample data from, only channels 0-15 are indexable

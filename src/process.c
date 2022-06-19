@@ -99,6 +99,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		cv->delaysamples = 0;
 	}
 
+	float l, r;
 	/* process the type */
 	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
 			&& !cv->mute && cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
@@ -112,17 +113,14 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 				ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
 				cv->rampindex = 0;
 			}
-			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset,
-					p->s->effectoutl, p->s->effectoutr);
+			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &l, &r);
 			cv->r.note = oldnote;
 		} else
-			t->f[iv->type].process(iv, cv, cv->samplepointer,
-					p->s->effectoutl, p->s->effectoutr);
+			t->f[iv->type].process(iv, cv, cv->samplepointer, &l, &r);
 		cv->samplepointer++;
 	} else
 	{
-		*p->s->effectoutl = 0.0;
-		*p->s->effectoutr = 0.0;
+		l = r = 0.0;
 	}
 
 	if (!cv->mute && inst != 255)
@@ -131,8 +129,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		if (cv->rampindex < cv->rampmax)
 		{
 			float rampgain = (float)cv->rampindex / (float)cv->rampmax;
-			*p->s->effectoutl *= rampgain;
-			*p->s->effectoutr *= rampgain;
+			l *= rampgain;
+			r *= rampgain;
 			if (cv->rampinstrument)
 			{
 				instrument *jv = p->s->instrumentv[cv->rampinstrument];
@@ -144,13 +142,13 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		}
 
 		/* volume macro */
-		*p->s->effectoutl *= (cv->gain>>4) / 16.0;
-		*p->s->effectoutr *= (cv->gain%16) / 16.0;
+		l *= (cv->gain>>4) / 16.0;
+		r *= (cv->gain%16) / 16.0;
 
 		if (iv)
 		{
-			iv->outbufferl[fptr] += *p->s->effectoutl;
-			iv->outbufferr[fptr] += *p->s->effectoutr;
+			iv->outbufferl[fptr] += l;
+			iv->outbufferr[fptr] += r;
 		}
 	}
 }
@@ -278,40 +276,6 @@ void preprocessRow(channel *cv, row r)
 			cv->rtrigsamples = 0;
 	}
 
-	m = ifMacro(r, 'E');
-	if (m >= 0) // effect mix
-	{
-		iv = p->s->instrumentv[p->s->instrumenti[r.inst]];
-		if (iv && p->s->effectv[m>>4].type)
-		{
-			/* off to on */
-			if (!iv->processsend[cv->effectholdindex] && m%16)
-				lilv_instance_activate(iv->plugininstance[m>>4]);
-			/* on to off */
-			else if (iv->processsend[cv->effectholdindex] && !m%16)
-				lilv_instance_deactivate(iv->plugininstance[m>>4]);
-
-			iv->processsend[m>>4] = m%16;
-			cv->effectholdinst = r.inst;
-			cv->effectholdindex =   m>>4;
-		}
-	} else if (cv->effectholdinst < 255) /* reset the state */
-	{
-		iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
-		if (iv && p->s->effectv[cv->effectholdindex].type)
-		{
-			/* off to on */
-			if (!iv->processsend[cv->effectholdindex] && iv->send[cv->effectholdindex])
-				lilv_instance_activate(iv->plugininstance[cv->effectholdindex]);
-			/* on to off */
-			else if (iv->processsend[cv->effectholdindex] && !iv->send[cv->effectholdindex])
-				lilv_instance_deactivate(iv->plugininstance[cv->effectholdindex]);
-
-			iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
-		}
-		cv->effectholdinst = 255;
-	}
-
 	cv->r.macroc[0] = r.macroc[0];
 	cv->r.macrov[0] = r.macrov[0];
 	cv->r.macroc[1] = r.macroc[1];
@@ -352,41 +316,6 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->instrumentlockv = INST_GLOBAL_LOCK_FREE;
 	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST)
 		p->w->instrumentlockv = INST_GLOBAL_LOCK_HIST;
-	/* new default send */
-	else if (p->w->instrumentlockv > 15)
-	{
-		short index = p->w->instrumentlockv - 16;
-		p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
-
-		iv = p->s->instrumentv[p->w->instrumentlocki];
-		if (iv && p->s->effectv[index].type)
-		{
-			char held = 0;
-			for (uint8_t i = 0; i < p->s->channelc; i++)
-			{
-				cv = &p->s->channelv[i];
-				if (p->s->instrumenti[cv->effectholdinst] == p->w->instrumentlocki
-						&& cv->effectholdindex == index)
-				{ held = 1; break; }
-			}
-
-			if (!held)
-			{
-				if (p->s->playing == PLAYING_CONT)
-				{
-					/* off to on */
-					if      (!iv->processsend[index] && iv->send[index])
-						lilv_instance_activate(iv->plugininstance[index]);
-					/* on to off */
-					else if (iv->processsend[index] && !iv->send[index])
-						lilv_instance_deactivate(iv->plugininstance[index]);
-				}
-
-				iv->processsend[index] = iv->send[index];
-			}
-		}
-	}
-
 
 
 	if (p->w->previewtrigger) switch (p->w->previewtrigger)
@@ -418,27 +347,10 @@ int process(jack_nframes_t nfptr, void *arg)
 		changeBpm(p->s, p->s->songbpm);
 		p->s->sprp = 0;
 
-		/* activate plugin instances */
-		for (int i = 1; i < p->s->instrumentc; i++)
-		{
-			iv = p->s->instrumentv[i];
-			for (int j = 0; j < 16; j++)
-			{
-				if (iv->processsend[j] && p->s->effectv[j].type)
-					lilv_instance_activate(iv->plugininstance[j]);
-				iv->processsend[j] = iv->send[j];
-			}
-		}
-
 		/* clear the channels */
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
-			if (cv->effectholdinst < 255 && p->s->instrumenti[cv->effectholdinst])
-			{
-				iv = p->s->instrumentv[p->s->instrumenti[cv->effectholdinst]];
-				iv->processsend[cv->effectholdindex] = iv->send[cv->effectholdindex];
-			}
 			cv->r.note = 0;
 			cv->rtrigpointer = 0;
 			cv->rtrigblocksize = 0;
@@ -525,15 +437,6 @@ int process(jack_nframes_t nfptr, void *arg)
 			p->s->channelv[i].r.note = 0;
 		}
 
-		/* deactivate plugin instances */
-		for (int i = 1; i < p->s->instrumentc; i++)
-		{
-			iv = p->s->instrumentv[i];
-			for (int j = 0; j < 16; j++)
-				if (iv->processsend[j] && p->s->effectv[j].type)
-					lilv_instance_deactivate(iv->plugininstance[j]);
-		}
-
 		p->dirty = 1;
 		p->s->playing = PLAYING_STOP;
 	}
@@ -608,18 +511,15 @@ int process(jack_nframes_t nfptr, void *arg)
 			{
 				p->s->songr = 0;
 				if (p->w->songfx == p->s->songp)
-				{
 					p->w->trackerfy = 0;
-					p->dirty = 1;
-				}
+				p->dirty = 1;
 				
 				if (p->w->songnext)
 				{
 					if (p->w->songfx == p->s->songp)
-					{
 						p->w->songfx = p->w->songnext - 1;
-						p->dirty = 1;
-					}
+					p->dirty = 1;
+
 					p->s->songp = p->w->songnext - 1;
 					p->w->songnext = 0;
 				} else if (p->s->songa[p->s->songp]) /* loop */
@@ -636,79 +536,31 @@ int process(jack_nframes_t nfptr, void *arg)
 						}
 
 					if (p->w->songfx == p->s->songp)
-					{
 						p->w->songfx = blockstart;
-						p->dirty = 1;
-					}
+					p->dirty = 1;
+
 					p->s->songp = blockstart;
 				} else
 				{
 					if (p->w->songfx == p->s->songp)
-					{
 						p->w->songfx++;
-						p->dirty = 1;
-					}
+					p->dirty = 1;
+
 					p->s->songp++;
 				}
 			} else
+			{
 				if (p->w->songfx == p->s->songp)
-				{
 					p->w->trackerfy = p->s->songr;
-					p->dirty = 1;
-				}
+				p->dirty = 1;
+			}
 		}
 	}
 
 	/* final mixdown */
-	float wetmix, drymix;
 	for (uint8_t i = 1; i < p->s->instrumentc; i++)
 	{
 		iv = p->s->instrumentv[i];
-
-		/* walk over each effect */
-		for (int j = 0; j < 16; j++)
-		{
-			effect *le = &p->s->effectv[j];
-			if (!le->type || !iv->processsend[j]) continue;
-
-			if (iv->processsend[j] == 8)
-			{
-				wetmix = 1.0; drymix = 1.0;
-			} else if (iv->processsend[j] > 8)
-			{
-				wetmix = 1.0;
-				drymix = 1.0 - (iv->processsend[j] - 9) / 7.0;
-			} else
-			{
-				wetmix = (iv->processsend[j] - 1) / 7.0;
-				drymix = 1.0;
-			}
-
-			if (le->inputc < 2 || le->outputc < 2)
-			{ /* mono plugin */
-				for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-					p->s->effectinl[fptr] = (iv->outbufferl[fptr] + iv->outbufferr[fptr]) / 2.0;
-				memset(p->s->effectinr, 0, sizeof(sample_t) * nfptr);
-				lilv_instance_run(iv->plugininstance[j], nfptr);
-
-				for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				{
-					iv->outbufferl[fptr] = iv->outbufferl[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
-					iv->outbufferr[fptr] = iv->outbufferr[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
-				}
-			} else
-			{ /* stereo plugin */
-				memcpy(p->s->effectinl, iv->outbufferl, sizeof(sample_t) * nfptr);
-				memcpy(p->s->effectinr, iv->outbufferr, sizeof(sample_t) * nfptr);
-				lilv_instance_run(iv->plugininstance[j], nfptr);
-
-				for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				{
-					iv->outbufferl[fptr] = iv->outbufferl[fptr] * drymix + p->s->effectoutl[fptr] * wetmix;
-					iv->outbufferr[fptr] = iv->outbufferr[fptr] * drymix + p->s->effectoutr[fptr] * wetmix;
-				}
-			}
-		}
 
 		/* fader and output */
 		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)

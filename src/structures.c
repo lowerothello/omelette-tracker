@@ -27,8 +27,6 @@ typedef struct
 	uint16_t  rtrigsamples;      /* samples per retrigger */
 	uint32_t  rtrigpointer;      /* sample ptr to ratchet back to */
 	uint8_t   rtrigblocksize;    /* number of rows block extends to */
-	uint8_t   effectholdinst;    /* 255 for no hold */
-	uint8_t   effectholdindex;
 	uint32_t  cutsamples;        /* samples into the row to cut, 0 for no cut */
 	uint32_t  delaysamples;      /* samples into the row to delay, 0 for no delay */
 	uint8_t   delaynote;
@@ -66,7 +64,6 @@ typedef struct Instrument
 	uint8_t             fader;
 	char                send[16];                     /* set to [0-15] */
 	char                processsend[16];              /* used during playback only */
-	LilvInstance       *plugininstance[16];           /* pointer to lv2 instances */
 	sample_t           *outbufferl;
 	sample_t           *outbufferr;
 	struct Instrument  *history[128];
@@ -74,41 +71,6 @@ typedef struct Instrument
 	uint8_t             historybehind;                /* tracks how many less than 128 safe indices there are */
 	uint8_t             historyahead;                 /* tracks how many times it's safe to redo */
 } instrument;
-
-#define LV2_TYPE_INPUT 0
-#define LV2_TYPE_OUTPUT 1
-typedef struct
-{
-	uint32_t     index;
-	float        min, max, value;
-	char        *name;
-	char        *format;
-	char         integer;                    /* true for integer, false for float */
-	char         toggled;                    /* true if value is boolean */
-	char         logarithmic;                /* true if value should be adjusted logarithmically */
-	char         samplerate;                 /* true to multiply values by the sample rate? documentation isn't clear */
-	int          steps;                      /* the number of steps to divide min-max into */
-	unsigned int enumerate;                  /* the number of scalepoints, or 0 for no enumeration */
-	char       (*scalelabel)[MAX_VALUE_LEN]; /* string array */
-	float       *scalevalue;                 /* float array */
-} lv2control;
-typedef struct
-{
-	uint32_t index;
-	char     type;
-} lv2audio;
-
-typedef struct
-{
-	unsigned char     type;            /* 0:empty, 2:lv2 */
-	uint32_t          indexc;
-	const LilvPlugin *plugin;
-	const char       *name;
-	uint32_t          controlc, audioc;
-	uint32_t          inputc, outputc; /* audio input/output count */
-	lv2control       *controlv;
-	lv2audio         *audiov;
-} effect;
 
 #define PLAYING_STOP 0
 #define PLAYING_START 1
@@ -129,14 +91,6 @@ typedef struct
 	uint8_t         instrumenti[256];        /* instrument backref */
 	instrument     *instrumentv[256];        /* instrument values */
 	instrument      instrumentbuffer;        /* instrument paste buffer */
-
-	effect          effectv[16];             /* effect values */
-	sample_t       *effectinl, *effectinr;   /* effect inputs */
-	sample_t       *effectoutl, *effectoutr; /* effect outputs */
-	sample_t       *effectdryl, *effectdryr; /* effect dry */
-	unsigned char   effectbuffertype;        /* effect paste buffer */
-	const LilvNode *effectbufferlv2uri;
-	float          *effectbufferlv2values;
 
 	uint8_t         channelc;                /* channel count */
 	channel         channelv[64];            /* channel values */
@@ -165,7 +119,6 @@ song *s;
 #define INST_GLOBAL_LOCK_FREE 2      /* playback has stopped, safe to free the state */
 #define INST_GLOBAL_LOCK_PREP_HIST 3 /* playback unsafe, preparing to restore history */
 #define INST_GLOBAL_LOCK_HIST 4      /* playback has stopped, restoring history */
-/* inst_global_lock - 16 = the effect whose default mix has changed */
 
 #define INST_REC_LOCK_OK 0       /* playback and most memory ops are safe */
 #define INST_REC_LOCK_CONT 1     /* recording                             */
@@ -198,12 +151,6 @@ typedef struct
 	unsigned short instrumentcelloffset;
 	short          instrumentsend;              /* focused send */
 
-	short          effectindex;
-	short          pluginindex;
-	short          effectoffset;                /* scroll offset for pluginindex */
-	unsigned char  effect;                      /* focused effect */
-	char         (*pluginlist)[INSTRUMENT_TYPE_COLS - 2];
-
 	unsigned short mousey, mousex;
 
 	short          fyoffset;
@@ -222,9 +169,7 @@ typedef struct
 	unsigned short instrumentrowoffset;
 
 	char           octave;
-	char           step;
-
-	unsigned short akaizertimefactor, akaizercyclelength;
+	uint8_t        step;
 
 	uint8_t        songnext;
 
@@ -294,27 +239,6 @@ typedef struct
 
 
 
-
-typedef struct
-{
-	LilvWorld    *world;
-	LilvPlugins  *plugins;
-	unsigned int  pluginc; /* indexed plugin count */
-	LilvNode     *inputport;
-	LilvNode     *outputport;
-	LilvNode     *audioport;
-	LilvNode     *controlport;
-	LilvNode     *integer;
-	LilvNode     *toggled;
-	LilvNode     *samplerate;
-	LilvNode     *render;
-	LilvNode     *unit;
-	LilvNode     *enumeration;
-	LilvNode     *logarithmic;
-	LilvNode     *rangesteps;
-} lilv;
-lilv lv2;
-
 /* replace *find with *replace in *s */
 /* only replaces the first instance of *find */
 void strrep(char *string, char *find, char *replace)
@@ -335,230 +259,7 @@ void strrep(char *string, char *find, char *replace)
 	free(buffer);
 }
 
-void _unloadLv2Effect(int index)
-{
-	effect *le = &s->effectv[index];
-	if (le->type)
-	{
-		le->type = 0;
-		lv2control *lc;
-		for (uint32_t i = 0; i < le->controlc; i++)
-		{
-			lc = &le->controlv[i];
-			free(lc->format); lc->format = NULL;
-			if (lc->enumerate)
-			{
-				free(lc->scalelabel); lc->scalelabel = NULL;
-				free(lc->scalevalue); lc->scalevalue = NULL;
-			}
-		}
 
-		free(le->controlv); le->controlv = NULL;
-		free(le->audiov); le->audiov = NULL;
-		for (uint8_t i = 1; i < s->instrumentc; i++)
-			lilv_instance_free(s->instrumentv[i]->plugininstance[index]);
-	}
-}
-void loadLv2Effect(int index, const LilvPlugin *plugin)
-{
-	/* TODO: stop using the effect before freeing */
-	_unloadLv2Effect(index);
-
-	effect *le = &s->effectv[index];
-
-	LilvInstance *li = lilv_plugin_instantiate(plugin, samplerate, NULL);
-	if (!li)
-	{
-		strcpy(w->command.error, "plugin failed to instantiate");
-		le->type = 0;
-		return;
-	}
-	if (s->instrumentc > 1) /* any instruments at all */
-		s->instrumentv[1]->plugininstance[index] = li;
-	for (uint8_t i = 2; i < s->instrumentc; i++)
-		s->instrumentv[i]->plugininstance[index] = lilv_plugin_instantiate(plugin, samplerate, NULL);
-
-	s->effectv[index].type = 2;
-	le->plugin = plugin;
-
-	le->controlv = calloc(lilv_plugin_get_num_ports_of_class(plugin, lv2.controlport, lv2.inputport, NULL), sizeof(lv2control));
-	le->audiov =   calloc(lilv_plugin_get_num_ports_of_class(plugin, lv2.audioport, NULL), sizeof(lv2control));
-
-	uint32_t nports = lilv_plugin_get_num_ports(plugin);
-	/* default values for all ports */
-	float *min, *max, *def;
-	min = calloc(nports, sizeof(float));
-	max = calloc(nports, sizeof(float));
-	def = calloc(nports, sizeof(float));
-	lilv_plugin_get_port_ranges_float(plugin, min, max, def);
-
-	LilvNode *n;
-
-	n = lilv_plugin_get_name(plugin);
-	le->name = lilv_node_as_string(n);
-	lilv_node_free(n);
-
-	LilvPort *lport;
-	lv2control *lc;
-	s->effectv[index].indexc = le->controlc = le->audioc = 0;
-	le->inputc = le->outputc = 0;
-	for (uint32_t i = 0; i < nports; i++)
-	{
-		lport = (LilvPort *)lilv_plugin_get_port_by_index(plugin, i);
-		if (lilv_port_is_a(plugin, lport, lv2.controlport))
-		{
-			if (lilv_port_is_a(plugin, lport, lv2.inputport))
-			{
-				lc = &le->controlv[le->controlc];
-				lc->index = i;
-
-				lc->min = min[i];
-				lc->max = max[i];
-				lc->value = def[i];
-				for (uint8_t j = 1; j < s->instrumentc; j++)
-					lilv_instance_connect_port(s->instrumentv[j]->plugininstance[index], lc->index, &lc->value);
-
-				n = lilv_port_get_name(plugin, lport);
-				lc->name = (char *)lilv_node_as_string(n);
-				lilv_node_free(n);
-
-				LilvNode *render, *unit;
-				LilvNodes *units = lilv_port_get_value(plugin, lport, lv2.unit);
-				if (lilv_nodes_size(units) > 0)
-				{
-					unit = lilv_nodes_get_first(units);
-					render = lilv_world_get(lv2.world, unit, lv2.render, NULL);
-					if (render)
-					{
-						lc->format = malloc(strlen(lilv_node_as_string(render)) + 1);
-						strcpy(lc->format, lilv_node_as_string(render));
-					} else
-					{
-						lc->format = malloc(strlen("%f") + 1);
-						strcpy(lc->format, "%f");
-					}
-					lilv_node_free(render);
-				} else
-				{
-					lc->format = malloc(strlen("%f") + 1);
-					strcpy(lc->format, "%f");
-				}
-				lilv_nodes_free(units);
-
-				lc->integer = lilv_port_has_property(plugin, lport, lv2.integer);
-				if (lc->integer) strrep(lc->format, "%f", "%d");
-				lc->toggled = lilv_port_has_property(plugin, lport, lv2.toggled);
-				lc->samplerate = lilv_port_has_property(plugin, lport, lv2.samplerate);
-				lc->logarithmic = lilv_port_has_property(plugin, lport, lv2.logarithmic);
-
-				n = lilv_port_get(plugin, lport, lv2.rangesteps);
-				lc->steps = n ? (int)lilv_node_as_float(n) : 64.0;
-				lilv_nodes_free(n);
-
-				if (lilv_port_has_property(plugin, lport, lv2.enumeration))
-				{
-					LilvScalePoints *points = lilv_port_get_scale_points(plugin, lport);
-					lc->enumerate = lilv_scale_points_size(points);
-					lc->scalelabel = calloc(lc->enumerate, sizeof(char[MAX_VALUE_LEN]));
-					lc->scalevalue = calloc(lc->enumerate, sizeof(float));
-
-					unsigned int c = 0;
-					LILV_FOREACH(scale_points, i, points)
-					{
-						LilvScalePoint *p = (LilvScalePoint *)lilv_scale_points_get(points, i);
-						LilvNode *l = (LilvNode *)lilv_scale_point_get_label(p);
-						LilvNode *v = (LilvNode *)lilv_scale_point_get_value(p);
-
-						if (l && (lilv_node_is_float(v) || lilv_node_is_int(v))) {
-							strcpy(lc->scalelabel[c], lilv_node_as_string(l));
-							lc->scalevalue[c] = lilv_node_as_float(v);
-						}
-
-						c++;
-					}
-				}
-
-				s->effectv[index].indexc++;
-				le->controlc++;
-			}
-		} else // audio port
-		{
-			lv2audio *la = &le->audiov[le->audioc];
-			la->index = i;
-			if (lilv_port_is_a(plugin, lport, lv2.inputport))
-			{
-				la->type = LV2_TYPE_INPUT;
-				switch (le->inputc)
-				{
-					case 0: /* left channel */
-						for (uint8_t j = 1; j < s->instrumentc; j++)
-							lilv_instance_connect_port(s->instrumentv[j]->plugininstance[index], la->index, s->effectinl);
-						break;
-					case 1: /* right channel */
-						for (uint8_t j = 1; j < s->instrumentc; j++)
-							lilv_instance_connect_port(s->instrumentv[j]->plugininstance[index], la->index, s->effectinr);
-						break;
-				}
-				le->inputc++;
-			} else
-			{
-				la->type = LV2_TYPE_OUTPUT;
-				switch (le->outputc)
-				{
-					case 0: /* left channel */
-						for (uint8_t j = 1; j < s->instrumentc; j++)
-							lilv_instance_connect_port(s->instrumentv[j]->plugininstance[index], la->index, s->effectoutl);
-						break;
-					case 1: /* right channel */
-						for (uint8_t j = 1; j < s->instrumentc; j++)
-							lilv_instance_connect_port(s->instrumentv[j]->plugininstance[index], la->index, s->effectoutr);
-						break;
-				}
-				le->outputc++;
-			}
-
-			le->audioc++;
-		}
-	}
-	free(min);
-	free(max);
-	free(def);
-}
-void yankEffect(int index)
-{
-	effect *le = &s->effectv[index];
-	switch (le->type)
-	{
-		case 0: /* nothing */
-			s->effectbuffertype = 0;
-			break;
-		case 2: /* lv2 */
-			s->effectbuffertype = 2;
-			if (s->effectbufferlv2values)
-				free(s->effectbufferlv2values);
-
-			s->effectbufferlv2uri = lilv_plugin_get_uri(le->plugin);
-			s->effectbufferlv2values = malloc(sizeof(float) * le->indexc);
-			for (int i = 0; i < le->indexc; i++)
-				s->effectbufferlv2values[i] = le->controlv[i].value;
-			break;
-	}
-}
-void putEffect(int index)
-{
-	switch (s->effectbuffertype)
-	{
-		case 0: /* nothing */
-			_unloadLv2Effect(index);
-			break;
-		case 2: /* lv2 */
-			loadLv2Effect(index, lilv_plugins_get_by_uri(lv2.plugins, s->effectbufferlv2uri));
-			effect *le = &s->effectv[index];
-			for (int i = 0; i < le->indexc; i++)
-				le->controlv[i].value = s->effectbufferlv2values[i];
-			break;
-	}
-}
 
 void _addChannel(channel *cv)
 {
@@ -1073,58 +774,6 @@ int _addInstrument(song *cs, uint8_t realindex)
 	cs->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
 	return 0;
 }
-void _instantiateInstrumentEffect(uint8_t realindex)
-{
-	for (int i = 0; i < 16; i++)
-	{
-		if (s->effectv[i].type > 0)
-		{
-			effect *le = &s->effectv[i];
-
-			s->instrumentv[realindex]->plugininstance[i] =
-				lilv_plugin_instantiate(le->plugin, samplerate, NULL);
-
-			lv2control *lc;
-			for (int j = 0; j < le->controlc; j++)
-			{
-				lc = &le->controlv[j];
-				lilv_instance_connect_port(s->instrumentv[realindex]->plugininstance[i], lc->index, &lc->value);
-			}
-
-			int ins = 0, outs = 0;
-			lv2audio *la;
-			for (int j = 0; j < le->audioc; j++)
-			{
-				la = &le->audiov[j];
-				if (la->type == LV2_TYPE_OUTPUT)
-				{
-					switch (ins)
-					{
-						case 0: /* left channel */
-							lilv_instance_connect_port(s->instrumentv[realindex]->plugininstance[i], j, s->effectinl);
-							break;
-						case 1: /* right channel */
-							lilv_instance_connect_port(s->instrumentv[realindex]->plugininstance[i], j, s->effectinr);
-							break;
-					}
-					ins++;
-				} else
-				{
-					switch (outs)
-					{
-						case 0: /* left channel */
-							lilv_instance_connect_port(s->instrumentv[realindex]->plugininstance[i], j, s->effectoutl);
-							break;
-						case 1: /* right channel */
-							lilv_instance_connect_port(s->instrumentv[realindex]->plugininstance[i], j, s->effectoutr);
-							break;
-					}
-					outs++;
-				}
-			}
-		}
-	}
-}
 void pushInstrumentHistory(instrument *iv)
 {
 	if (!iv) return;
@@ -1236,7 +885,6 @@ int addInstrument(uint8_t index)
 	t->f[s->instrumentv[s->instrumentc]->type].initType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
 	s->instrumenti[index] = s->instrumentc;
 
-	_instantiateInstrumentEffect(s->instrumentc);
 	pushInstrumentHistory(s->instrumentv[s->instrumentc]);
 
 	s->instrumentc++;
@@ -1364,14 +1012,6 @@ void _delInstrument(song *cs, uint8_t realindex)
 			free(cs->instrumentv[realindex]->history[i]->sampledata);
 		free(cs->instrumentv[realindex]->history[i]);
 	}
-
-	for (int i = 0; i < 16; i++)
-		switch (cs->effectv[i].type)
-		{
-			case 2:
-				lilv_instance_free(cs->instrumentv[realindex]->plugininstance[i]);
-				break;
-		}
 
 	free(cs->instrumentv[realindex]);
 	cs->instrumentv[realindex] = NULL;
@@ -1517,19 +1157,6 @@ song *_addSong(void)
 
 	memset(cs->songi, 255, sizeof(uint8_t) * 256);
 
-	cs->effectinl = calloc(sizeof(sample_t), buffersize);
-	cs->effectinr = calloc(sizeof(sample_t), buffersize);
-	cs->effectoutl = calloc(sizeof(sample_t), buffersize);
-	cs->effectoutr = calloc(sizeof(sample_t), buffersize);
-	cs->effectdryl = calloc(sizeof(sample_t), buffersize);
-	cs->effectdryr = calloc(sizeof(sample_t), buffersize);
-	if (       !cs->effectinl  || !cs->effectinr
-			|| !cs->effectoutl || !cs->effectoutr
-			|| !cs->effectdryl || !cs->effectdryr)
-	{
-		free(cs);
-		return NULL;
-	}
 	return cs;
 }
 song *addSong(void)
@@ -1545,13 +1172,6 @@ song *addSong(void)
 
 void delSong(song *cs)
 {
-	free(cs->effectinl);
-	free(cs->effectinr);
-	free(cs->effectoutl);
-	free(cs->effectoutr);
-	free(cs->effectdryl);
-	free(cs->effectdryr);
-
 	for (int i = 0; i < cs->channelc; i++)
 	{
 		free(cs->channelv[i].rampbuffer);
@@ -1563,11 +1183,6 @@ void delSong(song *cs)
 		free(cs->channelbuffer[i]);
 		free(cs->patternv[i]);
 	}
-
-	for (int i = 0; i < 16; i++)
-		_unloadLv2Effect(i);
-	if (cs->effectbufferlv2values)
-		free(cs->effectbufferlv2values);
 
 	for (int i = 1; i < cs->instrumentc; i++)
 		_delInstrument(cs, i);
@@ -1694,25 +1309,6 @@ int writeSong(char *path)
 		if (iv->samplelength > 0)
 			fwrite(iv->sampledata, sizeof(short), iv->samplelength, fp);
 	}
-
-	/* effectv */
-	for (i = 0; i < 16; i++)
-	{
-		fputc(s->effectv[i].type, fp);
-		if (s->effectv[i].type)
-		{
-			/* plugin uri */
-			const LilvNode *uri = lilv_plugin_get_uri(s->effectv[i].plugin);
-			const char *uristring = lilv_node_as_string(uri);
-			fputc(strlen(uristring), fp); /* assume the uri is never longer than 255 chars */
-			fwrite(uristring, 1, strlen(uristring), fp);
-
-			/* control port values */
-			for (int j = 0; j < s->effectv[i].indexc; j++)
-				fwrite(&s->effectv[i].controlv[j].value, sizeof(float), 1, fp);
-		}
-	}
-
 
 	fclose(fp);
 	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", pathext);
@@ -1852,29 +1448,6 @@ song *readSong(char *path)
 			cs->instrumentv[i]->sampledata = sampledata;
 		}
 		pushInstrumentHistory(cs->instrumentv[i]);
-	}
-
-	/* effectv */
-	for (i = 0; i < 16; i++)
-	{
-		cs->effectv[i].type = fgetc(fp);
-		if (cs->effectv[i].type)
-		{
-			/* plugin uri */
-			unsigned char urilen = fgetc(fp);
-			char uristring[urilen];
-
-			fread(uristring, 1, urilen, fp);
-			uristring[urilen] = '\0';
-
-			LilvNode *uri = lilv_new_uri(lv2.world, uristring);
-			loadLv2Effect(i, lilv_plugins_get_by_uri(lv2.plugins, uri));
-			lilv_node_free(uri);
-
-			/* control port values */
-			for (int j = 0; j < cs->effectv[i].indexc; j++)
-				fread(&cs->effectv[i].controlv[j].value, sizeof(float), 1, fp);
-		}
 	}
 
 

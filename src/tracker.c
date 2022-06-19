@@ -78,7 +78,7 @@ int drawPatternLineNumbers(uint8_t pattern)
 
 	for (int i = 0; i <= s->patternv[s->patterni[pattern]]->rowc; i++)
 	{
-		if (w->centre - w->trackerfy + i > 4 && w->centre - w->trackerfy + i < ws.ws_row - 1)
+		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row - 1)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, w->trackercelloffset);
 			printf("%02x", i);
@@ -87,8 +87,7 @@ int drawPatternLineNumbers(uint8_t pattern)
 			else
 				printf("   ");
 		}
-	}
-	return 0;
+	} return 0;
 }
 void drawSong(void)
 {
@@ -101,11 +100,11 @@ void drawSong(void)
 		if (s->songa[i + w->songoffset])
 			switch (s->songa[i + w->songoffset])
 			{
-				case 1:  printf("\033[1;%dHloop", x); break;
-				default: printf("\033[1;%dH????", x); break; /* likely a corrupt file */
+				case 1:  printf("\033[3;%dHloop", x); break;
+				default: printf("\033[3;%dH????", x); break; /* likely a corrupt file */
 			}
 		if (w->songnext == i + w->songoffset + 1)
-			printf("\033[3;%dHnext", x);
+			printf("\033[4;%dHnext", x);
 
 		if (s->playing && i + w->songoffset == s->songp) printf("\033[7m");
 		if (i + w->songoffset == w->songfx) printf("\033[1m");
@@ -124,9 +123,9 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 	const unsigned short x = w->trackercelloffset + LINENO_COLS + ROW_COLS * screenpos;
 	if (s->channelv[channel].mute) // mute
-		printf("\033[4;%dH \033[2m<CHANNEL %02x>\033[m", x, channel);
+		printf("\033[5;%dH \033[2m<CHANNEL %02x>\033[m", x, channel);
 	else
-		printf("\033[4;%dH <CHANNEL %02x>", x, channel);
+		printf("\033[5;%dH <CHANNEL %02x>", x, channel);
 
 	row r;
 	int i, c;
@@ -134,7 +133,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 	for (i = 0; i <= s->patternv[s->patterni[s->songi[w->songfx]]]->rowc; i++)
 	{
-		if (w->centre - w->trackerfy + i > 4 && w->centre - w->trackerfy + i < ws.ws_row - 1)
+		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row - 1)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
 
@@ -304,7 +303,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 	if (w->centre - w->trackerfy - 1 > 4 && w->songfx > 0 && s->songi[w->songfx - 1] != 255)
 	{
 		c = 0;
-		for (i = w->centre - w->trackerfy - 1; i > 4; i--)
+		for (i = w->centre - w->trackerfy - 1; i > 5; i--)
 		{
 			if (c > s->patternv[s->patterni[s->songi[w->songfx - 1]]]->rowc) break;
 			printf("\033[%d;%dH\033[2m", i, x);
@@ -421,23 +420,26 @@ void trackerRedraw(void)
 	y = w->centre + w->fyoffset;
 	x = w->trackercelloffset + LINENO_COLS + ROW_COLS * (w->channel - w->channeloffset);
 
-	/* ruler */
+	/* top ruler */
+	printf("\033[0;0H\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
+			ws.ws_col - 14, MAJOR, MINOR, DEBUG);
+	/* bottom ruler */
 	if (w->mode < 255)
 	{
 		if (w->instrumentrecv == INST_REC_LOCK_CONT)
 		{
 			if (w->recptr == 0)
-				printf("\033[%d;%dH{REC   0s}", ws.ws_row, ws.ws_col - 58);
+				printf("\033[%d;%dH\033[3m{REC   0s}\033[m", ws.ws_row, ws.ws_col - 50);
 			else
-				printf("\033[%d;%dH{REC %3ds}", ws.ws_row, ws.ws_col - 58, w->recptr / samplerate + 1);
+				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
 		}
-		printf("\033[%d;%dH[%02x] %02x,%02x ", ws.ws_row, ws.ws_col - 39,
+		printf("\033[%d;%dH[%02x] %02x,%02x ", ws.ws_row, ws.ws_col - 33,
 				w->songfx, w->trackerfy, w->channel);
 		if (s->playing == PLAYING_STOP)
-			printf("(stopped)   ");
+			printf("(STOPPED)   ");
 		else
 			printf("([%02x] %02x)   ", s->songp, s->songr);
-		printf("&%d %+-4d B%02x (B%02x)", w->octave, w->step, s->songbpm, s->bpm);
+		printf("&%d +%x  B%02x", w->octave, w->step, s->songbpm);
 	}
 
 	switch (w->mode)
@@ -539,7 +541,7 @@ int trackerInput(int input)
 			redraw();
 			break;
 		case '\033': /* escape */
-			previewNote(0, 255, w->channel);
+			previewNote(0, 255, w->channel, 1);
 			switch (getchar())
 			{
 				case 'O':
@@ -549,12 +551,6 @@ int trackerInput(int input)
 							w->popup = 1;
 							w->mode = 0;
 							w->instrumentindex = MIN_INSTRUMENT_INDEX;
-							break;
-						case 'Q':
-							w->popup = 3;
-							w->mode = 0;
-							w->effectindex = MIN_EFFECT_INDEX;
-							w->effectoffset = 0;
 							break;
 					}
 					redraw();
@@ -604,8 +600,7 @@ int trackerInput(int input)
 											w->channel--;
 											w->trackerfx = ROW_FIELDS - 1;
 										} else w->trackerfx = 0;
-									}
-									break;
+									} break;
 								case 2:
 									w->trackerfy = 0;
 									if (w->songfx > 0)
@@ -630,8 +625,7 @@ int trackerInput(int input)
 											w->trackerfx = 0;
 										} else
 											w->trackerfx = ROW_FIELDS - 1;
-									}
-									break;
+									} break;
 								case 2:
 									w->trackerfy = 0;
 									w->songfx++;
@@ -672,14 +666,10 @@ int trackerInput(int input)
 														if (w->channel < s->channelc - 1)
 															w->channel++;
 														redraw();
-													}
-													break;
-											}
-											break;
-									}
-									break;
-							}
-							break;
+													} break;
+											} break;
+									} break;
+							} break;
 						case 'H': /* home */
 							w->trackerfy = 0;
 							redraw();
@@ -733,8 +723,7 @@ int trackerInput(int input)
 											w->songfx--;
 											w->trackerfy += s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1;
 										} else w->trackerfy = 0;
-									}
-									break;
+									} break;
 								case WHEEL_DOWN: /* scroll down */
 									if (s->songi[w->songfx] == 255) break;
 									w->trackerfy += WHEEL_SPEED;
@@ -745,8 +734,7 @@ int trackerInput(int input)
 											w->trackerfy -= s->patternv[s->patterni[s->songi[w->songfx]]]->rowc + 1;
 											w->songfx++;
 										} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-									}
-									break;
+									} break;
 								case BUTTON_RELEASE: /* release click */
 									if (s->songi[w->songfx] == 255) break;
 									w->trackerfy += w->fyoffset;
@@ -766,27 +754,66 @@ int trackerInput(int input)
 											w->songfx++;
 										} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
 									}
-
 									w->fyoffset = 0;
 									break;
 								default: /* click / drag */
 									/* song indices */
-									if ((button == BUTTON1 && y < 4) || (button == BUTTON1_HOLD && w->mode == 2))
+									if (((button == BUTTON1 || button == BUTTON2 || button == BUTTON3) && y < 4)
+											|| (button == BUTTON1_HOLD && w->mode == 2))
 									{
 										w->mode = 2; /* force enter song mode */
+										uint8_t oldsongfx = w->songfx;
 										if (x < w->songcelloffset) /* left */
 											w->songfx = w->songoffset;
 										else if (x > ws.ws_col - w->songcelloffset) /* right */
 											w->songfx = MIN(255, w->songoffset + w->songvisible) - 1;
 										else /* middle */
 											w->songfx = (x + 1 - w->songcelloffset + w->songoffset * SONG_COLS) / SONG_COLS;
+
+										if (oldsongfx != w->songfx) w->trackerfy = 0;
+
+										switch (button)
+										{
+											case BUTTON2:
+												if (s->songi[w->songfx] != 255)
+												{
+													if (w->songnext == w->songfx + 1)
+														w->songnext = 0;
+													else
+														w->songnext = w->songfx + 1;
+												} break;
+											case BUTTON3:
+												if (s->songi[w->songfx] != 255)
+													s->songa[w->songfx] = !s->songa[w->songfx];
+												break;
+										}
 										break;
 									}
 
-									if (y > ws.ws_row - 2 || y < 2) break; /* ignore clicking out of range */
+									if (y > ws.ws_row - 2) break; /* ignore clicking out of range */
 									if (s->songi[w->songfx] == 255) break;
 
-									if (button == BUTTON1 || button == BUTTON3)
+									/* channel row, for mute/solo */
+									if (y < 6)
+									{
+										switch (button)
+										{
+											case BUTTON1:
+												w->mode = 0;
+												if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
+												{ /* right edge */
+													w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
+												} else if (x < w->trackercelloffset + LINENO_COLS - 3)
+												{ /* left edge */
+													w->channel = w->channeloffset;
+												} else
+												{ /* middle */
+													w->channel = w->channeloffset + (x - w->trackercelloffset - LINENO_COLS + 2) / ROW_COLS;
+												}
+												s->channelv[w->channel].mute = !s->channelv[w->channel].mute;
+												break;
+										}
+									} else if (button == BUTTON1 || button == BUTTON3)
 									{
 										switch (button)
 										{
@@ -825,31 +852,11 @@ int trackerInput(int input)
 											else                           w->trackerfx = 5;
 										}
 										w->fyoffset = y - w->centre;
-									}
-
-									/* channel row, for mute and solo */
-									if (y < 5)
-									{
-										switch (button)
-										{
-											case BUTTON1:
-												w->mode = 0;
-												w->trackerfx = 0;
-												break;
-											case BUTTON3:
-												w->mode = 0;
-												w->trackerfx = 0;
-												s->channelv[w->channel].mute = !s->channelv[w->channel].mute;
-												break;
-										}
-										break;
-									}
-									break;
+									} break;
 							}
 							redraw();
 							break;
-					}
-					break;
+					} break;
 				/* alt binds */
 				case 'v': /* toggle visual mode */
 					if (s->songi[w->songfx] < 255)
@@ -993,10 +1000,8 @@ int trackerInput(int input)
 					{
 						w->mode = 0;
 						redraw();
-					}
-					break;
-			}
-			break;
+					} break;
+			} break;
 		default:
 			switch (w->mode)
 			{
@@ -1023,8 +1028,7 @@ int trackerInput(int input)
 									MAX(w->channel, w->visualchannel));
 							redraw();
 							break;
-					}
-					break;
+					} break;
 				case 0: /* normal */
 					if (s->songi[w->songfx] == 255) break;
 					row *r = &s->patternv[s->patterni[s->songi[w->songfx]]]->rowv[w->channel][w->trackerfy];
@@ -1073,7 +1077,7 @@ int trackerInput(int input)
 											r->note--;
 											break;
 										case ' ': /* space */
-											previewNote(255, 255, w->channel);
+											previewNote(255, 255, w->channel, 0);
 											r->note = 255;
 											w->trackerfy += w->step;
 											if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
@@ -1083,10 +1087,9 @@ int trackerInput(int input)
 													w->trackerfy = 0;
 													w->songfx++;
 												} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-											}
-											break;
+											} break;
 										case 127: case 8: /* backspace */
-											previewNote(0, 255, w->channel);
+											previewNote(0, 255, w->channel, 0);
 											r->note = 0;
 											r->inst = 255;
 											w->trackerfy -= w->step;
@@ -1097,25 +1100,24 @@ int trackerInput(int input)
 													w->songfx--;
 													w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
 												} else w->trackerfy = 0;
-											}
-											break;
-										case '0': r->note = changeNoteOctave(0, r->note); r->inst = w->instrument; break;
-										case '1': r->note = changeNoteOctave(1, r->note); r->inst = w->instrument; break;
-										case '2': r->note = changeNoteOctave(2, r->note); r->inst = w->instrument; break;
-										case '3': r->note = changeNoteOctave(3, r->note); r->inst = w->instrument; break;
-										case '4': r->note = changeNoteOctave(4, r->note); r->inst = w->instrument; break;
-										case '5': r->note = changeNoteOctave(5, r->note); r->inst = w->instrument; break;
-										case '6': r->note = changeNoteOctave(6, r->note); r->inst = w->instrument; break;
-										case '7': r->note = changeNoteOctave(7, r->note); r->inst = w->instrument; break;
-										case '8': r->note = changeNoteOctave(8, r->note); r->inst = w->instrument; break;
-										case '9': r->note = changeNoteOctave(9, r->note); r->inst = w->instrument; break;
+											} break;
+										case '0': r->note = changeNoteOctave(0, r->note); if (r->note) r->inst = w->instrument; break;
+										case '1': r->note = changeNoteOctave(1, r->note); if (r->note) r->inst = w->instrument; break;
+										case '2': r->note = changeNoteOctave(2, r->note); if (r->note) r->inst = w->instrument; break;
+										case '3': r->note = changeNoteOctave(3, r->note); if (r->note) r->inst = w->instrument; break;
+										case '4': r->note = changeNoteOctave(4, r->note); if (r->note) r->inst = w->instrument; break;
+										case '5': r->note = changeNoteOctave(5, r->note); if (r->note) r->inst = w->instrument; break;
+										case '6': r->note = changeNoteOctave(6, r->note); if (r->note) r->inst = w->instrument; break;
+										case '7': r->note = changeNoteOctave(7, r->note); if (r->note) r->inst = w->instrument; break;
+										case '8': r->note = changeNoteOctave(8, r->note); if (r->note) r->inst = w->instrument; break;
+										case '9': r->note = changeNoteOctave(9, r->note); if (r->note) r->inst = w->instrument; break;
 										default:
 											uint8_t note = charToNote(input, w->octave);
 											if (note) /* ignore nothing */
 											{
 												r->note = note;
 												r->inst = w->instrument;
-												previewNote(note, r->inst, w->channel);
+												previewNote(note, r->inst, w->channel, 0);
 											}
 											w->trackerfy += w->step;
 											if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
@@ -1125,20 +1127,20 @@ int trackerInput(int input)
 													w->trackerfy = 0;
 													w->songfx++;
 												} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-											}
-											break;
-									}
-									break;
+											} break;
+									} break;
 								case 1: /* instrument */
 									switch (input)
 									{
 										case 1: /* ^a */
 											r->inst++;
 											if (r->inst == 255) r->inst = 0;
+											w->instrument = r->inst;
 											break;
 										case 24: /* ^x */
 											r->inst--;
 											if (r->inst == 255) r->inst = 254;
+											w->instrument = r->inst;
 											break;
 										case ' ':
 											r->inst = w->instrument;
@@ -1146,24 +1148,23 @@ int trackerInput(int input)
 										case 127: case 8: /* backspace */
 											r->inst = 255;
 											break;
-										case '0':           inputPatternHex(r, 0);  break;
-										case '1':           inputPatternHex(r, 1);  break;
-										case '2':           inputPatternHex(r, 2);  break;
-										case '3':           inputPatternHex(r, 3);  break;
-										case '4':           inputPatternHex(r, 4);  break;
-										case '5':           inputPatternHex(r, 5);  break;
-										case '6':           inputPatternHex(r, 6);  break;
-										case '7':           inputPatternHex(r, 7);  break;
-										case '8':           inputPatternHex(r, 8);  break;
-										case '9':           inputPatternHex(r, 9);  break;
-										case 'A': case 'a': inputPatternHex(r, 10); break;
-										case 'B': case 'b': inputPatternHex(r, 11); break;
-										case 'C': case 'c': inputPatternHex(r, 12); break;
-										case 'D': case 'd': inputPatternHex(r, 13); break;
-										case 'E': case 'e': inputPatternHex(r, 14); break;
-										case 'F': case 'f': inputPatternHex(r, 15); break;
-									}
-									break;
+										case '0':           inputPatternHex(r, 0);  w->instrument = r->inst; break;
+										case '1':           inputPatternHex(r, 1);  w->instrument = r->inst; break;
+										case '2':           inputPatternHex(r, 2);  w->instrument = r->inst; break;
+										case '3':           inputPatternHex(r, 3);  w->instrument = r->inst; break;
+										case '4':           inputPatternHex(r, 4);  w->instrument = r->inst; break;
+										case '5':           inputPatternHex(r, 5);  w->instrument = r->inst; break;
+										case '6':           inputPatternHex(r, 6);  w->instrument = r->inst; break;
+										case '7':           inputPatternHex(r, 7);  w->instrument = r->inst; break;
+										case '8':           inputPatternHex(r, 8);  w->instrument = r->inst; break;
+										case '9':           inputPatternHex(r, 9);  w->instrument = r->inst; break;
+										case 'A': case 'a': inputPatternHex(r, 10); w->instrument = r->inst; break;
+										case 'B': case 'b': inputPatternHex(r, 11); w->instrument = r->inst; break;
+										case 'C': case 'c': inputPatternHex(r, 12); w->instrument = r->inst; break;
+										case 'D': case 'd': inputPatternHex(r, 13); w->instrument = r->inst; break;
+										case 'E': case 'e': inputPatternHex(r, 14); w->instrument = r->inst; break;
+										case 'F': case 'f': inputPatternHex(r, 15); w->instrument = r->inst; break;
+									} break;
 								case 2: /* macro 1 */
 									switch (input)
 									{
@@ -1175,8 +1176,7 @@ int trackerInput(int input)
 												r->macrov[0] = 0;
 											changeMacro(input, &r->macroc[0]);
 											break;
-									}
-									break;
+									} break;
 								case 3: /* macro 1 value */
 									if (r->macroc[0])
 										switch (input)
@@ -1211,8 +1211,7 @@ int trackerInput(int input)
 									{
 										r->macrov[0] = 0;
 										changeMacro(input, &r->macroc[0]);
-									}
-									break;
+									} break;
 								case 4: /* macro 2 */
 									switch (input)
 									{
@@ -1224,8 +1223,7 @@ int trackerInput(int input)
 												r->macrov[1] = 0;
 											changeMacro(input, &r->macroc[1]);
 											break;
-									}
-									break;
+									} break;
 								case 5: /* macro 2 value */
 									if (r->macroc[1])
 										switch (input)
@@ -1260,10 +1258,8 @@ int trackerInput(int input)
 									{
 										r->macrov[1] = 0;
 										changeMacro(input, &r->macroc[1]);
-									}
-									break;
-							}
-							break;
+									} break;
+							} break;
 					}
 					redraw();
 					break;
@@ -1333,13 +1329,11 @@ int trackerInput(int input)
 									w->songnext = 0;
 								else
 									w->songnext = w->songfx + 1;
-							}
-							break;
+							} break;
 					}
 					redraw();
 					break;
-			}
-			break;
+			} break;
 	}
 
 	return 0;

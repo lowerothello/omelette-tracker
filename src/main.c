@@ -16,18 +16,10 @@
 #include <jack/jack.h>
 typedef jack_default_audio_sample_t sample_t;
 #include <sndfile.h>
-#include <lilv/lilv.h>
-#include <lv2/units/units.h>
-#include <lv2/port-props/port-props.h>
 
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 
-uint32_t clamp32(uint32_t x, uint32_t min, uint32_t max)
-{
-	uint32_t y = (x < max) ? x : max;
-	return (y > min) ? y : min;
-}
 uint32_t pow32(uint32_t a, uint32_t b)
 {
 	if (b == 0) return 1;
@@ -39,14 +31,14 @@ uint32_t pow32(uint32_t a, uint32_t b)
 }
 
 
-
+/* version */
+#define MAJOR 0
+#define MINOR 50
 
 
 jack_nframes_t samplerate;
 jack_nframes_t buffersize;
 struct winsize ws;
-
-
 struct termios term, origterm;
 int fl;
 
@@ -67,10 +59,9 @@ int fl;
 #define RAMP_MS 3 /* only up to about 300 is safe at high sample rates */
 #define TIMESTRETCH_RAMP_MS 10
 
-#define INST_HISTDEPTH 128 /* 2(?)>INST_HISTDEPTH>128 */
+#define INST_HISTDEPTH 128 /* ~2(?)>INST_HISTDEPTH>=128 */
 
-#define INSTRUMENT_TYPE_COUNT 3
-#define MIN_INSTRUMENT_INDEX -5
+#define INSTRUMENT_TYPE_COUNT 2
 #define MIN_EFFECT_INDEX 0
 
 #define INSTRUMENT_BODY_COLS 80
@@ -101,15 +92,12 @@ void stopPlayback(void);
 #include "dsp.c"
 #include "structures.c"
 
-int ifMacro(row, char); /* (row, char) */
+int ifMacro(row, char);
 
 #include "input.c"
-
-#include "effect.c"
 #include "instrument.c"
-#include "tracker.c" /* instrument dependancy */
-
-#include "process.c" /* instrument dependancy */
+#include "tracker.c"
+#include "process.c"
 
 jack_client_t *client;
 
@@ -117,7 +105,6 @@ jack_client_t *client;
 void redraw(void)
 {
 	printf("\033[2J");
-	printf("\033[0;0H%d", DEBUG);
 
 	if (ws.ws_row < 24 || ws.ws_col < 80)
 	{
@@ -127,7 +114,6 @@ void redraw(void)
 
 	trackerRedraw();
 	instrumentRedraw();
-	effectRedraw();
 	drawCommand(&w->command, w->mode);
 
 	fflush(stdout);
@@ -137,10 +123,10 @@ void commandTabCallback(char *text)
 {
 	char *buffer = malloc(strlen(text) + 1);
 	wordSplit(buffer, text, 0);
-	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %02x", s->bpm);
-	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows %02x", s->patternv[s->patterni[s->songi[w->songfx]]]->rowc);
-	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight %02x", s->rowhighlight);
-	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step %02x", w->step);
+	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm 0x%02x", s->bpm);
+	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows 0x%02x", s->patternv[s->patterni[s->songi[w->songfx]]]->rowc);
+	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight 0x%02x", s->rowhighlight);
+	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step 0x%x", w->step);
 	else if (!strcmp(buffer, "octave")) snprintf(text, COMMAND_LENGTH + 1, "octave %d", w->octave);
 	free(buffer);
 }
@@ -184,7 +170,7 @@ int commandCallback(char *command, unsigned char *mode)
 	} else if (!strcmp(buffer, "step"))
 	{
 		wordSplit(buffer, command, 1);
-		w->step = strtol(buffer, NULL, 16);
+		w->step = MIN(strtol(buffer, NULL, 16), 15);
 	} else if (!strcmp(buffer, "octave"))
 	{
 		wordSplit(buffer, command, 1);
@@ -244,7 +230,6 @@ int input(void)
 		{
 			case 0:          trackerInput(input);     break;
 			case 1: case 2:  instrumentInput(input);  break;
-			case 3: case 4:  effectInput(input);      break;
 		}
 	}
 	return 0;
@@ -324,25 +309,10 @@ void cleanup(int ret)
 	jack_client_close(client);
 
 	free(w->previewinstrument.state[0]);
-	free(w->pluginlist);
 
 	free(w);
 	delSong(s);
 	free(p);
-
-	lilv_node_free(lv2.inputport);
-	lilv_node_free(lv2.outputport);
-	lilv_node_free(lv2.audioport);
-	lilv_node_free(lv2.controlport);
-	lilv_node_free(lv2.integer);
-	lilv_node_free(lv2.toggled);
-	lilv_node_free(lv2.render);
-	lilv_node_free(lv2.samplerate);
-	lilv_node_free(lv2.unit);
-	lilv_node_free(lv2.enumeration);
-	lilv_node_free(lv2.logarithmic);
-	lilv_node_free(lv2.rangesteps);
-	lilv_world_free(lv2.world);
 
 	common_cleanup(ret);
 }
@@ -466,38 +436,6 @@ int main(int argc, char **argv)
 	initInstrumentTypes();
 
 
-	/* lv2 */
-	lv2.world = lilv_world_new();
-	lilv_world_load_all(lv2.world);
-	lv2.plugins = (LilvPlugins *)lilv_world_get_all_plugins(lv2.world);
-	lv2.pluginc = lilv_plugins_size(lv2.plugins);
-	w->pluginlist = malloc((INSTRUMENT_TYPE_COLS - 2) * lv2.pluginc);
-	const LilvPlugin *plugin;
-	LilvNode *n;
-	unsigned int xc = 0;
-	LILV_FOREACH(plugins, i, lv2.plugins)
-	{
-		plugin = lilv_plugins_get(lv2.plugins, i);
-		n = lilv_plugin_get_name(plugin);
-		strcpy(w->pluginlist[xc], lilv_node_as_string(n));
-		lilv_node_free(n);
-		xc++;
-	}
-
-	lv2.inputport =   lilv_new_uri(lv2.world, LV2_CORE__InputPort);
-	lv2.outputport =  lilv_new_uri(lv2.world, LV2_CORE__OutputPort);
-	lv2.audioport =   lilv_new_uri(lv2.world, LV2_CORE__AudioPort);
-	lv2.controlport = lilv_new_uri(lv2.world, LV2_CORE__ControlPort);
-	lv2.integer =     lilv_new_uri(lv2.world, LV2_CORE__integer);
-	lv2.toggled =     lilv_new_uri(lv2.world, LV2_CORE__toggled);
-	lv2.enumeration = lilv_new_uri(lv2.world, LV2_CORE__enumeration);
-	lv2.samplerate =  lilv_new_uri(lv2.world, LV2_CORE__sampleRate);
-	lv2.render =      lilv_new_uri(lv2.world, LV2_UNITS__render);
-	lv2.unit =        lilv_new_uri(lv2.world, LV2_UNITS__unit);
-	lv2.logarithmic = lilv_new_uri(lv2.world, LV2_PORT_PROPS__logarithmic);
-	lv2.rangesteps =  lilv_new_uri(lv2.world, LV2_PORT_PROPS__rangeSteps);
-
-
 	if (argc > 1)
 	{
 		strcpy(w->newfilename, argv[1]);
@@ -526,7 +464,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		// if (p->dirty)
+		if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();
