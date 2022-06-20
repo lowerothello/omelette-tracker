@@ -8,10 +8,10 @@ STAGING DESIGNS
 ││                                                                            ││
 ││                      GENERAL         │       AMPLIFIER                     ││
 ││              C-5 rate     [00000000] │ attack           [00]               ││
-││         TODO samplerate         [ff] │ decay            [00]               ││
+││              samplerate         [ff] │ decay            [00]               ││
 ││              mono/8-bit       [ ][ ] │ sustain          [ff]               ││
-││              unsigned            [ ] │ release          [00]               ││
-││              invert phase        [ ] ├──────────────────────               ││
+││              invert phase        [ ] │ release          [00]               ││
+││                                      ├──────────────────────               ││
 ││              ────────────────────────┤    TRIM       LOOP                  ││
 ││                    TIMESTRETCH       │ [00000000] [00000000]               ││
 ││              persistent tempo    [ ] │ [00000000] [00000000]               ││

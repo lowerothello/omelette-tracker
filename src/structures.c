@@ -15,44 +15,30 @@ typedef struct
 
 typedef struct
 {
-	char      mute;              /* saved to disk */
-	uint32_t  samplepointer;     /* progress through the sample */
-	uint32_t  sampleoffset;      /* point to base samplepointer off of */
-	uint32_t  releasepointer;    /* 0 for no release, where releasing started */
-	uint8_t   gain;              /* two 4bit uints, one for each channel */
+	char      mute;                         /* saved to disk */
+	uint32_t  pointer;                      /* progress through the sound */
+	uint32_t  pointeroffset;                /* where to base pointer off of */
+	uint32_t  releasepointer;               /* 0 for no release, where releasing started */
+	uint8_t   gain;                         /* two 4bit uints, one for each channel */
 	row       r;
-	float     cents;             /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
-	uint8_t   portamento;        /* portamento target, 255 for off */
-	uint8_t   portamentospeed;   /* portamento m */
-	uint16_t  rtrigsamples;      /* samples per retrigger */
-	uint32_t  rtrigpointer;      /* sample ptr to ratchet back to */
-	uint8_t   rtrigblocksize;    /* number of rows block extends to */
-	uint32_t  cutsamples;        /* samples into the row to cut, 0 for no cut */
-	uint32_t  delaysamples;      /* samples into the row to delay, 0 for no delay */
+	float     cents;                        /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
+	uint8_t   portamento;                   /* portamento target, 255 for off */
+	uint8_t   portamentospeed;              /* portamento m */
+	uint16_t  rtrigsamples;                 /* samples per retrigger */
+	uint32_t  rtrigpointer;                 /* sample ptr to ratchet back to */
+	uint8_t   rtrigblocksize;               /* number of rows block extends to */
+	uint32_t  cutsamples;                   /* samples into the row to cut, 0 for no cut */
+	uint32_t  delaysamples;                 /* samples into the row to delay, 0 for no delay */
 	uint8_t   delaynote;
 	uint8_t   delayinst;
 
-	uint16_t  rampindex;         /* progress through the ramp buffer, rampmax if not ramping */
-	uint16_t  rampmax;           /* length of the ramp buffer */
-	sample_t *rampbuffer;        /* samples to ramp out */
-	uint8_t   rampinstrument;    /* old instrument, realindex */
-	uint8_t   rampgain;          /* old gain */
+	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
+	uint16_t  rampmax;                      /* length of the ramp buffer */
+	sample_t *rampbuffer;                   /* samples to ramp out */
+	uint8_t   rampinstrument;               /* old instrument, realindex */
+	uint8_t   rampgain;                     /* old gain */
 
-	uint16_t  stretchrampindex;  /* progress through the ramp buffer, rampmax if not ramping */
-	uint16_t  stretchrampmax;    /* length of the ramp buffer */
-	sample_t *stretchrampbuffer; /* samples to ramp out */
-	uint32_t  cycleoffset;
-
-	float     ln_1, ln_2;        /* previous samples, used by filters */
-	float     rn_1, rn_2;
-	wnoise    wn;
-	struct
-	{
-		float osc1phase;         /* stored phase, for freewheel oscillators */
-		float osc2phase;
-		float subphase;
-		float lfophase;
-	} analogue[33];             /* one for each potential instance */
+	void     *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 } channel;
 
 typedef struct Instrument
@@ -219,6 +205,8 @@ typedef struct
 		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
 		void           (*macro)(instrument *, channel *, row, uint8_t, int);
 		void           (*initType)(void **);
+		void           (*addChannel)(void **);
+		void           (*delChannel)(void **);
 		void           (*write)(void **, FILE *fp);
 		void           (*read)(void **, FILE *fp);
 	} f[INSTRUMENT_TYPE_COUNT];
@@ -274,17 +262,6 @@ void _addChannel(channel *cv)
 	cv->rampmax = samplerate / 1000 * RAMP_MS;
 	cv->rampindex = cv->rampmax;
 	cv->rampbuffer = malloc(sizeof(sample_t) * cv->rampmax * 2); /* *2 for stereo */
-	cv->stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
-	cv->stretchrampindex = cv->stretchrampmax;
-	cv->stretchrampbuffer = malloc(sizeof(sample_t) * cv->stretchrampmax * 2); /* *2 for stereo */
-	initWnoise(&cv->wn);
-	for (int i = 0; i < 33; i++)
-	{
-		cv->analogue[i].osc1phase = 0.0;
-		cv->analogue[i].osc2phase = 0.0;
-		cv->analogue[i].subphase = 0.0;
-		cv->analogue[i].lfophase = 0.0;
-	}
 }
 int addChannel(song *cs, uint8_t index)
 {
@@ -310,6 +287,15 @@ int addChannel(song *cs, uint8_t index)
 	cs->channelc++;
 	return 0;
 }
+void _delChannel(song *cs, uint8_t index)
+{
+	free(cs->channelv[index].rampbuffer);
+	cs->channelv[index].rampbuffer = NULL;
+
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
+		if (cs->channelv[index].state[i])
+			t->f[i].delChannel(&cs->channelv[index].state[i]);
+}
 int delChannel(uint8_t index)
 {
 	uint8_t i;
@@ -327,10 +313,7 @@ int delChannel(uint8_t index)
 		s->channelv[s->channelc].mute = 0;
 	} else
 	{
-		free(s->channelv[index].rampbuffer);
-		s->channelv[index].rampbuffer = NULL;
-		free(s->channelv[index].stretchrampbuffer);
-		s->channelv[index].stretchrampbuffer = NULL;
+		_delChannel(s, index);
 
 		for (i = index; i < s->channelc; i++)
 		{
@@ -342,7 +325,6 @@ int delChannel(uint8_t index)
 				&s->channelv[i + 1],
 				sizeof(channel));
 		}
-
 		s->channelc--;
 	}
 	return 0;
@@ -696,7 +678,31 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 
 
 
-/* forceindex is a realindex */
+void _allocChannelMemory(song *cs)
+{
+	char used[INSTRUMENT_TYPE_COUNT];
+	memset(&used, 0, INSTRUMENT_TYPE_COUNT);
+
+	for (int i = 1; i < cs->instrumentc; i++)
+	{
+		if (cs->instrumentv[i]->type < INSTRUMENT_TYPE_COUNT
+				&& !used[cs->instrumentv[i]->type])
+			used[cs->instrumentv[i]->type] = 1;
+	}
+
+	DEBUG=cs->instrumentc;
+	for (int i = 0; i < cs->channelc; i++)
+		for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
+		{
+			if (used[j] && !cs->channelv[i].state[j])
+				t->f[j].addChannel(&cs->channelv[i].state[j]);
+
+			if (!used[j] && cs->channelv[i].state[j])
+				t->f[j].delChannel(&cs->channelv[i].state[j]);
+		}
+}
+
+/* don't force while forceindex is playing back! */
 int changeInstrumentType(song *cs, uint8_t forceindex)
 {
 	uint8_t i;
@@ -764,6 +770,9 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 		}
 		iv->typefollow = iv->type;
 	}
+
+
+	_allocChannelMemory(cs);
 
 
 	if (!forceindex)
@@ -1002,7 +1011,6 @@ int putInstrument(uint8_t index)
 }
 void _delInstrument(song *cs, uint8_t realindex)
 {
-	/* free the sample data */
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (cs->instrumentv[realindex]->state[i])
 			free(cs->instrumentv[realindex]->state[i]);
@@ -1183,8 +1191,7 @@ void delSong(song *cs)
 {
 	for (int i = 0; i < cs->channelc; i++)
 	{
-		free(cs->channelv[i].rampbuffer);
-		free(cs->channelv[i].stretchrampbuffer);
+		_delChannel(cs, i);
 	}
 
 	for (int i = 1; i < cs->patternc; i++)
@@ -1461,5 +1468,6 @@ song *readSong(char *path)
 
 
 	fclose(fp);
+	_allocChannelMemory(cs);
 	return cs;
 }

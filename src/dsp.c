@@ -237,8 +237,7 @@ float adsrEnvelope(adsr env, float curve,
 	if (releasepointer && releasepointer < pointer)
 	{ /* release */
 		uint32_t releaselength = env.r * ENVELOPE_RELEASE * samplerate;
-		linear = 1.0 - (float)MIN(pointer - releasepointer, releaselength)
-			/ (float)releaselength * env.s / 255.0;
+		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * env.s / 255.0;
 	} else
 	{
 		uint32_t attacklength = env.a * ENVELOPE_ATTACK * samplerate;
@@ -251,15 +250,15 @@ float adsrEnvelope(adsr env, float curve,
 		} else if (env.s < 255 && pointer < attacklength + decaylength)
 		{ /* decay */
 			linear = 1.0 - (float)(pointer - attacklength)
-				/ (float)decaylength * env.s / 255.0;
+				/ (float)decaylength * (1.0 - env.s / 255.0);
 		} else linear = env.s / 255.0; /* sustain */
 	}
 	/* lerp between linear and exponential */
 	return linear + (powf(2.0, linear) - 1.0 - linear) * curve;
 }
 
-/* phase is modulod to 0-1 */
-/* pw is 0-1    */
+/* phase is modulo'd to 0-1 */
+/* pw should be 0-1         */
 float oscillator(char wave, float phase, float pw)
 {
 	float output = 0.0;

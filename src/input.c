@@ -18,6 +18,8 @@ uint8_t charToNote(int key, uint8_t octave)
 	octave = octave*12;
 	switch (key)
 	{
+		case ' ': return 255; break;
+
 		case 'q': return 1  +octave; break;
 		case 'w': return 2  +octave; break;
 		case 'e': return 3  +octave; break;

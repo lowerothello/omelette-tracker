@@ -42,6 +42,21 @@ typedef struct
 	uint8_t stereo;
 } analogue_state;
 
+typedef struct
+{
+	float  ln_1, ln_2;   /* previous filter output samples */
+	float  rn_1, rn_2;
+	wnoise wn;
+	struct
+	{
+		float osc1phase; /* stored phase, for freewheel oscillators */
+		float osc2phase;
+		float subphase;
+		float lfophase;
+	} multi[33];         /* one for any potential instance */
+} analogue_channel;
+
+
 
 void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned short y, short *cursor, char adjust)
 {
@@ -366,41 +381,41 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 	}
 }
 
-float analogueInstance(analogue_state *as, channel *cv, uint8_t index, float detune)
+float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, uint8_t index, float detune)
 {
 	float pps = 1.0 / ((float)samplerate
 		/ (C5_FREQ * powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents + detune)));
 	
-	cv->analogue[index].lfophase += 1.0 / ((float)samplerate * LFO_MAX
+	ac->multi[index].lfophase += 1.0 / ((float)samplerate * LFO_MAX
 		+ (float)samplerate * (LFO_MIN - LFO_MAX)
 		* (1.0 - as->lfo.rate / 256.0) + detune);
 
 	float output = 0.0;
-	float lfo = (oscillator(as->lfo.wave, cv->analogue[index].lfophase, 0.5) + 1.0) / 2;
+	float lfo = (oscillator(as->lfo.wave, ac->multi[index].lfophase, 0.5) + 1.0) / 2;
 	float pw = 0.5 * (1.0 + lfo * as->lfo.pwm / 256.0);
 
 	{ /* osc1 */
-		cv->analogue[index].osc1phase += pps;
-		if (cv->analogue[index].osc1phase > 1.0) cv->analogue[index].osc1phase -= 1.0;
+		ac->multi[index].osc1phase += pps;
+		if (ac->multi[index].osc1phase > 1.0) ac->multi[index].osc1phase -= 1.0;
 
-		output += oscillator(as->osc1.wave, cv->analogue[index].osc1phase
+		output += oscillator(as->osc1.wave, ac->multi[index].osc1phase
 				+ (lfo * PM_DEPTH * as->osc1.pm / 256.0), pw)
 			* as->mix.osc1 / 256.0 * (1.0 + lfo * as->osc1.am / 256.0);
 	}
 	{ /* osc2 */
-		cv->analogue[index].osc2phase += pps * powf(2, as->osc2.oct-1)
+		ac->multi[index].osc2phase += pps * powf(2, as->osc2.oct-1)
 			* powf(2, as->osc2.det / 256.0 + 0.5);
-		if (cv->analogue[index].osc2phase > 1.0) cv->analogue[index].osc2phase -= 1.0;
+		if (ac->multi[index].osc2phase > 1.0) ac->multi[index].osc2phase -= 1.0;
 
-		output += oscillator(as->osc2.wave, cv->analogue[index].osc2phase
+		output += oscillator(as->osc2.wave, ac->multi[index].osc2phase
 				+ (lfo * PM_DEPTH * as->osc2.pm / 256.0), pw)
 			* as->mix.osc2 / 256.0 * (1.0 + lfo * as->osc2.am / 256.0);
 	}
 	{ /* sub */
-		cv->analogue[index].subphase += pps * powf(2, as->sub.oct);
-		if (cv->analogue[index].subphase > 1.0) cv->analogue[index].subphase -= 1.0;
+		ac->multi[index].subphase += pps * powf(2, as->sub.oct);
+		if (ac->multi[index].subphase > 1.0) ac->multi[index].subphase -= 1.0;
 
-		output += oscillator(as->sub.wave, cv->analogue[index].subphase, pw)
+		output += oscillator(as->sub.wave, ac->multi[index].subphase, pw)
 			* as->mix.sub / 256.0;
 	}
 	return output;
@@ -412,11 +427,12 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 	*r = 0.0;
 
 	analogue_state *as = iv->state[iv->type];
+	analogue_channel *ac = cv->state[iv->type];
 
 	float again = adsrEnvelope(as->amp, 1.0, pointer, cv->releasepointer);
 
 	/* centre */
-	*l = *r = analogueInstance(as, cv, 2, 0) * again;
+	*l = *r = analogueInstance(as, ac, cv, 2, 0) * again;
 
 	float c, gain, detune, width;
 	for (char i = 1; i <= as->multi; i++)
@@ -426,31 +442,31 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 		detune = gain * as->detune / 256.0;
 		if (i % 2)
 		{
-			c = analogueInstance(as, cv, i * 2 + 0,  detune) * again;
+			c = analogueInstance(as, ac, cv, i * 2 + 0,  detune) * again;
 			*l += c * (gain + width);
 			*r += c * MAX(gain - width, 0.0);
-			c = analogueInstance(as, cv, i * 2 + 1, -detune) * again;
+			c = analogueInstance(as, ac, cv, i * 2 + 1, -detune) * again;
 			*r += c * (gain + width);
 			*l += c * MAX(gain - width, 0.0);
 		} else
 		{
-			c = analogueInstance(as, cv, i * 2 + 0, -detune) * again;
+			c = analogueInstance(as, ac, cv, i * 2 + 0, -detune) * again;
 			*l += c * (gain + width);
 			*r += c * MAX(gain - width, 0.0);
-			c = analogueInstance(as, cv, i * 2 + 1,  detune) * again;
+			c = analogueInstance(as, ac, cv, i * 2 + 1,  detune) * again;
 			*r += c * (gain + width);
 			*l += c * MAX(gain - width, 0.0);
 		}
 	}
 
 	{ /* noise */
-		float noise = getWnoise(&cv->wn) * as->mix.noise / 512.0 * again; /* 256 * 2 */
+		float noise = getWnoise(&ac->wn) * as->mix.noise / 512.0 * again; /* 256 * 2 */
 		*l += noise;
 		*r += noise;
 	}
 	{ /* filter */
 		float fgain = adsrEnvelope(as->filter.env, 1.0, pointer, cv->releasepointer);
-		float lfo = oscillator(as->lfo.wave, cv->analogue[0].lfophase, 0.5);
+		float lfo = oscillator(as->lfo.wave, ac->multi[0].lfophase, 0.5);
 		switch (as->filter.type)
 		{
 			case 0:
@@ -476,11 +492,11 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 							as->filter.resonance / 256.0);
 				break;
 		}
-		*l = runFilter(&as->filter.state, *l, cv->ln_1, cv->ln_2);
-		*r = runFilter(&as->filter.state, *r, cv->rn_1, cv->rn_2);
+		*l = runFilter(&as->filter.state, *l, ac->ln_1, ac->ln_2);
+		*r = runFilter(&as->filter.state, *r, ac->rn_1, ac->rn_2);
 		/* push filter history */
-		cv->ln_2 = cv->ln_1; cv->ln_1 = *l;
-		cv->rn_2 = cv->rn_1; cv->rn_1 = *r;
+		ac->ln_2 = ac->ln_1; ac->ln_1 = *l;
+		ac->rn_2 = ac->rn_1; ac->rn_1 = *r;
 	}
 	{ /* saturation */
 		if (*l > 0.0)
@@ -513,6 +529,19 @@ void analogueInitType(void **state)
 	as->mix.noise = 0;
 }
 
+void analogueAddChannel(void **state)
+{
+	*state = calloc(1, sizeof(analogue_channel));
+	analogue_channel *ac = *state;
+	initWnoise(&ac->wn);
+}
+
+void analogueDelChannel(void **state)
+{
+	free(*state); *state = NULL;
+}
+
+
 void analogueWrite(void **state, FILE *fp)
 { fwrite(*state, sizeof(analogue_state), 1, fp); }
 
@@ -530,6 +559,8 @@ void analogueInit(int index)
 	t->f[index].input = &analogueInput;
 	t->f[index].process = &analogueProcess;
 	t->f[index].initType = &analogueInitType;
+	t->f[index].addChannel = &analogueAddChannel;
+	t->f[index].delChannel = &analogueDelChannel;
 	t->f[index].write = &analogueWrite;
 	t->f[index].read = &analogueRead;
 }

@@ -53,30 +53,34 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 
 void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
-	cv->r.inst = inst;
-	cv->r.note = note;
-	cv->portamento = 0;
-	cv->samplepointer = 0;
-	cv->cents = 0.0;
-	cv->gain = 255;
-	cv->sampleoffset = 0;
-	cv->releasepointer = 0;
-	cv->ln_1 = cv->ln_2 = 0.0;
-	cv->rn_1 = cv->rn_2 = 0.0;
+	if (note == 255) /* note off */
+	{
+		cv->releasepointer = cv->pointer;
+	} else
+	{
+		cv->r.inst = inst;
+		cv->r.note = note;
+		cv->portamento = 0;
+		cv->pointer = 0;
+		cv->cents = 0.0;
+		cv->gain = 255;
+		cv->pointeroffset = 0;
+		cv->releasepointer = 0;
+	}
 }
 /* ramping */
 void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
-	if (cv->r.note) /* old note, ramp it out */
+	if (cv->r.note && note != 255) /* old note, ramp it out */
 	{
 		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
 				&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
 				&& t->f[iv->type].process)
-			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
+			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
+		cv->rampindex = 0; /* set this even if it's not populated */
 	}
-	cv->rampindex = 0; /* set this even if it's not populated */
 	_triggerNote(cv, note, inst);
 }
 
@@ -107,8 +111,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		if (cv->rtrigsamples > 0 && inst < 255)
 		{
 			uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
-			uint32_t rtrigoffset = (cv->samplepointer - cv->rtrigpointer) % cv->rtrigsamples;
-			if (rtrigoffset == 0 && cv->samplepointer > cv->rtrigpointer)
+			uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
+			if (rtrigoffset == 0 && cv->pointer > cv->rtrigpointer)
 			{ /* first sample of any retrigger but the first */
 				ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
 				cv->rampindex = 0;
@@ -116,8 +120,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &l, &r);
 			cv->r.note = oldnote;
 		} else
-			t->f[iv->type].process(iv, cv, cv->samplepointer, &l, &r);
-		cv->samplepointer++;
+			t->f[iv->type].process(iv, cv, cv->pointer, &l, &r);
+		cv->pointer++;
 	} else
 	{
 		l = r = 0.0;
@@ -195,11 +199,11 @@ void preprocessRow(channel *cv, row r)
 		changeBpm(p->s, m);
 
 	m = ifMacro(r, 'C'); /* cut */
-	if (r.note == 255 || (m >= 0 && m>>4 == 0))
+	if (m >= 0 && m>>4 == 0) /* note cut */
 	{
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
-			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->samplepointer);
+			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 		cv->rampindex = 0;
 		cv->r.note = 0;
 	} else
@@ -235,7 +239,7 @@ void preprocessRow(channel *cv, row r)
 	m = ifMacro(r, 'R');
 	if (m >= 0 && m%16 != 0) // retrigger
 	{
-		cv->rtrigpointer = cv->samplepointer;
+		cv->rtrigpointer = cv->pointer;
 		cv->rtrigsamples = (p->s->spr / (m%16)) * ((m>>4) + 1);
 		cv->rtrigblocksize = m>>4;
 	} else if (cv->rtrigsamples)
@@ -378,7 +382,7 @@ int process(jack_nframes_t nfptr, void *arg)
 						} else
 						{
 							_triggerNote(cv, cv->delaynote, cv->delayinst);
-							cv->samplepointer = p->s->spr - cv->samplepointer;
+							cv->pointer = p->s->spr - cv->pointer;
 							cv->delaysamples = 0;
 						}
 					}
@@ -390,9 +394,9 @@ int process(jack_nframes_t nfptr, void *arg)
 					else if (cv->delaysamples)
 					{
 						_triggerNote(cv, cv->delaynote, cv->delayinst);
-						cv->samplepointer = p->s->spr - cv->samplepointer;
+						cv->pointer = p->s->spr - cv->pointer;
 						cv->delaysamples = 0;
-					} else if (cv->r.note) cv->samplepointer += p->s->spr;
+					} else if (cv->r.note) cv->pointer += p->s->spr;
 
 					if (cv->r.note && cv->portamento)
 					{
@@ -422,7 +426,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					&& p->w->instrumentlocki == p->s->instrumenti[p->s->channelv[i].r.inst]))
 				ramp(p, &p->s->channelv[i],
 						p->s->instrumenti[p->s->channelv[i].r.inst],
-						p->s->channelv[i].samplepointer);
+						p->s->channelv[i].pointer);
 			p->s->channelv[i].r.note = 0;
 		}
 

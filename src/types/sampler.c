@@ -1,3 +1,12 @@
+typedef struct
+{
+	uint16_t  stretchrampindex;  /* progress through the stretch ramp buffer, stretchrampmax if not ramping */
+	uint16_t  stretchrampmax;    /* length of the stretch ramp buffer */
+	sample_t *stretchrampbuffer; /* raw samples to ramp out */
+	uint32_t  cycleoffset;
+} sampler_channel;
+
+
 void samplerIncFieldPointer(short index)
 {
 	w->fieldpointer++;
@@ -810,6 +819,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 {
 	uint32_t pitchedpointer;
 	sampler_state *ss = iv->state[iv->type];
+	sampler_channel *sc = cv->state[iv->type];
 
 	float gain = adsrEnvelope(ss->volume, 0.0, pointer, cv->releasepointer);
 
@@ -818,31 +828,31 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		float decimate = 1.0 + (1.0 - ss->samplerate / 256.0) * 20;
 		if (ss->attributes & 0b1) /* persistent tempo */
 		{
-			if (pointer % MAX(ss->cyclelength, cv->stretchrampmax) == 0) /* first sample of a cycle */
+			if (pointer % MAX(ss->cyclelength, sc->stretchrampmax) == 0) /* first sample of a cycle */
 			{
 				/* don't ramp the first cycle */
-				if (pointer == 0) cv->stretchrampindex = cv->stretchrampmax;
+				if (pointer == 0) sc->stretchrampindex = sc->stretchrampmax;
 				else
 				{
 					uint32_t ramppointer;
-					cv->stretchrampindex = 0;
-					for (uint16_t i = 0; i < cv->stretchrampmax; i++)
+					sc->stretchrampindex = 0;
+					for (uint16_t i = 0; i < sc->stretchrampmax; i++)
 					{
-						ramppointer = (cv->cycleoffset + (float)(MAX(ss->cyclelength, cv->stretchrampmax) + i + 1)
+						ramppointer = (sc->cycleoffset + (float)(MAX(ss->cyclelength, sc->stretchrampmax) + i + 1)
 								/ (float)samplerate * ss->c5rate
 								* powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents))
 								/ decimate;
 						ramppointer *= decimate;
 						ramppointer = trimloop(ramppointer, pointer + i + 1, cv, iv, ss,
-								&cv->stretchrampbuffer[i * 2 + 0],
-								&cv->stretchrampbuffer[i * 2 + 1]);
+								&sc->stretchrampbuffer[i * 2 + 0],
+								&sc->stretchrampbuffer[i * 2 + 1]);
 						if (ramppointer > ss->length) break;
 					}
 				}
-				cv->cycleoffset = (float)(pointer + cv->sampleoffset)
+				sc->cycleoffset = (float)(pointer + cv->pointeroffset)
 					/ (float)samplerate * ss->c5rate;
 			}
-			pitchedpointer = (cv->cycleoffset + (float)(pointer % MAX(ss->cyclelength, cv->stretchrampmax))
+			pitchedpointer = (sc->cycleoffset + (float)(pointer % MAX(ss->cyclelength, sc->stretchrampmax))
 				/ (float)samplerate * ss->c5rate
 				* powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents))
 				/ decimate;
@@ -850,7 +860,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		} else
 		{
 			/* 61 is C-5 */
-			pitchedpointer = ((float)(pointer + cv->sampleoffset)
+			pitchedpointer = ((float)(pointer + cv->pointeroffset)
 				/ (float)samplerate * ss->c5rate
 				* powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents))
 				/ decimate;
@@ -874,14 +884,14 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 	}
 
 	/* mix in ramp data */
-	if (cv->stretchrampindex < cv->stretchrampmax)
+	if (sc->stretchrampindex < sc->stretchrampmax)
 	{
-		float rampgain = (float)cv->stretchrampindex / (float)cv->stretchrampmax;
+		float rampgain = (float)sc->stretchrampindex / (float)sc->stretchrampmax;
 		*l *= rampgain;
 		*r *= rampgain;
-		*l += cv->stretchrampbuffer[cv->stretchrampindex * 2 + 0] * (1.0 - rampgain);
-		*r += cv->stretchrampbuffer[cv->stretchrampindex * 2 + 1] * (1.0 - rampgain);
-		cv->stretchrampindex++;
+		*l += sc->stretchrampbuffer[sc->stretchrampindex * 2 + 0] * (1.0 - rampgain);
+		*r += sc->stretchrampbuffer[sc->stretchrampindex * 2 + 1] * (1.0 - rampgain);
+		sc->stretchrampindex++;
 	}
 
 	if (ss->attributes & 0b1000) /* mono */
@@ -894,7 +904,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		*l *= -1;
 		*r *= -1;
 	}
-	if (ss->attributes & 0b100000) /* signed unsigned conversion */
+	if (ss->attributes & 0b100000) // signed unsigned conversion
 	{
 		if (*l != 0.0)
 		{
@@ -928,19 +938,19 @@ void samplerMacro(instrument *iv, channel *cv, row r, uint8_t macro, int m)
 					for (uint16_t i = 0; i < cv->rampmax; i++)
 					{
 						if (!cv->r.note) break;
-						t->f[iv->type].process(iv, cv, cv->samplepointer + i,
+						t->f[iv->type].process(iv, cv, cv->pointer + i,
 								&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 					}
 					cv->rampindex = 0;
 				}
-				cv->sampleoffset = ss->trim[0] + m / 256.0 * (ss->trim[1] - ss->trim[0]);
-				cv->samplepointer = 0;
+				cv->pointeroffset = ss->trim[0] + m / 256.0 * (ss->trim[1] - ss->trim[0]);
+				cv->pointer = 0;
 			}
 			break;
 	}
 }
 
-/* called when state's type is changed to this file's */
+/* called when state's type is changed to this file's (**state will later be freed) */
 void samplerInitType(void **state)
 {
 	*state = calloc(1, sizeof(sampler_state));
@@ -950,6 +960,25 @@ void samplerInitType(void **state)
 	ss->attributes = 0b00000100; /* loop ramping on by default */
 	ss->cyclelength = 0x6ff; /* feels like a good default? hard to be sure */
 }
+
+/* should initialize channel state */
+void samplerAddChannel(void **state)
+{
+	*state = calloc(1, sizeof(sampler_channel));
+	sampler_channel *sc = *state;
+	sc->stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
+	sc->stretchrampindex = sc->stretchrampmax;
+	sc->stretchrampbuffer = malloc(sizeof(sample_t) * sc->stretchrampmax * 2); /* *2 for stereo */
+}
+
+/* should clean up everything allocated in initChannel */
+void samplerDelChannel(void **state)
+{
+	sampler_channel *sc = *state;
+	free(sc->stretchrampbuffer);
+	free(*state); *state = NULL;
+}
+
 
 void samplerWrite(void **state, FILE *fp)
 { fwrite(*state, sizeof(sampler_state), 1, fp); }
@@ -974,6 +1003,8 @@ void samplerInit(int index)
 	t->f[index].process = &samplerProcess;
 	t->f[index].macro = &samplerMacro;
 	t->f[index].initType = &samplerInitType;
+	t->f[index].addChannel = &samplerAddChannel;
+	t->f[index].delChannel = &samplerDelChannel;
 	t->f[index].write = &samplerWrite;
 	t->f[index].read = &samplerRead;
 }
