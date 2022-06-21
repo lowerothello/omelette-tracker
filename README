@@ -20,10 +20,6 @@ TODO:
 	^ test retaining relative instrument params after processing
 	^ sample compression
 	^ change away from modal input (preview should always be bound)
--> effects
-
-some eq10q mono plugins segfault on load, not sure why
-
 
 
 MACROS:

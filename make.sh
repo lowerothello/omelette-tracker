@@ -18,6 +18,6 @@ run() {
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
-		-lm -Wall -g \
+		-lm -Wall -g -pg \
 		src/main.c -o omelette
 }

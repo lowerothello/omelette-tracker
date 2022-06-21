@@ -2,11 +2,20 @@
 #define FILTERTYPE_COUNT 1
 
 #define C5_FREQ 261.63
-#define MIN_RESONANCE 0.7 /* higher numbers are softer, M_SQRT2 (~1.4) is the highest */
+#define MIN_RESONANCE 0.6 /* higher numbers are softer, M_SQRT2 (~1.4) is the highest */
 #define MAX_RESONANCE 0.0 /* lower numbers are harsher */
 #define MAX_CUTOFF 12000
+#define MIN_CUTOFF 100
 
-#define PM_DEPTH 2 /* phase modulation depth */
+#define FM_DEPTH 0.01
+
+/* <seconds> */
+#define ENVELOPE_ATTACK  0.005
+#define ENVELOPE_DECAY   0.020
+#define ENVELOPE_RELEASE 0.020
+#define LFO_MIN 2.00
+#define LFO_MAX 0.001
+/* </seconds> */
 
 
 
@@ -40,39 +49,20 @@ typedef struct
 
 /* https://www.musicdsp.org/en/latest/Filters/38-lp-and-hp-filter.html */
 typedef struct
-{
-	double c;
-	double a1, a2, a3;
-	double b1, b2;
-} filter;
+{ double a1, a2, b1, b2, n1, n2; } filter;
 
-void calcLp(filter *f, float cutoff, float resonance)
+float runFilter(filter *s, float input, float cut, float res)
 {
-	double r = MAX_RESONANCE + (MIN_RESONANCE - MAX_RESONANCE) * (1.0 - resonance);
-	f->c = tan((0.5 - (MAX_CUTOFF * cutoff) * 1.0 / samplerate) * M_PI);
+	double r = MAX_RESONANCE + (MIN_RESONANCE - MAX_RESONANCE) * (1.0 - res);
+	double c = MIN(tan((0.5 - (MAX_CUTOFF * cut) * 1.0 / samplerate) * M_PI), MIN_CUTOFF);
 
-	f->a1 = 1.0 / (1.0 + r * f->c + f->c * f->c);
-	f->a2 = 2 * f->a1;
-	f->a3 = f->a1;
-	f->b1 = 2.0 * (1.0 - f->c * f->c) * f->a1;
-	f->b2 = (1.0 - r * f->c + f->c * f->c) * f->a1;
+	s->a1 = 1.0 / (1.0 + r*c + c*c);
+	s->a2 = 2.0 * s->a1;
+	s->b1 = 2.0 * (1.0 - c*c) * s->a1;
+	s->b2 = (1.0 - r*c + c*c) * s->a1;
+
+	return s->a1*input + s->a2*s->n1 + s->a1*s->n2 - s->b1*s->n1 - s->b2*s->n2;
 }
-void calcHp(filter *f, float cutoff, float resonance)
-{
-	double r = MAX_RESONANCE + (MIN_RESONANCE - MAX_RESONANCE) * (1.0 - resonance);
-	f->c = tan(M_PI * (MAX_CUTOFF * cutoff) / samplerate);
-
-	f->a1 = 1.0 / (1.0 + r * f->c + f->c * f->c);
-	f->a2 = -2 * f->a1;
-	f->a3 = f->a1;
-	f->b1 = 2.0 * (f->c * f->c - 1.0) * f->a1;
-	f->b2 = (1.0 - r * f->c + f->c * f->c) * f->a1;
-}
-float runFilter(filter *f, float n, float n_1, float n_2)
-{
-	return f->a1 * n + f->a2 * n_1 + f->a3 * n_2 - f->b1 * n_1 - f->b2 * n_2;
-}
-
 
 
 /* http://www.tinygod.com/code/BLorenzOsc.zip */
@@ -155,52 +145,52 @@ void drawWave(char wave, unsigned short y, unsigned short x, char adjust)
 		case 0:
 			if (adjust)
 			{
-				printf("\033[%d;%dH [   tri] ", y+0, x);
-				printf("\033[%d;%dH     saw  ", y+1, x);
-				printf("\033[%d;%dH    ramp  ", y+2, x);
-				printf("\033[%d;%dH  square  ", y+3, x);
-				printf("\033[%d;%dH    sine  ", y+4, x);
-			} else printf("\033[%d;%dH [   tri] ", y+0, x);
+				printf("\033[%d;%dH [  tri] ", y+0, x);
+				printf("\033[%d;%dH    saw  ", y+1, x);
+				printf("\033[%d;%dH   ramp  ", y+2, x);
+				printf("\033[%d;%dH  pulse  ", y+3, x);
+				printf("\033[%d;%dH   sine  ", y+4, x);
+			} else printf("\033[%d;%dH [  tri] ", y+0, x);
 			break;
 		case 1:
 			if (adjust)
 			{
-				printf("\033[%d;%dH     tri  ", y-1, x);
-				printf("\033[%d;%dH [   saw] ", y+0, x);
-				printf("\033[%d;%dH    ramp  ", y+1, x);
-				printf("\033[%d;%dH  square  ", y+2, x);
-				printf("\033[%d;%dH    sine  ", y+3, x);
-			} else printf("\033[%d;%dH [   saw] ", y+0, x);
+				printf("\033[%d;%dH    tri  ", y-1, x);
+				printf("\033[%d;%dH [  saw] ", y+0, x);
+				printf("\033[%d;%dH   ramp  ", y+1, x);
+				printf("\033[%d;%dH  pulse  ", y+2, x);
+				printf("\033[%d;%dH   sine  ", y+3, x);
+			} else printf("\033[%d;%dH [  saw] ", y+0, x);
 			break;
 		case 2:
 			if (adjust)
 			{
-				printf("\033[%d;%dH     tri  ", y-2, x);
-				printf("\033[%d;%dH     saw  ", y-1, x);
-				printf("\033[%d;%dH [  ramp] ", y+0, x);
-				printf("\033[%d;%dH  square  ", y+1, x);
-				printf("\033[%d;%dH    sine  ", y+2, x);
-			} else printf("\033[%d;%dH [  ramp] ", y+0, x);
+				printf("\033[%d;%dH    tri  ", y-2, x);
+				printf("\033[%d;%dH    saw  ", y-1, x);
+				printf("\033[%d;%dH [ ramp] ", y+0, x);
+				printf("\033[%d;%dH  pulse  ", y+1, x);
+				printf("\033[%d;%dH   sine  ", y+2, x);
+			} else printf("\033[%d;%dH [ ramp] ", y+0, x);
 			break;
 		case 3:
 			if (adjust)
 			{
-				printf("\033[%d;%dH     tri  ", y-3, x);
-				printf("\033[%d;%dH     saw  ", y-2, x);
-				printf("\033[%d;%dH    ramp  ", y-1, x);
-				printf("\033[%d;%dH [square] ", y+0, x);
-				printf("\033[%d;%dH    sine  ", y+1, x);
-			} else printf("\033[%d;%dH [square] ", y+0, x);
+				printf("\033[%d;%dH    tri  ", y-3, x);
+				printf("\033[%d;%dH    saw  ", y-2, x);
+				printf("\033[%d;%dH   ramp  ", y-1, x);
+				printf("\033[%d;%dH [pulse] ", y+0, x);
+				printf("\033[%d;%dH   sine  ", y+1, x);
+			} else printf("\033[%d;%dH [pulse] ", y+0, x);
 			break;
 		case 4:
 			if (adjust)
 			{
-				printf("\033[%d;%dH     tri  ", y-4, x);
-				printf("\033[%d;%dH     saw  ", y-3, x);
-				printf("\033[%d;%dH    ramp  ", y-2, x);
-				printf("\033[%d;%dH  square  ", y-1, x);
-				printf("\033[%d;%dH [  sine] ", y+0, x);
-			} else printf("\033[%d;%dH [  sine] ", y+0, x);
+				printf("\033[%d;%dH    tri  ", y-4, x);
+				printf("\033[%d;%dH    saw  ", y-3, x);
+				printf("\033[%d;%dH   ramp  ", y-2, x);
+				printf("\033[%d;%dH  pulse  ", y-1, x);
+				printf("\033[%d;%dH [ sine] ", y+0, x);
+			} else printf("\033[%d;%dH [ sine] ", y+0, x);
 			break;
 	}
 }
@@ -211,19 +201,45 @@ void drawFilterType(char type, unsigned short y, unsigned short x, char adjust)
 		case 0:
 			if (adjust)
 			{
-				printf("\033[%d;%dH[ low]", y+0, x);
-				printf("\033[%d;%dH high ", y+1, x);
-			} else printf("\033[%d;%dH[ low]", y+0, x);
+				printf("\033[%d;%dH[low]", y+0, x);
+				printf("\033[%d;%dH  hi ", y+1, x);
+				printf("\033[%d;%dH bnd ", y+2, x);
+				printf("\033[%d;%dH rej ", y+3, x);
+			} else printf("\033[%d;%dH[low]", y+0, x);
 			break;
 		case 1:
 			if (adjust)
 			{
-				printf("\033[%d;%dH  low ", y-1, x);
-				printf("\033[%d;%dH[high]", y+0, x);
-			} else printf("\033[%d;%dH[high]", y+0, x);
+				printf("\033[%d;%dH low ", y-1, x);
+				printf("\033[%d;%dH[ hi]", y+0, x);
+				printf("\033[%d;%dH bnd ", y+1, x);
+				printf("\033[%d;%dH rej ", y+2, x);
+			} else printf("\033[%d;%dH[ hi]", y+0, x);
 			break;
-		// case 2:  printf("[band]"); break;
+		case 2:
+			if (adjust)
+			{
+				printf("\033[%d;%dH low ", y-2, x);
+				printf("\033[%d;%dH  hi ", y-1, x);
+				printf("\033[%d;%dH[bnd]", y+0, x);
+				printf("\033[%d;%dH rej ", y+1, x);
+			} else printf("\033[%d;%dH[bnd]", y+0, x);
+			break;
+		case 3:
+			if (adjust)
+			{
+				printf("\033[%d;%dH low ", y-3, x);
+				printf("\033[%d;%dH  hi ", y-2, x);
+				printf("\033[%d;%dH bnd ", y-1, x);
+				printf("\033[%d;%dH[rej]", y+0, x);
+			} else printf("\033[%d;%dH[rej]", y+0, x);
+			break;
 	}
+}
+void drawBit(char true)
+{
+	if (true) printf("[X]");
+	else      printf("[ ]");
 }
 
 
@@ -265,16 +281,16 @@ float oscillator(char wave, float phase, float pw)
 	switch (wave)
 	{
 		case 0: /* triangle */
-			output = fabsf(fmodf(phase + 0.25, 1.0) - 0.5) * 4 - 1.0;
+			output = fabsf(fmodf(phase + 0.75, 1.0) - 0.5) * 4 - 1.0;
 			break;
-		case 1: /* saw      */ output = +1.0 - fmodf(phase + 0.5, 1.0) * 2; break;
+		case 1: /* saw      */ output = +1.0 - fmodf(phase, 1.0) * 2; break;
 		case 2: /* ramp     */ output = -1.0 + fmodf(phase + 0.5, 1.0) * 2; break;
 		case 3: /* square   */
-			if (fmodf(phase, 1.0) > pw) output = +1.0;
-			else                        output = -1.0;
+			if (fmodf(phase, 1.0) > pw) output = -1.0;
+			else                        output = +1.0;
 			break;
 		case 4: /* sine     */
-			output = xSin(phase * 4096);
+			output = xSin(fmodf(phase, 1.0) * 4096);
 			break;
 	}
 	return output;

@@ -39,15 +39,20 @@ void changeBpm(song *s, uint8_t newbpm)
 void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointeroffset)
 {
 	/* clear the rampbuffer so cruft isn't played in edge cases */
-	memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
+	memset(cv->rampbuffer, 0, sizeof(sample_t) * rampmax * 2);
 	instrument *iv = p->s->instrumentv[realinstrument];
-	cv->rampinstrument = realinstrument;
-	cv->rampgain = cv->gain;
-	for (uint16_t i = 0; i < cv->rampmax; i++)
+	if (iv)
 	{
-		if (!cv->r.note) break;
-		t->f[iv->type].process(iv, cv, pointeroffset + i,
-				&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+		float lgain = (cv->gain>>4) / 16.0 * (iv->fader>>4) / 16.0;
+		float rgain = (cv->gain%16) / 16.0 * (iv->fader%16) / 16.0;
+		for (uint16_t i = 0; i < rampmax; i++)
+		{
+			if (!cv->r.note) break;
+			t->f[iv->type].process(iv, cv, pointeroffset + i,
+					&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+			cv->rampbuffer[i * 2 + 0] *= lgain;
+			cv->rampbuffer[i * 2 + 1] *= rgain;
+		}
 	}
 }
 
@@ -55,7 +60,7 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
 	if (note == 255) /* note off */
 	{
-		cv->releasepointer = cv->pointer;
+		if (!cv->releasepointer) cv->releasepointer = cv->pointer;
 	} else
 	{
 		cv->r.inst = inst;
@@ -88,7 +93,7 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 /* inst==255 for off */
 void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, uint8_t inst)
 {
-	instrument *iv= p->s->instrumentv[p->s->instrumenti[inst]];
+	instrument *iv = p->s->instrumentv[p->s->instrumenti[inst]];
 
 	if (cv->cutsamples && p->s->sprp > cv->cutsamples)
 	{
@@ -108,7 +113,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
 			&& !cv->mute && cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
 	{
-		if (cv->rtrigsamples > 0 && inst < 255)
+		if (cv->rtrigsamples > 0 && inst != 255)
 		{
 			uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
 			uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
@@ -122,38 +127,31 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		} else
 			t->f[iv->type].process(iv, cv, cv->pointer, &l, &r);
 		cv->pointer++;
+
+		/* volume macro */
+		l *= (cv->gain>>4) / 16.0;
+		r *= (cv->gain%16) / 16.0;
+		/* instrument faders */
+		l *= (iv->fader>>4) / 16.0;
+		r *= (iv->fader%16) / 16.0;
 	} else
 	{
 		l = r = 0.0;
 	}
 
-	if (!cv->mute && inst != 255)
+	if (!cv->mute)
 	{
 		/* mix in ramp data */
-		if (cv->rampindex < cv->rampmax)
+		if (cv->rampindex < rampmax)
 		{
-			float rampgain = (float)cv->rampindex / (float)cv->rampmax;
-			l *= rampgain;
-			r *= rampgain;
-			if (cv->rampinstrument)
-			{
-				instrument *jv = p->s->instrumentv[cv->rampinstrument];
-				jv->outbufferl[fptr] += cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - rampgain) * ((cv->rampgain>>4) / 16.0);
-				jv->outbufferr[fptr] += cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - rampgain) * ((cv->rampgain%16) / 16.0);
-			}
-
+			float gain = (float)cv->rampindex / (float)rampmax;
+			l = l * gain + cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - gain);
+			r = r * gain + cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - gain);
 			cv->rampindex++;
 		}
 
-		/* volume macro */
-		l *= (cv->gain>>4) / 16.0;
-		r *= (cv->gain%16) / 16.0;
-
-		if (iv)
-		{
-			iv->outbufferl[fptr] += l;
-			iv->outbufferr[fptr] += r;
-		}
+		pb.outl[fptr] += l;
+		pb.outr[fptr] += r;
 	}
 }
 
@@ -251,7 +249,7 @@ void preprocessRow(channel *cv, row r)
 	}
 
 	/* type macros */
-	/* only 1 allowed per row */
+	/* only 1 read per row */
 	uint8_t num;
 	m = -1;
 
@@ -279,7 +277,6 @@ int process(jack_nframes_t nfptr, void *arg)
 {
 	playbackinfo *p = arg;
 	channel *cv;
-	instrument *iv;
 	portbuffers pb;
 	pb.inl =  jack_port_get_buffer(p->inl, nfptr);
 	pb.inr =  jack_port_get_buffer(p->inr, nfptr);
@@ -290,14 +287,6 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->lock = PLAY_LOCK_CONT;
 
 	if (p->lock == PLAY_LOCK_CONT) return 0;
-
-	/* clear instrument buffers */
-	for (uint8_t i = 1; i < p->s->instrumentc; i++)
-	{
-		iv = p->s->instrumentv[i];
-		memset(iv->outbufferl, 0, nfptr * sizeof(sample_t));
-		memset(iv->outbufferr, 0, nfptr * sizeof(sample_t));
-	}
 
 
 	/* just need to know these have been seen */
@@ -423,7 +412,8 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t i = 0; i < p->s->channelc; i++)
 		{
 			if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-					&& p->w->instrumentlocki == p->s->instrumenti[p->s->channelv[i].r.inst]))
+					&& p->w->instrumentlocki == p->s->instrumenti[p->s->channelv[i].r.inst])
+					&& p->s->channelv[i].r.inst)
 				ramp(p, &p->s->channelv[i],
 						p->s->instrumenti[p->s->channelv[i].r.inst],
 						p->s->channelv[i].pointer);
@@ -551,17 +541,6 @@ int process(jack_nframes_t nfptr, void *arg)
 	}
 
 	/* final mixdown */
-	for (uint8_t i = 1; i < p->s->instrumentc; i++)
-	{
-		iv = p->s->instrumentv[i];
-
-		/* fader and output */
-		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-		{
-			pb.outl[fptr] += iv->outbufferl[fptr] * (iv->fader>>4) / 16.0;
-			pb.outr[fptr] += iv->outbufferr[fptr] * (iv->fader%16) / 16.0;
-		}
-	}
 	/* master output volume */
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 	{

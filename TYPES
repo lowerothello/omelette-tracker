@@ -27,20 +27,20 @@ STAGING DESIGNS
 │   fader  [88]                                                                │
 │                                                                              │
 │┌──────────────────────────── [virtual analogue] ────────────────────────────┐│
-││         OSCILLATOR 1    │           FILTER          │    AMPLIFIER         ││
-││       wave    [   tri]  │  type    [ low]    a[00]  │  attack   [00]       ││
-││       pm/am   [00][00]  │  cutoff    [ff]    d[00]  │  decay    [00]       ││
-││       ──────────────────┤  resonance [00]    s[ff]  │  sustain  [ff]       ││
-││         OSCILLATOR 2    │  lfo mod   [00]    r[00]  │  release  [00]       ││
-││       wave    [   tri]  │  keyboard tracking   [ ]  │                      ││
-││       oct/det [+0][7f]  ├───────────────────┬───────┴───────────────       ││
-││       pm/am   [00][00]  │        LFO        │          MIXER               ││
-││       ──────────────────┤  rate       [7f]  │  oscillator 1     [7f]       ││
-││        SUB OSCILLATOR   │  wave   [   tri]  │  oscillator 2     [7f]       ││
-││       wave    [  sine]  │  pwm        [00]  │  sub oscillator   [00]       ││
-││       octave      [-1]  │                   │  noise            [00]       ││
 ││                                                                            ││
-││                  multi [0]     detune [00]     stereo [0]                  ││
+││       OSCILLATOR1   [80]             FILTER           │  AMPLIFIER         ││
+││       waveform   [  tri]   cutoff  [ff]  attack  [00] │ attack  [00]       ││
+││       fm/ringmod [00][ ]   reso    [00]  decay   [00] │ decay   [00]       ││
+││       sync/lfo   [ ][00] > lfo     [00]  sustain [ff] │ sustain [ff]       ││
+││       ──────────────────   track   [00]  release [00] │ release [00]       ││
+││       OSCILLATOR2   [80] > negative cutoff (loud) [ ] │ gain    [80] <     ││
+││       waveform   [  tri]   ───────────────────┬───────┴─────────────       ││
+││       detune [+0][0][7f]          LFO         │ NOISE           [00]       ││
+││     > track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]       ││
+││       ──────────────────   rate          [80] ├─────────────────────       ││
+││       SUB OSC   [-0][00]   pulse width   [00] │ UNISON           [0]       ││
+││       waveform   [pulse]                      │ detune/width [00][0]       ││
+││                                                                            ││
 │└────────────────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────────────┘
 

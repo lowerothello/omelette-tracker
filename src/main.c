@@ -37,6 +37,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 
 jack_nframes_t samplerate;
+jack_nframes_t rampmax;
 jack_nframes_t buffersize;
 struct winsize ws;
 struct termios term, origterm;
@@ -48,19 +49,9 @@ int fl;
 #define ROW_FIELDS 6
 #define SONG_COLS 5
 
-/* <seconds> */
-#define ENVELOPE_ATTACK  0.007
-#define ENVELOPE_DECAY   0.025
-#define ENVELOPE_RELEASE 0.025
-#define LFO_MIN 2.00
-#define LFO_MAX 0.005
-/* </seconds> */
-
-#define RAMP_MS 2 /* only up to about 300 is safe at high sample rates */
+#define RAMP_MS 4 /* only up to about 300 is safe at high sample rates */
 #define LOOP_RAMP_MS 50 /* will auto-lower to half the loop range */
 #define TIMESTRETCH_RAMP_MS 10
-
-#define INST_HISTDEPTH 128 /* ~2(?)>INST_HISTDEPTH>=128 */
 
 #define INSTRUMENT_TYPE_COUNT 2
 #define MIN_EFFECT_INDEX 0
@@ -161,7 +152,7 @@ int commandCallback(char *command, unsigned char *mode)
 		wordSplit(buffer, command, 1);
 		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfx]]];
 		pattern->rowc = strtol(buffer, NULL, 16);
-		s->defpatternlength = pattern->rowc;
+		w->defpatternlength = pattern->rowc;
 		if (w->trackerfy > pattern->rowc)
 			w->trackerfy = pattern->rowc;
 	} else if (!strcmp(buffer, "highlight")) /* row highlight */
@@ -305,11 +296,16 @@ void cleanup(int ret)
 {
 	free(t);
 	if (w->dir) closedir(w->dir);
-	if (w->search) free(w->search);
 	jack_deactivate(client);
 	jack_client_close(client);
 
 	free(w->previewinstrument.state[0]);
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
+		if (w->instrumentbuffer.state[i])
+			free(w->instrumentbuffer.state[i]);
+	if (w->instrumentbuffer.samplelength > 0)
+		free(w->instrumentbuffer.sampledata);
+
 
 	free(w);
 	delSong(s);
@@ -359,6 +355,7 @@ int main(int argc, char **argv)
 	p->outr = jack_port_register(client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
 
 	samplerate = jack_get_sample_rate(client);
+	rampmax = samplerate / 1000 * RAMP_MS;
 	buffersize = jack_get_buffer_size(client);
 
 	w = calloc(1, sizeof(window));
@@ -369,6 +366,7 @@ int main(int argc, char **argv)
 		common_cleanup(1);
 	}
 	w->octave = 4;
+	w->defpatternlength = 0x3f;
 
 	s = addSong();
 	if (s == NULL)

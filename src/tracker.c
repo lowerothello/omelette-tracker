@@ -73,34 +73,29 @@ void changeMacro(int input, char *dest)
 
 int drawPatternLineNumbers(uint8_t pattern)
 {
-	if (s->patterni[pattern] < 1) return 1; /* invalid pattern */
-
 	for (int i = 0; i <= s->patternv[s->patterni[pattern]]->rowc; i++)
-	{
 		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, w->trackercelloffset);
 			printf("%02x", i);
-			if (s->rowhighlight > 0 && i % s->rowhighlight == 0)
+			if (s->rowhighlight && !(i % s->rowhighlight))
 				printf(" * ");
 			else
 				printf("   ");
 		}
-	} return 0;
+	return 0;
 }
 void drawSong(void)
 {
-	unsigned short x;
 	for (unsigned short i = 0; i < w->songvisible; i++)
 	{
-		if (i >= 255) break; /* no indices past this point */
-		x = w->songcelloffset + SONG_COLS * i;
+		unsigned short x = w->songcelloffset + SONG_COLS * i;
 
 		if (s->songa[i + w->songoffset])
 			switch (s->songa[i + w->songoffset])
 			{
 				case 1:  printf("\033[3;%dHloop", x); break;
-				default: printf("\033[3;%dH????", x); break; /* likely a corrupt file */
+				default: printf("\033[3;%dH????", x); break; /* corrupt file */
 			}
 		if (w->songnext == i + w->songoffset + 1)
 			printf("\033[4;%dHnext", x);
@@ -131,7 +126,6 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 	char buffer[16], altbuffer[6];
 
 	for (i = 0; i <= s->patternv[s->patterni[s->songi[w->songfx]]]->rowc; i++)
-	{
 		if (w->centre - w->trackerfy + i > 5 && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
@@ -142,8 +136,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 				{
 					if (w->visualchannel == w->channel)
 					{
-						if (       i >= MIN(w->visualfy, w->trackerfy)
-								&& i <= MAX(w->visualfy, w->trackerfy)
+						if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 								&& MIN(w->visualfx, tfxToVfx(w->trackerfx)) == fieldpointer)
 							printf("\033[2;7m");
 					} else if (i >= MIN(w->visualfy, w->trackerfy)
@@ -223,10 +216,9 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 			startVisual(0);
 			noteToString(r.note, altbuffer);
-			if (r.note == 255)
-				snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
-			else
-				snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
+			if (r.note == 255) snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
+			else               snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
+
 			if (r.note)
 			{
 				if (ifVisual(0) && !s->channelv[channel].mute)
@@ -298,7 +290,6 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 			else
 				printf("   ");
 		}
-	}
 	if (w->centre - w->trackerfy - 1 > 4 && w->songfx > 0 && s->songi[w->songfx - 1] != 255)
 	{
 		c = 0;
@@ -385,26 +376,22 @@ void trackerRedraw(void)
 		drawPatternLineNumbers(s->songi[w->songfx]);
 
 		if (w->visiblechannels > 1)
-		{ // try to follow the focus in a smooth way (broken with 2 channels)
-			while (
-				w->channel < w->channeloffset + 1
-				&& w->channeloffset > 0
-			) w->channeloffset--;
-			while (
-				w->channel > w->channeloffset + w->visiblechannels - 2
-				&& w->channeloffset + w->visiblechannels < s->channelc
-			) w->channeloffset++;
+		{ // try to follow the focus in a smooth way
+			while (w->channel < w->channeloffset + 1
+					&& w->channeloffset > 0)
+				w->channeloffset--;
+			while (w->channel > w->channeloffset + w->visiblechannels - 2
+					&& w->channeloffset + w->visiblechannels < s->channelc)
+				w->channeloffset++;
 		} else w->channeloffset = w->channel; // if only one channel is visible then pin it
 
 		uint8_t drawn = 0;
 		for (i = 0; i <= s->channelc; i++)
-		{
 			if (i >= w->channeloffset && i < w->channeloffset + w->visiblechannels)
 			{
 				drawChannel(i, drawn);
 				drawn++;
 			}
-		}
 	} else printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(invalid pattern)")) / 2, "(invalid pattern)");
 
 	y = w->centre + w->fyoffset;
@@ -423,12 +410,11 @@ void trackerRedraw(void)
 			else
 				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
 		}
-		printf("\033[%d;%dH[%02x] %02x,%02x ", ws.ws_row, ws.ws_col - 33,
-				w->songfx, w->trackerfy, w->channel);
+		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 17);
 		if (s->playing == PLAYING_STOP)
-			printf("(STOPPED)   ");
+			printf("STOP  ");
 		else
-			printf("([%02x] %02x)   ", s->songp, s->songr);
+			printf("PLAY  ");
 		printf("&%d +%x  B%02x", w->octave, w->step, s->songbpm);
 	}
 
@@ -970,7 +956,7 @@ int trackerInput(int input)
 					if (w->mode == 0)
 					{
 						putPartPattern();
-						w->trackerfy = MIN(w->trackerfy + s->pbfy[1] - s->pbfy[0],
+						w->trackerfy = MIN(w->trackerfy + w->pbfy[1] - w->pbfy[0],
 									s->patternv[s->patterni[s->songi[w->songfx]]]->rowc - 1);
 
 						w->trackerfy++; /* go one further to line up consecutive pastes */
@@ -1253,7 +1239,7 @@ int trackerInput(int input)
 					}
 					redraw();
 					break;
-				case 2:
+				case 2: /* song list */
 					switch (input)
 					{
 						case 1: /* ^a */
@@ -1319,7 +1305,12 @@ int trackerInput(int input)
 									w->songnext = 0;
 								else
 									w->songnext = w->songfx + 1;
-							} break;
+							}
+							break;
+						case 'p':
+							if (s->songi[w->songfx] != 255)
+								s->songi[w->songfx] = duplicatePattern(s->songi[w->songfx]);
+							break;
 					}
 					redraw();
 					break;

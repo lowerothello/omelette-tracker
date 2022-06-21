@@ -74,11 +74,6 @@ void inputSamplerHex(short index, sampler_state *ss, char value)
 	samplerIncFieldPointer(index);
 }
 
-void drawBit(char true)
-{
-	if (true) printf("[X]");
-	else      printf("[ ]");
-}
 void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short y, short *cursor, char adjust)
 {
 	sampler_state *ss = iv->state[iv->type];
@@ -561,7 +556,6 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 			} break;
 		default:
 			if (x < 38)
-			{
 				switch (y)
 				{
 					case 2: case 3: *index = 1;
@@ -586,8 +580,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 						break;
 					default: *index = 9; ss->attributes ^= 0b10; break;
 				}
-			} else
-			{
+			else
 				switch (y)
 				{
 					case 2: case 3: *index = 10;
@@ -632,7 +625,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 						} break;
 					default: *index = 18; ss->attributes ^= 0b100; break;
 				}
-			} break;
+			break;
 	}
 }
 
@@ -651,17 +644,17 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 			{ /* forwards loop */
 				if (ss->attributes & 0b100)
 				{
-					uint32_t rampmax = MIN(samplerate / 1000 * LOOP_RAMP_MS, (ss->loop[1] - ss->loop[0]) / 2);
-					uint32_t loopoffset = ss->loop[1] - ss->loop[0] - rampmax;
+					uint32_t looprampmax = MIN(samplerate / 1000 * LOOP_RAMP_MS, (ss->loop[1] - ss->loop[0]) / 2);
+					uint32_t loopoffset = ss->loop[1] - ss->loop[0] - looprampmax;
 					while (pitchedpointer >= ss->loop[1])
 						pitchedpointer -= loopoffset;
 
 					pitchedpointer -= pitchedpointer % ss->channels; /* always point to the left channel */
 					if (pitchedpointer <= ss->length)
 					{
-						if (pitchedpointer > ss->loop[1] - rampmax)
+						if (pitchedpointer > ss->loop[1] - looprampmax)
 						{
-							float lerp = (pitchedpointer - ss->loop[1] + rampmax) / (float)rampmax;
+							float lerp = (pitchedpointer - ss->loop[1] + looprampmax) / (float)looprampmax;
 							uint32_t ramppointer = (pitchedpointer - loopoffset);
 							ramppointer -= ramppointer % ss->channels; /* align with channels */
 
@@ -726,17 +719,17 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 			{
 				if (ss->attributes & 0b100)
 				{
-					uint32_t rampmax = MIN(samplerate / 1000 * LOOP_RAMP_MS, (ss->loop[0] - ss->loop[1]) / 2);
-					uint32_t loopoffset = ss->loop[0] - ss->loop[1] - rampmax;
+					uint32_t looprampmax = MIN(samplerate / 1000 * LOOP_RAMP_MS, (ss->loop[0] - ss->loop[1]) / 2);
+					uint32_t loopoffset = ss->loop[0] - ss->loop[1] - looprampmax;
 					while (pitchedpointer >= ss->loop[0])
 						pitchedpointer += loopoffset;
 
 					pitchedpointer -= pitchedpointer % ss->channels; /* always point to the left channel */
 					if (pitchedpointer <= ss->length)
 					{
-						if (pitchedpointer > ss->loop[0] - rampmax)
+						if (pitchedpointer > ss->loop[0] - looprampmax)
 						{
-							float lerp = (pitchedpointer - ss->loop[0] + rampmax) / (float)rampmax;
+							float lerp = (pitchedpointer - ss->loop[0] + looprampmax) / (float)looprampmax;
 							uint32_t ramppointer = (pitchedpointer + loopoffset);
 							ramppointer -= ramppointer % ss->channels; /* align with channels */
 
@@ -825,7 +818,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 	if (ss->length > 0)
 	{
-		float decimate = 1.0 + (1.0 - ss->samplerate / 256.0) * 20;
+		float decimate = 1.0 + (1.0 - ss->samplerate/256.0) * 20;
 		if (ss->attributes & 0b1) /* persistent tempo */
 		{
 			if (pointer % MAX(ss->cyclelength, sc->stretchrampmax) == 0) /* first sample of a cycle */
@@ -886,11 +879,11 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 	/* mix in ramp data */
 	if (sc->stretchrampindex < sc->stretchrampmax)
 	{
-		float rampgain = (float)sc->stretchrampindex / (float)sc->stretchrampmax;
-		*l *= rampgain;
-		*r *= rampgain;
-		*l += sc->stretchrampbuffer[sc->stretchrampindex * 2 + 0] * (1.0 - rampgain);
-		*r += sc->stretchrampbuffer[sc->stretchrampindex * 2 + 1] * (1.0 - rampgain);
+		float gain = (float)sc->stretchrampindex / (float)sc->stretchrampmax;
+		*l *= gain;
+		*r *= gain;
+		*l += sc->stretchrampbuffer[sc->stretchrampindex * 2 + 0] * (1.0 - gain);
+		*r += sc->stretchrampbuffer[sc->stretchrampindex * 2 + 1] * (1.0 - gain);
 		sc->stretchrampindex++;
 	}
 
@@ -934,8 +927,8 @@ void samplerMacro(instrument *iv, channel *cv, row r, uint8_t macro, int m)
 				if (!r.note) /* if not changing note: ramping needed */
 				{
 					/* clear the rampbuffer so cruft isn't played in edge cases */
-					memset(cv->rampbuffer, 0, sizeof(sample_t) * cv->rampmax * 2);
-					for (uint16_t i = 0; i < cv->rampmax; i++)
+					memset(cv->rampbuffer, 0, sizeof(sample_t) * rampmax * 2);
+					for (uint16_t i = 0; i < rampmax; i++)
 					{
 						if (!cv->r.note) break;
 						t->f[iv->type].process(iv, cv, cv->pointer + i,
@@ -943,7 +936,7 @@ void samplerMacro(instrument *iv, channel *cv, row r, uint8_t macro, int m)
 					}
 					cv->rampindex = 0;
 				}
-				cv->pointeroffset = ss->trim[0] + m / 256.0 * (ss->trim[1] - ss->trim[0]);
+				cv->pointeroffset = ss->trim[0] + m/256.0 * (ss->trim[1] - ss->trim[0]);
 				cv->pointer = 0;
 			}
 			break;

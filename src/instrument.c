@@ -210,10 +210,7 @@ void instrumentAdjustLeft(instrument *iv, short index)
 	{
 		case MIN_INSTRUMENT_INDEX:
 			if (w->instrument > 0)
-			{
-				w->instrumentsend = 0;
 				w->instrument--;
-			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
 			break;
@@ -238,10 +235,7 @@ void instrumentAdjustRight(instrument *iv, short index)
 	{
 		case MIN_INSTRUMENT_INDEX:
 			if (w->instrument < 254)
-			{
-				w->instrumentsend = 0;
 				w->instrument++;
-			}
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
 			break;
@@ -583,7 +577,6 @@ int instrumentInput(int input)
 								case 0: case 2: case 4: /* leave the popup */
 									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									w->fieldpointer = 0;
-									w->instrumentsend = 0;
 									w->popup = 0;
 									w->instrumentindex = 0;
 									break;

@@ -33,10 +33,7 @@ typedef struct
 	uint8_t   delayinst;
 
 	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
-	uint16_t  rampmax;                      /* length of the ramp buffer */
 	sample_t *rampbuffer;                   /* samples to ramp out */
-	uint8_t   rampinstrument;               /* old instrument, realindex */
-	uint8_t   rampgain;                     /* old gain */
 
 	void     *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 } channel;
@@ -49,10 +46,6 @@ typedef struct Instrument
 	uint32_t            samplelength;                 /* raw samples allocated for sampledata */
 	void               *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 	uint8_t             fader;
-	char                send[16];                     /* set to [0-15] */
-	char                processsend[16];              /* used during playback only */
-	sample_t           *outbufferl;
-	sample_t           *outbufferr;
 	struct Instrument  *history[128];
 	uint8_t             historyptr;                   /* highest bit is an overflow bit */
 	uint8_t             historybehind;                /* tracks how many less than 128 safe indices there are */
@@ -68,16 +61,10 @@ typedef struct
 	uint8_t         patternc;                /* pattern count */
 	uint8_t         patterni[256];           /* pattern backref */
 	pattern        *patternv[256];           /* pattern values */
-	pattern         songbuffer;              /* full pattern paste buffer, TODO: use */
-	pattern         patternbuffer;           /* partial pattern paste buffer */
-	short           pbfy[2], pbfx[2];        /* partial pattern paste buffer clipping region */
-	uint8_t         pbchannel[2];            /* " */
-	char            pbpopulated;             /* there's no good way to tell if pb is set */
 
 	uint8_t         instrumentc;             /* instrument count */
 	uint8_t         instrumenti[256];        /* instrument backref */
 	instrument     *instrumentv[256];        /* instrument values */
-	instrument      instrumentbuffer;        /* instrument paste buffer */
 
 	uint8_t         channelc;                /* channel count */
 	channel         channelv[64];            /* channel values */
@@ -91,7 +78,6 @@ typedef struct
 	short           songr;                   /* song row, analogous to window->trackerfy */
 
 	uint8_t         rowhighlight;
-	uint8_t         defpatternlength;        /* only here cos window isn't defined yet */
 	uint8_t         bpm;
 	uint8_t         songbpm;                 /* to store the song's bpm through bpm change macros */
 	uint32_t        spr;                     /* samples per row (samplerate * (60 / bpm) / 4) */
@@ -117,10 +103,17 @@ song *s;
 
 typedef struct
 {
+	pattern        songbuffer;                  /* full pattern paste buffer, TODO: use */
+	pattern        patternbuffer;               /* partial pattern paste buffer */
+	short          pbfy[2], pbfx[2];            /* partial pattern paste buffer clipping region */
+	uint8_t        pbchannel[2];                /* " */
+	char           pbpopulated;                 /* there's no good way to tell if pb is set */
+	instrument     instrumentbuffer;            /* instrument paste buffer */
+	uint8_t        defpatternlength;
+
 	char           filepath[COMMAND_LENGTH];
 
 	command_t      command;
-	char          *search;
 
 	unsigned char  popup;
 	unsigned char  mode;
@@ -136,7 +129,6 @@ typedef struct
 	short          instrumentindex;
 	uint8_t        instrument;                  /* focused instrument */
 	unsigned short instrumentcelloffset;
-	short          instrumentsend;              /* focused send */
 
 	unsigned short mousey, mousex;
 
@@ -174,13 +166,12 @@ typedef struct
 
 	uint8_t        instrumentlocki;             /* realindex */
 	uint8_t        instrumentlockv;             /* value, set to an INST_GLOBAL_LOCK constant */
+	char           request;                     /* ask the playback function to do something */
 
 	uint8_t        instrumentreci;              /* realindex */
 	uint8_t        instrumentrecv;              /* value, set to an INST_REC_LOCK constant */
 	short         *recbuffer;                   /* disallow changing the type or removing while recording */
 	uint32_t       recptr;
-
-	char           request;                     /* ask the playback function to do something */
 
 	char           newfilename[COMMAND_LENGTH]; /* used by readSong */
 } window;
@@ -259,9 +250,8 @@ void strrep(char *string, char *find, char *replace)
 
 void _addChannel(channel *cv)
 {
-	cv->rampmax = samplerate / 1000 * RAMP_MS;
-	cv->rampindex = cv->rampmax;
-	cv->rampbuffer = malloc(sizeof(sample_t) * cv->rampmax * 2); /* *2 for stereo */
+	cv->rampindex = rampmax;
+	cv->rampbuffer = malloc(sizeof(sample_t) * rampmax * 2); /* *2 for stereo */
 }
 int addChannel(song *cs, uint8_t index)
 {
@@ -378,32 +368,45 @@ int addPattern(uint8_t index, uint8_t length)
 	}
 
 	if (length > 0) s->patternv[s->patternc]->rowc = length;
-	else            s->patternv[s->patternc]->rowc = s->defpatternlength;
+	else            s->patternv[s->patternc]->rowc = w->defpatternlength;
 
 	s->patterni[index] = s->patternc;
 	s->patternc++;
 	return 0;
 }
+int duplicatePattern(uint8_t oldindex)
+{
+	for (uint8_t i = 0; i < 255; i++)
+		if (!s->patterni[i])
+		{
+			addPattern(i, 0);
+			memcpy(s->patternv[s->patterni[i]],
+					s->patternv[s->patterni[oldindex]],
+					sizeof(pattern));
+			return i;
+		}
+	return oldindex; /* duplication failed, no free slots */
+}
 int yankPattern(uint8_t index)
 {
-	if (s->patterni[index] == 0) return 1; /* nothing to yank */
+	if (!s->patterni[index]) return 1; /* nothing to yank */
 
-	memcpy(&s->songbuffer,
-		s->patternv[s->patterni[index]],
-		sizeof(pattern));
+	memcpy(&w->songbuffer,
+			s->patternv[s->patterni[index]],
+			sizeof(pattern));
 	return 0;
 }
 int putPattern(uint8_t index)
 {
-	if (s->patterni[index] == 0)
+	if (!s->patterni[index])
 		if (addPattern(index, 0)) return 1; /* allocate memory */
 
 	memcpy(s->patternv[s->patterni[index]],
-		&s->songbuffer,
-		sizeof(pattern));
+			&w->songbuffer,
+			sizeof(pattern));
 
 	if (s->patternv[s->patterni[index]]->rowc == 0)
-		s->patternv[s->patterni[index]]->rowc = s->defpatternlength;
+		s->patternv[s->patterni[index]]->rowc = w->defpatternlength;
 	return 0;
 }
 int delPattern(uint8_t index)
@@ -453,107 +456,107 @@ short vfxToTfx(short visualfx)
 }
 void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	memcpy(&s->patternbuffer, s->patternv[s->patterni[s->songi[w->songfx]]], sizeof(pattern));
-	s->pbfx[0] = x1;
-	s->pbfx[1] = x2;
-	s->pbfy[0] = y1;
-	s->pbfy[1] = y2;
-	s->pbchannel[0] = c1;
-	s->pbchannel[1] = c2;
-	s->pbpopulated = 1;
+	memcpy(&w->patternbuffer, s->patternv[s->patterni[s->songi[w->songfx]]], sizeof(pattern));
+	w->pbfx[0] = x1;
+	w->pbfx[1] = x2;
+	w->pbfy[0] = y1;
+	w->pbfy[1] = y2;
+	w->pbchannel[0] = c1;
+	w->pbchannel[1] = c2;
+	w->pbpopulated = 1;
 }
 void putPartPattern(void)
 {
-	if (!s->pbpopulated) return;
+	if (!w->pbpopulated) return;
 	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
-	if (s->pbchannel[0] == s->pbchannel[1]) /* only one channel */
+	if (w->pbchannel[0] == w->pbchannel[1]) /* only one channel */
 	{
-		if ((s->pbfx[0] == 2 && s->pbfx[1] == 2) || (s->pbfx[0] == 3 && s->pbfx[1] == 3)) /* just one macro column */
+		if ((w->pbfx[0] == 2 && w->pbfx[1] == 2) || (w->pbfx[0] == 3 && w->pbfx[1] == 3)) /* just one macro column */
 		{
 			unsigned char targetmacro;
 			if (w->trackerfx < 2) targetmacro = 0;
 			else targetmacro = tfxToVfx(w->trackerfx) - 2;
 
-			for (uint8_t j = s->pbfy[0]; j <= s->pbfy[1]; j++)
+			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
-				uint8_t row = w->trackerfy + j - s->pbfy[0];
+				uint8_t row = w->trackerfy + j - w->pbfy[0];
 				if (row < destpattern->rowc)
 				{
-					destpattern->rowv[w->channel][row].macroc[targetmacro] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[s->pbfx[0] - 2];
-					destpattern->rowv[w->channel][row].macrov[targetmacro] = s->patternbuffer.rowv[s->pbchannel[0]][j].macrov[s->pbfx[0] - 2];
+					destpattern->rowv[w->channel][row].macroc[targetmacro] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[w->pbfx[0] - 2];
+					destpattern->rowv[w->channel][row].macrov[targetmacro] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[w->pbfx[0] - 2];
 				} else break;
 			}
 			w->trackerfx = vfxToTfx(targetmacro + 2);
 		} else
 		{
-			for (uint8_t j = s->pbfy[0]; j <= s->pbfy[1]; j++)
+			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
-				uint8_t row = w->trackerfy + j - s->pbfy[0];
+				uint8_t row = w->trackerfy + j - w->pbfy[0];
 				if (row < destpattern->rowc)
 				{
-					if (s->pbfx[0] <= 0 && s->pbfx[1] >= 0) destpattern->rowv[w->channel][row].note = s->patternbuffer.rowv[s->pbchannel[0]][j].note;
-					if (s->pbfx[0] <= 1 && s->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = s->patternbuffer.rowv[s->pbchannel[0]][j].inst;
-					if (s->pbfx[0] <= 2 && s->pbfx[1] >= 2)
+					if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0) destpattern->rowv[w->channel][row].note = w->patternbuffer.rowv[w->pbchannel[0]][j].note;
+					if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
+					if (w->pbfx[0] <= 2 && w->pbfx[1] >= 2)
 					{
-						destpattern->rowv[w->channel][row].macroc[0] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[0];
-						destpattern->rowv[w->channel][row].macrov[0] = s->patternbuffer.rowv[s->pbchannel[0]][j].macrov[0];
+						destpattern->rowv[w->channel][row].macroc[0] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[0];
+						destpattern->rowv[w->channel][row].macrov[0] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[0];
 					}
-					if (s->pbfx[0] <= 3 && s->pbfx[1] >= 3)
+					if (w->pbfx[0] <= 3 && w->pbfx[1] >= 3)
 					{
-						destpattern->rowv[w->channel][row].macroc[1] = s->patternbuffer.rowv[s->pbchannel[0]][j].macroc[1];
-						destpattern->rowv[w->channel][row].macrov[1] = s->patternbuffer.rowv[s->pbchannel[0]][j].macrov[1];
+						destpattern->rowv[w->channel][row].macroc[1] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[1];
+						destpattern->rowv[w->channel][row].macrov[1] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[1];
 					}
 				} else break;
 			}
-			w->trackerfx = vfxToTfx(s->pbfx[0]);
+			w->trackerfx = vfxToTfx(w->pbfx[0]);
 		}
 	} else
 	{
-		for (uint8_t i = s->pbchannel[0]; i <= s->pbchannel[1]; i++)
+		for (uint8_t i = w->pbchannel[0]; i <= w->pbchannel[1]; i++)
 		{
-			uint8_t channel = w->channel + i - s->pbchannel[0];
+			uint8_t channel = w->channel + i - w->pbchannel[0];
 			if (channel < s->channelc)
 			{
-				for (uint8_t j = s->pbfy[0]; j <= s->pbfy[1]; j++)
+				for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 				{
-					uint8_t row = w->trackerfy + j - s->pbfy[0];
+					uint8_t row = w->trackerfy + j - w->pbfy[0];
 					if (row < destpattern->rowc)
 					{
-						if (i == s->pbchannel[0]) /* first channel */
+						if (i == w->pbchannel[0]) /* first channel */
 						{
-							if (s->pbfx[0] <= 0) destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
-							if (s->pbfx[0] <= 1) destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
-							if (s->pbfx[0] <= 2)
+							if (w->pbfx[0] <= 0) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
+							if (w->pbfx[0] <= 1) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
+							if (w->pbfx[0] <= 2)
 							{
-								destpattern->rowv[channel][row].macroc[0] = s->patternbuffer.rowv[i][j].macroc[0];
-								destpattern->rowv[channel][row].macrov[0] = s->patternbuffer.rowv[i][j].macrov[0];
+								destpattern->rowv[channel][row].macroc[0] = w->patternbuffer.rowv[i][j].macroc[0];
+								destpattern->rowv[channel][row].macrov[0] = w->patternbuffer.rowv[i][j].macrov[0];
 							}
-							if (s->pbfx[0] <= 3)
+							if (w->pbfx[0] <= 3)
 							{
-								destpattern->rowv[channel][row].macroc[1] = s->patternbuffer.rowv[i][j].macroc[1];
-								destpattern->rowv[channel][row].macrov[1] = s->patternbuffer.rowv[i][j].macrov[1];
+								destpattern->rowv[channel][row].macroc[1] = w->patternbuffer.rowv[i][j].macroc[1];
+								destpattern->rowv[channel][row].macrov[1] = w->patternbuffer.rowv[i][j].macrov[1];
 							}
-						} else if (i == s->pbchannel[1]) /* last channel */
+						} else if (i == w->pbchannel[1]) /* last channel */
 						{
-							if (s->pbfx[1] >= 0) destpattern->rowv[channel][row].note = s->patternbuffer.rowv[i][j].note;
-							if (s->pbfx[1] >= 1) destpattern->rowv[channel][row].inst = s->patternbuffer.rowv[i][j].inst;
-							if (s->pbfx[1] >= 2)
+							if (w->pbfx[1] >= 0) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
+							if (w->pbfx[1] >= 1) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
+							if (w->pbfx[1] >= 2)
 							{
-								destpattern->rowv[channel][row].macroc[0] = s->patternbuffer.rowv[i][j].macroc[0];
-								destpattern->rowv[channel][row].macrov[0] = s->patternbuffer.rowv[i][j].macrov[0];
+								destpattern->rowv[channel][row].macroc[0] = w->patternbuffer.rowv[i][j].macroc[0];
+								destpattern->rowv[channel][row].macrov[0] = w->patternbuffer.rowv[i][j].macrov[0];
 							}
-							if (s->pbfx[1] >= 3)
+							if (w->pbfx[1] >= 3)
 							{
-								destpattern->rowv[channel][row].macroc[1] = s->patternbuffer.rowv[i][j].macroc[1];
-								destpattern->rowv[channel][row].macrov[1] = s->patternbuffer.rowv[i][j].macrov[1];
+								destpattern->rowv[channel][row].macroc[1] = w->patternbuffer.rowv[i][j].macroc[1];
+								destpattern->rowv[channel][row].macrov[1] = w->patternbuffer.rowv[i][j].macrov[1];
 							}
 						} else /* middle channel */
-							destpattern->rowv[channel][row] = s->patternbuffer.rowv[i][j];
+							destpattern->rowv[channel][row] = w->patternbuffer.rowv[i][j];
 					} else break;
 				}
 			} else break;
 		}
-		w->trackerfx = vfxToTfx(s->pbfx[0]);
+		w->trackerfx = vfxToTfx(w->pbfx[0]);
 	}
 }
 void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
@@ -690,7 +693,6 @@ void _allocChannelMemory(song *cs)
 			used[cs->instrumentv[i]->type] = 1;
 	}
 
-	DEBUG=cs->instrumentc;
 	for (int i = 0; i < cs->channelc; i++)
 		for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 		{
@@ -746,7 +748,6 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 
 				dest->type = src->type;
 				dest->fader = src->fader;
-				memcpy(dest->send, src->send, sizeof(char) * 16);
 
 				for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 					if (src->state[j])
@@ -788,8 +789,6 @@ int _addInstrument(song *cs, uint8_t realindex)
 {
 	cs->instrumentv[realindex] = calloc(1, sizeof(instrument));
 	if (!cs->instrumentv[realindex]) return 1;
-	cs->instrumentv[realindex]->outbufferl = calloc(sizeof(sample_t), buffersize);
-	cs->instrumentv[realindex]->outbufferr = calloc(sizeof(sample_t), buffersize);
 	return 0;
 }
 void pushInstrumentHistory(instrument *iv)
@@ -821,7 +820,6 @@ void pushInstrumentHistory(instrument *iv)
 			memcpy(ivh->state[i], iv->state[i], t->f[i].statesize);
 		}
 	ivh->fader = iv->fader;
-	memcpy(ivh->send, iv->send, sizeof(char) * 16);
 
 	ivh->samplelength = iv->samplelength;
 	if (iv->sampledata)
@@ -839,7 +837,6 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 	{
 		if (!iv->state[iv->type]
 				|| ivh->fader != iv->fader
-				|| memcmp(ivh->send, iv->send, sizeof(char) * 16)
 				|| ivh->samplelength != iv->samplelength)
 			pushInstrumentHistory(iv);
 		else
@@ -912,55 +909,50 @@ int addInstrument(uint8_t index)
 uint8_t newInstrument(uint8_t minindex)
 {
 	for (uint8_t i = minindex; i < 256; i++) // is 256 right? idfk
-	{
 		if (s->instrumenti[i] == 0)
-		{
 			return i;
-		}
-	}
 }
 int yankInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] == 0) return 1; /* nothing to yank */
 
-	if (s->instrumentbuffer.samplelength > 0)
+	if (w->instrumentbuffer.samplelength > 0)
 	{
-		free(s->instrumentbuffer.sampledata);
-		s->instrumentbuffer.sampledata = NULL;
+		free(w->instrumentbuffer.sampledata);
+		w->instrumentbuffer.sampledata = NULL;
 	}
 
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
-		if (s->instrumentbuffer.state[i])
+		if (w->instrumentbuffer.state[i])
 		{
-			free(s->instrumentbuffer.state[i]);
-			s->instrumentbuffer.state[i] = NULL;
+			free(w->instrumentbuffer.state[i]);
+			w->instrumentbuffer.state[i] = NULL;
 		}
 
-	s->instrumentbuffer.type = s->instrumentv[s->instrumenti[index]]->type;
-	s->instrumentbuffer.samplelength = s->instrumentv[s->instrumenti[index]]->samplelength;
-	s->instrumentbuffer.fader = s->instrumentv[s->instrumenti[index]]->fader;
-	memcpy(s->instrumentbuffer.send,  s->instrumentv[s->instrumenti[index]]->send, 1 * 16);
+	w->instrumentbuffer.type = s->instrumentv[s->instrumenti[index]]->type;
+	w->instrumentbuffer.samplelength = s->instrumentv[s->instrumenti[index]]->samplelength;
+	w->instrumentbuffer.fader = s->instrumentv[s->instrumenti[index]]->fader;
 
-	if (s->instrumentbuffer.samplelength > 0)
+	if (w->instrumentbuffer.samplelength > 0)
 	{
-		s->instrumentbuffer.sampledata =
+		w->instrumentbuffer.sampledata =
 			malloc(sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
 
-		if (s->instrumentbuffer.sampledata == NULL)
+		if (w->instrumentbuffer.sampledata == NULL)
 		{
 			strcpy(w->command.error, "failed to yank instrument, out of memory");
 			return 1;
 		}
 
-		memcpy(s->instrumentbuffer.sampledata,
+		memcpy(w->instrumentbuffer.sampledata,
 			s->instrumentv[s->instrumenti[index]]->sampledata,
 			sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
 	}
 
-	t->f[s->instrumentbuffer.type].initType(&s->instrumentbuffer.state[s->instrumentbuffer.type]);
-	memcpy(s->instrumentbuffer.state[s->instrumentbuffer.type],
-			s->instrumentv[s->instrumenti[index]]->state[s->instrumentbuffer.type],
-			t->f[s->instrumentbuffer.type].statesize);
+	t->f[w->instrumentbuffer.type].initType(&w->instrumentbuffer.state[w->instrumentbuffer.type]);
+	memcpy(w->instrumentbuffer.state[w->instrumentbuffer.type],
+			s->instrumentv[s->instrumenti[index]]->state[w->instrumentbuffer.type],
+			t->f[w->instrumentbuffer.type].statesize);
 	return 0;
 }
 int putInstrument(uint8_t index)
@@ -981,20 +973,19 @@ int putInstrument(uint8_t index)
 		s->instrumentv[s->instrumenti[index]]->sampledata = NULL;
 	}
 
-	s->instrumentv[s->instrumenti[index]]->type = s->instrumentbuffer.type;
-	s->instrumentv[s->instrumenti[index]]->samplelength = s->instrumentbuffer.samplelength;
-	s->instrumentv[s->instrumenti[index]]->fader = s->instrumentbuffer.fader;
-	memcpy(s->instrumentv[s->instrumenti[index]]->send,  s->instrumentbuffer.send, 1 * 16);
+	s->instrumentv[s->instrumenti[index]]->type = w->instrumentbuffer.type;
+	s->instrumentv[s->instrumenti[index]]->samplelength = w->instrumentbuffer.samplelength;
+	s->instrumentv[s->instrumenti[index]]->fader = w->instrumentbuffer.fader;
 	changeInstrumentType(s, s->instrumenti[index]); /* is this safe to force? */
 
-	memcpy(s->instrumentv[s->instrumenti[index]]->state[s->instrumentbuffer.type],
-			s->instrumentbuffer.state[s->instrumentbuffer.type],
-			t->f[s->instrumentbuffer.type].statesize);
+	memcpy(s->instrumentv[s->instrumenti[index]]->state[w->instrumentbuffer.type],
+			w->instrumentbuffer.state[w->instrumentbuffer.type],
+			t->f[w->instrumentbuffer.type].statesize);
 
-	if (s->instrumentbuffer.samplelength > 0)
+	if (w->instrumentbuffer.samplelength > 0)
 	{
 		s->instrumentv[s->instrumenti[index]]->sampledata =
-			malloc(sizeof(short) * s->instrumentbuffer.samplelength);
+			malloc(sizeof(short) * w->instrumentbuffer.samplelength);
 
 		if (s->instrumentv[s->instrumenti[index]]->sampledata == NULL)
 		{
@@ -1003,8 +994,8 @@ int putInstrument(uint8_t index)
 		}
 
 		memcpy(s->instrumentv[s->instrumenti[index]]->sampledata,
-			s->instrumentbuffer.sampledata,
-			sizeof(short) * s->instrumentbuffer.samplelength);
+			w->instrumentbuffer.sampledata,
+			sizeof(short) * w->instrumentbuffer.samplelength);
 	}
 
 	return 0;
@@ -1016,8 +1007,6 @@ void _delInstrument(song *cs, uint8_t realindex)
 			free(cs->instrumentv[realindex]->state[i]);
 	if (cs->instrumentv[realindex]->samplelength > 0)
 		free(cs->instrumentv[realindex]->sampledata);
-	free(cs->instrumentv[realindex]->outbufferl);
-	free(cs->instrumentv[realindex]->outbufferr);
 
 	for (int i = 0; i < 128; i++)
 	{
@@ -1168,7 +1157,6 @@ song *_addSong(void)
 	cs->instrumentc = 1;
 
 	cs->rowhighlight = 4;
-	cs->defpatternlength = 63;
 	cs->songbpm = 125;
 	w->request = REQ_BPM;
 
@@ -1202,12 +1190,6 @@ void delSong(song *cs)
 
 	for (int i = 1; i < cs->instrumentc; i++)
 		_delInstrument(cs, i);
-
-	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
-		if (s->instrumentbuffer.state[i])
-			free(s->instrumentbuffer.state[i]);
-	if (cs->instrumentbuffer.samplelength > 0)
-		free(cs->instrumentbuffer.sampledata);
 
 	free(cs);
 }
@@ -1320,7 +1302,6 @@ int writeSong(char *path)
 		fputc(0, fp); // no more types
 
 		fputc(iv->fader, fp);
-		fwrite(&iv->send, 1, 16, fp);
 		fwrite(&iv->samplelength, sizeof(uint32_t), 1, fp);
 		if (iv->samplelength > 0)
 			fwrite(iv->sampledata, sizeof(short), iv->samplelength, fp);
@@ -1448,7 +1429,6 @@ song *readSong(char *path)
 			}
 
 		cs->instrumentv[i]->fader = fgetc(fp);
-		fread(&cs->instrumentv[i]->send, 1, 16, fp);
 		fread(&cs->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
 		if (cs->instrumentv[i]->samplelength > 0)
 		{

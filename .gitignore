@@ -1,4 +1,5 @@
 omelette
 testmods
 valgrind.log
+gmon.out
 pretrained_models
