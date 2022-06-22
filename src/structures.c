@@ -42,8 +42,6 @@ typedef struct Instrument
 {
 	uint8_t             type;
 	uint8_t             typefollow;                   /* follows the type, set once state is guaranteed to be mallocced */
-	short              *sampledata;                   /* variable size, persists between types */
-	uint32_t            samplelength;                 /* raw samples allocated for sampledata */
 	void               *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 	uint8_t             fader;
 	struct Instrument  *history[128];
@@ -92,6 +90,8 @@ song *s;
 #define INST_GLOBAL_LOCK_FREE 2      /* playback has stopped, safe to free the state */
 #define INST_GLOBAL_LOCK_PREP_HIST 3 /* playback unsafe, preparing to restore history */
 #define INST_GLOBAL_LOCK_HIST 4      /* playback has stopped, restoring history */
+#define INST_GLOBAL_LOCK_PREP_PUT 5  /* playback unsafe, preparing to overwrite state */
+#define INST_GLOBAL_LOCK_PUT 6       /* playback has stopped, overwriting state */
 
 #define INST_REC_LOCK_OK 0       /* playback and most memory ops are safe */
 #define INST_REC_LOCK_CONT 1     /* recording                             */
@@ -103,23 +103,24 @@ song *s;
 
 typedef struct
 {
-	pattern        songbuffer;                  /* full pattern paste buffer, TODO: use */
-	pattern        patternbuffer;               /* partial pattern paste buffer */
-	short          pbfy[2], pbfx[2];            /* partial pattern paste buffer clipping region */
-	uint8_t        pbchannel[2];                /* " */
-	char           pbpopulated;                 /* there's no good way to tell if pb is set */
-	instrument     instrumentbuffer;            /* instrument paste buffer */
+	pattern        songbuffer;                   /* full pattern paste buffer, TODO: use */
+	pattern        patternbuffer;                /* partial pattern paste buffer */
+	short          pbfy[2], pbfx[2];             /* partial pattern paste buffer clipping region */
+	uint8_t        pbchannel[2];                 /* " */
+	char           pbpopulated;                  /* there's no good way to tell if pb is set */
+	instrument     instrumentbuffer;             /* instrument paste buffer */
 	uint8_t        defpatternlength;
 
 	char           filepath[COMMAND_LENGTH];
 
+	void         (*filebrowserCallback)(char *); /* arg is the selected path */
 	command_t      command;
 
 	unsigned char  popup;
 	unsigned char  mode;
 	unsigned short centre;
-	uint8_t        pattern;                     /* focused pattern */
-	uint8_t        channel;                     /* focused channel */
+	uint8_t        pattern;                      /* focused pattern */
+	uint8_t        channel;                      /* focused channel */
 	uint8_t        channeloffset, visiblechannels;
 
 	short          trackerfy, trackerfx;
@@ -127,7 +128,7 @@ typedef struct
 	uint8_t        visualchannel;
 	unsigned short trackercelloffset;
 	short          instrumentindex;
-	uint8_t        instrument;                  /* focused instrument */
+	uint8_t        instrument;                   /* focused instrument */
 	unsigned short instrumentcelloffset;
 
 	unsigned short mousey, mousex;
@@ -154,26 +155,26 @@ typedef struct
 
 	uint8_t        previewnote, previewinst;
 	uint8_t        previewchannel;
-	instrument     previewinstrument;           /* used by the file browser */
-	char           previewtrigger;              /* 0:cut
-	                                               1:start inst
-	                                               2:still inst
-	                                               3:start sample
-	                                               4:still sample
-	                                               5:prep volatile */
+	instrument     previewinstrument;            /* used by the file browser */
+	char           previewtrigger;               /* 0:cut
+	                                                1:start inst
+	                                                2:still inst
+	                                                3:start sample
+	                                                4:still sample
+	                                                5:prep volatile */
 
 	char           previewsamplestatus;
 
-	uint8_t        instrumentlocki;             /* realindex */
-	uint8_t        instrumentlockv;             /* value, set to an INST_GLOBAL_LOCK constant */
-	char           request;                     /* ask the playback function to do something */
+	uint8_t        instrumentlocki;              /* realindex */
+	uint8_t        instrumentlockv;              /* value, set to an INST_GLOBAL_LOCK constant */
+	char           request;                      /* ask the playback function to do something */
 
-	uint8_t        instrumentreci;              /* realindex */
-	uint8_t        instrumentrecv;              /* value, set to an INST_REC_LOCK constant */
-	short         *recbuffer;                   /* disallow changing the type or removing while recording */
+	uint8_t        instrumentreci;               /* realindex */
+	uint8_t        instrumentrecv;               /* value, set to an INST_REC_LOCK constant */
+	short         *recbuffer;                    /* disallow changing the type or removing while recording */
 	uint32_t       recptr;
 
-	char           newfilename[COMMAND_LENGTH]; /* used by readSong */
+	char           newfilename[COMMAND_LENGTH];  /* used by readSong */
 } window;
 window *w;
 
@@ -195,35 +196,16 @@ typedef struct
 		void           (*input)(int *);
 		void           (*process)(instrument *, channel *, uint32_t, sample_t *, sample_t *);
 		void           (*macro)(instrument *, channel *, row, uint8_t, int);
-		void           (*initType)(void **);
+		void           (*addType)(void **);
+		void           (*copyType)(void **, void **); /* destination, source */
+		void           (*delType)(void **);
 		void           (*addChannel)(void **);
 		void           (*delChannel)(void **);
 		void           (*write)(void **, FILE *fp);
-		void           (*read)(void **, FILE *fp);
+		void           (*read)(void **, unsigned char, unsigned char, FILE *fp);
 	} f[INSTRUMENT_TYPE_COUNT];
 } typetable;
 typetable *t;
-
-typedef struct
-{
-	uint32_t length;
-	char     channels;
-	uint32_t c5rate;
-	uint8_t  samplerate;  /* percent of c5rate to actually use */
-	uint16_t cyclelength;
-	uint32_t trim[2];
-	uint32_t loop[2];
-	adsr     volume;      /* decay unused */
-	uint8_t  attributes;  /* %1: persistent tempo
-	                       * %2: quantize cycles
-	                       * %3: loop ramping
-	                       * %4: mono
-	                       * %5: 8-bit
-	                       * %6: unsigned
-	                       * %7: invert phase
-	                       */
-} sampler_state;
-
 
 
 /* replace *find with *replace in *s */
@@ -284,7 +266,10 @@ void _delChannel(song *cs, uint8_t index)
 
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (cs->channelv[index].state[i])
+		{
 			t->f[i].delChannel(&cs->channelv[index].state[i]);
+			cs->channelv[index].state[i] = NULL;
+		}
 }
 int delChannel(uint8_t index)
 {
@@ -700,7 +685,10 @@ void _allocChannelMemory(song *cs)
 				t->f[j].addChannel(&cs->channelv[i].state[j]);
 
 			if (!used[j] && cs->channelv[i].state[j])
+			{
 				t->f[j].delChannel(&cs->channelv[i].state[j]);
+				cs->channelv[i].state[j] = NULL;
+			}
 		}
 }
 
@@ -710,19 +698,21 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 	uint8_t i;
 	if (!forceindex)
 		if (w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-				|| w->instrumentlockv == INST_GLOBAL_LOCK_HIST)
+				|| w->instrumentlockv == INST_GLOBAL_LOCK_HIST
+				|| w->instrumentlockv == INST_GLOBAL_LOCK_PUT)
 			i = w->instrumentlocki;
 		else return 0;
 	else i = forceindex;
 
 	instrument *iv = cs->instrumentv[i];
+	instrument *src;
 	if (iv)
 	{
 		if (forceindex)
 		{
 			if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
 			{
-				t->f[iv->type].initType(&iv->state[iv->type]);
+				t->f[iv->type].addType(&iv->state[iv->type]);
 				if (!iv->state[iv->type])
 				{
 					strcpy(w->command.error, "failed to allocate instrument type, out of memory");
@@ -734,7 +724,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 			case INST_GLOBAL_LOCK_FREE:
 				if (!iv->state[iv->type] && iv->type < INSTRUMENT_TYPE_COUNT)
 				{
-					t->f[iv->type].initType(&iv->state[iv->type]);
+					t->f[iv->type].addType(&iv->state[iv->type]);
 					if (!iv->state[iv->type])
 					{
 						strcpy(w->command.error, "failed to allocate instrument type, out of memory");
@@ -743,29 +733,37 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 				}
 				break;
 			case INST_GLOBAL_LOCK_HIST:
-				instrument *dest = iv;
-				instrument *src = iv->history[iv->historyptr%128];
+				src = iv->history[iv->historyptr%128];
 
-				dest->type = src->type;
-				dest->fader = src->fader;
+				iv->type = src->type;
+				iv->fader = src->fader;
 
 				for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 					if (src->state[j])
 					{
-						if (!dest->state[j]) t->f[j].initType(&dest->state[j]);
-						memcpy(dest->state[j], src->state[j], t->f[j].statesize);
+						if (!iv->state[j]) t->f[j].addType(&iv->state[j]);
+						t->f[j].copyType(&iv->state[j], &src->state[j]);
+					}
+				break;
+			case INST_GLOBAL_LOCK_PUT:
+				src = &w->instrumentbuffer;
+
+				iv->type = src->type;
+				iv->fader = src->fader;
+
+				for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
+				{
+					if (iv->state[j])
+					{
+						t->f[j].delType(&iv->state[j]);
+						iv->state[j] = NULL;
 					}
 
-				dest->samplelength = src->samplelength;
-				if (dest->sampledata)
-				{
-					free(dest->sampledata);
-					dest->sampledata = NULL;
-				}
-				if (src->samplelength)
-				{
-					dest->sampledata = malloc(sizeof(short) * dest->samplelength);
-					memcpy(dest->sampledata, src->sampledata, sizeof(short) * dest->samplelength);
+					if (src->state[j])
+					{
+						t->f[j].addType(&iv->state[j]);
+						t->f[j].copyType(&iv->state[j], &src->state[j]);
+					}
 				}
 				break;
 		}
@@ -809,24 +807,20 @@ void pushInstrumentHistory(instrument *iv)
 	else
 		for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 			if (iv->history[iv->historyptr%128]->state[i])
-				free(iv->history[iv->historyptr%128]->state[i]);
+			{
+				t->f[i].delType(&iv->history[iv->historyptr%128]->state[i]);
+				iv->history[iv->historyptr%128]->state[i] = NULL;
+			}
 
 	instrument *ivh = iv->history[iv->historyptr%128];
-	ivh->type = iv->type;
+	ivh->type =  iv->type;
+	ivh->fader = iv->fader;
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (iv->state[i])
 		{
-			t->f[i].initType(&ivh->state[i]);
-			memcpy(ivh->state[i], iv->state[i], t->f[i].statesize);
+			t->f[i].addType(&ivh->state[i]);
+			t->f[i].copyType(&ivh->state[i], &iv->state[i]);
 		}
-	ivh->fader = iv->fader;
-
-	ivh->samplelength = iv->samplelength;
-	if (iv->sampledata)
-	{
-		ivh->sampledata = malloc(sizeof(short) * iv->samplelength);
-		memcpy(ivh->sampledata, iv->sampledata, sizeof(short) * iv->samplelength);
-	}
 }
 void pushInstrumentHistoryIfNew(instrument *iv)
 {
@@ -835,9 +829,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 	instrument *ivh = iv->history[iv->historyptr%128];
 	if (ivh && iv->type < INSTRUMENT_TYPE_COUNT)
 	{
-		if (!iv->state[iv->type]
-				|| ivh->fader != iv->fader
-				|| ivh->samplelength != iv->samplelength)
+		if (!iv->state[iv->type] || ivh->fader != iv->fader)
 			pushInstrumentHistory(iv);
 		else
 			for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
@@ -897,12 +889,14 @@ int addInstrument(uint8_t index)
 	}
 	s->instrumentv[s->instrumentc]->fader = 0x88;
 	changeInstrumentType(s, s->instrumentc);
-	t->f[s->instrumentv[s->instrumentc]->type].initType(&s->instrumentv[s->instrumentc]->state[s->instrumentv[s->instrumentc]->type]);
+	t->f[0].addType(&s->instrumentv[s->instrumentc]->state[0]);
 	s->instrumenti[index] = s->instrumentc;
 
 	pushInstrumentHistory(s->instrumentv[s->instrumentc]);
 
 	s->instrumentc++;
+
+	_allocChannelMemory(s);
 	return 0;
 }
 /* return a fresh slot */
@@ -916,106 +910,49 @@ int yankInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] == 0) return 1; /* nothing to yank */
 
-	if (w->instrumentbuffer.samplelength > 0)
-	{
-		free(w->instrumentbuffer.sampledata);
-		w->instrumentbuffer.sampledata = NULL;
-	}
-
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (w->instrumentbuffer.state[i])
 		{
-			free(w->instrumentbuffer.state[i]);
+			t->f[i].delType(&w->instrumentbuffer.state[i]);
 			w->instrumentbuffer.state[i] = NULL;
 		}
 
-	w->instrumentbuffer.type = s->instrumentv[s->instrumenti[index]]->type;
-	w->instrumentbuffer.samplelength = s->instrumentv[s->instrumenti[index]]->samplelength;
-	w->instrumentbuffer.fader = s->instrumentv[s->instrumenti[index]]->fader;
+	instrument *src  = s->instrumentv[s->instrumenti[index]];
+	instrument *dest = &w->instrumentbuffer;
 
-	if (w->instrumentbuffer.samplelength > 0)
-	{
-		w->instrumentbuffer.sampledata =
-			malloc(sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
-
-		if (w->instrumentbuffer.sampledata == NULL)
+	dest->type =  src->type;
+	dest->fader = src->fader;
+	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
+		if (src->state[i])
 		{
-			strcpy(w->command.error, "failed to yank instrument, out of memory");
-			return 1;
+			t->f[i].addType(&dest->state[i]);
+			t->f[i].copyType(&dest->state[i], &src->state[i]);
 		}
 
-		memcpy(w->instrumentbuffer.sampledata,
-			s->instrumentv[s->instrumenti[index]]->sampledata,
-			sizeof(short) * s->instrumentv[s->instrumenti[index]]->samplelength);
-	}
-
-	t->f[w->instrumentbuffer.type].initType(&w->instrumentbuffer.state[w->instrumentbuffer.type]);
-	memcpy(w->instrumentbuffer.state[w->instrumentbuffer.type],
-			s->instrumentv[s->instrumenti[index]]->state[w->instrumentbuffer.type],
-			t->f[w->instrumentbuffer.type].statesize);
 	return 0;
 }
 int putInstrument(uint8_t index)
 {
-	if (s->instrumenti[index] == 0)
-	{
-		if (addInstrument(index)) /* allocate memory */
-		{
-			strcpy(w->command.error, "failed to put instrument, out of memory");
-			return 1;
-		}
-	}
-	if (w->instrumentreci == s->instrumenti[index] && w->instrumentrecv > INST_REC_LOCK_OK) return 1;
-
-	if (s->instrumentv[s->instrumenti[index]]->samplelength > 0)
-	{
-		free(s->instrumentv[s->instrumenti[index]]->sampledata);
-		s->instrumentv[s->instrumenti[index]]->sampledata = NULL;
-	}
-
-	s->instrumentv[s->instrumenti[index]]->type = w->instrumentbuffer.type;
-	s->instrumentv[s->instrumenti[index]]->samplelength = w->instrumentbuffer.samplelength;
-	s->instrumentv[s->instrumenti[index]]->fader = w->instrumentbuffer.fader;
-	changeInstrumentType(s, s->instrumenti[index]); /* is this safe to force? */
-
-	memcpy(s->instrumentv[s->instrumenti[index]]->state[w->instrumentbuffer.type],
-			w->instrumentbuffer.state[w->instrumentbuffer.type],
-			t->f[w->instrumentbuffer.type].statesize);
-
-	if (w->instrumentbuffer.samplelength > 0)
-	{
-		s->instrumentv[s->instrumenti[index]]->sampledata =
-			malloc(sizeof(short) * w->instrumentbuffer.samplelength);
-
-		if (s->instrumentv[s->instrumenti[index]]->sampledata == NULL)
-		{
-			strcpy(w->command.error, "failed to put instrument, out of memory");
-			return 1;
-		}
-
-		memcpy(s->instrumentv[s->instrumenti[index]]->sampledata,
-			w->instrumentbuffer.sampledata,
-			sizeof(short) * w->instrumentbuffer.samplelength);
-	}
-
 	return 0;
 }
 void _delInstrument(song *cs, uint8_t realindex)
 {
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (cs->instrumentv[realindex]->state[i])
-			free(cs->instrumentv[realindex]->state[i]);
-	if (cs->instrumentv[realindex]->samplelength > 0)
-		free(cs->instrumentv[realindex]->sampledata);
+		{
+			t->f[i].delType(&cs->instrumentv[realindex]->state[i]);
+			cs->instrumentv[realindex]->state[i] = NULL;
+		}
 
 	for (int i = 0; i < 128; i++)
 	{
 		if (!cs->instrumentv[realindex]->history[i]) continue;
 		for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 			if (cs->instrumentv[realindex]->history[i]->state[j])
-				free(cs->instrumentv[realindex]->history[i]->state[j]);
-		if (cs->instrumentv[realindex]->history[i]->sampledata)
-			free(cs->instrumentv[realindex]->history[i]->sampledata);
+			{
+				t->f[j].delType(&cs->instrumentv[realindex]->history[i]->state[j]);
+				cs->instrumentv[realindex]->history[i]->state[j] = NULL;
+			}
 		free(cs->instrumentv[realindex]->history[i]);
 	}
 
@@ -1093,58 +1030,6 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 	}
 	return ptr;
 }
-void loadSample(uint8_t index, char *path)
-{
-	instrument *iv = s->instrumentv[s->instrumenti[index]];
-	SF_INFO sfinfo;
-	short *sampledata = _loadSample(path, &sfinfo);
-	if (!sampledata)
-	{
-		strcpy(w->command.error, "failed to load sample, out of memory");
-		return;
-	}
-
-	/* unload any present sample data */
-	if (iv->samplelength > 0)
-		free(iv->sampledata);
-	iv->sampledata = sampledata;
-	iv->samplelength = sfinfo.frames * sfinfo.channels;
-
-	sampler_state *ss = iv->state[0];
-	ss->channels = sfinfo.channels;
-	ss->length = sfinfo.frames;
-	ss->c5rate = sfinfo.samplerate;
-	ss->trim[0] = 0;
-	ss->trim[1] = sfinfo.frames;
-	ss->loop[0] = 0;
-	ss->loop[1] = 0;
-};
-int exportSample(uint8_t index, char *path)
-{
-	if (s->instrumenti[index] < 0) return 1; /* instrument doesn't exist */
-	if (s->instrumentv[s->instrumenti[index]]->samplelength < 1) return 1; /* no sample data */
-
-	instrument *iv = s->instrumentv[s->instrumenti[index]];
-	SNDFILE *sndfile;
-	SF_INFO sfinfo;
-	memset(&sfinfo, 0, sizeof(sfinfo));
-
-	sampler_state *ss = iv->state[0];
-	sfinfo.samplerate = ss->c5rate;
-	sfinfo.frames = ss->length;
-	sfinfo.channels = ss->channels;
-
-	sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
-	sndfile = sf_open(path, SFM_WRITE, &sfinfo);
-	if (sndfile == NULL) return 1;
-
-	/* write the sample data to disk */
-	sf_writef_short(sndfile, iv->sampledata, ss->length);
-	sf_close(sndfile);
-	return 0;
-};
-
-
 
 
 
@@ -1178,9 +1063,7 @@ song *addSong(void)
 void delSong(song *cs)
 {
 	for (int i = 0; i < cs->channelc; i++)
-	{
 		_delChannel(cs, i);
-	}
 
 	for (int i = 1; i < cs->patternc; i++)
 	{
@@ -1230,7 +1113,10 @@ int writeSong(char *path)
 	fputc('e', fp);
 	fputc('g', fp);
 	fputc('g', fp);
-	fseek(fp, 0x4, SEEK_SET);
+
+	/* version */
+	fputc(MAJOR, fp);
+	fputc(MINOR, fp);
 
 	/* counts */
 	fwrite(&s->songbpm, sizeof(uint8_t), 1, fp);
@@ -1239,7 +1125,6 @@ int writeSong(char *path)
 	fputc(s->channelc, fp);
 	fputc(s->rowhighlight, fp);
 
-	fseek(fp, 0x10, SEEK_SET);
 	/* mutes */
 	char byte;
 	for (i = 0; i < 8; i++)
@@ -1256,7 +1141,6 @@ int writeSong(char *path)
 		fputc(byte, fp);
 	}
 
-	fseek(fp, 0x20, SEEK_SET);
 	/* songi */
 	for (i = 0; i < 256; i++)
 		fputc(s->songi[i], fp);
@@ -1291,6 +1175,7 @@ int writeSong(char *path)
 	for (i = 1; i < s->instrumentc; i++)
 	{
 		iv = s->instrumentv[i];
+		fputc(iv->fader, fp);
 		fputc(iv->type, fp);
 
 		for (uint8_t j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
@@ -1300,11 +1185,6 @@ int writeSong(char *path)
 				t->f[j].write(&iv->state[j], fp);
 			}
 		fputc(0, fp); // no more types
-
-		fputc(iv->fader, fp);
-		fwrite(&iv->samplelength, sizeof(uint32_t), 1, fp);
-		if (iv->samplelength > 0)
-			fwrite(iv->sampledata, sizeof(short), iv->samplelength, fp);
 	}
 
 	fclose(fp);
@@ -1338,7 +1218,6 @@ song *readSong(char *path)
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' isn't valid", path);
 		return NULL;
 	}
-	fseek(fp, 0x4, SEEK_SET);
 
 	song *cs = _addSong();
 	if (!cs)
@@ -1351,6 +1230,10 @@ song *readSong(char *path)
 	/* TODO: proper error checking lol */
 	strcpy(w->filepath, path);
 
+	/* version */
+	unsigned char filemajor = fgetc(fp);
+	unsigned char fileminor = fgetc(fp);
+
 	/* counts */
 	fread(&cs->songbpm, sizeof(uint8_t), 1, fp);
 	w->request = REQ_BPM;
@@ -1362,7 +1245,6 @@ song *readSong(char *path)
 		_addChannel(&cs->channelv[i]);
 	cs->rowhighlight = fgetc(fp);
 
-	fseek(fp, 0x10, SEEK_SET);
 	/* mutes */
 	char byte;
 	for (i = 0; i < 8; i++)
@@ -1379,7 +1261,6 @@ song *readSong(char *path)
 		fputc(byte, fp);
 	}
 
-	fseek(fp, 0x20, SEEK_SET);
 	/* songi */
 	for (i = 0; i < 256; i++)
 		cs->songi[i] = fgetc(fp);
@@ -1417,6 +1298,7 @@ song *readSong(char *path)
 		_addInstrument(cs, i);
 
 		iv = cs->instrumentv[i];
+		iv->fader = fgetc(fp);
 		iv->type = fgetc(fp);
 		iv->typefollow = iv->type; /* confirm the type is safe to use */
 
@@ -1424,25 +1306,10 @@ song *readSong(char *path)
 		while ((j = fgetc(fp))) /* read until there's no more */
 			if (t->f[j-1].read)
 			{
-				t->f[j-1].initType(&iv->state[j-1]);
-				t->f[j-1].read(&iv->state[j-1], fp);
+				t->f[j-1].addType(&iv->state[j-1]);
+				t->f[j-1].read(&iv->state[j-1], filemajor, fileminor, fp);
 			}
 
-		cs->instrumentv[i]->fader = fgetc(fp);
-		fread(&cs->instrumentv[i]->samplelength, sizeof(uint32_t), 1, fp);
-		if (cs->instrumentv[i]->samplelength > 0)
-		{
-			short *sampledata = malloc(sizeof(short) * cs->instrumentv[i]->samplelength);
-			if (!sampledata) // malloc failed
-			{
-				strcpy(w->command.error, "some sample data failed to load, out of memory");
-				fseek(fp, sizeof(short) * cs->instrumentv[i]->samplelength, SEEK_CUR);
-				continue;
-			}
-
-			fread(sampledata, sizeof(short), cs->instrumentv[i]->samplelength, fp); /* <<< this sometimes segfaults */
-			cs->instrumentv[i]->sampledata = sampledata;
-		}
 		pushInstrumentHistory(cs->instrumentv[i]);
 	}
 

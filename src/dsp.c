@@ -7,7 +7,7 @@
 #define MAX_CUTOFF 12000
 #define MIN_CUTOFF 100
 
-#define FM_DEPTH 0.01
+#define FM_DEPTH 0.005
 
 /* <seconds> */
 #define ENVELOPE_ATTACK  0.005
@@ -51,7 +51,7 @@ typedef struct
 typedef struct
 { double a1, a2, b1, b2, n1, n2; } filter;
 
-float runFilter(filter *s, float input, float cut, float res)
+void calcFilter(filter *s, float cut, float res)
 {
 	double r = MAX_RESONANCE + (MIN_RESONANCE - MAX_RESONANCE) * (1.0 - res);
 	double c = MIN(tan((0.5 - (MAX_CUTOFF * cut) * 1.0 / samplerate) * M_PI), MIN_CUTOFF);
@@ -60,7 +60,9 @@ float runFilter(filter *s, float input, float cut, float res)
 	s->a2 = 2.0 * s->a1;
 	s->b1 = 2.0 * (1.0 - c*c) * s->a1;
 	s->b2 = (1.0 - r*c + c*c) * s->a1;
-
+}
+float runFilter(filter *s, float input)
+{
 	return s->a1*input + s->a2*s->n1 + s->a1*s->n2 - s->b1*s->n1 - s->b2*s->n2;
 }
 
@@ -114,14 +116,14 @@ float lorenzAlternative(lorenz *l)
 
 /* https://www.musicdsp.org/en/latest/Synthesis/241-quick-dirty-sine.html */
 /* 0 <= x < 4096 */
-float xSin(double x)
+float xSin(float x)
 {
-	const double A = -0.015959964859;
-	const double B =  217.68468676;
-	const double C =  0.000028716332164;
-	const double D = -0.0030591066066;
-	const double E = -7.3316892871734489e-005;
-	double y;
+	const float A = -0.015959964859;
+	const float B =  217.68468676;
+	const float C =  0.000028716332164;
+	const float D = -0.0030591066066;
+	const float E = -7.3316892871734489e-005;
+	float y;
 
 	char negate = 0;
 	if (x > 2048)
@@ -135,10 +137,10 @@ float xSin(double x)
 		y = -((A+x)/(B+C*x*x)+D*x-E);
 	else
 		y=(A+x)/(B+C*x*x)+D*x-E;
-	return (float)y;
+	return y;
 }
 
-void drawWave(char wave, unsigned short y, unsigned short x, char adjust)
+void drawWave(uint8_t wave, unsigned short y, unsigned short x, char adjust)
 {
 	switch (wave)
 	{
@@ -194,7 +196,7 @@ void drawWave(char wave, unsigned short y, unsigned short x, char adjust)
 			break;
 	}
 }
-void drawFilterType(char type, unsigned short y, unsigned short x, char adjust)
+void drawFilterType(uint8_t type, unsigned short y, unsigned short x, char adjust)
 {
 	switch (type)
 	{
@@ -253,7 +255,7 @@ float adsrEnvelope(adsr env, float curve,
 	if (releasepointer && releasepointer < pointer)
 	{ /* release */
 		uint32_t releaselength = env.r * ENVELOPE_RELEASE * samplerate;
-		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * env.s / 255.0;
+		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * env.s / 256.0;
 	} else
 	{
 		uint32_t attacklength = env.a * ENVELOPE_ATTACK * samplerate;
@@ -261,13 +263,12 @@ float adsrEnvelope(adsr env, float curve,
 		if (pointer < attacklength)
 		{ /* attack */
 			linear = (float)pointer / (float)attacklength;
-			/* ramp to sustain if there's no decay stage */
-			if (!env.d) linear *= env.s / 255.0;
+			if (!env.d) linear *= env.s / 256.0; /* ramp to sustain if there's no decay stage */
 		} else if (env.s < 255 && pointer < attacklength + decaylength)
 		{ /* decay */
-			linear = 1.0 - (float)(pointer - attacklength)
-				/ (float)decaylength * (1.0 - env.s / 255.0);
-		} else linear = env.s / 255.0; /* sustain */
+			linear = 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - env.s / 256.0);
+		} else /* sustain */
+			linear = env.s / 256.0;
 	}
 	/* lerp between linear and exponential */
 	return linear + (powf(2.0, linear) - 1.0 - linear) * curve;
@@ -289,7 +290,7 @@ float oscillator(char wave, float phase, float pw)
 			if (fmodf(phase, 1.0) > pw) output = -1.0;
 			else                        output = +1.0;
 			break;
-		case 4: /* sine     */
+		case 4: /* sine     */ /* TODO: really slow (not surprising) */
 			output = xSin(fmodf(phase, 1.0) * 4096);
 			break;
 	}

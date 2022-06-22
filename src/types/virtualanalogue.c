@@ -2,14 +2,14 @@ typedef struct
 {
 	struct
 	{
-		char    waveform;
+		uint8_t waveform;
 		uint8_t lfo;
 		uint8_t mix;
 		uint8_t fm;
 		uint8_t attributes; /* %1:ringmod  %2:sync */
 	} osc1;
 	struct {
-		char    waveform;
+		uint8_t waveform;
 		int8_t  oct;
 		uint8_t semi;
 		uint8_t detune;
@@ -18,14 +18,13 @@ typedef struct
 		uint8_t attributes; /* %1:track */
 	} osc2;
 	struct {
-		char    waveform;
+		uint8_t waveform;
 		int8_t  oct;
 		uint8_t mix;
 	} sub;
-	struct
-	{
+	struct {
 		uint8_t rate;
-		char    waveform;
+		uint8_t waveform;
 		uint8_t pwm;
 	} lfo;
 	struct {
@@ -34,6 +33,7 @@ typedef struct
 		uint8_t lfo;
 		adsr    env;
 		uint8_t track;
+		uint8_t attributes; /* %1:high resonance */
 	} filter;
 	adsr        amp;
 	uint8_t noise;
@@ -91,6 +91,8 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 	printf("\033[%d;%dHreso    [%02x]  decay   [%02x]", y+3, x+28, as->filter.resonance, as->filter.env.d);
 	printf("\033[%d;%dHlfo     [%02x]  sustain [%02x]", y+4, x+28, as->filter.lfo, as->filter.env.s);
 	printf("\033[%d;%dHtrack   [%02x]  release [%02x]", y+5, x+28, as->filter.track, as->filter.env.r);
+	printf("\033[%d;%dHhigh resonance (loud)  ",        y+6, x+28);
+	drawBit(as->filter.attributes & 0b1);
 	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",   y+1, x+58);
 	printf("\033[%d;%dHattack  [%02x]", y+2, x+57, as->amp.a);
 	printf("\033[%d;%dHdecay   [%02x]", y+3, x+57, as->amp.d);
@@ -106,10 +108,10 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 	printf("\033[%d;%dHunison detune   [%02x]", y+11, x+49, as->detune);
 	printf("\033[%d;%dHunison stereo    [%x]",  y+12, x+49, as->stereo);
 
-	drawWave(as->lfo.waveform, y+9, x+38, *cursor == 24 && adjust);
-	drawWave(as->sub.waveform, y+12, x+17, *cursor == 15 && adjust);
-	drawWave(as->osc2.waveform, y+7, x+17, *cursor == 7 && adjust);
-	drawWave(as->osc1.waveform, y+2, x+17, *cursor == 1 && adjust);
+	drawWave(as->lfo.waveform,  y+9,  x+38, *cursor == 25 && adjust);
+	drawWave(as->sub.waveform,  y+12, x+17, *cursor == 15 && adjust);
+	drawWave(as->osc2.waveform, y+7,  x+17, *cursor == 7 && adjust);
+	drawWave(as->osc1.waveform, y+2,  x+17, *cursor == 1 && adjust);
 
 	switch (*cursor)
 	{
@@ -137,17 +139,18 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 		case 21: printf("\033[%d;%dH", y+3,  x+52); break;
 		case 22: printf("\033[%d;%dH", y+4,  x+52); break;
 		case 23: printf("\033[%d;%dH", y+5,  x+52); break;
-		case 24: printf("\033[%d;%dH", y+9,  x+44); break;
-		case 25: printf("\033[%d;%dH", y+10, x+44); break;
-		case 26: printf("\033[%d;%dH", y+11, x+44); break;
-		case 27: printf("\033[%d;%dH", y+2,  x+67); break;
-		case 28: printf("\033[%d;%dH", y+3,  x+67); break;
-		case 29: printf("\033[%d;%dH", y+4,  x+67); break;
-		case 30: printf("\033[%d;%dH", y+5,  x+67); break;
-		case 31: printf("\033[%d;%dH", y+9,  x+67); break;
-		case 32: printf("\033[%d;%dH", y+10, x+67); break;
-		case 33: printf("\033[%d;%dH", y+11, x+67); break;
-		case 34: printf("\033[%d;%dH", y+12, x+67); break;
+		case 24: printf("\033[%d;%dH", y+6,  x+52); break;
+		case 25: printf("\033[%d;%dH", y+9,  x+44); break;
+		case 26: printf("\033[%d;%dH", y+10, x+44); break;
+		case 27: printf("\033[%d;%dH", y+11, x+44); break;
+		case 28: printf("\033[%d;%dH", y+2,  x+67); break;
+		case 29: printf("\033[%d;%dH", y+3,  x+67); break;
+		case 30: printf("\033[%d;%dH", y+4,  x+67); break;
+		case 31: printf("\033[%d;%dH", y+5,  x+67); break;
+		case 32: printf("\033[%d;%dH", y+9,  x+67); break;
+		case 33: printf("\033[%d;%dH", y+10, x+67); break;
+		case 34: printf("\033[%d;%dH", y+11, x+67); break;
+		case 35: printf("\033[%d;%dH", y+12, x+67); break;
 	}
 }
 
@@ -177,17 +180,17 @@ void analogueAdjustUp(instrument *iv, short index)
 		case 21: if (w->fieldpointer) { if (as->filter.env.d < 255 - 16) as->filter.env.d+=16; else as->filter.env.d = 255; } else if (as->filter.env.d < 255) as->filter.env.d++; break;
 		case 22: if (w->fieldpointer) { if (as->filter.env.s < 255 - 16) as->filter.env.s+=16; else as->filter.env.s = 255; } else if (as->filter.env.s < 255) as->filter.env.s++; break;
 		case 23: if (w->fieldpointer) { if (as->filter.env.r < 255 - 16) as->filter.env.r+=16; else as->filter.env.r = 255; } else if (as->filter.env.r < 255) as->filter.env.r++; break;
-		case 24: if (as->lfo.waveform < WAVE_COUNT) as->lfo.waveform++; break;
-		case 25: if (w->fieldpointer) { if (as->lfo.rate < 255 - 16) as->lfo.rate+=16; else as->lfo.rate = 255; } else if (as->lfo.rate < 255) as->lfo.rate++; break;
-		case 26: if (w->fieldpointer) { if (as->lfo.pwm < 255 - 16) as->lfo.pwm+=16; else as->lfo.pwm = 255; } else if (as->lfo.pwm < 255) as->lfo.pwm++; break;
-		case 27: if (w->fieldpointer) { if (as->amp.a < 255 - 16) as->amp.a+=16; else as->amp.a = 255; } else if (as->amp.a < 255) as->amp.a++; break;
-		case 28: if (w->fieldpointer) { if (as->amp.d < 255 - 16) as->amp.d+=16; else as->amp.d = 255; } else if (as->amp.d < 255) as->amp.d++; break;
-		case 29: if (w->fieldpointer) { if (as->amp.s < 255 - 16) as->amp.s+=16; else as->amp.s = 255; } else if (as->amp.s < 255) as->amp.s++; break;
-		case 30: if (w->fieldpointer) { if (as->amp.r < 255 - 16) as->amp.r+=16; else as->amp.r = 255; } else if (as->amp.r < 255) as->amp.r++; break;
-		case 31: if (w->fieldpointer) { if (as->noise < 255 - 16) as->noise+=16; else as->noise = 255; } else if (as->noise < 255) as->noise++; break;
-		case 32: if (as->unison < 15) as->unison++; break;
-		case 33: if (w->fieldpointer) { if (as->detune < 255 - 16) as->detune+=16; else as->detune = 255; } else if (as->detune < 255) as->detune++; break;
-		case 34: if (as->stereo < 15) as->stereo++; break;
+		case 25: if (as->lfo.waveform < WAVE_COUNT) as->lfo.waveform++; break;
+		case 26: if (w->fieldpointer) { if (as->lfo.rate < 255 - 16) as->lfo.rate+=16; else as->lfo.rate = 255; } else if (as->lfo.rate < 255) as->lfo.rate++; break;
+		case 27: if (w->fieldpointer) { if (as->lfo.pwm < 255 - 16) as->lfo.pwm+=16; else as->lfo.pwm = 255; } else if (as->lfo.pwm < 255) as->lfo.pwm++; break;
+		case 28: if (w->fieldpointer) { if (as->amp.a < 255 - 16) as->amp.a+=16; else as->amp.a = 255; } else if (as->amp.a < 255) as->amp.a++; break;
+		case 29: if (w->fieldpointer) { if (as->amp.d < 255 - 16) as->amp.d+=16; else as->amp.d = 255; } else if (as->amp.d < 255) as->amp.d++; break;
+		case 30: if (w->fieldpointer) { if (as->amp.s < 255 - 16) as->amp.s+=16; else as->amp.s = 255; } else if (as->amp.s < 255) as->amp.s++; break;
+		case 31: if (w->fieldpointer) { if (as->amp.r < 255 - 16) as->amp.r+=16; else as->amp.r = 255; } else if (as->amp.r < 255) as->amp.r++; break;
+		case 32: if (w->fieldpointer) { if (as->noise < 255 - 16) as->noise+=16; else as->noise = 255; } else if (as->noise < 255) as->noise++; break;
+		case 33: if (as->unison < 15) as->unison++; break;
+		case 34: if (w->fieldpointer) { if (as->detune < 255 - 16) as->detune+=16; else as->detune = 255; } else if (as->detune < 255) as->detune++; break;
+		case 35: if (as->stereo < 15) as->stereo++; break;
 	}
 }
 void analogueAdjustDown(instrument *iv, short index)
@@ -216,17 +219,17 @@ void analogueAdjustDown(instrument *iv, short index)
 		case 21: if (w->fieldpointer) { if (as->filter.env.d > 16) as->filter.env.d-=16; else as->filter.env.d = 0; } else if (as->filter.env.d) as->filter.env.d--; break;
 		case 22: if (w->fieldpointer) { if (as->filter.env.s > 16) as->filter.env.s-=16; else as->filter.env.s = 0; } else if (as->filter.env.s) as->filter.env.s--; break;
 		case 23: if (w->fieldpointer) { if (as->filter.env.r > 16) as->filter.env.r-=16; else as->filter.env.r = 0; } else if (as->filter.env.r) as->filter.env.r--; break;
-		case 24: if (as->lfo.waveform > 0) as->lfo.waveform--; break;
-		case 25: if (w->fieldpointer) { if (as->lfo.rate > 16) as->lfo.rate-=16; else as->lfo.rate = 0; } else if (as->lfo.rate) as->lfo.rate--; break;
-		case 26: if (w->fieldpointer) { if (as->lfo.pwm > 16) as->lfo.pwm-=16; else as->lfo.pwm = 0; } else if (as->lfo.pwm) as->lfo.pwm--; break;
-		case 27: if (w->fieldpointer) { if (as->amp.a > 16) as->amp.a-=16; else as->amp.a = 0; } else if (as->amp.a) as->amp.a--; break;
-		case 28: if (w->fieldpointer) { if (as->amp.d > 16) as->amp.d-=16; else as->amp.d = 0; } else if (as->amp.d) as->amp.d--; break;
-		case 29: if (w->fieldpointer) { if (as->amp.s > 16) as->amp.s-=16; else as->amp.s = 0; } else if (as->amp.s) as->amp.s--; break;
-		case 30: if (w->fieldpointer) { if (as->amp.r > 16) as->amp.r-=16; else as->amp.r = 0; } else if (as->amp.r) as->amp.r--; break;
-		case 31: if (w->fieldpointer) { if (as->noise > 16) as->noise-=16; else as->noise = 0; } else if (as->noise) as->noise--; break;
-		case 32: if (as->unison > 0) as->unison--; break;
-		case 33: if (w->fieldpointer) { if (as->detune > 16) as->detune-=16; else as->detune = 0; } else if (as->detune) as->detune--; break;
-		case 34: if (as->stereo > 0) as->stereo--; break;
+		case 25: if (as->lfo.waveform > 0) as->lfo.waveform--; break;
+		case 26: if (w->fieldpointer) { if (as->lfo.rate > 16) as->lfo.rate-=16; else as->lfo.rate = 0; } else if (as->lfo.rate) as->lfo.rate--; break;
+		case 27: if (w->fieldpointer) { if (as->lfo.pwm > 16) as->lfo.pwm-=16; else as->lfo.pwm = 0; } else if (as->lfo.pwm) as->lfo.pwm--; break;
+		case 28: if (w->fieldpointer) { if (as->amp.a > 16) as->amp.a-=16; else as->amp.a = 0; } else if (as->amp.a) as->amp.a--; break;
+		case 29: if (w->fieldpointer) { if (as->amp.d > 16) as->amp.d-=16; else as->amp.d = 0; } else if (as->amp.d) as->amp.d--; break;
+		case 30: if (w->fieldpointer) { if (as->amp.s > 16) as->amp.s-=16; else as->amp.s = 0; } else if (as->amp.s) as->amp.s--; break;
+		case 31: if (w->fieldpointer) { if (as->amp.r > 16) as->amp.r-=16; else as->amp.r = 0; } else if (as->amp.r) as->amp.r--; break;
+		case 32: if (w->fieldpointer) { if (as->noise > 16) as->noise-=16; else as->noise = 0; } else if (as->noise) as->noise--; break;
+		case 33: if (as->unison > 0) as->unison--; break;
+		case 34: if (w->fieldpointer) { if (as->detune > 16) as->detune-=16; else as->detune = 0; } else if (as->detune) as->detune--; break;
+		case 35: if (as->stereo > 0) as->stereo--; break;
 	}
 }
 
@@ -249,17 +252,17 @@ void inputAnalogueHex(short index, analogue_state *as, char value)
 		case 21: updateFieldPush(&as->filter.env.a, value); break;
 		case 22: updateFieldPush(&as->filter.env.d, value); break;
 		case 23: updateFieldPush(&as->filter.env.s, value); break;
-		case 24: updateFieldPush(&as->filter.env.r, value); break;
-		case 26: updateFieldPush(&as->lfo.rate, value); break;
-		case 27: updateFieldPush(&as->lfo.pwm, value); break;
-		case 28: updateFieldPush(&as->amp.a, value); break;
-		case 29: updateFieldPush(&as->amp.d, value); break;
-		case 30: updateFieldPush(&as->amp.s, value); break;
-		case 31: updateFieldPush(&as->amp.r, value); break;
-		case 32: updateFieldPush(&as->noise, value); break;
-		case 33: as->unison = value; break;
-		case 34: updateFieldPush(&as->detune, value); break;
-		case 35: as->stereo = value; break;
+		case 25: updateFieldPush(&as->filter.env.r, value); break;
+		case 27: updateFieldPush(&as->lfo.rate, value); break;
+		case 28: updateFieldPush(&as->lfo.pwm, value); break;
+		case 29: updateFieldPush(&as->amp.a, value); break;
+		case 30: updateFieldPush(&as->amp.d, value); break;
+		case 31: updateFieldPush(&as->amp.s, value); break;
+		case 32: updateFieldPush(&as->amp.r, value); break;
+		case 33: updateFieldPush(&as->noise, value); break;
+		case 34: as->unison = value; break;
+		case 35: updateFieldPush(&as->detune, value); break;
+		case 36: as->stereo = value; break;
 	}
 }
 void analogueInput(int *input)
@@ -271,9 +274,10 @@ void analogueInput(int *input)
 		case 10: case 13: /* return */
 			switch (w->instrumentindex)
 			{
-				case 3:  as->osc1.attributes ^= 0b1;  *input = 0; break;
-				case 4:  as->osc1.attributes ^= 0b10; *input = 0; break;
-				case 11: as->osc2.attributes ^= 0b1;  *input = 0; break;
+				case 3:  as->osc1.attributes ^= 0b1;   *input = 0; break;
+				case 4:  as->osc1.attributes ^= 0b10;  *input = 0; break;
+				case 11: as->osc2.attributes ^= 0b1;   *input = 0; break;
+				case 24: as->filter.attributes ^= 0b1; *input = 0; break;
 			}
 			break;
 		case 1:  /* ^a */ w->fieldpointer = 0; analogueAdjustUp(iv, w->instrumentindex);   break;
@@ -336,7 +340,8 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 	{
 		if (x < 56)
 		{
-			if (x < 41)
+			if (y >= 7) { *index = 24; as->filter.attributes ^= 0b1; }
+			else if (x < 41)
 				switch (y)
 				{
 					case 1: case 2: case 3:  *index = 16; if (x < 38) w->fieldpointer = 1; else w->fieldpointer = 0; break;
@@ -356,27 +361,27 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 		else
 			switch (y)
 			{
-				case 1: case 2: case 3:  *index = 27; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				case 4:                  *index = 28; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				case 5:                  *index = 29; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				default:                 *index = 30; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 1: case 2: case 3:  *index = 28; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 4:                  *index = 29; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 5:                  *index = 30; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				default:                 *index = 31; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 			}
 	} else
 	{
 		if (x < 48)
 			switch (y)
 			{
-				case 8: case 9: case 10:  *index = 24; break;
-				case 11:                  *index = 25; if (x < 44) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				default:                  *index = 26; if (x < 44) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 8: case 9: case 10:  *index = 25; break;
+				case 11:                  *index = 26; if (x < 44) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				default:                  *index = 27; if (x < 44) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 			}
 		else
 			switch (y)
 			{
-				case 8: case 9: case 10:  *index = 31; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				case 11:                  *index = 32; break;
-				case 12:                  *index = 33; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				default:                  *index = 34; break;
+				case 8: case 9: case 10:  *index = 32; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 11:                  *index = 33; break;
+				case 12:                  *index = 34; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				default:                  *index = 35; break;
 			}
 	}
 }
@@ -385,7 +390,7 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 {
 	float pps = 1.0 / ((float)samplerate
 		/ (C5_FREQ * powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents + detune)));
-	
+
 	ac->unison[index].lfophase += 1.0 / ((float)samplerate * LFO_MAX
 		+ (float)samplerate * (LFO_MIN - LFO_MAX)
 		* (1.0 - as->lfo.rate/256.0) + detune);
@@ -395,49 +400,47 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 	float lfo = (oscillator(as->lfo.waveform, ac->unison[index].lfophase, 0.5) + 1.0) / 2;
 	float pw = 0.5 * (1.0 + lfo * as->lfo.pwm/256.0);
 
+	/* osc2 */
 	float osc2;
-	{ /* osc2 */
-		if (as->osc1.attributes & 0b10 && ac->unison[index].osc1phase >= 1.0) /* sync (1 sample behind, but that's fine) */
-			ac->unison[index].osc2phase = 0.0;
+	if (as->osc1.attributes & 0b10 && ac->unison[index].osc1phase >= 1.0) /* sync (1 sample behind, but that's fine) */
+		ac->unison[index].osc2phase = 0.0;
+	else
+	{
+		if (as->osc2.attributes & 0b1) /* pitch tracking */
+			ac->unison[index].osc2phase += pps
+				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune/256.0 + 0.5) * 12)
+				+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
 		else
-		{
-			if (as->osc2.attributes & 0b1) /* pitch tracking */
-				ac->unison[index].osc2phase += pps
-					* powf(2, as->osc2.oct-1)
-					* powf(M_12_ROOT_2, as->osc2.semi)
-					* powf(2, as->osc2.detune/ 256.0 + 0.5)
-					+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
-			else
-				ac->unison[index].osc2phase += 1.0 / ((float)samplerate / C5_FREQ)
-					* powf(2, as->osc2.oct-1)
-					* powf(M_12_ROOT_2, as->osc2.semi)
-					* powf(2, as->osc2.detune/256.0 + 0.5)
-					+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
-			ac->unison[index].osc2phase = fmodf(ac->unison[index].osc2phase, 1.0);
-		}
-
-		osc2 = oscillator(as->osc2.waveform, ac->unison[index].osc2phase, pw);
-		output += osc2 * as->osc2.mix/256.0;
+			ac->unison[index].osc2phase += 1.0 / ((float)samplerate / C5_FREQ)
+				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune/256.0 + 0.5) * 12)
+				+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
+		ac->unison[index].osc2phase = fmodf(ac->unison[index].osc2phase, 1.0);
 	}
-	{ /* osc1 */
-		ac->unison[index].osc1phase = fmodf(ac->unison[index].osc1phase, 1.0);
-		ac->unison[index].osc1phase += pps + (lfo * FM_DEPTH * as->osc1.lfo/256.0) + (osc2 * as->osc1.fm/256.0);
 
-		if (as->osc1.attributes & 0b1) /* osc2 ringmod */
-			output += oscillator(as->osc1.waveform, ac->unison[index].osc1phase, pw)
-				* as->osc1.mix/256.0 * fabsf(osc2) * 2;
-		else
-			output += oscillator(as->osc1.waveform, ac->unison[index].osc1phase, pw)
-				* as->osc1.mix/256.0;
-	}
-	{ /* sub */
-		ac->unison[index].subphase += (pps + (lfo * FM_DEPTH * as->osc1.lfo/256.0)) * powf(2, as->sub.oct);
-		ac->unison[index].subphase = fmodf(ac->unison[index].subphase, 1.0);
+	osc2 = oscillator(as->osc2.waveform, ac->unison[index].osc2phase, pw);
+	output += osc2 * as->osc2.mix;
 
-		output += oscillator(as->sub.waveform, ac->unison[index].subphase, pw)
-			* as->sub.mix/256.0;
-	}
-	return output;
+	float osc1lfo = lfo * FM_DEPTH * as->osc1.lfo/256.0;
+
+	/* osc1 */
+	ac->unison[index].osc1phase = fmodf(ac->unison[index].osc1phase, 1.0);
+	ac->unison[index].osc1phase += pps + osc1lfo + (osc2 * as->osc1.fm/256.0);
+
+	if (as->osc1.attributes & 0b1) /* osc2 ringmod */
+		output += oscillator(as->osc1.waveform, ac->unison[index].osc1phase, pw)
+			* as->osc1.mix * fabsf(osc2) * 2;
+	else
+		output += oscillator(as->osc1.waveform, ac->unison[index].osc1phase, pw)
+			* as->osc1.mix;
+
+	/* sub */
+	ac->unison[index].subphase += (pps + osc1lfo) * powf(2, as->sub.oct);
+	ac->unison[index].subphase = fmodf(ac->unison[index].subphase, 1.0);
+
+	output += oscillator(as->sub.waveform, ac->unison[index].subphase, pw)
+		* as->sub.mix;
+
+	return output/256.0;
 }
 
 void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, float *r)
@@ -479,66 +482,63 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 			detune = gain * as->detune/256.0;
 			if (i % 2)
 			{
-				c = analogueInstance(as, ac, cv, i * 2 + 0,  detune) * again;
+				c = analogueInstance(as, ac, cv, i * 2 + 0,  detune);
 				*l += c * (gain + width);
 				*r += c * MAX(gain - width, 0.0);
-				c = analogueInstance(as, ac, cv, i * 2 + 1, -detune) * again;
+				c = analogueInstance(as, ac, cv, i * 2 + 1, -detune);
 				*r += c * (gain + width);
 				*l += c * MAX(gain - width, 0.0);
 			} else
 			{
-				c = analogueInstance(as, ac, cv, i * 2 + 0, -detune) * again;
+				c = analogueInstance(as, ac, cv, i * 2 + 0, -detune);
 				*l += c * (gain + width);
 				*r += c * MAX(gain - width, 0.0);
-				c = analogueInstance(as, ac, cv, i * 2 + 1,  detune) * again;
+				c = analogueInstance(as, ac, cv, i * 2 + 1,  detune);
 				*r += c * (gain + width);
 				*l += c * MAX(gain - width, 0.0);
 			}
 		}
 
-		{ /* noise */
-			float noise = getWnoise(&ac->wn) * as->noise / 512.0 * again; /* 256 * 2 */
-			*l += noise;
-			*r += noise;
+		/* noise */
+		float noise = getWnoise(&ac->wn) * as->noise / 512.0 * again; /* 256 * 2 */
+		*l += noise;
+		*r += noise;
+
+		/* filter */
+		float cutoff = fgain * as->filter.cutoff/256.0
+				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->cents) * as->filter.track/256.0);
+		if (as->filter.attributes & 0b1) /* high resonance */
+			calcFilter(&ac->fl, cutoff * -1, 1.0 - as->filter.resonance/256.0);
+		else
+			calcFilter(&ac->fl, cutoff, as->filter.resonance/256.0);
+		*l = runFilter(&ac->fl, *l);
+		*r = runFilter(&ac->fl, *r);
+		ac->fl.n2 = ac->fl.n1; ac->fl.n1 = MIN(MAX(*l, -6.0), 6.0);
+		ac->fr.n2 = ac->fr.n1; ac->fr.n1 = MIN(MAX(*r, -6.0), 6.0);
+
+
+		*l *= again;
+		*l *= again;
+
+		// saturation
+		if (*l > 0.0)
+		{ if (*l > 1.0)  *l =  1.0 + tanhf(tanhf(*l - 1.0));
+		} else
+		{ if (*l < -1.0) *l = -1.0 + tanhf(tanhf(*l + 1.0));
 		}
-		{ /* filter */
-			// float lfo = (oscillator(as->lfo.waveform, ac->unison[0].lfophase, 0.5) + 1.0) / 2;
-
-			float cutoff = fgain * as->filter.cutoff/256.0
-					* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->cents) * as->filter.track/256.0)
-					* 2.0 - 1.0;
-			/* float cutoff = fgain * as->filter.cutoff/256.0
-					* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->cents) * as->filter.track/256.0)
-					- fabsf(lfo) * as->filter.lfo/256.0; */
-
-			float resonance = as->filter.resonance/256.0;
-
-			*l = runFilter(&ac->fl, *l, cutoff, resonance);
-			*r = runFilter(&ac->fl, *r, cutoff, resonance);
-
-			ac->fl.n2 = ac->fl.n1; ac->fl.n1 = MIN(MAX(*l, -4.0), 4.0);
-			ac->fr.n2 = ac->fr.n1; ac->fr.n1 = MIN(MAX(*r, -4.0), 4.0);
+		if (*r > 0.0)
+		{ if (*r > 1.0)  *r =  1.0 + tanhf(tanhf(*r - 1.0));
+		} else
+		{ if (*r < -1.0) *r = -1.0 + tanhf(tanhf(*r + 1.0));
 		}
-		{ // saturation
-			if (*l > 0.0)
-			{ if (*l > 1.0)  *l =  1.0 + tanhf(tanhf(*l - 1.0));
-			} else
-			{ if (*l < -1.0) *l = -1.0 + tanhf(tanhf(*l + 1.0));
-			}
-			if (*r > 0.0)
-			{ if (*r > 1.0)  *r =  1.0 + tanhf(tanhf(*r - 1.0));
-			} else
-			{ if (*r < -1.0) *r = -1.0 + tanhf(tanhf(*r + 1.0));
-			}
 
-			/* asymmetry */
-			if (*l < -1.5) *l = -1.5 - (*l + 1.5);
-			if (*r < -1.5) *r = -1.5 - (*r + 1.5);
-		}
+		/* asymmetry */
+		if (*l < -1.5) *l = -1.5 - (*l + 1.5);
+		if (*r < -1.5) *r = -1.5 - (*r + 1.5);
 	}
 }
 
-void analogueInitType(void **state)
+void analogueAddType(void **state)
 {
 	*state = calloc(1, sizeof(analogue_state));
 	analogue_state *as = *state;
@@ -555,6 +555,10 @@ void analogueInitType(void **state)
 	as->sub.mix = 0;
 	as->noise = 0;
 }
+void analogueCopyType(void **dest, void **src)
+{ memcpy(*dest, *src, sizeof(analogue_state)); }
+void analogueDelType(void **state)
+{ free(*state); }
 
 void analogueAddChannel(void **state)
 {
@@ -562,22 +566,83 @@ void analogueAddChannel(void **state)
 	analogue_channel *ac = *state;
 	initWnoise(&ac->wn);
 }
-
 void analogueDelChannel(void **state)
-{
-	free(*state); *state = NULL;
-}
+{ free(*state); *state = NULL; }
 
 
 void analogueWrite(void **state, FILE *fp)
-{ fwrite(*state, sizeof(analogue_state), 1, fp); }
+{
+	analogue_state *as = *state;
 
-void analogueRead(void **state, FILE *fp)
-{ fread(*state, sizeof(analogue_state), 1, fp); }
+	fwrite(&as->osc1.waveform, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc1.lfo, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc1.mix, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc1.fm, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc1.attributes, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.waveform, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.oct, sizeof(int8_t), 1, fp);
+	fwrite(&as->osc2.semi, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.detune, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.lfo, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.mix, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.attributes, sizeof(uint8_t), 1, fp);
+	fwrite(&as->sub.waveform, sizeof(uint8_t), 1, fp);
+	fwrite(&as->sub.oct, sizeof(int8_t), 1, fp);
+	fwrite(&as->sub.mix, sizeof(uint8_t), 1, fp);
+	fwrite(&as->lfo.rate, sizeof(uint8_t), 1, fp);
+	fwrite(&as->lfo.waveform, sizeof(uint8_t), 1, fp);
+	fwrite(&as->lfo.pwm, sizeof(uint8_t), 1, fp);
+	fwrite(&as->filter.cutoff, sizeof(uint8_t), 1, fp);
+	fwrite(&as->filter.resonance, sizeof(uint8_t), 1, fp);
+	fwrite(&as->filter.lfo, sizeof(uint8_t), 1, fp);
+	fwrite(&as->filter.env, sizeof(adsr), 1, fp);
+	fwrite(&as->filter.track, sizeof(uint8_t), 1, fp);
+	fwrite(&as->filter.attributes, sizeof(uint8_t), 1, fp);
+	fwrite(&as->amp, sizeof(adsr), 1, fp);
+	fwrite(&as->noise, sizeof(uint8_t), 1, fp);
+	fwrite(&as->unison, sizeof(uint8_t), 1, fp);
+	fwrite(&as->detune, sizeof(uint8_t), 1, fp);
+	fwrite(&as->stereo, sizeof(uint8_t), 1, fp);
+}
+
+void analogueRead(void **state, unsigned char major, unsigned char minor, FILE *fp)
+{
+	analogue_state *as = *state;
+
+	fread(&as->osc1.waveform, sizeof(uint8_t), 1, fp);
+	fread(&as->osc1.lfo, sizeof(uint8_t), 1, fp);
+	fread(&as->osc1.mix, sizeof(uint8_t), 1, fp);
+	fread(&as->osc1.fm, sizeof(uint8_t), 1, fp);
+	fread(&as->osc1.attributes, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.waveform, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.oct, sizeof(int8_t), 1, fp);
+	fread(&as->osc2.semi, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.detune, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.lfo, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.mix, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.attributes, sizeof(uint8_t), 1, fp);
+	fread(&as->sub.waveform, sizeof(uint8_t), 1, fp);
+	fread(&as->sub.oct, sizeof(int8_t), 1, fp);
+	fread(&as->sub.mix, sizeof(uint8_t), 1, fp);
+	fread(&as->lfo.rate, sizeof(uint8_t), 1, fp);
+	fread(&as->lfo.waveform, sizeof(uint8_t), 1, fp);
+	fread(&as->lfo.pwm, sizeof(uint8_t), 1, fp);
+	fread(&as->filter.cutoff, sizeof(uint8_t), 1, fp);
+	fread(&as->filter.resonance, sizeof(uint8_t), 1, fp);
+	fread(&as->filter.lfo, sizeof(uint8_t), 1, fp);
+	fread(&as->filter.env, sizeof(adsr), 1, fp);
+	fread(&as->filter.track, sizeof(uint8_t), 1, fp);
+	fread(&as->filter.attributes, sizeof(uint8_t), 1, fp);
+	fread(&as->amp, sizeof(adsr), 1, fp);
+	fread(&as->noise, sizeof(uint8_t), 1, fp);
+	fread(&as->unison, sizeof(uint8_t), 1, fp);
+	fread(&as->detune, sizeof(uint8_t), 1, fp);
+	fread(&as->stereo, sizeof(uint8_t), 1, fp);
+}
 
 void analogueInit(int index)
 {
-	t->f[index].indexc = 34;
+	t->f[index].indexc = 35;
 	t->f[index].statesize = sizeof(analogue_state);
 	t->f[index].draw = &drawAnalogue;
 	t->f[index].adjustUp = &analogueAdjustUp;
@@ -585,7 +650,9 @@ void analogueInit(int index)
 	t->f[index].mouseToIndex = &analogueMouseToIndex;
 	t->f[index].input = &analogueInput;
 	t->f[index].process = &analogueProcess;
-	t->f[index].initType = &analogueInitType;
+	t->f[index].addType = &analogueAddType;
+	t->f[index].copyType = &analogueCopyType;
+	t->f[index].delType = &analogueDelType;
 	t->f[index].addChannel = &analogueAddChannel;
 	t->f[index].delChannel = &analogueDelChannel;
 	t->f[index].write = &analogueWrite;

@@ -32,8 +32,8 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 
 /* version */
-#define MAJOR 0
-#define MINOR 50
+const unsigned char MAJOR = 0;
+const unsigned char MINOR = 50;
 
 
 jack_nframes_t samplerate;
@@ -88,6 +88,7 @@ int ifMacro(row, char);
 
 #include "input.c"
 #include "instrument.c"
+#include "filebrowser.c"
 #include "tracker.c"
 #include "process.c"
 
@@ -104,13 +105,23 @@ void redraw(void)
 		return;
 	}
 
-	trackerRedraw();
-	instrumentRedraw();
+	drawTracker();
+	switch (w->popup)
+	{
+		case 1: drawInstrument();  break;
+		case 2: drawFilebrowser();  break;
+	}
 	drawCommand(&w->command, w->mode);
 
 	fflush(stdout);
 }
 
+void filebrowserEditCallback(char *path)
+{
+	strcpy(w->newfilename, path);
+	p->lock = PLAY_LOCK_START;
+	w->songfx = 0;
+}
 void commandTabCallback(char *text)
 {
 	char *buffer = malloc(strlen(text) + 1);
@@ -136,11 +147,18 @@ int commandCallback(char *command, unsigned char *mode)
 	} else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
-		strcpy(w->newfilename, buffer);
-		p->lock = PLAY_LOCK_START;
-		w->songfx = 0;
-	}
-	else if (!strcmp(buffer, "bpm"))
+		if (!strcmp(buffer, ""))
+		{
+			w->popup = 2;
+			w->filebrowserCallback = &filebrowserEditCallback;
+			redraw();
+		} else
+		{
+			strcpy(w->newfilename, buffer);
+			p->lock = PLAY_LOCK_START;
+			w->songfx = 0;
+		}
+	} else if (!strcmp(buffer, "bpm"))
 	{
 		wordSplit(buffer, command, 1);
 		char update = 0;
@@ -220,8 +238,9 @@ int input(void)
 			redraw();
 		} else switch (w->popup)
 		{
-			case 0:          trackerInput(input);     break;
-			case 1: case 2:  instrumentInput(input);  break;
+			case 0: trackerInput(input);     break;
+			case 1: instrumentInput(input);  break;
+			case 2: filebrowserInput(input);  break;
 		}
 	}
 	return 0;
@@ -294,7 +313,6 @@ void common_cleanup(int ret)
 }
 void cleanup(int ret)
 {
-	free(t);
 	if (w->dir) closedir(w->dir);
 	jack_deactivate(client);
 	jack_client_close(client);
@@ -302,14 +320,16 @@ void cleanup(int ret)
 	free(w->previewinstrument.state[0]);
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (w->instrumentbuffer.state[i])
-			free(w->instrumentbuffer.state[i]);
-	if (w->instrumentbuffer.samplelength > 0)
-		free(w->instrumentbuffer.sampledata);
+		{
+			t->f[i].delType(&w->instrumentbuffer.state[i]);
+			w->instrumentbuffer.state[i] = NULL;
+		}
 
 
 	free(w);
 	delSong(s);
 	free(p);
+	free(t);
 
 	common_cleanup(ret);
 }
@@ -463,18 +483,18 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		if (p->dirty)
+		// if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();
 		}
 
-		if (w->previewsamplestatus == 3)
+		/* if (w->previewsamplestatus == 3)
 		{
 			free(w->previewinstrument.sampledata);
 			w->previewinstrument.sampledata = NULL;
 			w->previewsamplestatus = 0;
-		}
+		} */
 
 		/* perform any pending instrument actions */
 		changeInstrumentType(s, 0);
@@ -485,18 +505,17 @@ int main(int argc, char **argv)
 			if (w->recptr > 0)
 			{
 				instrument *iv = s->instrumentv[w->instrumentreci];
-				if (iv->sampledata)
-				{ free(iv->sampledata); iv->sampledata = NULL; }
-				iv->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
-				if (iv->sampledata == NULL)
+				sampler_state *ss = iv->state[0]; /* assume 0 is the sampler type, and that it is loaded TODO: bad idea */
+				if (ss->sampledata)
+				{ free(ss->sampledata); ss->sampledata = NULL; }
+				ss->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
+				if (ss->sampledata == NULL)
 				{
 					strcpy(w->command.error, "saving recording failed, out of memory");
 				} else
 				{
-					memcpy(iv->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
-					iv->samplelength = w->recptr * 2;
-
-					sampler_state *ss = iv->state[iv->type];
+					memcpy(ss->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
+					ss->samplelength = w->recptr * 2;
 					ss->channels = 2;
 					ss->length = w->recptr;
 					ss->c5rate = samplerate;

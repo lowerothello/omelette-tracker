@@ -33,10 +33,10 @@ STAGING DESIGNS
 ││       fm/ringmod [00][ ]   reso    [00]  decay   [00] │ decay   [00]       ││
 ││       sync/lfo   [ ][00] > lfo     [00]  sustain [ff] │ sustain [ff]       ││
 ││       ──────────────────   track   [00]  release [00] │ release [00]       ││
-││       OSCILLATOR2   [80] > negative cutoff (loud) [ ] │ gain    [80] <     ││
+││       OSCILLATOR2   [80]   high resonance (loud)  [ ] │ gain    [80] <     ││
 ││       waveform   [  tri]   ───────────────────┬───────┴─────────────       ││
 ││       detune [+0][0][7f]          LFO         │ NOISE           [00]       ││
-││     > track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]       ││
+││       track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]       ││
 ││       ──────────────────   rate          [80] ├─────────────────────       ││
 ││       SUB OSC   [-0][00]   pulse width   [00] │ UNISON           [0]       ││
 ││       waveform   [pulse]                      │ detune/width [00][0]       ││

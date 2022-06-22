@@ -356,7 +356,7 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 	return 0;
 }
 
-void trackerRedraw(void)
+void drawTracker(void)
 {
 	unsigned char i;
 	unsigned short x, y;

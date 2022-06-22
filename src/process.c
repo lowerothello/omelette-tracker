@@ -76,13 +76,12 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 /* ramping */
 void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
-	if (cv->r.note && note != 255) /* old note, ramp it out */
+	if (cv->r.note && note != 255 && p->s->instrumenti[cv->r.inst]) /* old note, ramp it out */
 	{
 		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-				&& cv->r.note && iv && iv->type < INSTRUMENT_TYPE_COUNT
-				&& t->f[iv->type].process)
+				&& cv->r.note && iv->type < INSTRUMENT_TYPE_COUNT)
 			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 		cv->rampindex = 0; /* set this even if it's not populated */
 	}
@@ -294,10 +293,10 @@ int process(jack_nframes_t nfptr, void *arg)
 	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_END)
 		p->w->instrumentrecv = INST_REC_LOCK_END;
 	/* will no longer access the instrument state */
-	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE)
-		p->w->instrumentlockv = INST_GLOBAL_LOCK_FREE;
-	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST)
-		p->w->instrumentlockv = INST_GLOBAL_LOCK_HIST;
+	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE
+			|| p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST
+			|| p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_PUT)
+		p->w->instrumentlockv++;
 
 
 	if (p->w->previewtrigger) switch (p->w->previewtrigger)
@@ -312,8 +311,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			p->w->previewtrigger++;
 			break;
 		case 5: // unload sample
-			free(p->w->previewinstrument.sampledata);
-			p->w->previewinstrument.sampledata = NULL;
+			/* free(p->w->previewinstrument.sampledata);
+			p->w->previewinstrument.sampledata = NULL; */
 			break;
 
 		case 4: // continue sample preview

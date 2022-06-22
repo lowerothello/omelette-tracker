@@ -1,5 +1,28 @@
 typedef struct
 {
+	short   *sampledata;   /* variable size, persists between types */
+	uint32_t samplelength; /* raw samples allocated for sampledata */
+
+	uint32_t length;
+	uint8_t  channels;
+	uint32_t c5rate;
+	uint8_t  samplerate;   /* percent of c5rate to actually use */
+	uint16_t cyclelength;
+	uint32_t trim[2];
+	uint32_t loop[2];
+	adsr     volume;
+	uint8_t  attributes;   /* %1: persistent tempo
+	                        * %2: quantize cycles
+	                        * %3: loop ramping
+	                        * %4: mono
+	                        * %5: 8-bit
+	                        * %6: unsigned
+	                        * %7: invert phase
+	                        */
+} sampler_state;
+
+typedef struct
+{
 	uint16_t  stretchrampindex;  /* progress through the stretch ramp buffer, stretchrampmax if not ramping */
 	uint16_t  stretchrampmax;    /* length of the stretch ramp buffer */
 	sample_t *stretchrampbuffer; /* raw samples to ramp out */
@@ -78,7 +101,7 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 {
 	sampler_state *ss = iv->state[iv->type];
 	unsigned char sampletitleoffset;
-	if (!iv->samplelength)
+	if (!ss->samplelength)
 	{
 		sampletitleoffset = 26;
 		printf("\033[%d;%dH [sampler (no sample)] ", y - 1, x+26);
@@ -277,53 +300,62 @@ void samplerAdjustRight(instrument *iv, short index)
 }
 
 
-int samplerResampleCallback(char *command, unsigned char *mode)
+void loadSample(uint8_t index, char *path)
 {
-	char *buffer = malloc(strlen(command) + 1);
-	wordSplit(buffer, command, 0);
-	long newrate = strtol(buffer, NULL, 0);
-
-	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-	if (iv->samplelength == 0) return 1; /* no sample data */
-
+	instrument *iv = s->instrumentv[s->instrumenti[index]];
 	sampler_state *ss = iv->state[iv->type];
-	uint32_t newlen = ss->length * ((float)newrate / (float)ss->c5rate);
-
-	/* malloc a new buffer */
-	short *sampledata = malloc(sizeof(short) * newlen * ss->channels);
-	if (sampledata == NULL) { /* malloc failed */
-		strcpy(w->command.error, "failed to resample, out of memory");
-		free(buffer); buffer = NULL;
-		return 0;
-	}
-
-	uint32_t i, pitchedpointer;
-	for (i = 0; i < newlen * ss->channels; i++)
+	SF_INFO sfinfo;
+	short *sampledata = _loadSample(path, &sfinfo);
+	if (!sampledata)
 	{
-		pitchedpointer = (float)i * (float)ss->c5rate / (float)newrate;
-		sampledata[i] = iv->sampledata[pitchedpointer];
+		strcpy(w->command.error, "failed to load sample, out of memory");
+		return;
 	}
 
-	free(iv->sampledata); iv->sampledata = NULL;
-	iv->sampledata = sampledata;
-	iv->samplelength = newlen * ss->channels;
-	ss->length = newlen;
-	ss->trim[0] = ss->trim[0] * (float)newrate / (float)ss->c5rate;
-	ss->trim[1] = ss->trim[1] * (float)newrate / (float)ss->c5rate;
-	ss->loop[0] = ss->loop[0] * (float)newrate / (float)ss->c5rate;
-	ss->loop[1] = ss->loop[1] * (float)newrate / (float)ss->c5rate;
+	/* unload any present sample data */
+	if (ss->samplelength > 0)
+		free(ss->sampledata);
+	ss->sampledata = sampledata;
+	ss->samplelength = sfinfo.frames * sfinfo.channels;
+	ss->channels = sfinfo.channels;
+	ss->length = sfinfo.frames;
+	ss->c5rate = sfinfo.samplerate;
+	ss->trim[0] = 0;
+	ss->trim[1] = sfinfo.frames;
+	ss->loop[0] = 0;
+	ss->loop[1] = 0;
+};
+int exportSample(uint8_t index, char *path)
+{
+	instrument *iv = s->instrumentv[s->instrumenti[index]];
+	sampler_state *ss = iv->state[iv->type];
+	if (!ss->sampledata) return 1; /* no sample data */
 
-	ss->c5rate = newrate;
-	free(buffer); buffer = NULL;
-	pushInstrumentHistory(iv);
+	SNDFILE *sndfile;
+	SF_INFO sfinfo;
+	memset(&sfinfo, 0, sizeof(sfinfo));
+
+	sfinfo.samplerate = ss->c5rate;
+	sfinfo.frames = ss->length;
+	sfinfo.channels = ss->channels;
+
+	sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+	sndfile = sf_open(path, SFM_WRITE, &sfinfo);
+	if (sndfile == NULL) return 1;
+
+	/* write the sample data to disk */
+	sf_writef_short(sndfile, ss->sampledata, ss->length);
+	sf_close(sndfile);
 	return 0;
-}
+};
+
+
 void samplerApplyTrimming(instrument *iv)
 {
 	pushInstrumentHistoryIfNew(iv);
-	if (iv->samplelength > 0)
+	sampler_state *ss = iv->state[iv->type];
+	if (ss->samplelength > 0)
 	{
-		sampler_state *ss = iv->state[iv->type];
 		uint32_t newlen
 			= MAX(ss->trim[0], ss->trim[1])
 			- MIN(ss->trim[0], ss->trim[1]);
@@ -338,12 +370,12 @@ void samplerApplyTrimming(instrument *iv)
 
 		uint32_t startOffset = MIN(ss->trim[0], ss->trim[1]);
 		memcpy(sampledata,
-				iv->sampledata+(sizeof(short) * startOffset),
+				ss->sampledata+(sizeof(short) * startOffset),
 				sizeof(short) * newlen * ss->channels);
 
-		free(iv->sampledata); iv->sampledata = NULL;
-		iv->sampledata = sampledata;
-		iv->samplelength = newlen * ss->channels;
+		free(ss->sampledata); ss->sampledata = NULL;
+		ss->sampledata = sampledata;
+		ss->samplelength = newlen * ss->channels;
 		ss->length = newlen;
 		ss->trim[0] = ss->trim[0] - startOffset;
 		ss->trim[1] = ss->trim[1] - startOffset;
@@ -360,6 +392,13 @@ int samplerExportCallback(char *command, unsigned char *mode)
 	return 0;
 }
 
+void samplerLoadCallback(char *path)
+{
+	loadSample(w->instrument, path);
+	pushInstrumentHistory(s->instrumentv[s->instrumenti[w->instrument]]);
+	w->popup = 1;
+}
+
 void samplerInput(int *input)
 {
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -373,11 +412,12 @@ void samplerInput(int *input)
 					w->popup = 2;
 					w->instrumentindex = 0;
 					w->fyoffset = 0; /* this can still be set on edge cases */
+					w->filebrowserCallback = &samplerLoadCallback;
 					redraw();
 					*input = 0; /* don't reprocess */
 					break;
 				case 's': /* spleeter */
-					if (iv->samplelength > 0)
+					if (ss->samplelength > 0)
 					{
 						if (system("type spleeter >/dev/null"))
 							strcpy(w->command.error, "\"spleeter\" not found in $PATH");
@@ -407,17 +447,6 @@ void samplerInput(int *input)
 				case 't': /* apply trimming */
 					samplerApplyTrimming(iv);
 					redraw();
-					break;
-				case 'd': /* decimate / resample */
-					if (iv->samplelength > 0)
-					{
-						char buffer[COMMAND_LENGTH];
-						snprintf(buffer, COMMAND_LENGTH, "%d",
-							ss->c5rate);
-						setCommand(&w->command, &samplerResampleCallback, NULL, NULL, 0, "New C-5 rate: ", buffer);
-						w->mode = 255;
-						redraw();
-					}
 					break;
 				case 'r': /* arm for recording */
 					if (w->instrumentrecv == INST_REC_LOCK_OK)
@@ -553,6 +582,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 				w->popup = 2;
 				w->instrumentindex = 0;
 				w->fyoffset = 0; /* this can still be set on edge cases */
+				w->filebrowserCallback = &samplerLoadCallback;
 			} break;
 		default:
 			if (x < 38)
@@ -660,34 +690,34 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 
 							if (ss->attributes & 0b10000) /* 8-bit */
 							{
-								*l = (signed char)(iv->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
-									+ (signed char)(iv->sampledata[ramppointer * ss->channels]>>8) / (float)SCHAR_MAX * lerp;
+								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
+									+ (signed char)(ss->sampledata[ramppointer * ss->channels]>>8) / (float)SCHAR_MAX * lerp;
 
 								if (ss->channels > 1)
-									*r = (signed char)(iv->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
-										+ (signed char)(iv->sampledata[ramppointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * lerp;
+									*r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
+										+ (signed char)(ss->sampledata[ramppointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * lerp;
 								else *r = *l;
 							} else
 							{
-								*l = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * (1.0 - lerp)
-									+ iv->sampledata[ramppointer * ss->channels] / (float)SHRT_MAX * lerp;
+								*l = ss->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * (1.0 - lerp)
+									+ ss->sampledata[ramppointer * ss->channels] / (float)SHRT_MAX * lerp;
 
 								if (ss->channels > 1)
-									*r = iv->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX * (1.0 - lerp)
-										+ iv->sampledata[ramppointer * ss->channels + 1] / (float)SHRT_MAX * lerp;
+									*r = ss->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX * (1.0 - lerp)
+										+ ss->sampledata[ramppointer * ss->channels + 1] / (float)SHRT_MAX * lerp;
 								else *r = *l;
 							}
 						} else
 						{
 							if (ss->attributes & 0b10000) /* 8-bit */
 							{
-								*l = (signed char)(iv->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
-								if (ss->channels > 1) *r = (signed char)(iv->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
+								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
+								if (ss->channels > 1) *r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
 								else *r = *l;
 							} else
 							{
-								*l = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX;
-								if (ss->channels > 1) *r = iv->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX;
+								*l = ss->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX;
+								if (ss->channels > 1) *r = ss->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX;
 								else *r = *l;
 							}
 						}
@@ -735,34 +765,34 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 
 							if (ss->attributes & 0b10000) /* 8-bit */
 							{
-								*l = (signed char)(iv->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
-								+ (signed char)(iv->sampledata[ramppointer * ss->channels]>>8) / (float)SCHAR_MAX * lerp;
+								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
+								+ (signed char)(ss->sampledata[ramppointer * ss->channels]>>8) / (float)SCHAR_MAX * lerp;
 
 								if (ss->channels > 1)
-									*r = (signed char)(iv->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
-										+ (signed char)(iv->sampledata[ramppointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * lerp;
+									*r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
+										+ (signed char)(ss->sampledata[ramppointer * ss->channels + 1]>>8) / (float)SCHAR_MAX * lerp;
 								else *r = *l;
 							} else
 							{
-								*l = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * (1.0 - lerp)
-									+ iv->sampledata[ramppointer * ss->channels] / (float)SHRT_MAX * lerp;
+								*l = ss->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX * (1.0 - lerp)
+									+ ss->sampledata[ramppointer * ss->channels] / (float)SHRT_MAX * lerp;
 
 								if (ss->channels > 1)
-									*r = iv->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX * (1.0 - lerp)
-										+ iv->sampledata[ramppointer * ss->channels + 1] / (float)SHRT_MAX * lerp;
+									*r = ss->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX * (1.0 - lerp)
+										+ ss->sampledata[ramppointer * ss->channels + 1] / (float)SHRT_MAX * lerp;
 								else *r = *l;
 							}
 						} else
 						{
 							if (ss->attributes & 0b10000) /* 8-bit */
 							{
-								*l = (signed char)(iv->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
-								if (ss->channels > 1) *r = (signed char)(iv->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
+								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
+								if (ss->channels > 1) *r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
 								else *r = *l;
 							} else
 							{
-								*l = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX;
-								if (ss->channels > 1) *r = iv->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX;
+								*l = ss->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX;
+								if (ss->channels > 1) *r = ss->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX;
 								else *r = *l;
 							}
 						}
@@ -792,13 +822,13 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 		{
 			if (ss->attributes & 0b10000) /* 8-bit */
 			{
-				*l = (signed char)(iv->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
-				if (ss->channels > 1) *r = (signed char)(iv->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
+				*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
+				if (ss->channels > 1) *r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
 				else *r = *l;
 			} else
 			{
-				*l = iv->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX;
-				if (ss->channels > 1) *r = iv->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX;
+				*l = ss->sampledata[pitchedpointer * ss->channels] / (float)SHRT_MAX;
+				if (ss->channels > 1) *r = ss->sampledata[pitchedpointer * ss->channels + 1] / (float)SHRT_MAX;
 				else *r = *l;
 			}
 		} else *l = *r = 0.0;
@@ -943,8 +973,8 @@ void samplerMacro(instrument *iv, channel *cv, row r, uint8_t macro, int m)
 	}
 }
 
-/* called when state's type is changed to this file's (**state will later be freed) */
-void samplerInitType(void **state)
+/* called when state's type is changed to this file's */
+void samplerAddType(void **state)
 {
 	*state = calloc(1, sizeof(sampler_state));
 	sampler_state *ss = *state;
@@ -952,6 +982,34 @@ void samplerInitType(void **state)
 	ss->samplerate = 255;
 	ss->attributes = 0b00000100; /* loop ramping on by default */
 	ss->cyclelength = 0x6ff; /* feels like a good default? hard to be sure */
+}
+
+/* usually this can just be a memcpy call, but the sampler
+ * needs to manage sampledata as well */
+void samplerCopyType(void **dest, void **src)
+{
+	sampler_state *sdest = *dest;
+	sampler_state *ssrc = *src;
+	if (sdest->sampledata) /* free any existing sampledata */
+		free(sdest->sampledata);
+
+	memcpy(*dest, *src, sizeof(sampler_state));
+
+	if (ssrc->sampledata) /* only try to copy sampledata if it exists */
+	{
+		sdest->sampledata = malloc(sizeof(short) * ssrc->samplelength);
+		memcpy(sdest->sampledata, ssrc->sampledata, sizeof(short) * ssrc->samplelength);
+	}
+}
+
+/* should clean up everything allocated in addType */
+void samplerDelType(void **state)
+{
+	sampler_state *sstate = *state;
+	if (sstate->sampledata)
+		free(sstate->sampledata);
+
+	free(*state);
 }
 
 /* should initialize channel state */
@@ -963,21 +1021,56 @@ void samplerAddChannel(void **state)
 	sc->stretchrampindex = sc->stretchrampmax;
 	sc->stretchrampbuffer = malloc(sizeof(sample_t) * sc->stretchrampmax * 2); /* *2 for stereo */
 }
-
-/* should clean up everything allocated in initChannel */
+/* should clean up everything allocated in addChannel */
 void samplerDelChannel(void **state)
 {
 	sampler_channel *sc = *state;
 	free(sc->stretchrampbuffer);
-	free(*state); *state = NULL;
+	free(*state);
 }
 
 
 void samplerWrite(void **state, FILE *fp)
-{ fwrite(*state, sizeof(sampler_state), 1, fp); }
+{
+	sampler_state *ss = *state;
 
-void samplerRead(void **state, FILE *fp)
-{ fread(*state, sizeof(sampler_state), 1, fp); }
+	fwrite(&ss->length,       sizeof(uint32_t), 1, fp);
+	fwrite(&ss->channels,     sizeof(uint8_t),  1, fp);
+	fwrite(&ss->c5rate,       sizeof(uint32_t), 1, fp);
+	fwrite(&ss->samplerate,   sizeof(uint8_t),  1, fp);
+	fwrite(&ss->cyclelength,  sizeof(uint16_t), 1, fp);
+	fwrite(ss->trim,          sizeof(uint32_t), 2, fp);
+	fwrite(ss->loop,          sizeof(uint32_t), 2, fp);
+	fwrite(&ss->volume,       sizeof(adsr),     1, fp);
+	fwrite(&ss->attributes,   sizeof(uint8_t),  1, fp);
+	fwrite(&ss->samplelength, sizeof(uint32_t), 1, fp);
+
+	if (ss->samplelength)
+		fwrite(ss->sampledata, sizeof(short), ss->samplelength, fp);
+}
+
+/* tied to the index defined in initInstrumentTypes, must have version handling */
+void samplerRead(void **state, unsigned char major, unsigned char minor, FILE *fp)
+{
+	sampler_state *ss = *state;
+
+	fread(&ss->length,       sizeof(uint32_t), 1, fp);
+	fread(&ss->channels,     sizeof(uint8_t),  1, fp);
+	fread(&ss->c5rate,       sizeof(uint32_t), 1, fp);
+	fread(&ss->samplerate,   sizeof(uint8_t),  1, fp);
+	fread(&ss->cyclelength,  sizeof(uint16_t), 1, fp);
+	fread(ss->trim,          sizeof(uint32_t), 2, fp);
+	fread(ss->loop,          sizeof(uint32_t), 2, fp);
+	fread(&ss->volume,       sizeof(adsr),     1, fp);
+	fread(&ss->attributes,   sizeof(uint8_t),  1, fp);
+	fread(&ss->samplelength, sizeof(uint32_t), 1, fp);
+
+	if (ss->samplelength)
+	{
+		ss->sampledata = malloc(sizeof(short) * ss->samplelength);
+		fread(ss->sampledata, sizeof(short), ss->samplelength, fp);
+	}
+}
 
 void samplerInit(int index)
 {
@@ -995,7 +1088,9 @@ void samplerInit(int index)
 	t->f[index].input = &samplerInput;
 	t->f[index].process = &samplerProcess;
 	t->f[index].macro = &samplerMacro;
-	t->f[index].initType = &samplerInitType;
+	t->f[index].addType = &samplerAddType;
+	t->f[index].copyType = &samplerCopyType;
+	t->f[index].delType = &samplerDelType;
 	t->f[index].addChannel = &samplerAddChannel;
 	t->f[index].delChannel = &samplerDelChannel;
 	t->f[index].write = &samplerWrite;
