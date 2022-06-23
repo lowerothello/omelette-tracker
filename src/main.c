@@ -89,6 +89,7 @@ int ifMacro(row, char);
 #include "input.c"
 #include "instrument.c"
 #include "filebrowser.c"
+#include "effects.c"
 #include "tracker.c"
 #include "process.c"
 

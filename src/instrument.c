@@ -76,7 +76,7 @@ void drawInstrument(void)
 	}
 }
 
-void instrumentAdjustUp(instrument *iv, short index)
+void instrumentAdjustUp(instrument *iv, short index, char mouse)
 {
 	switch (index)
 	{
@@ -103,11 +103,11 @@ void instrumentAdjustUp(instrument *iv, short index)
 			break;
 		default:
 			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustUp)
-				t->f[iv->type].adjustUp(iv, index);
+				t->f[iv->type].adjustUp(iv, index, mouse);
 			break;
 	}
 }
-void instrumentAdjustDown(instrument *iv, short index)
+void instrumentAdjustDown(instrument *iv, short index, char mouse)
 {
 	switch (index)
 	{
@@ -134,11 +134,11 @@ void instrumentAdjustDown(instrument *iv, short index)
 			break;
 		default:
 			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustDown)
-				t->f[iv->type].adjustDown(iv, index);
+				t->f[iv->type].adjustDown(iv, index, mouse);
 			break;
 	}
 }
-void instrumentAdjustLeft(instrument *iv, short index)
+void instrumentAdjustLeft(instrument *iv, short index, char mouse)
 {
 	switch (index)
 	{
@@ -159,11 +159,11 @@ void instrumentAdjustLeft(instrument *iv, short index)
 			break;
 		default:
 			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustLeft)
-				t->f[iv->type].adjustLeft(iv, index);
+				t->f[iv->type].adjustLeft(iv, index, mouse);
 			break;
 	}
 }
-void instrumentAdjustRight(instrument *iv, short index)
+void instrumentAdjustRight(instrument *iv, short index, char mouse)
 {
 	switch (index)
 	{
@@ -184,7 +184,7 @@ void instrumentAdjustRight(instrument *iv, short index)
 			break;
 		default:
 			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustRight)
-					t->f[iv->type].adjustRight(iv, index);
+					t->f[iv->type].adjustRight(iv, index, mouse);
 			break;
 	}
 }
@@ -216,7 +216,7 @@ int instrumentInput(int input)
 					{
 						case 'A': /* up arrow */
 							if (w->mode > 1) /* adjust */
-								instrumentAdjustUp(iv, w->instrumentindex);
+								instrumentAdjustUp(iv, w->instrumentindex, 0);
 							else
 							{
 								pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
@@ -247,7 +247,7 @@ int instrumentInput(int input)
 							break;
 						case 'B': /* down arrow */
 							if (w->mode > 1) /* adjust */
-								instrumentAdjustDown(iv, w->instrumentindex);
+								instrumentAdjustDown(iv, w->instrumentindex, 0);
 							else
 							{
 								pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
@@ -283,14 +283,14 @@ int instrumentInput(int input)
 							break;
 						case 'D': /* left arrow */
 							if (w->instrumentindex == MIN_INSTRUMENT_INDEX || w->mode > 1) /* adjust */
-								instrumentAdjustLeft(iv, w->instrumentindex);
+								instrumentAdjustLeft(iv, w->instrumentindex, 0);
 							else if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 2)
 							{
 								if (w->fieldpointer == 0)
 									w->fieldpointer = 3;
 								else w->fieldpointer--;
 							} else if (w->instrumentindex <= MIN_INSTRUMENT_INDEX + 2)
-								instrumentAdjustLeft(iv, w->instrumentindex);
+								instrumentAdjustLeft(iv, w->instrumentindex, 0);
 							else switch (w->instrumentindex)
 							{
 								case MIN_INSTRUMENT_INDEX:
@@ -306,14 +306,14 @@ int instrumentInput(int input)
 							break;
 						case 'C': /* right arrow */
 							if (w->instrumentindex == MIN_INSTRUMENT_INDEX || w->mode > 1) /* adjust */
-								instrumentAdjustRight(iv, w->instrumentindex);
+								instrumentAdjustRight(iv, w->instrumentindex, 0);
 							else if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 2)
 							{
 								w->fieldpointer++;
 								if (w->fieldpointer > 3)
 									w->fieldpointer = 0;
 							} else if (w->instrumentindex <= MIN_INSTRUMENT_INDEX + 2)
-								instrumentAdjustRight(iv, w->instrumentindex);
+								instrumentAdjustRight(iv, w->instrumentindex, 0);
 							else switch (w->instrumentindex)
 							{
 								case MIN_INSTRUMENT_INDEX:
@@ -345,11 +345,11 @@ int instrumentInput(int input)
 											switch (getchar())
 											{
 												case 'D': /* left */
-													instrumentAdjustLeft(iv, MIN_INSTRUMENT_INDEX);
+													instrumentAdjustLeft(iv, MIN_INSTRUMENT_INDEX, 0);
 													redraw();
 													break;
 												case 'C': /* right */
-													instrumentAdjustRight(iv, MIN_INSTRUMENT_INDEX);
+													instrumentAdjustRight(iv, MIN_INSTRUMENT_INDEX, 0);
 													redraw();
 													break;
 											}
@@ -449,11 +449,11 @@ int instrumentInput(int input)
 								case BUTTON1_HOLD:
 									if (w->mode > 3) /* mouse adjust */
 									{
-										if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex);
-										else if (x < w->mousex) instrumentAdjustLeft(iv, w->instrumentindex);
+										if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex, 1);
+										else if (x < w->mousex) instrumentAdjustLeft(iv, w->instrumentindex, 1);
 
-										if      (y > w->mousey) instrumentAdjustDown(iv, w->instrumentindex);
-										else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex);
+										if      (y > w->mousey) instrumentAdjustDown(iv, w->instrumentindex, 1);
+										else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex, 1);
 
 										w->mousey = y;
 										w->mousex = x;
@@ -486,6 +486,7 @@ int instrumentInput(int input)
 			switch (w->mode)
 			{
 				case 0: case 2: case 4:
+					instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 					switch (input)
 					{
 						case 'i': /* enter preview */
@@ -493,13 +494,25 @@ int instrumentInput(int input)
 							redraw();
 							break;
 						case 'u': /* undo */
-							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 							popInstrumentHistory(s->instrumenti[w->instrument]);
 							redraw();
 							break;
 						case 18: /* ^R, redo */
-							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 							unpopInstrumentHistory(s->instrumenti[w->instrument]);
+							redraw();
+							break;
+						case 127: case 8: /* backspace */
+							/* TODO: REALLY slow branch */
+							if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
+									&& t->f[iv->type].decFieldPointer)
+								t->f[iv->type].decFieldPointer(w->instrumentindex);
+							redraw();
+							break;
+						case ' ': /* space */
+							/* TODO: REALLY slow branch */
+							if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
+									&& t->f[iv->type].incFieldPointer)
+								t->f[iv->type].incFieldPointer(w->instrumentindex);
 							redraw();
 							break;
 						default:

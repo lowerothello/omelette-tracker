@@ -46,28 +46,15 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
-		case 'b': *dest = 'B'; break;
-		case 'c': *dest = 'C'; break;
-		case 'd': *dest = 'D'; break;
-		case 'e': *dest = 'E'; break;
-		case 'm': *dest = 'M'; break;
-		case 'p': *dest = 'P'; break;
-		case 'r': *dest = 'R'; break;
-		case 's': *dest = 'S'; break;
-
-		/* effects */
-		/* case 'A': *dest = 'a'; break;
-		case 'B': *dest = 'b'; break;
-		case 'C': *dest = 'c'; break;
-		case 'F': *dest = 'f'; break;
-		case 'G': *dest = 'g'; break;
-		case 'H': *dest = 'h'; break;
-		case 'L': *dest = 'l'; break;
-		case 'P': *dest = 'p'; break;
-		case 'R': *dest = 'r'; break;
-		case 'S': *dest = 's'; break;
-		case 'V': *dest = 'v'; break;
-		case 'W': *dest = 'w'; break; */
+		case 'b': *dest = 'B'; break; /* bpm        */
+		case 'c': *dest = 'C'; break; /* cut        */
+		case 'd': *dest = 'D'; break; /* delay      */
+		case 'D': *dest = 'd'; break; /* fine delay */
+		case 'g': *dest = 'G'; break; /* gain       */
+		case 'p': *dest = 'P'; break; /* portamento */
+		case 'r': *dest = 'R'; break; /* retrigger  */
+		case 'v': *dest = 'V'; break; /* vibrato    */
+		default: effectChangeMacro(input, dest);
 	}
 }
 
@@ -524,8 +511,8 @@ int trackerInput(int input)
 					switch (getchar())
 					{
 						case 'P':
-							w->popup = 1;
 							w->mode = 0;
+							w->popup = 1;
 							w->instrumentindex = MIN_INSTRUMENT_INDEX;
 							break;
 					}
@@ -615,10 +602,12 @@ int trackerInput(int input)
 							switch (getchar())
 							{
 								case '5': /* f5, play */
+									w->mode = 0;
 									getchar();
 									startPlayback();
 									break;
 								case '7': /* f6 (yes, f6 is '7'), stop */
+									w->mode = 0;
 									getchar();
 									stopPlayback();
 									break;
@@ -732,7 +721,7 @@ int trackerInput(int input)
 									}
 									w->fyoffset = 0;
 									break;
-								default: /* click / drag */
+								default: /* click / click+drag */
 									/* song indices */
 									if (((button == BUTTON1 || button == BUTTON2 || button == BUTTON3) && y < 4)
 											|| (button == BUTTON1_HOLD && w->mode == 2))

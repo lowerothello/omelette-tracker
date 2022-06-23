@@ -23,35 +23,19 @@ TODO:
 
 
 MACROS:
-Bxx: set bpm to xx
-Cxy: send a note cut at x/y through the row
-Dxy: start the note at x/y through the row
-Pxx: portamento to target
-	xx is the portamento speed
-	the note field sets the target
-Mxy: channel multiplier
-	x is the volume for the left channel
-	y is the volume for the right channel
-Rxy: s&h retrigger
-	x is the number of rows the block continues to
-	y is the number of slices in the block
-	(y < 2) does nothing
-	->	will ratchet the current point in the sample
-		and continue as if nothing happened after the block
-Oxx: offset
-	start the triggered sample at xx 255ths through
-Exy: effect mix
-	x is the effect index to target
-	y is the new mix (
-		0 - off (instance disabled)
-		1234567 - dry:      100%
-				  wet:   0%-100%
-		8 - dry/wet: 100%
-		9abcdef - dry: 100%-  0%
-				  wet:      100%
-	)
-	the inst field sets the target
-	mix will revert to default once the row is over
+BPM             - Bxx: set bpm to xx
+NOTE CUT        - Cxy: send a note cut at x/y through the row
+NOTE DELAY      - Dxy: start the note at x/y through the row, useful for non-4/4 timing
+FINE NOTE DELAY - dxx: start the note at xx/255 through the row, useful for comb filtering
+PORTAMENTO      - Pxx: xx is the portamento speed, the note field sets the target
+GAIN/PAN        - Gxy: x/y is the new gain for the left/right channel
+RETRIGGER       - Rxy:
+					x is the number of rows the block continues past this row
+					y is the number of slices in the block
+					(y < 2) does nothing
+					->	will ratchet the current point in the sample
+						and continue as if nothing happened after the block
+VIBRATO         - Vxy: x is the speed, y is the depth
 
 
 
@@ -63,9 +47,7 @@ Effect redesign:
 * changes should persist in channel memory
 * last parameter should always control a variant of "mix", 0 being completely off
 * channel effect ideas:
-	- ring mod        axy {MEMTIME} x: rate        y: mix
-	- chorus           xy {MEMTIME} x: lfo freq    y: gain
-	- comb / flanger   xy {MEMTIME} x: mix         y: [0-7]: fixed time  [8-f]: lfo speed
+	- ring mod        axy           x: rate        y: mix
 	- phaser (8pole)  pxy {MEMTIME} x: rate        y: mix
 	- reverb          vxy           x: tone        y: input mix
 	- saturation      sxy           x: input gain  y: mix

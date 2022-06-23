@@ -67,8 +67,7 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		cv->r.note = note;
 		cv->portamento = 0;
 		cv->pointer = 0;
-		cv->cents = 0.0;
-		cv->gain = 255;
+		cv->portamentofinetune = 0.0;
 		cv->pointeroffset = 0;
 		cv->releasepointer = 0;
 	}
@@ -89,16 +88,44 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 }
 
 
+void calcVibrato(channel *cv, int m)
+{
+	cv->vibrato = m%16;
+	if (!cv->vibratosamples) /* reset the phase if starting */
+		cv->vibratosamplecount = 0;
+	cv->vibratosamples = p->s->spr / (((m>>4) + 1) / 16.0); /* use floats for slower lfo speeds */
+	cv->vibratosamplecount = MIN(cv->vibratosamplecount, cv->vibratosamples - 1);
+}
+
 /* inst==255 for off */
 void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, uint8_t inst)
 {
 	instrument *iv = p->s->instrumentv[p->s->instrumenti[inst]];
 
+	cv->finetune = cv->portamentofinetune;
+	if (cv->vibratosamples)
+	{
+		cv->finetune += oscillator(0, (float)cv->vibratosamplecount / (float)cv->vibratosamples, 0.5)
+			* cv->vibrato/8.0;
+
+		/* re-read the macro once phase is about to overflow */
+		cv->vibratosamplecount++;
+		if (cv->vibratosamplecount > cv->vibratosamples)
+		{
+			cv->vibratosamplecount = 0;
+			int m = ifMacro(cv->r, 'V');
+			if (m >= 0) // vibrato
+				calcVibrato(cv, m);
+			else cv->vibratosamples = 0;
+		}
+	}
+
 	if (cv->cutsamples && p->s->sprp > cv->cutsamples)
 	{
-		ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
+		ramp(p, cv, p->s->instrumenti[inst], cv->pointer);
 		cv->rampindex = 0;
 		cv->r.note = 0;
+		cv->vibrato = 0;
 		cv->cutsamples = 0;
 	}
 	if (cv->delaysamples && p->s->sprp > cv->delaysamples)
@@ -110,15 +137,15 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	float l, r;
 	/* process the type */
 	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-			&& !cv->mute && cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
+			&& cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
 	{
-		if (cv->rtrigsamples > 0 && inst != 255)
+		if (cv->rtrigsamples && inst != 255)
 		{
 			uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
 			uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
 			if (rtrigoffset == 0 && cv->pointer > cv->rtrigpointer)
 			{ /* first sample of any retrigger but the first */
-				ramp(p, cv, p->s->instrumenti[inst], cv->rtrigpointer + cv->rtrigsamples);
+				ramp(p, cv, p->s->instrumenti[inst], cv->pointer + cv->rtrigsamples);
 				cv->rampindex = 0;
 			}
 			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &l, &r);
@@ -135,20 +162,21 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		r *= (iv->fader%16) / 16.0;
 	} else
 	{
+		cv->vibrato = 0;
 		l = r = 0.0;
+	}
+
+	/* mix in ramp data */
+	if (cv->rampindex < rampmax)
+	{
+		float gain = (float)cv->rampindex / (float)rampmax;
+		l = l * gain + cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - gain);
+		r = r * gain + cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - gain);
+		cv->rampindex++;
 	}
 
 	if (!cv->mute)
 	{
-		/* mix in ramp data */
-		if (cv->rampindex < rampmax)
-		{
-			float gain = (float)cv->rampindex / (float)rampmax;
-			l = l * gain + cv->rampbuffer[cv->rampindex * 2 + 0] * (1.0 - gain);
-			r = r * gain + cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - gain);
-			cv->rampindex++;
-		}
-
 		pb.outl[fptr] += l;
 		pb.outr[fptr] += r;
 	}
@@ -156,15 +184,15 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 
 void bendUp(channel *cv, uint32_t spr, uint32_t count)
 {
-	cv->cents += (12.0 / spr) * (cv->portamentospeed / 255.0) * count;
-	while (cv->cents > 0.5)
+	cv->portamentofinetune += (12.0 / spr) * (cv->portamentospeed / 255.0) * count;
+	while (cv->portamentofinetune > 0.5)
 	{
-		cv->cents -= 1.0;
+		cv->portamentofinetune -= 1.0;
 		cv->r.note++;
 	}
-	if (cv->r.note > cv->portamento || (cv->r.note == cv->portamento && cv->cents >= 0.0))
+	if (cv->r.note > cv->portamento || (cv->r.note == cv->portamento && cv->portamentofinetune >= 0.0))
 	{
-		cv->cents = 0.0;
+		cv->portamentofinetune = 0.0;
 		cv->r.note = cv->portamento;
 		cv->portamento = 0;
 	}
@@ -172,15 +200,15 @@ void bendUp(channel *cv, uint32_t spr, uint32_t count)
 
 void bendDown(channel *cv, uint32_t spr, uint32_t count)
 {
-	cv->cents -= (12.0 / spr) * (cv->portamentospeed / 255.0);
-	while (cv->cents < 0.5)
+	cv->portamentofinetune -= (12.0 / spr) * (cv->portamentospeed / 255.0);
+	while (cv->portamentofinetune < 0.5)
 	{
-		cv->cents += 1.0;
+		cv->portamentofinetune += 1.0;
 		cv->r.note--;
 	}
-	if (cv->r.note <= cv->portamento && cv->cents <= 0.0)
+	if (cv->r.note <= cv->portamento && cv->portamentofinetune <= 0.0)
 	{
-		cv->cents = 0.0;
+		cv->portamentofinetune = 0.0;
 		cv->r.note = cv->portamento;
 		cv->portamento = 0;
 	}
@@ -189,20 +217,20 @@ void bendDown(channel *cv, uint32_t spr, uint32_t count)
 void preprocessRow(channel *cv, row r)
 {
 	int m;
-	instrument *iv;
 
 	m = ifMacro(r, 'B');
 	if (m >= 32) // bpm
 		changeBpm(p->s, m);
 
-	m = ifMacro(r, 'C'); /* cut */
-	if (m >= 0 && m>>4 == 0) /* note cut */
+	m = ifMacro(r, 'C'); // cut
+	if (m >= 0 && m>>4 == 0) // note cut
 	{
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 		cv->rampindex = 0;
 		cv->r.note = 0;
+		cv->vibrato = 0;
 	} else
 	{
 		if (m >= 0 && m%16 != 0) /* cut, don't divide by 0 */
@@ -217,20 +245,30 @@ void preprocessRow(channel *cv, row r)
 				cv->portamentospeed = m;
 			} else
 			{
-				m = ifMacro(r, 'D'); /* delay */
-				if (m >= 0 && m%16 != 0)
+				cv->gain = 0xff;
+				m = ifMacro(r, 'D');
+				if (m >= 0 && m%16 != 0) // delay
 				{
 					cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
 					cv->delaynote = r.note;
 					cv->delayinst = r.inst;
 				} else
-					triggerNote(cv, r.note, r.inst);
+				{
+					m = ifMacro(r, 'd');
+					if (m >= 0) // fine delay
+					{
+						cv->delaysamples = p->s->spr * m/256.0;
+						cv->delaynote = r.note;
+						cv->delayinst = r.inst;
+					}
+					else triggerNote(cv, r.note, r.inst);
+				}
 			}
 		}
 	}
 
-	m = ifMacro(r, 'M');
-	if (m >= 0) // volume
+	m = ifMacro(r, 'G');
+	if (m >= 0) // gain
 		cv->gain = m;
 
 	m = ifMacro(r, 'R');
@@ -247,6 +285,10 @@ void preprocessRow(channel *cv, row r)
 			cv->rtrigsamples = 0;
 	}
 
+	m = ifMacro(r, 'V');
+	if (m >= 0) // vibrato
+		calcVibrato(cv, m);
+
 	/* type macros */
 	/* only 1 read per row */
 	uint8_t num;
@@ -259,11 +301,14 @@ void preprocessRow(channel *cv, row r)
 
 	if (m >= 0)
 	{
-		iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 		if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].macro)
 			t->f[iv->type].macro(iv, cv, r, num, m);
 	}
 
+
+	/* effect macros */
+	effectPreprocessRow(cv, r);
 
 
 	cv->r.macroc[0] = r.macroc[0];
@@ -303,6 +348,7 @@ int process(jack_nframes_t nfptr, void *arg)
 	{
 		case 1: // start instrument preview
 			channel *cv = &p->s->channelv[p->w->previewchannel];
+			cv->gain = 0xff;
 			triggerNote(cv, p->w->previewnote, p->w->previewinst);
 			p->w->previewtrigger++;
 			break;
@@ -390,8 +436,10 @@ int process(jack_nframes_t nfptr, void *arg)
 					{
 						if (cv->r.note == cv->portamento)
 						{ /* fine bend */
-							if (cv->cents < 0.0) bendUp(cv, p->s->spr, p->s->spr);
-							else                 bendDown(cv, p->s->spr, p->s->spr);
+							if (cv->portamentofinetune < 0.0)
+								bendUp(cv, p->s->spr, p->s->spr);
+							else
+								bendDown(cv, p->s->spr, p->s->spr);
 						} else if (cv->r.note < cv->portamento)
 						{ /* bend up */
 							bendUp(cv, p->s->spr, p->s->spr);
@@ -471,8 +519,10 @@ int process(jack_nframes_t nfptr, void *arg)
 			{
 				if (cv->r.note == cv->portamento)
 				{ /* fine bend */
-					if (cv->cents < 0.0) bendUp(cv, p->s->spr, 1);
-					else                 bendDown(cv, p->s->spr, 1);
+					if (cv->portamentofinetune < 0.0)
+						bendUp(cv, p->s->spr, 1);
+					else
+						bendDown(cv, p->s->spr, 1);
 				} else if (cv->r.note < cv->portamento)
 				{ /* bend up */
 					bendUp(cv, p->s->spr, 1);

@@ -21,7 +21,8 @@ typedef struct
 	uint32_t  releasepointer;               /* 0 for no release, where releasing started */
 	uint8_t   gain;                         /* two 4bit uints, one for each channel */
 	row       r;
-	float     cents;                        /* 1 fractional semitone, used for portamento, always between -0.5 and +0.5 */
+	float     finetune;                     /* calculated fine tune, should be between -0.5 and +0.5 */
+	float     portamentofinetune;           /* used for portamento, should be between -0.5 and +0.5 */
 	uint8_t   portamento;                   /* portamento target, 255 for off */
 	uint8_t   portamentospeed;              /* portamento m */
 	uint16_t  rtrigsamples;                 /* samples per retrigger */
@@ -31,6 +32,9 @@ typedef struct
 	uint32_t  delaysamples;                 /* samples into the row to delay, 0 for no delay */
 	uint8_t   delaynote;
 	uint8_t   delayinst;
+	char      vibrato;                      /* vibrato depth, 0-f */
+	uint32_t  vibratosamples;               /* samples per full phase walk */
+	uint32_t  vibratosamplecount;           /* distance through cv->vibratosamples */
 
 	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
 	sample_t *rampbuffer;                   /* samples to ramp out */
@@ -44,7 +48,8 @@ typedef struct Instrument
 	uint8_t             typefollow;                   /* follows the type, set once state is guaranteed to be mallocced */
 	void               *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 	uint8_t             fader;
-	struct Instrument  *history[128];
+	struct Instrument  *history[128];                 /* instrument snapshots */
+	short               historyindex[128];            /* cursor positions for instrument snapshots */
 	uint8_t             historyptr;                   /* highest bit is an overflow bit */
 	uint8_t             historybehind;                /* tracks how many less than 128 safe indices there are */
 	uint8_t             historyahead;                 /* tracks how many times it's safe to redo */
@@ -185,10 +190,10 @@ typedef struct
 		unsigned short   indexc;               /* index count used (0 inclusive) */
 		size_t           statesize;
 		void           (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, char);
-		void           (*adjustUp)(instrument *, short);
-		void           (*adjustDown)(instrument *, short);
-		void           (*adjustLeft)(instrument *, short);
-		void           (*adjustRight)(instrument *, short);
+		void           (*adjustUp)(instrument *, short, char);
+		void           (*adjustDown)(instrument *, short, char);
+		void           (*adjustLeft)(instrument *, short, char);
+		void           (*adjustRight)(instrument *, short, char);
 		void           (*incFieldPointer)(short);
 		void           (*decFieldPointer)(short);
 		void           (*endFieldPointer)(short);
@@ -744,6 +749,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 						if (!iv->state[j]) t->f[j].addType(&iv->state[j]);
 						t->f[j].copyType(&iv->state[j], &src->state[j]);
 					}
+				w->instrumentindex = iv->historyindex[iv->historyptr%128];
 				break;
 			case INST_GLOBAL_LOCK_PUT:
 				src = &w->instrumentbuffer;
@@ -821,6 +827,7 @@ void pushInstrumentHistory(instrument *iv)
 			t->f[i].addType(&ivh->state[i]);
 			t->f[i].copyType(&ivh->state[i], &iv->state[i]);
 		}
+	iv->historyindex[iv->historyptr%128] = w->instrumentindex;
 }
 void pushInstrumentHistoryIfNew(instrument *iv)
 {
@@ -848,8 +855,10 @@ void popInstrumentHistory(uint8_t realindex) /* undo */
 {
 	instrument *iv = s->instrumentv[realindex];
 	if (!iv) return;
+DEBUG=iv->historyptr;
 	if (iv->historyptr <= 1 || iv->historybehind >= 127)
 	{ strcpy(w->command.error, "already at oldest change"); return; }
+	pushInstrumentHistoryIfNew(iv);
 
 	if (iv->historyptr == 128)
 		iv->historyptr = 255;
@@ -865,8 +874,10 @@ void unpopInstrumentHistory(uint8_t realindex) /* redo */
 {
 	instrument *iv = s->instrumentv[realindex];
 	if (!iv) return;
+DEBUG=iv->historyptr;
 	if (iv->historyahead == 0)
 	{ strcpy(w->command.error, "already at newest change"); return; }
+	pushInstrumentHistoryIfNew(iv);
 
 	if (iv->historyptr == 255)
 		iv->historyptr = 128;

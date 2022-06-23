@@ -115,46 +115,46 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 
 	switch (*cursor)
 	{
-		case 0:  printf("\033[%d;%dH", y+1,  x+23); break;
+		case 0:  printf("\033[%d;%dH", y+1,  x+23 - w->fieldpointer); break;
 		case 1:  printf("\033[%d;%dH", y+2,  x+23); break;
-		case 2:  printf("\033[%d;%dH", y+3,  x+20); break;
+		case 2:  printf("\033[%d;%dH", y+3,  x+20 - w->fieldpointer); break;
 		case 3:  printf("\033[%d;%dH", y+3,  x+23); break;
 		case 4:  printf("\033[%d;%dH", y+4,  x+19); break;
-		case 5:  printf("\033[%d;%dH", y+4,  x+23); break;
-		case 6:  printf("\033[%d;%dH", y+6,  x+23); break;
+		case 5:  printf("\033[%d;%dH", y+4,  x+23 - w->fieldpointer); break;
+		case 6:  printf("\033[%d;%dH", y+6,  x+23 - w->fieldpointer); break;
 		case 7:  printf("\033[%d;%dH", y+7,  x+23); break;
 		case 8:  printf("\033[%d;%dH", y+8,  x+16); break;
 		case 9:  printf("\033[%d;%dH", y+8,  x+19); break;
-		case 10: printf("\033[%d;%dH", y+8,  x+23); break;
+		case 10: printf("\033[%d;%dH", y+8,  x+23 - w->fieldpointer); break;
 		case 11: printf("\033[%d;%dH", y+9,  x+19); break;
-		case 12: printf("\033[%d;%dH", y+9,  x+23); break;
+		case 12: printf("\033[%d;%dH", y+9,  x+23 - w->fieldpointer); break;
 		case 13: printf("\033[%d;%dH", y+11, x+19); break;
-		case 14: printf("\033[%d;%dH", y+11, x+23); break;
+		case 14: printf("\033[%d;%dH", y+11, x+23 - w->fieldpointer); break;
 		case 15: printf("\033[%d;%dH", y+12, x+23); break;
-		case 16: printf("\033[%d;%dH", y+2,  x+38); break;
-		case 17: printf("\033[%d;%dH", y+3,  x+38); break;
-		case 18: printf("\033[%d;%dH", y+4,  x+38); break;
-		case 19: printf("\033[%d;%dH", y+5,  x+38); break;
-		case 20: printf("\033[%d;%dH", y+2,  x+52); break;
-		case 21: printf("\033[%d;%dH", y+3,  x+52); break;
-		case 22: printf("\033[%d;%dH", y+4,  x+52); break;
-		case 23: printf("\033[%d;%dH", y+5,  x+52); break;
+		case 16: printf("\033[%d;%dH", y+2,  x+38 - w->fieldpointer); break;
+		case 17: printf("\033[%d;%dH", y+3,  x+38 - w->fieldpointer); break;
+		case 18: printf("\033[%d;%dH", y+4,  x+38 - w->fieldpointer); break;
+		case 19: printf("\033[%d;%dH", y+5,  x+38 - w->fieldpointer); break;
+		case 20: printf("\033[%d;%dH", y+2,  x+52 - w->fieldpointer); break;
+		case 21: printf("\033[%d;%dH", y+3,  x+52 - w->fieldpointer); break;
+		case 22: printf("\033[%d;%dH", y+4,  x+52 - w->fieldpointer); break;
+		case 23: printf("\033[%d;%dH", y+5,  x+52 - w->fieldpointer); break;
 		case 24: printf("\033[%d;%dH", y+6,  x+52); break;
 		case 25: printf("\033[%d;%dH", y+9,  x+44); break;
-		case 26: printf("\033[%d;%dH", y+10, x+44); break;
-		case 27: printf("\033[%d;%dH", y+11, x+44); break;
-		case 28: printf("\033[%d;%dH", y+2,  x+67); break;
-		case 29: printf("\033[%d;%dH", y+3,  x+67); break;
-		case 30: printf("\033[%d;%dH", y+4,  x+67); break;
-		case 31: printf("\033[%d;%dH", y+5,  x+67); break;
-		case 32: printf("\033[%d;%dH", y+9,  x+67); break;
+		case 26: printf("\033[%d;%dH", y+10, x+44 - w->fieldpointer); break;
+		case 27: printf("\033[%d;%dH", y+11, x+44 - w->fieldpointer); break;
+		case 28: printf("\033[%d;%dH", y+2,  x+67 - w->fieldpointer); break;
+		case 29: printf("\033[%d;%dH", y+3,  x+67 - w->fieldpointer); break;
+		case 30: printf("\033[%d;%dH", y+4,  x+67 - w->fieldpointer); break;
+		case 31: printf("\033[%d;%dH", y+5,  x+67 - w->fieldpointer); break;
+		case 32: printf("\033[%d;%dH", y+9,  x+67 - w->fieldpointer); break;
 		case 33: printf("\033[%d;%dH", y+10, x+67); break;
-		case 34: printf("\033[%d;%dH", y+11, x+67); break;
+		case 34: printf("\033[%d;%dH", y+11, x+67 - w->fieldpointer); break;
 		case 35: printf("\033[%d;%dH", y+12, x+67); break;
 	}
 }
 
-void analogueAdjustUp(instrument *iv, short index)
+void analogueAdjustUp(instrument *iv, short index, char mouse)
 {
 	analogue_state *as = iv->state[iv->type];
 	switch (index)
@@ -193,7 +193,7 @@ void analogueAdjustUp(instrument *iv, short index)
 		case 35: if (as->stereo < 15) as->stereo++; break;
 	}
 }
-void analogueAdjustDown(instrument *iv, short index)
+void analogueAdjustDown(instrument *iv, short index, char mouse)
 {
 	analogue_state *as = iv->state[iv->type];
 	switch (index)
@@ -230,6 +230,126 @@ void analogueAdjustDown(instrument *iv, short index)
 		case 33: if (as->unison > 0) as->unison--; break;
 		case 34: if (w->fieldpointer) { if (as->detune > 16) as->detune-=16; else as->detune = 0; } else if (as->detune) as->detune--; break;
 		case 35: if (as->stereo > 0) as->stereo--; break;
+	}
+}
+void analogueAdjustLeft(instrument *iv, short index, char mouse)
+{
+	switch (index)
+	{
+		case 0:  if (!mouse) w->fieldpointer = 1; break;
+		case 2:  if (!mouse) w->fieldpointer = 1; break;
+		case 5:  if (!mouse) w->fieldpointer = 1; break;
+		case 6:  if (!mouse) w->fieldpointer = 1; break;
+		case 10: if (!mouse) w->fieldpointer = 1; break;
+		case 12: if (!mouse) w->fieldpointer = 1; break;
+		case 14: if (!mouse) w->fieldpointer = 1; break;
+		case 16: if (!mouse) w->fieldpointer = 1; break;
+		case 17: if (!mouse) w->fieldpointer = 1; break;
+		case 18: if (!mouse) w->fieldpointer = 1; break;
+		case 19: if (!mouse) w->fieldpointer = 1; break;
+		case 20: if (!mouse) w->fieldpointer = 1; break;
+		case 21: if (!mouse) w->fieldpointer = 1; break;
+		case 22: if (!mouse) w->fieldpointer = 1; break;
+		case 23: if (!mouse) w->fieldpointer = 1; break;
+		case 26: if (!mouse) w->fieldpointer = 1; break;
+		case 27: if (!mouse) w->fieldpointer = 1; break;
+		case 28: if (!mouse) w->fieldpointer = 1; break;
+		case 29: if (!mouse) w->fieldpointer = 1; break;
+		case 30: if (!mouse) w->fieldpointer = 1; break;
+		case 31: if (!mouse) w->fieldpointer = 1; break;
+		case 32: if (!mouse) w->fieldpointer = 1; break;
+		case 34: if (!mouse) w->fieldpointer = 1; break;
+	}
+}
+void analogueAdjustRight(instrument *iv, short index, char mouse)
+{
+	switch (index)
+	{
+		case 0:  if (!mouse) w->fieldpointer = 0; break;
+		case 2:  if (!mouse) w->fieldpointer = 0; break;
+		case 5:  if (!mouse) w->fieldpointer = 0; break;
+		case 6:  if (!mouse) w->fieldpointer = 0; break;
+		case 10: if (!mouse) w->fieldpointer = 0; break;
+		case 12: if (!mouse) w->fieldpointer = 0; break;
+		case 14: if (!mouse) w->fieldpointer = 0; break;
+		case 16: if (!mouse) w->fieldpointer = 0; break;
+		case 17: if (!mouse) w->fieldpointer = 0; break;
+		case 18: if (!mouse) w->fieldpointer = 0; break;
+		case 19: if (!mouse) w->fieldpointer = 0; break;
+		case 20: if (!mouse) w->fieldpointer = 0; break;
+		case 21: if (!mouse) w->fieldpointer = 0; break;
+		case 22: if (!mouse) w->fieldpointer = 0; break;
+		case 23: if (!mouse) w->fieldpointer = 0; break;
+		case 26: if (!mouse) w->fieldpointer = 0; break;
+		case 27: if (!mouse) w->fieldpointer = 0; break;
+		case 28: if (!mouse) w->fieldpointer = 0; break;
+		case 29: if (!mouse) w->fieldpointer = 0; break;
+		case 30: if (!mouse) w->fieldpointer = 0; break;
+		case 31: if (!mouse) w->fieldpointer = 0; break;
+		case 32: if (!mouse) w->fieldpointer = 0; break;
+		case 34: if (!mouse) w->fieldpointer = 0; break;
+	}
+}
+
+void analogueEndFieldPointer(short)
+{ w->fieldpointer = 0; }
+
+void analogueIncFieldPointer(short index)
+{
+	switch (index)
+	{
+		case 0:  w->fieldpointer = 0; break;
+		case 2:  w->fieldpointer = 0; break;
+		case 5:  w->fieldpointer = 0; break;
+		case 6:  w->fieldpointer = 0; break;
+		case 10: w->fieldpointer = 0; break;
+		case 12: w->fieldpointer = 0; break;
+		case 14: w->fieldpointer = 0; break;
+		case 16: w->fieldpointer = 0; break;
+		case 17: w->fieldpointer = 0; break;
+		case 18: w->fieldpointer = 0; break;
+		case 19: w->fieldpointer = 0; break;
+		case 20: w->fieldpointer = 0; break;
+		case 21: w->fieldpointer = 0; break;
+		case 22: w->fieldpointer = 0; break;
+		case 23: w->fieldpointer = 0; break;
+		case 26: w->fieldpointer = 0; break;
+		case 27: w->fieldpointer = 0; break;
+		case 28: w->fieldpointer = 0; break;
+		case 29: w->fieldpointer = 0; break;
+		case 30: w->fieldpointer = 0; break;
+		case 31: w->fieldpointer = 0; break;
+		case 32: w->fieldpointer = 0; break;
+		case 34: w->fieldpointer = 0; break;
+	}
+}
+void analogueDecFieldPointer(short index)
+{
+	switch (index)
+	{
+		case 0:  w->fieldpointer = 1; break;
+		case 2:  w->fieldpointer = 1; break;
+		case 5:  w->fieldpointer = 1; break;
+		case 6:  w->fieldpointer = 1; break;
+		case 10: w->fieldpointer = 1; break;
+		case 12: w->fieldpointer = 1; break;
+		case 14: w->fieldpointer = 1; break;
+		case 16: w->fieldpointer = 1; break;
+		case 17: w->fieldpointer = 1; break;
+		case 18: w->fieldpointer = 1; break;
+		case 19: w->fieldpointer = 1; break;
+		case 20: w->fieldpointer = 1; break;
+		case 21: w->fieldpointer = 1; break;
+		case 22: w->fieldpointer = 1; break;
+		case 23: w->fieldpointer = 1; break;
+		case 26: w->fieldpointer = 1; break;
+		case 27: w->fieldpointer = 1; break;
+		case 28: w->fieldpointer = 1; break;
+		case 29: w->fieldpointer = 1; break;
+		case 30: w->fieldpointer = 1; break;
+		case 31: w->fieldpointer = 1; break;
+		case 32: w->fieldpointer = 1; break;
+		case 34: w->fieldpointer = 1; break;
 	}
 }
 
@@ -280,8 +400,8 @@ void analogueInput(int *input)
 				case 24: as->filter.attributes ^= 0b1; *input = 0; break;
 			}
 			break;
-		case 1:  /* ^a */ w->fieldpointer = 0; analogueAdjustUp(iv, w->instrumentindex);   break;
-		case 24: /* ^x */ w->fieldpointer = 0; analogueAdjustDown(iv, w->instrumentindex); break;
+		case 1:  /* ^a */ w->fieldpointer = 0; analogueAdjustUp(iv, w->instrumentindex, 0);   break;
+		case 24: /* ^x */ w->fieldpointer = 0; analogueAdjustDown(iv, w->instrumentindex, 0); break;
 		case '0':           inputAnalogueHex(w->instrumentindex, as, 0);   break;
 		case '1':           inputAnalogueHex(w->instrumentindex, as, 1);   break;
 		case '2':           inputAnalogueHex(w->instrumentindex, as, 2);   break;
@@ -389,7 +509,7 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, uint8_t index, float detune)
 {
 	float pps = 1.0 / ((float)samplerate
-		/ (C5_FREQ * powf(M_12_ROOT_2, (short)cv->r.note - 61 + cv->cents + detune)));
+		/ (C5_FREQ * powf(M_12_ROOT_2, (short)cv->r.note - 61 + detune)));
 
 	ac->unison[index].lfophase += 1.0 / ((float)samplerate * LFO_MAX
 		+ (float)samplerate * (LFO_MIN - LFO_MAX)
@@ -472,14 +592,14 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 	} else
 	{
 		/* centre */
-		*l = *r = analogueInstance(as, ac, cv, 2, 0) * again;
+		*l = *r = analogueInstance(as, ac, cv, 2, cv->finetune) * again;
 
 		float c, gain, detune, width;
 		for (char i = 1; i <= as->unison; i++)
 		{
 			gain = i / as->unison;
 			width = (1.0 - gain) * as->stereo / 16.0;
-			detune = gain * as->detune/256.0;
+			detune = gain * as->detune/256.0 + cv->finetune;
 			if (i % 2)
 			{
 				c = analogueInstance(as, ac, cv, i * 2 + 0,  detune);
@@ -506,7 +626,7 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 
 		/* filter */
 		float cutoff = fgain * as->filter.cutoff/256.0
-				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->cents) * as->filter.track/256.0);
+				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->finetune) * as->filter.track/256.0);
 		if (as->filter.attributes & 0b1) /* high resonance */
 			calcFilter(&ac->fl, cutoff * -1, 1.0 - as->filter.resonance/256.0);
 		else
@@ -647,6 +767,11 @@ void analogueInit(int index)
 	t->f[index].draw = &drawAnalogue;
 	t->f[index].adjustUp = &analogueAdjustUp;
 	t->f[index].adjustDown = &analogueAdjustDown;
+	t->f[index].adjustLeft = &analogueAdjustLeft;
+	t->f[index].adjustRight = &analogueAdjustRight;
+	t->f[index].incFieldPointer = &analogueIncFieldPointer;
+	t->f[index].decFieldPointer = &analogueDecFieldPointer;
+	t->f[index].endFieldPointer = &analogueEndFieldPointer;
 	t->f[index].mouseToIndex = &analogueMouseToIndex;
 	t->f[index].input = &analogueInput;
 	t->f[index].process = &analogueProcess;
