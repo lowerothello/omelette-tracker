@@ -1,9 +1,9 @@
 STAGING DESIGNS
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
-│                                                        RECORD                │
-│   type   [00]                           [START]                     [CANCEL] │
-│   fader  [88]                           line in/focused channel only  [ ][ ] │
-│                                         quantize to pattern bounds       [X] │
+│                                                    [START]  RECORD  [CANCEL] │
+│   type   [00]                                      record source  [ line in] │
+│   fader  [88]                                      only cursor channel   [ ] │
+│                                                    gate next pattern     [X] │
 │┌──────────────────────────────── [sampler] ─────────────────────────────────┐│
 ││                                                                            ││
 ││                     GENERAL        │       TIMESTRETCH                     ││
@@ -24,7 +24,7 @@ STAGING DESIGNS
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
 │                                                                              │
 │   type   [01]                                                                │
-│   fader  [88]                                                                │
+│   volume [88]                                                                │
 │                                                                              │
 │┌──────────────────────────── [virtual analogue] ────────────────────────────┐│
 ││                                                                            ││
@@ -35,8 +35,8 @@ STAGING DESIGNS
 ││       ──────────────────   track   [00]  release [00] │ release [00]       ││
 ││       OSCILLATOR2   [80]   high resonance (loud)  [ ] │ gain    [80] <     ││
 ││       waveform   [  tri]   ───────────────────┬───────┴─────────────       ││
-││       detune [+0][0][7f]          LFO         │ NOISE           [00]       ││
-││       track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]       ││
+││       detune [+0][0][7f]          LFO         │ NOISE           [00] <     ││
+││       track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00] <     ││
 ││       ──────────────────   rate          [80] ├─────────────────────       ││
 ││       SUB OSC   [-0][00]   pulse width   [00] │ UNISON           [0]       ││
 ││       waveform   [pulse]                      │ detune/width [00][0]       ││

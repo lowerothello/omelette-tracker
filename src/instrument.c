@@ -1,6 +1,8 @@
 #include "types/sampler.c"
 #include "types/virtualanalogue.c"
 
+/* mode makes more sense as raw numbers in this file, imo */
+
 #define MIN_INSTRUMENT_INDEX -3
 
 void initInstrumentTypes(void)
@@ -24,17 +26,17 @@ void drawInstrument(void)
 			w->command.error[0] = '\0';
 			break;
 		case 3:
-			printf("\033[%d;0H\033[1m-- PREVIEW+ADJUST --\033[m", ws.ws_row);
+			printf("\033[%d;0H\033[1m-- PREVIEW ADJUST --\033[m", ws.ws_row);
 			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
 		case 4:
-			printf("\033[%d;0H\033[1m-- MOUSEADJUST --\033[m", ws.ws_row);
+			printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m", ws.ws_row);
 			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
 		case 5:
-			printf("\033[%d;0H\033[1m-- PREVIEW+MOUSEADJUST --\033[m", ws.ws_row);
+			printf("\033[%d;0H\033[1m-- PREVIEW MOUSE ADJUST --\033[m", ws.ws_row);
 			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
@@ -403,15 +405,15 @@ int instrumentInput(int input)
 							int y = getchar() - 32;
 							switch (button)
 							{
-								case WHEEL_UP: /* scroll up   */
-								case WHEEL_DOWN: /* scroll down */
+								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up   */
+								case WHEEL_DOWN: case WHEEL_DOWN_CTRL: /* scroll down */
 									break;
-								case BUTTON_RELEASE: /* release click */
+								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL: /* release click */
 									/* leave adjust mode */
 									if (w->mode > 3) w->mode -= 4;
 									if (w->mode > 1) w->mode -= 2;
 									break;
-								case BUTTON1: case BUTTON3:
+								case BUTTON1: case BUTTON3: case BUTTON1_CTRL: case BUTTON3_CTRL:
 									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									if (x < w->instrumentcelloffset
 											|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS - 1
@@ -454,7 +456,7 @@ int instrumentInput(int input)
 									w->mousey = y;
 									w->mousex = x;
 									break;
-								case BUTTON1_HOLD:
+								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
 									if (w->mode > 3) /* mouse adjust */
 									{
 										if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex, 1);

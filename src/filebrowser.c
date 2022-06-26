@@ -224,24 +224,24 @@ int filebrowserInput(int input)
 							int y = getchar() - 32;
 							switch (button)
 							{
-								case WHEEL_UP: /* scroll up */
+								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up */
 									w->instrumentindex -= WHEEL_SPEED * w->dircols;
 									if (w->instrumentindex < 0)
 										w->instrumentindex = 0;
 									break;
-								case WHEEL_DOWN: /* scroll down */
+								case WHEEL_DOWN: case WHEEL_DOWN_CTRL: /* scroll down */
 									w->instrumentindex += WHEEL_SPEED * w->dircols;
 									if (w->instrumentindex > w->dirc - 1)
 										w->instrumentindex = w->dirc - 1;
 									break;
-								case BUTTON_RELEASE: /* release click */
+								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL: /* release click */
 									w->instrumentindex += w->fyoffset * w->dircols;
 									w->fyoffset = 0;
 									/* leave adjust mode */
 									if (w->mode > 3) w->mode = w->mode - 4;
 									if (w->mode > 1) w->mode = w->mode - 2;
 									break;
-								case BUTTON1: case BUTTON3:
+								case BUTTON1: case BUTTON3: case BUTTON1_CTRL: case BUTTON3_CTRL:
 									if (x < w->instrumentcelloffset
 											|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS - 1
 											|| y < w->instrumentrowoffset
@@ -250,7 +250,7 @@ int filebrowserInput(int input)
 										w->popup = 0;
 										break;
 									}
-								case BUTTON1_HOLD:
+								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
 									if (y < w->instrumentrowoffset + 2 || y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS - 1)
 										break; /* ignore clicking out of range */
 
@@ -270,7 +270,7 @@ int filebrowserInput(int input)
 									if (w->fyoffset * w->dircols + w->instrumentindex > w->dirc - 1)
 										w->fyoffset--;
 
-									if (button == BUTTON3)
+									if (button == BUTTON3 || button == BUTTON3_CTRL)
 									{
 										w->instrumentindex += w->fyoffset * w->dircols;
 										w->fyoffset = 0;

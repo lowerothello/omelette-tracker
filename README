@@ -27,9 +27,9 @@ BPM             - Bxx: set bpm to xx
 NOTE CUT        - Cxy: send a note cut at x/y through the row
 NOTE DELAY      - Dxy: start the note at x/y through the row, useful for non-4/4 timing
 FINE NOTE DELAY - dxx: start the note at xx/255 through the row, useful for comb filtering
-PITCH SLIDE     - Pxx: xx is the slide speed, the note field sets the target
 GAIN/PAN        - Gxy: x/y is the new gain for the left/right channel
 SMOOTH GAIN/PAN - gxy: like Gxy, but interpolated over the entire row
+PITCH SLIDE     - Pxx: xx is the slide speed, the note field sets the target
 RETRIGGER       - Rxy:
 					x is the number of rows the block continues past this row
 					y is the number of slices in the block

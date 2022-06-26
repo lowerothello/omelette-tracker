@@ -131,7 +131,7 @@ typedef struct
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
 	command_t      command;
-
+	char           chord;                        /* key chord buffer, vi-style multi-letter commands eg. dd, di", cap, 4j, etc. */
 	unsigned char  popup;
 	unsigned char  mode, oldmode;
 	unsigned short centre;
@@ -481,7 +481,7 @@ void putPartPattern(void)
 			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
 				uint8_t row = w->trackerfy + j - w->pbfy[0];
-				if (row < destpattern->rowc)
+				if (row <= destpattern->rowc)
 				{
 					destpattern->rowv[w->channel][row].macroc[targetmacro] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[w->pbfx[0] - 2];
 					destpattern->rowv[w->channel][row].macrov[targetmacro] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[w->pbfx[0] - 2];
@@ -493,7 +493,7 @@ void putPartPattern(void)
 			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
 				uint8_t row = w->trackerfy + j - w->pbfy[0];
-				if (row < destpattern->rowc)
+				if (row <= destpattern->rowc)
 				{
 					if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0) destpattern->rowv[w->channel][row].note = w->patternbuffer.rowv[w->pbchannel[0]][j].note;
 					if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
@@ -521,7 +521,7 @@ void putPartPattern(void)
 				for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 				{
 					uint8_t row = w->trackerfy + j - w->pbfy[0];
-					if (row < destpattern->rowc)
+					if (row <= destpattern->rowc)
 					{
 						if (i == w->pbchannel[0]) /* first channel */
 						{
@@ -567,7 +567,7 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 	{
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			if (j < destpattern->rowc)
+			if (j <= destpattern->rowc)
 			{
 				if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][j].note = 0;
 				if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][j].inst = 255;
@@ -590,7 +590,7 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 			{
 				for (uint8_t j = y1; j <= y2; j++)
 				{
-					if (j < destpattern->rowc)
+					if (j <= destpattern->rowc)
 					{
 						if (i == c1) /* first channel */
 						{
@@ -637,7 +637,7 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 	{
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			if (j < destpattern->rowc)
+			if (j <= destpattern->rowc)
 			{
 				if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][j].note += value;
 				if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][j].inst += value;
@@ -652,7 +652,7 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 			{
 				for (uint8_t j = y1; j <= y2; j++)
 				{
-					if (j < destpattern->rowc)
+					if (j <= destpattern->rowc)
 					{
 						if (i == c1) /* first channel */
 						{
@@ -1002,6 +1002,31 @@ int delInstrument(uint8_t index)
 	return 0;
 }
 
+
+void startRecording(uint8_t inst)
+{
+	if (w->instrumentrecv == INST_REC_LOCK_OK)
+		w->instrumentreci = s->instrumenti[inst];
+	if (w->instrumentreci == s->instrumenti[inst])
+	{
+		switch (w->instrumentrecv)
+		{
+			case INST_REC_LOCK_OK:
+				w->recbuffer = malloc(sizeof(short) * RECORD_LENGTH * samplerate * 2);
+				if (w->recbuffer == NULL)
+				{
+					strcpy(w->command.error, "failed to start recording, out of memory");
+					break;
+				}
+				w->recptr = 0;
+				w->instrumentrecv = INST_REC_LOCK_CONT;
+				break;
+			case INST_REC_LOCK_CONT:
+				w->instrumentrecv = INST_REC_LOCK_PREP_END;
+				break;
+		}
+	}
+}
 
 
 short *_loadSample(char *path, SF_INFO *sfinfo)

@@ -408,27 +408,7 @@ void samplerInput(int *input)
 					redraw();
 					break;
 				case 'r': /* arm for recording */
-					if (w->instrumentrecv == INST_REC_LOCK_OK)
-						w->instrumentreci = s->instrumenti[w->instrument];
-					if (w->instrumentreci == s->instrumenti[w->instrument])
-					{
-						switch (w->instrumentrecv)
-						{
-							case INST_REC_LOCK_OK:
-								w->recbuffer = malloc(sizeof(short) * RECORD_LENGTH * samplerate * 2);
-								if (w->recbuffer == NULL)
-								{
-									strcpy(w->command.error, "failed to start recording, out of memory");
-									break;
-								}
-								w->recptr = 0;
-								w->instrumentrecv = INST_REC_LOCK_CONT;
-								break;
-							case INST_REC_LOCK_CONT:
-								w->instrumentrecv = INST_REC_LOCK_PREP_END;
-								break;
-						}
-					}
+					startRecording(w->instrument);
 					redraw();
 					break;
 				case 'e': /* export */
@@ -535,7 +515,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 		case 0: case 1:
 			*index = 0;
 			w->fieldpointer = 0;
-			if (button == BUTTON3)
+			if (button == BUTTON3 || button == BUTTON3_CTRL)
 			{
 				previewNote(0, 255, w->channel, 1);
 				w->popup = 2;
