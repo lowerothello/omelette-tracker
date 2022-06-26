@@ -9,7 +9,6 @@
 
 #define WHEEL_UP BUTTON1 + 64
 #define WHEEL_DOWN BUTTON2 + 64
-#define WHEEL_SPEED 3 /* how many lines the wheel should scroll */
 
 
 /* change these constants for a different keymap */

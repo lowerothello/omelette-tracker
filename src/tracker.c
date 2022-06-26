@@ -46,15 +46,16 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
-		case 'b': *dest = 'B'; break; /* bpm        */
-		case 'c': *dest = 'C'; break; /* cut        */
-		case 'd': *dest = 'D'; break; /* delay      */
-		case 'D': *dest = 'd'; break; /* fine delay */
-		case 'g': *dest = 'G'; break; /* gain       */
-		case 'p': *dest = 'P'; break; /* portamento */
-		case 'r': *dest = 'R'; break; /* retrigger  */
-		case 'v': *dest = 'V'; break; /* vibrato    */
-		default: effectChangeMacro(input, dest);
+		case 'b': *dest = 'B'; break; /* bpm         */
+		case 'c': *dest = 'C'; break; /* cut         */
+		case 'd': *dest = 'D'; break; /* delay       */
+		case 'D': *dest = 'd'; break; /* fine delay  */
+		case 'g': *dest = 'G'; break; /* gain        */
+		case 'G': *dest = 'g'; break; /* smooth gain */
+		case 'p': *dest = 'P'; break; /* portamento  */
+		case 'r': *dest = 'R'; break; /* retrigger   */
+		case 'v': *dest = 'V'; break; /* vibrato     */
+		case 'w': *dest = 'W'; break; /* wavefolder  */
 	}
 }
 
@@ -65,7 +66,9 @@ int drawPatternLineNumbers(uint8_t pattern)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, w->trackercelloffset);
 			printf("%02x", i);
-			if (s->rowhighlight && !(i % s->rowhighlight))
+			if (s->playing == PLAYING_CONT && s->songp == w->songfx && s->songr == i)
+				printf(" - ");
+			else if (s->rowhighlight && !(i % s->rowhighlight))
 				printf(" * ");
 			else
 				printf("   ");
@@ -272,7 +275,9 @@ int drawChannel(uint8_t channel, uint8_t screenpos)
 
 			printf("\033[m"); /* always clear all attributes */
 
-			if (s->rowhighlight > 0 && i % s->rowhighlight == 0)
+			if (s->playing == PLAYING_CONT && s->songp == w->songfx && s->songr == i)
+				printf(" - ");
+			else if (s->rowhighlight && !(i % s->rowhighlight))
 				printf(" * ");
 			else
 				printf("   ");
@@ -405,28 +410,52 @@ void drawTracker(void)
 		printf("&%d +%x  B%02x", w->octave, w->step, s->songbpm);
 	}
 
-	switch (w->mode)
+	if (s->songi[w->songfx] == 255)
 	{
-		case 1: /* visual */
-			printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row);
-			w->command.error[0] = '\0';
-		case 0: /* pattern */
-			if (s->songi[w->songfx] != 255)
-				switch (w->trackerfx)
-				{
-					case 0: printf("\033[%d;%dH", y, x + 0);  break;
-					case 1: printf("\033[%d;%dH", y, x + 5);  break;
-					case 2: printf("\033[%d;%dH", y, x + 7);  break;
-					case 3: printf("\033[%d;%dH", y, x + 9);  break;
-					case 4: printf("\033[%d;%dH", y, x + 11); break;
-					case 5: printf("\033[%d;%dH", y, x + 13); break;
-				}
-			else printf("\033[%d;%ldH", w->centre, (ws.ws_col - strlen("(invalid pattern)")) / 2 + 1);
-			break;
+		printf("\033[%d;%ldH", w->centre, (ws.ws_col - strlen("(invalid pattern)")) / 2 + 1);
+	}
+
+	switch (w->mode) /* cursor */
+	{
 		case 2: /* song */
 			printf("\033[%d;0H\033[1m-- SONG --\033[m", ws.ws_row);
 			w->command.error[0] = '\0';
 			printf("\033[2;%dH", w->songcelloffset + (w->songfx - w->songoffset) * SONG_COLS + 2);
+			break;
+		default:
+			if (w->mode == 1)
+			{
+				printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row);
+				printf("\033[0 q");
+				w->command.error[0] = '\0';
+			} else if (w->mode == 3)
+			{
+				printf("\033[%d;0H\033[1m-- MOUSEADJUST --\033[m", ws.ws_row);
+				printf("\033[0 q");
+				w->command.error[0] = '\0';
+			} else if (w->mode == 4)
+			{
+				printf("\033[%d;0H\033[1m-- RECORD --\033[m", ws.ws_row);
+				printf("\033[3 q");
+				w->command.error[0] = '\0';
+			} else
+			{
+				printf("\033[0 q");
+			}
+
+			if (s->songi[w->songfx] == 255)
+			{
+				printf("\033[%d;%ldH", w->centre, (ws.ws_col - strlen("(invalid pattern)")) / 2 + 1);
+			} else
+				switch (w->trackerfx)
+				{
+					case 0: printf("\033[%d;%dH", y, x + 0);                    break;
+					case 1: printf("\033[%d;%dH", y, x + 5 - w->fieldpointer);  break;
+					case 2: printf("\033[%d;%dH", y, x + 7);                    break;
+					case 3: printf("\033[%d;%dH", y, x + 9 - w->fieldpointer);  break;
+					case 4: printf("\033[%d;%dH", y, x + 11);                   break;
+					case 5: printf("\033[%d;%dH", y, x + 13 - w->fieldpointer); break;
+				}
 			break;
 	}
 }
@@ -434,18 +463,16 @@ void drawTracker(void)
 void prunePattern(uint8_t index, short callingindex)
 {
 	if (index == 255) return; /* invalid index */
-	// if (index == 0) return; /* protected index */
 	if (s->patterni[index] == 0) return; /* pattern doesn't exist */
 
-	short i;
 	/* don't remove if pattern is still referenced */
-	for (i = 0; i < 256; i++)
+	for (short i = 0; i < 256; i++)
 		if (s->songi[i] == index && i != callingindex)
 			return;
 
 	pattern *p = s->patternv[s->patterni[index]];
 	/* don't remove if pattern is populated */
-	for (i = 0; i < p->rowc + 1; i++)
+	for (short i = 0; i < p->rowc + 1; i++)
 		for (short c = 0; c < s->channelc; c++)
 		{
 			row r = p->rowv[c][i];
@@ -463,7 +490,7 @@ void inputSongHex(char value)
 	s->songi[w->songfx] <<= 4; s->songi[w->songfx] += value;
 	addPattern(s->songi[w->songfx], 0);
 }
-void inputPatternHex(row *r, char value) /* TODO: don't base off of trackerfx */
+void inputPatternHex(row *r, char value)
 {
 	switch (w->trackerfx)
 	{
@@ -490,17 +517,35 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 	return note;
 }
 
+void trackerAdjustUp(void) /* mouse adjust only */
+{
+	row *r = &s->patternv[s->patterni[s->songi[w->songfx]]]->rowv[w->channel][w->trackerfy];
+	switch (w->trackerfx)
+	{
+		case 0: if (r->note == 120) r->note = 255; else r->note++; break;
+		case 1: if (w->fieldpointer) { if (r->inst < 255 - 16) r->inst+=16; else r->inst = 255; } else if (r->inst < 255) r->inst++; break;
+		case 3: if (w->fieldpointer) { if (r->macrov[0] < 255 - 16) r->macrov[0]+=16; else r->macrov[0] = 255; } else if (r->macrov[0] < 255) r->macrov[0]++; break;
+		case 5: if (w->fieldpointer) { if (r->macrov[1] < 255 - 16) r->macrov[1]+=16; else r->macrov[1] = 255; } else if (r->macrov[1] < 255) r->macrov[1]++; break;
+	}
+}
+void trackerAdjustDown(void) /* mouse adjust only */
+{
+	row *r = &s->patternv[s->patterni[s->songi[w->songfx]]]->rowv[w->channel][w->trackerfy];
+	switch (w->trackerfx)
+	{
+		case 0: if (r->note == 255) r->note = 120; else r->note--; break;
+		case 1: if (w->fieldpointer) { if (r->inst > 16) r->inst-=16; else r->inst = 0; } else if (r->inst) r->inst--; break;
+		case 3: if (w->fieldpointer) { if (r->macrov[0] > 16) r->macrov[0]-=16; else r->macrov[0] = 0; } else if (r->macrov[0]) r->macrov[0]--; break;
+		case 5: if (w->fieldpointer) { if (r->macrov[1] > 16) r->macrov[1]-=16; else r->macrov[1] = 0; } else if (r->macrov[1]) r->macrov[1]--; break;
+	}
+}
+
 int trackerInput(int input)
 {
 	switch (input)
 	{
 		case 12: /* ^L, toggle current pattern loop */
 			s->songa[w->songfx] = !s->songa[w->songfx];
-			redraw();
-			break;
-		case 9: /* tab */
-			if (w->mode == 2) w->mode = 0;
-			else              w->mode = 2;
 			redraw();
 			break;
 		case '\033': /* escape */
@@ -551,7 +596,7 @@ int trackerInput(int input)
 						case 'D': /* left arrow */
 							switch (w->mode)
 							{
-								case 0: case 1:
+								case 0: case 1: case 4:
 									if (s->songi[w->songfx] == 255) break;
 
 									w->trackerfx--;
@@ -575,7 +620,7 @@ int trackerInput(int input)
 						case 'C': /* right arrow */
 							switch (w->mode)
 							{
-								case 0: case 1:
+								case 0: case 1: case 4:
 									if (s->songi[w->songfx] == 255) break;
 
 									w->trackerfx++;
@@ -602,12 +647,14 @@ int trackerInput(int input)
 							switch (getchar())
 							{
 								case '5': /* f5, play */
-									w->mode = 0;
+									if (w->mode != 4) /* suggest mode 0, but allow record */
+										w->mode = 0;
 									getchar();
 									startPlayback();
 									break;
 								case '7': /* f6 (yes, f6 is '7'), stop */
-									w->mode = 0;
+									if (w->mode != 4) /* suggest mode 0, but allow record */
+										w->mode = 0;
 									getchar();
 									stopPlayback();
 									break;
@@ -720,10 +767,21 @@ int trackerInput(int input)
 										} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
 									}
 									w->fyoffset = 0;
+									w->fieldpointer = 0;
+
+									if (w->mode == 3) /* leave adjust mode */
+										w->mode = w->oldmode;
 									break;
 								default: /* click / click+drag */
+									/* adjust */
+									if (button == BUTTON1_HOLD && w->mode == 3)
+									{
+										if      (y > w->mousey) trackerAdjustDown();
+										else if (y < w->mousey) trackerAdjustUp();
+										w->mousey = y;
+									}
 									/* song indices */
-									if (((button == BUTTON1 || button == BUTTON2 || button == BUTTON3) && y < 4)
+									else if (((button == BUTTON1 || button == BUTTON2 || button == BUTTON3) && y < 4)
 											|| (button == BUTTON1_HOLD && w->mode == 2))
 									{
 										w->mode = 2; /* force enter song mode */
@@ -752,220 +810,110 @@ int trackerInput(int input)
 													s->songa[w->songfx] = !s->songa[w->songfx];
 												break;
 										}
-										break;
-									}
-
-									if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
-									if (s->songi[w->songfx] == 255) break;
-
-									/* channel row, for mute/solo */
-									if (y < 6)
+									} else
 									{
-										switch (button)
+										if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
+										if (s->songi[w->songfx] == 255) break;
+
+										/* channel row, for mute/solo */
+										if (y < 6)
 										{
-											case BUTTON1:
-												w->mode = 0;
-												if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
-												{ /* right edge */
-													w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
-												} else if (x < w->trackercelloffset + LINENO_COLS - 3)
-												{ /* left edge */
-													w->channel = w->channeloffset;
-												} else
-												{ /* middle */
-													w->channel = w->channeloffset + (x - w->trackercelloffset - LINENO_COLS + 2) / ROW_COLS;
-												}
-												s->channelv[w->channel].mute = !s->channelv[w->channel].mute;
-												break;
-										}
-									} else if (button == BUTTON1 || button == BUTTON3)
-									{
-										switch (button)
+											switch (button)
+											{
+												case BUTTON1:
+													if (w->mode != 4) /* suggest mode 0, but allow record */
+														w->mode = 0;
+													if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
+													{ /* right edge */
+														w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
+													} else if (x < w->trackercelloffset + LINENO_COLS - 3)
+													{ /* left edge */
+														w->channel = w->channeloffset;
+													} else
+													{ /* middle */
+														w->channel = w->channeloffset + (x - w->trackercelloffset - LINENO_COLS + 2) / ROW_COLS;
+													}
+													s->channelv[w->channel].mute = !s->channelv[w->channel].mute;
+													break;
+											}
+										} else if (button == BUTTON1 || button == BUTTON3)
 										{
-											case BUTTON1: w->mode = 0; break;
-											case BUTTON3:
-												if (w->mode != 1)
+											switch (button)
+											{
+												case BUTTON1:
+													if (w->mode != 4) /* suggest mode 0, but allow record */
+														w->mode = 0;
+													break;
+												case BUTTON3:
+													if (w->mode != 1)
+													{
+														w->visualfx = tfxToVfx(w->trackerfx);
+														w->visualfy = w->trackerfy;
+														w->visualchannel = w->channel;
+														w->oldmode = w->mode;
+														w->mode = 1;
+													}
+													break;
+											}
+
+											short oldtrackerfx = w->trackerfx;
+											uint8_t oldchannel = w->channel;
+
+											if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
+											{ /* right edge */
+												w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
+												w->trackerfx = 5;
+											} else if (x < w->trackercelloffset + LINENO_COLS - 3)
+											{ /* left edge */
+												w->channel = w->channeloffset;
+												w->trackerfx = 0;
+											} else
+											{ /* middle */
+												w->channel = w->channeloffset + (x - w->trackercelloffset - LINENO_COLS + 2) / ROW_COLS;
+												unsigned char modulo = (x - w->trackercelloffset - LINENO_COLS) % ROW_COLS;
+												if (modulo < 3 || modulo > 14) w->trackerfx = 0;
+												else if (modulo < 6)           w->trackerfx = 1;
+												else if (modulo < 8)           w->trackerfx = 2;
+												else if (modulo < 10)          w->trackerfx = 3;
+												else if (modulo < 12)          w->trackerfx = 4;
+												else                           w->trackerfx = 5;
+											}
+											w->fyoffset = y - w->centre;
+
+											/* enter adjust */
+											if (button == BUTTON1
+													&& w->fyoffset == 0
+													&& w->trackerfx == oldtrackerfx
+													&& w->channel == oldchannel)
+											{
+												w->oldmode = w->mode;
+												w->mode = 3;
+												w->mousey = y;
+
+												unsigned char offset = (x - w->trackercelloffset - LINENO_COLS) % ROW_COLS;
+												w->fieldpointer = 0;
+												switch (w->trackerfx)
 												{
-													w->visualfx = tfxToVfx(w->trackerfx);
-													w->visualfy = w->trackerfy;
-													w->visualchannel = w->channel;
+													case 1: if (offset < 5)  w->fieldpointer = 1; break;
+													case 3: if (offset < 9)  w->fieldpointer = 1; break;
+													case 5: if (offset < 13) w->fieldpointer = 1; break;
 												}
-												w->mode = 1;
-												break;
+											}
 										}
-
-										if (x > w->trackercelloffset + ROW_COLS * MIN(w->visiblechannels, s->channelc))
-										{ /* right edge */
-											w->channel = MIN(w->channeloffset + w->visiblechannels, s->channelc) - 1;
-											w->trackerfx = 5;
-										} else if (x < w->trackercelloffset + LINENO_COLS - 3)
-										{ /* left edge */
-											w->channel = w->channeloffset;
-											w->trackerfx = 0;
-										} else
-										{ /* middle */
-											w->channel = w->channeloffset + (x - w->trackercelloffset - LINENO_COLS + 2) / ROW_COLS;
-											unsigned char modulo = (x - w->trackercelloffset - LINENO_COLS) % ROW_COLS;
-											if (modulo < 3 || modulo > 14) w->trackerfx = 0;
-											else if (modulo < 5)           w->trackerfx = 1;
-											else if (modulo < 6)           w->trackerfx = 1;
-											else if (modulo < 8)           w->trackerfx = 2;
-											else if (modulo < 9)           w->trackerfx = 3;
-											else if (modulo < 10)          w->trackerfx = 3;
-											else if (modulo < 12)          w->trackerfx = 4;
-											else if (modulo < 13)          w->trackerfx = 5;
-											else                           w->trackerfx = 5;
-										}
-										w->fyoffset = y - w->centre;
-									} break;
+									}
+									break;
 							}
 							redraw();
 							break;
 					} break;
-				/* alt binds */
-				case 'v': /* toggle visual mode */
-					if (s->songi[w->songfx] < 255)
-					{
-						if (w->mode == 0)
-						{
-							w->visualfx = tfxToVfx(w->trackerfx);
-							w->visualfy = w->trackerfy;
-							w->visualchannel = w->channel;
-							w->mode = 1;
-						} else if (w->mode == 1)
-							w->mode = 0;
-					}
-					redraw();
-					break;
-				case 'd': /* pattern cut */
-					if (s->songi[w->songfx] == 255 && w->mode > 1) break;
-					switch (w->mode)
-					{
-						case 0: /* normal */
-							switch (w->trackerfx)
-							{
-								case 0: case 1: /* whole row */
-									yankPartPattern(0, 3,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									delPartPattern(0, 3,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									break;
-								case 2: case 3: /* macro[0] */
-									yankPartPattern(2, 2,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									delPartPattern(2, 2,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									break;
-								case 4: case 5: /* macro[1] */
-									yankPartPattern(3, 3,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									delPartPattern(3, 3,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									break;
-							}
-							break;
-						case 1: /* visual */
-							yankPartPattern(
-									MIN(tfxToVfx(w->trackerfx), w->visualfx),
-									MAX(tfxToVfx(w->trackerfx), w->visualfx),
-									MIN(w->trackerfy, w->visualfy),
-									MAX(w->trackerfy, w->visualfy),
-									MIN(w->channel, w->visualchannel),
-									MAX(w->channel, w->visualchannel));
-							delPartPattern(
-									MIN(tfxToVfx(w->trackerfx), w->visualfx),
-									MAX(tfxToVfx(w->trackerfx), w->visualfx),
-									MIN(w->trackerfy, w->visualfy),
-									MAX(w->trackerfy, w->visualfy),
-									MIN(w->channel, w->visualchannel),
-									MAX(w->channel, w->visualchannel));
-							w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
-							w->trackerfy = MIN(w->trackerfy, w->visualfy);
-							w->channel = MIN(w->channel, w->visualchannel);
-							w->mode = 0;
-							break;
-					}
-					redraw();
-					break;
-				case 'y': /* pattern copy */
-					if (s->songi[w->songfx] == 255 && w->mode > 1) break;
-					switch (w->mode)
-					{
-						case 0: /* normal */
-							switch (w->trackerfx)
-							{
-								case 0: case 1: /* whole row */
-									yankPartPattern(0, 3,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									break;
-								case 2: case 3: /* macro[0] */
-									yankPartPattern(2, 2,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									break;
-								case 4: case 5: /* macro[1] */
-									yankPartPattern(3, 3,
-											w->trackerfy, w->trackerfy,
-											w->channel, w->channel);
-									break;
-							}
-							break;
-						case 1: /* visual */
-							yankPartPattern(
-									MIN(tfxToVfx(w->trackerfx), w->visualfx),
-									MAX(tfxToVfx(w->trackerfx), w->visualfx),
-									MIN(w->trackerfy, w->visualfy),
-									MAX(w->trackerfy, w->visualfy),
-									MIN(w->channel, w->visualchannel),
-									MAX(w->channel, w->visualchannel));
-							w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
-							w->trackerfy = MIN(w->trackerfy, w->visualfy);
-							w->channel = MIN(w->channel, w->visualchannel);
-							w->mode = 0;
-							break;
-					}
-					redraw();
-					break;
-				case 'p': /* pattern paste */
-					if (s->songi[w->songfx] == 255 && w->mode > 1) break;
-					if (w->mode == 1)
-					{
-						w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
-						w->trackerfy = MIN(w->trackerfy, w->visualfy);
-						w->channel = MIN(w->channel, w->visualchannel);
-						w->mode = 0;
-					}
-					if (w->mode == 0)
-					{
-						putPartPattern();
-						w->trackerfy = MIN(w->trackerfy + w->pbfy[1] - w->pbfy[0],
-									s->patternv[s->patterni[s->songi[w->songfx]]]->rowc - 1);
-
-						w->trackerfy++; /* go one further to line up consecutive pastes */
-						if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
-						{
-							if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
-							{
-								w->trackerfy = 0;
-								w->songfx++;
-							} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
-						}
-					}
-					redraw();
-					break;
 				default: /* escape */
-					if (w->mode)
-					{
+					if (w->mode == 1)
+						w->mode = w->oldmode;
+					else if (w->mode)
 						w->mode = 0;
-						redraw();
-					} break;
+
+					redraw();
+					break;
 			} break;
 		default:
 			switch (w->mode)
@@ -993,8 +941,182 @@ int trackerInput(int input)
 									MAX(w->channel, w->visualchannel));
 							redraw();
 							break;
-					} break;
+						case 'v':
+							w->mode = w->oldmode;
+							redraw();
+							break;
+						case 'd': /* pattern cut */
+							if (s->songi[w->songfx] == 255) break;
+							yankPartPattern(
+									MIN(tfxToVfx(w->trackerfx), w->visualfx),
+									MAX(tfxToVfx(w->trackerfx), w->visualfx),
+									MIN(w->trackerfy, w->visualfy),
+									MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel),
+									MAX(w->channel, w->visualchannel));
+							delPartPattern(
+									MIN(tfxToVfx(w->trackerfx), w->visualfx),
+									MAX(tfxToVfx(w->trackerfx), w->visualfx),
+									MIN(w->trackerfy, w->visualfy),
+									MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel),
+									MAX(w->channel, w->visualchannel));
+							w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
+							w->trackerfy = MIN(w->trackerfy, w->visualfy);
+							w->channel = MIN(w->channel, w->visualchannel);
+							w->mode = 0;
+							redraw();
+							break;
+						case 'y': /* pattern copy */
+							if (s->songi[w->songfx] == 255) break;
+							yankPartPattern(
+									MIN(tfxToVfx(w->trackerfx), w->visualfx),
+									MAX(tfxToVfx(w->trackerfx), w->visualfx),
+									MIN(w->trackerfy, w->visualfy),
+									MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel),
+									MAX(w->channel, w->visualchannel));
+							w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
+							w->trackerfy = MIN(w->trackerfy, w->visualfy);
+							w->channel = MIN(w->channel, w->visualchannel);
+							w->mode = 0;
+							redraw();
+							break;
+					}
+					break;
 				case 0: /* normal */
+					switch (input)
+					{
+						case 'c': /* enter song mode */
+							w->mode = 2;
+							redraw();
+							break;
+						case 'i': /* enter record mode */
+							w->mode = 4;
+							redraw();
+							break;
+						case 'v': /* enter visual mode */
+							w->visualfx = tfxToVfx(w->trackerfx);
+							w->visualfy = w->trackerfy;
+							w->visualchannel = w->channel;
+							w->oldmode = 0;
+							w->mode = 1;
+							redraw();
+							break;
+						case 'y': /* pattern copy */
+							if (s->songi[w->songfx] == 255) break;
+							switch (w->trackerfx)
+							{
+								case 0: case 1: /* whole row */
+									yankPartPattern(0, 3,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									break;
+								case 2: case 3: /* macro[0] */
+									yankPartPattern(2, 2,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									break;
+								case 4: case 5: /* macro[1] */
+									yankPartPattern(3, 3,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									break;
+							}
+							redraw();
+							break;
+						case 'd': /* pattern cut */
+							if (s->songi[w->songfx] == 255) break;
+							switch (w->trackerfx)
+							{
+								case 0: case 1: /* whole row */
+									yankPartPattern(0, 3,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									delPartPattern(0, 3,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									break;
+								case 2: case 3: /* macro[0] */
+									yankPartPattern(2, 2,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									delPartPattern(2, 2,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									break;
+								case 4: case 5: /* macro[1] */
+									yankPartPattern(3, 3,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									delPartPattern(3, 3,
+											w->trackerfy, w->trackerfy,
+											w->channel, w->channel);
+									break;
+							}
+							redraw();
+							break;
+						case 'p': /* pattern paste */
+							if (s->songi[w->songfx] == 255 && w->mode > 1) break;
+							if (w->mode == 1)
+							{
+								w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
+								w->trackerfy = MIN(w->trackerfy, w->visualfy);
+								w->channel = MIN(w->channel, w->visualchannel);
+								w->mode = 0;
+							}
+							if (w->mode == 0 || w->mode == 4)
+							{
+								putPartPattern();
+								w->trackerfy = MIN(w->trackerfy + w->pbfy[1] - w->pbfy[0],
+											s->patternv[s->patterni[s->songi[w->songfx]]]->rowc - 1);
+
+								w->trackerfy++; /* go one further to line up consecutive pastes */
+								if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfx]]]->rowc)
+								{
+									if (w->songfx < 255 && s->songi[w->songfx + 1] != 255)
+									{
+										w->trackerfy = 0;
+										w->songfx++;
+									} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
+								}
+							}
+							redraw();
+							break;
+						case 's':
+							w->mode = 4;
+						case 'x':
+							row *r = &s->patternv[s->patterni[s->songi[w->songfx]]]->rowv[w->channel][w->trackerfy];
+							switch (w->trackerfx)
+							{
+								case 0: /* note */
+									r->note = 0;
+									r->inst = 255;
+									w->trackerfy -= w->step;
+									if (w->trackerfy < 0)
+									{
+										if (w->songfx > 0 && s->songi[w->songfx - 1] != 255)
+										{
+											w->songfx--;
+											w->trackerfy = s->patternv[s->patterni[s->songi[w->songfx]]]->rowc;
+										} else w->trackerfy = 0;
+									}
+									break;
+								case 1: /* instrument */
+									r->inst = 255;
+									break;
+								case 2: case 3: /* macro 1 */
+									r->macroc[0] = 0;
+									break;
+								case 4: case 5: /* macro 2 */
+									r->macroc[1] = 0;
+									break;
+							}
+							redraw();
+							break;
+					}
+					break;
+				case 4: /* record */
 					if (s->songi[w->songfx] == 255) break;
 					row *r = &s->patternv[s->patterni[s->songi[w->songfx]]]->rowv[w->channel][w->trackerfy];
 					switch (input)

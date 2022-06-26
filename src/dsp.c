@@ -271,7 +271,7 @@ float adsrEnvelope(adsr env, float curve,
 			linear = env.s / 256.0;
 	}
 	/* lerp between linear and exponential */
-	return linear + (powf(2.0, linear) - 1.0 - linear) * curve;
+	return linear * (1.0 - curve) + powf(linear, 2.0) * curve;
 }
 
 /* phase is modulo'd to 0-1 */
@@ -295,4 +295,59 @@ float oscillator(char wave, float phase, float pw)
 			break;
 	}
 	return output;
+}
+
+
+/* waveshaper threshold */
+const float wst = 1.0;
+float wavefolder(float input)
+{
+	while (input < -wst || input > wst)
+	{
+		if (input >  wst) input =  wst - input +  wst;
+		if (input < -wst) input = -wst - input + -wst;
+	}
+	return input;
+}
+float wavewrapper(float input)
+{
+	while (input >  wst) input -= wst;
+	while (input < -wst) input += wst;
+	return input;
+}
+float signedunsigned(float input)
+{
+	if (input == 0.0) /* fix dc, might be some audible diracs */
+		return 0.0;
+	else
+	{
+		if (input > 0.0) return input - wst;
+		else             return input + wst;
+	}
+}
+float rectify(char type, float input) /* TODO: clicky */
+{
+	if (input == 0.0) /* fix dc, might be some audible diracs */
+		return 0.0;
+	else
+	{
+		switch (type)
+		{
+			case 0: /* full-wave */
+				return MIN(wst, MAX(-wst, fabsf(input) * 2 - wst));
+			case 1: /* full-wave x2 */
+				return MIN(wst, MAX(-wst, fabsf(fabsf(input) * 2 - wst) * 2 - wst));
+			// case 2: /* half-wave */
+				// return MIN(wst, MAX(-wst, MAX(input, 0.0) * 2 - wst));
+		}
+	}
+	return input;
+}
+float hardclip(float input)
+{
+	return MIN(wst, MAX(-wst, input));
+}
+float thirddegreepolynomial(float input)
+{
+	return hardclip(1.5*input - 0.5*input*input*input);
 }

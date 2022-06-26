@@ -19,7 +19,8 @@ typedef struct
 	uint32_t  pointer;                      /* progress through the sound */
 	uint32_t  pointeroffset;                /* where to base pointer off of */
 	uint32_t  releasepointer;               /* 0 for no release, where releasing started */
-	uint8_t   gain;                         /* two 4bit uints, one for each channel */
+	short     gain;                         /* unsigned nibble per-channel, -1 for unset */
+	short     targetgain;                   /* smooth gain target */
 	row       r;
 	float     finetune;                     /* calculated fine tune, should be between -0.5 and +0.5 */
 	float     portamentofinetune;           /* used for portamento, should be between -0.5 and +0.5 */
@@ -28,14 +29,24 @@ typedef struct
 	uint16_t  rtrigsamples;                 /* samples per retrigger */
 	uint32_t  rtrigpointer;                 /* sample ptr to ratchet back to */
 	uint8_t   rtrigblocksize;               /* number of rows block extends to */
-	uint32_t  cutsamples;                   /* samples into the row to cut, 0 for no cut */
-	uint32_t  delaysamples;                 /* samples into the row to delay, 0 for no delay */
+	uint16_t  cutsamples;                   /* samples into the row to cut, 0 for no cut */
+	uint16_t  delaysamples;                 /* samples into the row to delay, 0 for no delay */
 	uint8_t   delaynote;
 	uint8_t   delayinst;
 	char      vibrato;                      /* vibrato depth, 0-f */
 	uint32_t  vibratosamples;               /* samples per full phase walk */
-	uint32_t  vibratosamplecount;           /* distance through cv->vibratosamples */
+	uint32_t  vibratosamplepointer;         /* distance through cv->vibratosamples */
 
+	/* waveshapers */
+	char      softclip;
+	char      hardclip;
+	char      wavefolder;
+	char      wavewrapper;
+	char      signedunsigned;
+	char      rectifiertype;                /* 0: full-wave, 1: full-wave x2 */
+	char      rectifier;                    /* shared rectifier memory */
+
+	/* ramping */
 	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
 	sample_t *rampbuffer;                   /* samples to ramp out */
 
@@ -47,7 +58,7 @@ typedef struct Instrument
 	uint8_t             type;
 	uint8_t             typefollow;                   /* follows the type, set once state is guaranteed to be mallocced */
 	void               *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
-	uint8_t             fader;
+	uint8_t             defgain;
 	struct Instrument  *history[128];                 /* instrument snapshots */
 	short               historyindex[128];            /* cursor positions for instrument snapshots */
 	uint8_t             historyptr;                   /* highest bit is an overflow bit */
@@ -83,8 +94,8 @@ typedef struct
 	uint8_t         rowhighlight;
 	uint8_t         bpm;
 	uint8_t         songbpm;                 /* to store the song's bpm through bpm change macros */
-	uint32_t        spr;                     /* samples per row (samplerate * (60 / bpm) / 4) */
-	uint32_t        sprp;                    /* samples per row progress */
+	uint16_t        spr;                     /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
+	uint16_t        sprp;                    /* samples per row progress */
 	char            playing;
 } song;
 song *s;
@@ -122,7 +133,7 @@ typedef struct
 	command_t      command;
 
 	unsigned char  popup;
-	unsigned char  mode;
+	unsigned char  mode, oldmode;
 	unsigned short centre;
 	uint8_t        pattern;                      /* focused pattern */
 	uint8_t        channel;                      /* focused channel */
@@ -741,7 +752,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 				src = iv->history[iv->historyptr%128];
 
 				iv->type = src->type;
-				iv->fader = src->fader;
+				iv->defgain = src->defgain;
 
 				for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 					if (src->state[j])
@@ -755,7 +766,7 @@ int changeInstrumentType(song *cs, uint8_t forceindex)
 				src = &w->instrumentbuffer;
 
 				iv->type = src->type;
-				iv->fader = src->fader;
+				iv->defgain = src->defgain;
 
 				for (int j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
 				{
@@ -820,7 +831,7 @@ void pushInstrumentHistory(instrument *iv)
 
 	instrument *ivh = iv->history[iv->historyptr%128];
 	ivh->type =  iv->type;
-	ivh->fader = iv->fader;
+	ivh->defgain = iv->defgain;
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (iv->state[i])
 		{
@@ -836,7 +847,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 	instrument *ivh = iv->history[iv->historyptr%128];
 	if (ivh && iv->type < INSTRUMENT_TYPE_COUNT)
 	{
-		if (!iv->state[iv->type] || ivh->fader != iv->fader)
+		if (!iv->state[iv->type] || ivh->defgain != iv->defgain)
 			pushInstrumentHistory(iv);
 		else
 			for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
@@ -898,7 +909,7 @@ int addInstrument(uint8_t index)
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
-	s->instrumentv[s->instrumentc]->fader = 0x88;
+	s->instrumentv[s->instrumentc]->defgain = 0x88;
 	changeInstrumentType(s, s->instrumentc);
 	t->f[0].addType(&s->instrumentv[s->instrumentc]->state[0]);
 	s->instrumenti[index] = s->instrumentc;
@@ -932,7 +943,7 @@ int yankInstrument(uint8_t index)
 	instrument *dest = &w->instrumentbuffer;
 
 	dest->type =  src->type;
-	dest->fader = src->fader;
+	dest->defgain = src->defgain;
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (src->state[i])
 		{
@@ -1053,7 +1064,7 @@ song *_addSong(void)
 	cs->instrumentc = 1;
 
 	cs->rowhighlight = 4;
-	cs->songbpm = 125;
+	cs->songbpm = DEF_BPM;
 	w->request = REQ_BPM;
 
 	memset(cs->songi, 255, sizeof(uint8_t) * 256);
@@ -1186,7 +1197,7 @@ int writeSong(char *path)
 	for (i = 1; i < s->instrumentc; i++)
 	{
 		iv = s->instrumentv[i];
-		fputc(iv->fader, fp);
+		fputc(iv->defgain, fp);
 		fputc(iv->type, fp);
 
 		for (uint8_t j = 0; j < INSTRUMENT_TYPE_COUNT; j++)
@@ -1309,7 +1320,7 @@ song *readSong(char *path)
 		_addInstrument(cs, i);
 
 		iv = cs->instrumentv[i];
-		iv->fader = fgetc(fp);
+		iv->defgain = fgetc(fp);
 		iv->type = fgetc(fp);
 		iv->typefollow = iv->type; /* confirm the type is safe to use */
 

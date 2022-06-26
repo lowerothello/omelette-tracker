@@ -23,9 +23,8 @@ typedef jack_default_audio_sample_t sample_t;
 uint32_t pow32(uint32_t a, uint32_t b)
 {
 	if (b == 0) return 1;
-	uint32_t i;
 	uint32_t c = a;
-	for (i = 1; i < b; i++)
+	for (uint32_t i = 1; i < b; i++)
 		c = c * a;
 	return c;
 }
@@ -43,15 +42,12 @@ struct winsize ws;
 struct termios term, origterm;
 int fl;
 
-
 #define LINENO_COLS 5
 #define ROW_COLS 17
 #define ROW_FIELDS 6
 #define SONG_COLS 5
 
-#define RAMP_MS 4 /* only up to about 300 is safe at high sample rates */
-#define LOOP_RAMP_MS 50 /* will auto-lower to half the loop range */
-#define TIMESTRETCH_RAMP_MS 10
+/* main ramp buffer */
 
 #define INSTRUMENT_TYPE_COUNT 2
 #define MIN_EFFECT_INDEX 0
@@ -60,7 +56,6 @@ int fl;
 #define INSTRUMENT_BODY_ROWS 21
 #define INSTRUMENT_TYPE_ROWS 14
 #define INSTRUMENT_TYPE_COLS 41
-
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
 
@@ -89,7 +84,6 @@ int ifMacro(row, char);
 #include "input.c"
 #include "instrument.c"
 #include "filebrowser.c"
-#include "effects.c"
 #include "tracker.c"
 #include "process.c"
 
@@ -127,7 +121,7 @@ void commandTabCallback(char *text)
 {
 	char *buffer = malloc(strlen(text) + 1);
 	wordSplit(buffer, text, 0);
-	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm 0x%02x", s->bpm);
+	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
 	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows 0x%02x", s->patternv[s->patterni[s->songi[w->songfx]]]->rowc);
 	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight 0x%02x", s->rowhighlight);
 	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step 0x%x", w->step);
@@ -164,7 +158,7 @@ int commandCallback(char *command, unsigned char *mode)
 		wordSplit(buffer, command, 1);
 		char update = 0;
 		if (s->songbpm == s->bpm) update = 1;
-		s->songbpm = MIN(MAX(strtol(buffer, NULL, 16), 32), 255);
+		s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
 		if (update) w->request = REQ_BPM;
 	} else if (!strcmp(buffer, "rows")) /* pattern length */
 	{
@@ -197,7 +191,8 @@ void startPlayback(void)
 {
 	s->songp = w->songfx;
 	s->songr = 0;
-	w->trackerfy = 0;
+	if (!(w->popup == 0 && w->mode != 0))
+		w->trackerfy = 0;
 	s->playing = PLAYING_START;
 	redraw();
 }
@@ -309,6 +304,7 @@ void common_cleanup(int ret)
 	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
 	printf("\033[?1002l"); /* disable mouse */
 	printf("\033[?1049l"); /* reset to the front buffer */
+	printf("\033[0 q"); /* reset the cursor shape */
 
 	exit(ret);
 }
@@ -387,7 +383,7 @@ int main(int argc, char **argv)
 		common_cleanup(1);
 	}
 	w->octave = 4;
-	w->defpatternlength = 0x3f;
+	w->defpatternlength = 0x1f;
 
 	s = addSong();
 	if (s == NULL)
@@ -484,7 +480,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		// if (p->dirty)
+		if (p->dirty)
 		{
 			p->dirty = 0;
 			redraw();

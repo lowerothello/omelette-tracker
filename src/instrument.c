@@ -15,24 +15,32 @@ void drawInstrument(void)
 	{
 		case 1:
 			printf("\033[%d;0H\033[1m-- PREVIEW --\033[m", ws.ws_row);
+			printf("\033[3 q");
 			w->command.error[0] = '\0';
 			break;
 		case 2:
 			printf("\033[%d;0H\033[1m-- ADJUST --\033[m", ws.ws_row);
+			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
 		case 3:
 			printf("\033[%d;0H\033[1m-- PREVIEW+ADJUST --\033[m", ws.ws_row);
+			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
 		case 4:
 			printf("\033[%d;0H\033[1m-- MOUSEADJUST --\033[m", ws.ws_row);
+			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
 		case 5:
 			printf("\033[%d;0H\033[1m-- PREVIEW+MOUSEADJUST --\033[m", ws.ws_row);
+			printf("\033[0 q");
 			w->command.error[0] = '\0';
 			break;
+		default:
+			printf("\033[0 q");
+				break;
 	}
 
 	unsigned short x = w->instrumentcelloffset;
@@ -51,7 +59,7 @@ void drawInstrument(void)
 	{
 		instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 		printf("\033[%d;%dHtype   [%02x]", y+2, x+4, iv->type);
-		printf("\033[%d;%dHfader  [%02x]", y+3, x+4, iv->fader);
+		printf("\033[%d;%dHvolume [%02x]", y+3, x+4, iv->defgain);
 
 		printf(    "\033[%d;%dH┌────────────────────────────────────────────────────────────────────────────┐", y+5, x+1);
 		for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
@@ -95,10 +103,10 @@ void instrumentAdjustUp(instrument *iv, short index, char mouse)
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv)
 			{
-				if (iv->fader%16 < 15)
-					iv->fader++;
-				if (iv->fader>>4 < 15)
-					iv->fader+=16;
+				if (iv->defgain%16 < 15)
+					iv->defgain++;
+				if (iv->defgain>>4 < 15)
+					iv->defgain+=16;
 			}
 			break;
 		default:
@@ -126,10 +134,10 @@ void instrumentAdjustDown(instrument *iv, short index, char mouse)
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv)
 			{
-				if (iv->fader%16 > 0)
-					iv->fader--;
-				if (iv->fader>>4 > 0)
-					iv->fader-=16;
+				if (iv->defgain%16 > 0)
+					iv->defgain--;
+				if (iv->defgain>>4 > 0)
+					iv->defgain-=16;
 			}
 			break;
 		default:
@@ -151,10 +159,10 @@ void instrumentAdjustLeft(instrument *iv, short index, char mouse)
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv)
 			{
-				if (iv->fader%16 > iv->fader>>4)
-					iv->fader+=16;
-				else if (iv->fader%16 > 0)
-					iv->fader--;
+				if (iv->defgain%16 > iv->defgain>>4)
+					iv->defgain+=16;
+				else if (iv->defgain%16 > 0)
+					iv->defgain--;
 			}
 			break;
 		default:
@@ -176,10 +184,10 @@ void instrumentAdjustRight(instrument *iv, short index, char mouse)
 		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv)
 			{
-				if (iv->fader>>4 > iv->fader%16)
-					iv->fader++;
-				else if (iv->fader>>4 > 0)
-					iv->fader-=16;
+				if (iv->defgain>>4 > iv->defgain%16)
+					iv->defgain++;
+				else if (iv->defgain>>4 > 0)
+					iv->defgain-=16;
 			}
 			break;
 		default:
@@ -400,8 +408,8 @@ int instrumentInput(int input)
 									break;
 								case BUTTON_RELEASE: /* release click */
 									/* leave adjust mode */
-									if (w->mode > 3) w->mode = w->mode - 4;
-									if (w->mode > 1) w->mode = w->mode - 2;
+									if (w->mode > 3) w->mode -= 4;
+									if (w->mode > 1) w->mode -= 2;
 									break;
 								case BUTTON1: case BUTTON3:
 									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
@@ -425,7 +433,7 @@ int instrumentInput(int input)
 											w->fieldpointer = 0;
 											w->instrumentindex = MIN_INSTRUMENT_INDEX + 1;
 											break;
-										case 3: case 4: /* fader */
+										case 3: case 4: /* defgain */
 											w->fieldpointer = 0;
 											w->instrumentindex = MIN_INSTRUMENT_INDEX + 2;
 											break;
@@ -599,27 +607,27 @@ int instrumentInput(int input)
 									switch (input)
 									{
 										case 1: /* ^a */
-											iv->fader++;
+											iv->defgain++;
 											break;
 										case 24: /* ^x */
-											iv->fader--;
+											iv->defgain--;
 											break;
-										case '0':           updateFieldPush(&iv->fader, 0);  break;
-										case '1':           updateFieldPush(&iv->fader, 1);  break;
-										case '2':           updateFieldPush(&iv->fader, 2);  break;
-										case '3':           updateFieldPush(&iv->fader, 3);  break;
-										case '4':           updateFieldPush(&iv->fader, 4);  break;
-										case '5':           updateFieldPush(&iv->fader, 5);  break;
-										case '6':           updateFieldPush(&iv->fader, 6);  break;
-										case '7':           updateFieldPush(&iv->fader, 7);  break;
-										case '8':           updateFieldPush(&iv->fader, 8);  break;
-										case '9':           updateFieldPush(&iv->fader, 9);  break;
-										case 'A': case 'a': updateFieldPush(&iv->fader, 10); break;
-										case 'B': case 'b': updateFieldPush(&iv->fader, 11); break;
-										case 'C': case 'c': updateFieldPush(&iv->fader, 12); break;
-										case 'D': case 'd': updateFieldPush(&iv->fader, 13); break;
-										case 'E': case 'e': updateFieldPush(&iv->fader, 14); break;
-										case 'F': case 'f': updateFieldPush(&iv->fader, 15); break;
+										case '0':           updateFieldPush(&iv->defgain, 0);  break;
+										case '1':           updateFieldPush(&iv->defgain, 1);  break;
+										case '2':           updateFieldPush(&iv->defgain, 2);  break;
+										case '3':           updateFieldPush(&iv->defgain, 3);  break;
+										case '4':           updateFieldPush(&iv->defgain, 4);  break;
+										case '5':           updateFieldPush(&iv->defgain, 5);  break;
+										case '6':           updateFieldPush(&iv->defgain, 6);  break;
+										case '7':           updateFieldPush(&iv->defgain, 7);  break;
+										case '8':           updateFieldPush(&iv->defgain, 8);  break;
+										case '9':           updateFieldPush(&iv->defgain, 9);  break;
+										case 'A': case 'a': updateFieldPush(&iv->defgain, 10); break;
+										case 'B': case 'b': updateFieldPush(&iv->defgain, 11); break;
+										case 'C': case 'c': updateFieldPush(&iv->defgain, 12); break;
+										case 'D': case 'd': updateFieldPush(&iv->defgain, 13); break;
+										case 'E': case 'e': updateFieldPush(&iv->defgain, 14); break;
+										case 'F': case 'f': updateFieldPush(&iv->defgain, 15); break;
 									}
 									redraw();
 									break;

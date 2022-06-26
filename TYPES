@@ -1,23 +1,23 @@
 STAGING DESIGNS
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
-│                                                                              │
-│   type   [00]                                                                │
-│   fader  [88]                                                                │
-│                                                                              │
+│                                                        RECORD                │
+│   type   [00]                           [START]                     [CANCEL] │
+│   fader  [88]                           line in/focused channel only  [ ][ ] │
+│                                         quantize to pattern bounds       [X] │
 │┌──────────────────────────────── [sampler] ─────────────────────────────────┐│
 ││                                                                            ││
-││                      GENERAL         │       AMPLIFIER                     ││
-││              C-5 rate     [00000000] │ attack           [00]               ││
-││              samplerate         [ff] │ decay            [00]               ││
-││              mono/8-bit       [ ][ ] │ sustain          [ff]               ││
-││              invert phase        [ ] │ release          [00]               ││
-││                                      ├──────────────────────               ││
-││              ────────────────────────┤    TRIM       LOOP                  ││
-││                    TIMESTRETCH       │ [00000000] [00000000]               ││
-││              persistent tempo    [ ] │ [00000000] [00000000]               ││
-││              cycle length     [06ff] │   00->ff     00->00                 ││
-││         TODO quantize cycles     [ ] │ loop ramping      [X]               ││
-││                                                                            ││
+││                     GENERAL        │       TIMESTRETCH                     ││
+││              C-5 rate   [00000000] │ quantize cycles     [ ]               ││
+││              mono/rate     [ ][ff] │ cycle length     [06ff]               ││
+││              phase/8-bit    [ ][ ] │ pitch/formants [80][80]               ││
+││              timestretch tempo [ ] ├────────────────────────               ││
+││              ──────────────────────┤    TRIM         LOOP                  ││
+││                    AMPLIFIER       │ [00000000]   [00000000]               ││
+││              attack           [00] │ [00000000]   [00000000]               ││
+││              decay            [00] │   00->ff       00->00                 ││
+││              sustain          [ff] │ loop ramping        [X]               ││
+││              release          [00] │ ping-pong loop      [ ]               ││
+││              gain             [80] │ reverse playback    [ ]               ││
 ││                                                                            ││
 │└────────────────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────────────┘
