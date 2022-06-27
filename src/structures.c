@@ -205,6 +205,7 @@ typedef struct
 	struct
 	{
 		unsigned short   indexc;               /* index count used (0 inclusive) */
+		unsigned short   cellwidth;
 		size_t           statesize;
 		void           (*draw) (instrument *, uint8_t, unsigned short, unsigned short, short *, char);
 		void           (*adjustUp)(instrument *, short, char);

@@ -52,10 +52,9 @@ int fl;
 #define INSTRUMENT_TYPE_COUNT 2
 #define MIN_EFFECT_INDEX 0
 
-#define INSTRUMENT_BODY_COLS 80
+#define INSTRUMENT_BODY_COLS 68
 #define INSTRUMENT_BODY_ROWS 21
 #define INSTRUMENT_TYPE_ROWS 14
-#define INSTRUMENT_TYPE_COLS 41
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
 
@@ -90,6 +89,31 @@ int ifMacro(row, char);
 jack_client_t *client;
 
 
+void drawRuler(void)
+{
+	/* top ruler */
+	printf("\033[0;0H\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
+			ws.ws_col - 19, MAJOR, MINOR, DEBUG);
+	/* bottom ruler */
+	if (w->mode < 255)
+	{
+		if (w->instrumentrecv == INST_REC_LOCK_CONT)
+		{
+			if (w->recptr == 0)
+				printf("\033[%d;%dH\033[3m{REC   0s}\033[m", ws.ws_row, ws.ws_col - 50);
+			else
+				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
+		}
+		if (w->chord)
+			printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 23, w->chord);
+		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 17);
+		if (s->playing == PLAYING_STOP)
+			printf("STOP  ");
+		else
+			printf("PLAY  ");
+		printf("&%d +%x  B%02x", w->octave, w->step, s->songbpm);
+	}
+}
 void redraw(void)
 {
 	printf("\033[2J");
@@ -100,11 +124,12 @@ void redraw(void)
 		return;
 	}
 
-	drawTracker();
+	drawRuler();
 	switch (w->popup)
 	{
-		case 1: drawInstrument();  break;
-		case 2: drawFilebrowser();  break;
+		case 0: drawTracker(); break;
+		case 1: drawInstrument(); break;
+		case 2: drawFilebrowser(); break;
 	}
 	drawCommand(&w->command, w->mode);
 
@@ -290,6 +315,7 @@ void resize(int)
 	w->visiblechannels =          (ws.ws_col - LINENO_COLS - 2) / ROW_COLS;
 	w->trackercelloffset =       ((ws.ws_col - LINENO_COLS - 2) % ROW_COLS) / 2 + 1;
 	w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
+	// w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) + 2;
 	w->instrumentrowoffset =      (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
 	w->songvisible =               ws.ws_col / SONG_COLS;
 	w->songcelloffset =           (ws.ws_col % SONG_COLS) / 2 + 1;

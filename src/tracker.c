@@ -487,29 +487,6 @@ void drawTracker(void)
 	y = w->centre + w->fyoffset;
 	x = w->trackercelloffset + LINENO_COLS + ROW_COLS * (w->channel - w->channeloffset);
 
-	/* top ruler */
-	printf("\033[0;0H\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
-			ws.ws_col - 19, MAJOR, MINOR, DEBUG);
-	/* bottom ruler */
-	if (w->mode < 255)
-	{
-		if (w->instrumentrecv == INST_REC_LOCK_CONT)
-		{
-			if (w->recptr == 0)
-				printf("\033[%d;%dH\033[3m{REC   0s}\033[m", ws.ws_row, ws.ws_col - 50);
-			else
-				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
-		}
-		if (w->chord)
-			printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 23, w->chord);
-		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 17);
-		if (s->playing == PLAYING_STOP)
-			printf("STOP  ");
-		else
-			printf("PLAY  ");
-		printf("&%d +%x  B%02x", w->octave, w->step, s->songbpm);
-	}
-
 	if (w->trackerfx > 1)
 	{
 		row *r = &s->patternv[s->patterni[s->songi[w->songfx]]]->rowv[w->channel][w->trackerfy];

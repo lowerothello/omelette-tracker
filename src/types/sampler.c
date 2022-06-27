@@ -125,85 +125,85 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 	unsigned char sampletitleoffset;
 	if (!ss->samplelength)
 	{
-		sampletitleoffset = 26;
-		printf("\033[%d;%dH [sampler (no sample)] ", y - 1, x+26);
+		sampletitleoffset = 3;
+		printf("\033[%d;%dH [sampler (no sample)] ", y - 1, x+12);
 	}
 	else switch (ss->channels)
 	{
 		case 1:
-			sampletitleoffset = 24;
-			printf("\033[%d;%dH [sampler (%08x mono)] ", y - 1, x+24, ss->length);
+			sampletitleoffset = 1;
+			printf("\033[%d;%dH [sampler (%08x mono)] ", y - 1, x+10, ss->length);
 			break;
 		default:
-			sampletitleoffset = 23;
-			printf("\033[%d;%dH [sampler (%08x stereo)] ", y - 1, x+23, ss->length);
+			sampletitleoffset = 0;
+			printf("\033[%d;%dH [sampler (%08x stereo)] ", y - 1, x+9, ss->length);
 			break;
 	}
 
 	for (char i = 1; i < 13; i++)
-		printf("\033[%d;%dH│", y+i, x+36);
-	printf("\033[%d;%dH\033[1mGENERAL\033[m",    y+1,  x+22);
-	printf("\033[%d;%dHC-5 rate   [%08x]",       y+2,  x+14, ss->c5rate);
-	printf("\033[%d;%dHmono/rate     ",          y+3,  x+14);
+	printf("\033[%d;%dH│", y+i, x+22);
+	printf("\033[%d;%dH\033[1mGENERAL\033[m",    y+1,  x+8);
+	printf("\033[%d;%dHC-5 rate   [%08x]",       y+2,  x+0, ss->c5rate);
+	printf("\033[%d;%dHmono/rate     ",          y+3,  x+0);
 	drawBit(ss->flags & S_FLAG_MONO); printf("[%02x]", ss->samplerate);
-	printf("\033[%d;%dHphase/8-bit    ",         y+4,  x+14);
+	printf("\033[%d;%dHphase/8-bit    ",         y+4,  x+0);
 	drawBit(ss->flags & S_FLAG_PHASE); drawBit(ss->flags & S_FLAG_8BIT);
-	printf("\033[%d;%dHtimestretch tempo ",      y+5,  x+14);
+	printf("\033[%d;%dHtimestretch tempo ",      y+5,  x+0);
 	drawBit(ss->flags & S_FLAG_TTEMPO);
-	printf("\033[%d;%dH──────────────────────┤", y+6,  x+14);
-	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",  y+7,  x+20);
-	printf("\033[%d;%dHattack           [%02x]", y+8,  x+14, ss->volume.a);
-	printf("\033[%d;%dHdecay            [%02x]", y+9,  x+14, ss->volume.d);
-	printf("\033[%d;%dHsustain          [%02x]", y+10, x+14, ss->volume.s);
-	printf("\033[%d;%dHrelease          [%02x]", y+11, x+14, ss->volume.r);
-	printf("\033[%d;%dHgain             [%02x]", y+12, x+14, ss->gain);
-	printf("\033[%d;%dH\033[1mTRIM         LOOP\033[m", y+1,  x+41);
-	printf("\033[%d;%dH[%08x]   [%08x]",                y+2,  x+38, ss->trim[0], ss->loop[0]);
-	printf("\033[%d;%dH[%08x]   [%08x]",                y+3,  x+38, ss->trim[1], ss->loop[1]);
-	printf("\033[%d;%dH%02x->%02x       %02x->%02x",    y+4,  x+40,
+	printf("\033[%d;%dH──────────────────────┤", y+6,  x+0);
+	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",  y+7,  x+6);
+	printf("\033[%d;%dHattack           [%02x]", y+8,  x+0, ss->volume.a);
+	printf("\033[%d;%dHdecay            [%02x]", y+9,  x+0, ss->volume.d);
+	printf("\033[%d;%dHsustain          [%02x]", y+10, x+0, ss->volume.s);
+	printf("\033[%d;%dHrelease          [%02x]", y+11, x+0, ss->volume.r);
+	printf("\033[%d;%dHgain             [%02x]", y+12, x+0, ss->gain);
+	printf("\033[%d;%dH\033[1mTRIM         LOOP\033[m", y+1,  x+27);
+	printf("\033[%d;%dH[%08x]   [%08x]",                y+2,  x+24, ss->trim[0], ss->loop[0]);
+	printf("\033[%d;%dH[%08x]   [%08x]",                y+3,  x+24, ss->trim[1], ss->loop[1]);
+	printf("\033[%d;%dH%02x->%02x       %02x->%02x",    y+4,  x+26,
 			(uint8_t)((float)ss->trim[0] / (float)ss->length * 255),
 			(uint8_t)((float)ss->trim[1] / (float)ss->length * 255),
 			(uint8_t)((float)ss->loop[0] / (float)ss->length * 255),
 			(uint8_t)((float)ss->loop[1] / (float)ss->length * 255));
-	printf("\033[%d;%dHreverse playback    ",             y+5,  x+38);
+	printf("\033[%d;%dHreverse playback    ",             y+5,  x+24);
 	drawBit(ss->flags & S_FLAG_RPLAY);
-	printf("\033[%d;%dHloop ramping        ",             y+6,  x+38);
+	printf("\033[%d;%dHloop ramping        ",             y+6,  x+24);
 	drawBit(ss->flags & S_FLAG_LRAMP);
-	printf("\033[%d;%dH├────────────────────────",   y+7,  x+36);
-	printf("\033[%d;%dH\033[1mTIMESTRETCH\033[m",    y+8,  x+44);
-	printf("\033[%d;%dHquantize cycles     ",        y+9,  x+38);
+	printf("\033[%d;%dH├────────────────────────",   y+7,  x+22);
+	printf("\033[%d;%dH\033[1mTIMESTRETCH\033[m",    y+8,  x+30);
+	printf("\033[%d;%dHquantize cycles     ",        y+9,  x+24);
 	drawBit(ss->flags & S_FLAG_QCYCLES);
-	printf("\033[%d;%dHcycle length     [%04x]",     y+10, x+38, ss->cyclelength);
-	printf("\033[%d;%dHformant shift      [%02x]",   y+11, x+38, ss->formantshift);
-	printf("\033[%d;%dH \" cycle length  [%04x]",    y+12, x+38, ss->formantcyclelength);
+	printf("\033[%d;%dHcycle length     [%04x]",     y+10, x+24, ss->cyclelength);
+	printf("\033[%d;%dHformant shift      [%02x]",   y+11, x+24, ss->formantshift);
+	printf("\033[%d;%dH \" cycle length  [%04x]",    y+12, x+24, ss->formantcyclelength);
 
 	if (w->instrumentrecv == INST_REC_LOCK_CONT)
-		printf("\033[%d;%dHREC", y, x + 1);
+		printf("\033[%d;%dHREC", y, x+0);
 
 	switch (*cursor)
 	{
-		case 0:  printf("\033[%d;%dH", y-1,  x+2 + sampletitleoffset); break;
-		case 1:  printf("\033[%d;%dH", y+2,  x+26 + w->fieldpointer); break;
-		case 2:  printf("\033[%d;%dH", y+3,  x+29); break;
-		case 3:  printf("\033[%d;%dH", y+3,  x+33 - w->fieldpointer); break;
-		case 4:  printf("\033[%d;%dH", y+4,  x+30); break;
-		case 5:  printf("\033[%d;%dH", y+4,  x+33); break;
-		case 6:  printf("\033[%d;%dH", y+5,  x+33); break;
-		case 7:  printf("\033[%d;%dH", y+2,  x+39 + w->fieldpointer); break;
-		case 8:  printf("\033[%d;%dH", y+3,  x+39 + w->fieldpointer); break;
-		case 9:  printf("\033[%d;%dH", y+2,  x+52 + w->fieldpointer); break;
-		case 10: printf("\033[%d;%dH", y+3,  x+52 + w->fieldpointer); break;
-		case 11: printf("\033[%d;%dH", y+5,  x+59); break;
-		case 12: printf("\033[%d;%dH", y+6,  x+59); break;
-		case 13: printf("\033[%d;%dH", y+8,  x+33 - w->fieldpointer); break;
-		case 14: printf("\033[%d;%dH", y+9,  x+33 - w->fieldpointer); break;
-		case 15: printf("\033[%d;%dH", y+10, x+33 - w->fieldpointer); break;
-		case 16: printf("\033[%d;%dH", y+11, x+33 - w->fieldpointer); break;
-		case 17: printf("\033[%d;%dH", y+12, x+33 - w->fieldpointer); break;
-		case 18: printf("\033[%d;%dH", y+9,  x+59); break;
-		case 19: printf("\033[%d;%dH", y+10, x+56 + w->fieldpointer); break;
-		case 20: printf("\033[%d;%dH", y+11, x+59 - w->fieldpointer); break;
-		case 21: printf("\033[%d;%dH", y+12, x+56 + w->fieldpointer); break;
+		case 0:  printf("\033[%d;%dH", y-1,  x+11 + sampletitleoffset); break;
+		case 1:  printf("\033[%d;%dH", y+2,  x+12 + w->fieldpointer); break;
+		case 2:  printf("\033[%d;%dH", y+3,  x+15); break;
+		case 3:  printf("\033[%d;%dH", y+3,  x+19 - w->fieldpointer); break;
+		case 4:  printf("\033[%d;%dH", y+4,  x+16); break;
+		case 5:  printf("\033[%d;%dH", y+4,  x+20); break;
+		case 6:  printf("\033[%d;%dH", y+5,  x+20); break;
+		case 7:  printf("\033[%d;%dH", y+2,  x+25 + w->fieldpointer); break;
+		case 8:  printf("\033[%d;%dH", y+3,  x+25 + w->fieldpointer); break;
+		case 9:  printf("\033[%d;%dH", y+2,  x+38 + w->fieldpointer); break;
+		case 10: printf("\033[%d;%dH", y+3,  x+38 + w->fieldpointer); break;
+		case 11: printf("\033[%d;%dH", y+5,  x+45); break;
+		case 12: printf("\033[%d;%dH", y+6,  x+45); break;
+		case 13: printf("\033[%d;%dH", y+8,  x+19 - w->fieldpointer); break;
+		case 14: printf("\033[%d;%dH", y+9,  x+19 - w->fieldpointer); break;
+		case 15: printf("\033[%d;%dH", y+10, x+19 - w->fieldpointer); break;
+		case 16: printf("\033[%d;%dH", y+11, x+19 - w->fieldpointer); break;
+		case 17: printf("\033[%d;%dH", y+12, x+19 - w->fieldpointer); break;
+		case 18: printf("\033[%d;%dH", y+9,  x+45); break;
+		case 19: printf("\033[%d;%dH", y+10, x+42 + w->fieldpointer); break;
+		case 20: printf("\033[%d;%dH", y+11, x+45 - w->fieldpointer); break;
+		case 21: printf("\033[%d;%dH", y+12, x+42 + w->fieldpointer); break;
 	}
 }
 
@@ -531,73 +531,73 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 				w->filebrowserCallback = &samplerLoadCallback;
 			} break;
 		default:
-			if (x < 36)
+			if (x < 22)
 				switch (y)
 				{
 					case 2: case 3: *index = 1;
-						if (x < 26)          w->fieldpointer = 0;
-						else if (x > 26 + 7) w->fieldpointer = 7;
-						else w->fieldpointer = x - 26;
+						if (x < 12)          w->fieldpointer = 0;
+						else if (x > 12 + 7) w->fieldpointer = 7;
+						else w->fieldpointer = x - 12;
 						break;
 					case 4:
-						if (x < 31) { *index = 2; ss->flags ^= S_FLAG_MONO; w->fieldpointer = 0; }
-						else        { *index = 3; if (x < 33) w->fieldpointer = 1; else w->fieldpointer = 0; }
+						if (x < 17) { *index = 2; ss->flags ^= S_FLAG_MONO; w->fieldpointer = 0; }
+						else        { *index = 3; if (x < 19) w->fieldpointer = 1; else w->fieldpointer = 0; }
 						break;
 					case 5:
-						if (x < 32) { *index = 4; ss->flags ^= S_FLAG_PHASE; }
+						if (x < 18) { *index = 4; ss->flags ^= S_FLAG_PHASE; }
 						else        { *index = 5; ss->flags ^= S_FLAG_8BIT; }
 						w->fieldpointer = 0; break;
 					case 6: case 7: *index = 6; w->fieldpointer = 0; ss->flags ^= S_FLAG_TTEMPO; break;
-					case 8: case 9: *index = 13; if (x < 33) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 10: *index = 14; if (x < 33) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 11: *index = 15; if (x < 33) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 12: *index = 16; if (x < 33) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					default: *index = 17; if (x < 33) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 8: case 9: *index = 13; if (x < 19) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 10: *index = 14; if (x < 19) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 11: *index = 15; if (x < 19) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 12: *index = 16; if (x < 19) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					default: *index = 17; if (x < 19) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 				}
 			else
 				switch (y)
 				{
 					case 2: case 3:
-						if (x < 50)
+						if (x < 16)
 						{
 							*index = 7;
-							if (x < 39)          w->fieldpointer = 0;
-							else if (x > 39 + 7) w->fieldpointer = 7;
-							else w->fieldpointer = x - 39;
+							if (x < 25)          w->fieldpointer = 0;
+							else if (x > 25 + 7) w->fieldpointer = 7;
+							else w->fieldpointer = x - 25;
 						} else
 						{
 							*index = 9;
-							if (x < 52)          w->fieldpointer = 0;
-							else if (x > 52 + 7) w->fieldpointer = 7;
-							else w->fieldpointer = x - 52;
+							if (x < 38)          w->fieldpointer = 0;
+							else if (x > 38 + 7) w->fieldpointer = 7;
+							else w->fieldpointer = x - 38;
 						} break;
 					case 4: case 5:
-						if (x < 50)
+						if (x < 36)
 						{
 							*index = 8;
-							if (x < 39)          w->fieldpointer = 0;
-							else if (x > 39 + 7) w->fieldpointer = 7;
-							else w->fieldpointer = x - 39;
+							if (x < 25)          w->fieldpointer = 0;
+							else if (x > 25 + 7) w->fieldpointer = 7;
+							else w->fieldpointer = x - 25;
 						} else
 						{
 							*index = 10;
-							if (x < 52)          w->fieldpointer = 0;
-							else if (x > 52 + 7) w->fieldpointer = 7;
-							else w->fieldpointer = x - 52;
+							if (x < 38)          w->fieldpointer = 0;
+							else if (x > 38 + 7) w->fieldpointer = 7;
+							else w->fieldpointer = x - 38;
 						} break;
 					case 6: *index = 11; w->fieldpointer = 0; ss->flags ^= S_FLAG_RPLAY; break;
 					case 7: case 8: *index = 12; w->fieldpointer = 0; ss->flags ^= S_FLAG_LRAMP; break;
 					case 9: case 10: *index = 18; w->fieldpointer = 0; ss->flags ^= S_FLAG_QCYCLES; break;
 					case 11: *index = 19;
-						if (x < 56)          w->fieldpointer = 0;
-						else if (x > 56 + 3) w->fieldpointer = 3;
-						else w->fieldpointer = x - 56;
+						if (x < 42)          w->fieldpointer = 0;
+						else if (x > 42 + 3) w->fieldpointer = 3;
+						else w->fieldpointer = x - 42;
 						break;
-					case 12: *index = 20; if (x < 59) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 12: *index = 20; if (x < 45) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 					default: *index = 21;
-						if (x < 56)          w->fieldpointer = 0;
-						else if (x > 56 + 3) w->fieldpointer = 3;
-						else w->fieldpointer = x - 56;
+						if (x < 42)          w->fieldpointer = 0;
+						else if (x > 42 + 3) w->fieldpointer = 3;
+						else w->fieldpointer = x - 42;
 						break;
 				} break;
 	}
@@ -1075,6 +1075,7 @@ void samplerRead(void **state, unsigned char major, unsigned char minor, FILE *f
 void samplerInit(int index)
 {
 	t->f[index].indexc = 21;
+	t->f[index].cellwidth = 47;
 	t->f[index].statesize = sizeof(sampler_state);
 	t->f[index].draw = &drawSampler;
 	t->f[index].adjustUp = &samplerAdjustUp;

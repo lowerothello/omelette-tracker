@@ -72,51 +72,49 @@ void drawInstrument(void)
 
 	unsigned short x = w->instrumentcelloffset;
 	unsigned short y = w->instrumentrowoffset;
-	printf(    "\033[%d;%dH┌──────────────────────────────────────────────────────────────────────────────┐", y+0, x);
-	for (int i = 1; i < INSTRUMENT_BODY_ROWS; i++)
-		printf("\033[%d;%dH│                                                                              │", y+i, x);
-	printf(    "\033[%d;%dH└──────────────────────────────────────────────────────────────────────────────┘", y+INSTRUMENT_BODY_ROWS, x);
 
-	printf("\033[%d;%dH  <- INSTRUMENT (%02x) ->  ", y+0, x+27, w->instrument);
+	printf("\033[%d;%dH  <- INSTRUMENT (%02x) ->  ", y+0, x+(INSTRUMENT_BODY_COLS-26) / 2, w->instrument);
 	if (s->instrumenti[w->instrument] == 0)
 	{
-		printf("\033[%d;%dH(not added)", y+2, x+34);
+		printf("\033[%d;%dH(not added)", y+2, x+(INSTRUMENT_BODY_COLS-12) / 2);
 		printf("\033[%d;%dH", y, x+32);
 	} else
 	{
 		instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-		printf("\033[%d;%dHtype   [%02x]", y+2, x+4, iv->type);
-		printf("\033[%d;%dHvolume [%02x]", y+3, x+4, iv->defgain);
-		printf("\033[%d;%dH\033[1mRECORD\033[m", y+1, x+62);
-		printf("\033[%d;%dHrecord source   ", y+2, x+52);
-		printf("\033[%d;%dHonly loop back cursor  ", y+3, x+52);
+		printf("\033[%d;%dHtype   [%02x]", y+2, x+2, iv->type);
+		printf("\033[%d;%dHvolume [%02x]", y+3, x+2, iv->defgain);
+		printf("\033[%d;%dH\033[1mRECORD\033[m", y+1, x+INSTRUMENT_BODY_COLS-18);
+		printf("\033[%d;%dHrecord source   ", y+2, x+INSTRUMENT_BODY_COLS-28);
+		printf("\033[%d;%dHonly loop back cursor  ", y+3, x+INSTRUMENT_BODY_COLS-28);
 		drawBit(w->recordflags & 0b1);
-		printf("\033[%d;%dHgate the next pattern  ", y+4, x+52);
+		printf("\033[%d;%dHgate the next pattern  ", y+4, x+INSTRUMENT_BODY_COLS-28);
 		drawBit(w->recordflags & 0b10);
-		drawRecordSource(w->recordsource, y+2, x+67, w->instrumentindex == MIN_INSTRUMENT_INDEX + 3 && w->mode > 1 && w->mode < 255);
+		drawRecordSource(w->recordsource, y+2, x+INSTRUMENT_BODY_COLS-13, w->instrumentindex == MIN_INSTRUMENT_INDEX + 3 && w->mode > 1 && w->mode < 255);
 
-		printf(    "\033[%d;%dH┌────────────────────────────────────────────────────────────────────────────┐", y+5, x+1);
+		printf("\033[%d;%dH┌\033[%d;%dH┐", y+5,x+1, y+5,x+INSTRUMENT_BODY_COLS-2);
+		printf("\033[%d;%dH└\033[%d;%dH┘", y+6+INSTRUMENT_TYPE_ROWS,x+1, y+6+INSTRUMENT_TYPE_ROWS,x+INSTRUMENT_BODY_COLS-2);
+		for (int i = 0; i < INSTRUMENT_BODY_COLS-4; i++)
+			printf("\033[%d;%dH─\033[%d;%dH─", y+5,x+2+i, y+6+INSTRUMENT_TYPE_ROWS, x+2+i);
 		for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
-			printf("\033[%d;%dH│                                                                            │", y+6 + i, x+1);
-		printf(    "\033[%d;%dH└────────────────────────────────────────────────────────────────────────────┘", y+6 + INSTRUMENT_TYPE_ROWS, x+1);
+			printf("\033[%d;%dH│\033[%d;%dH│", y+6+i,x+1, y+6+i,x+INSTRUMENT_BODY_COLS-2);
 
 		if (iv->typefollow == iv->type
 				&& iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
 		{
 			if (w->mode > 1 && w->mode < 6)
-				t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, 1);
+				t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+6, &w->instrumentindex, 1);
 			else
-				t->f[iv->type].draw(iv, w->instrument, x+2, y+6, &w->instrumentindex, 0);
+				t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+6, &w->instrumentindex, 0);
 		}
 
 		switch (w->instrumentindex)
 		{
-			case MIN_INSTRUMENT_INDEX + 0: printf("\033[%d;%dH", y+0, x+32); break;
-			case MIN_INSTRUMENT_INDEX + 1: printf("\033[%d;%dH", y+2, x+13); break;
-			case MIN_INSTRUMENT_INDEX + 2: printf("\033[%d;%dH", y+3, x+13); break;
-			case MIN_INSTRUMENT_INDEX + 3: printf("\033[%d;%dH", y+2, x+76); break;
-			case MIN_INSTRUMENT_INDEX + 4: printf("\033[%d;%dH", y+3, x+76); break;
-			case MIN_INSTRUMENT_INDEX + 5: printf("\033[%d;%dH", y+4, x+76); break;
+			case MIN_INSTRUMENT_INDEX + 0: printf("\033[%d;%dH", y+0, x+(INSTRUMENT_BODY_COLS-16) / 2); break;
+			case MIN_INSTRUMENT_INDEX + 1: printf("\033[%d;%dH", y+2, x+11); break;
+			case MIN_INSTRUMENT_INDEX + 2: printf("\033[%d;%dH", y+3, x+11); break;
+			case MIN_INSTRUMENT_INDEX + 3: printf("\033[%d;%dH", y+2, x+INSTRUMENT_BODY_COLS-4); break;
+			case MIN_INSTRUMENT_INDEX + 4: printf("\033[%d;%dH", y+3, x+INSTRUMENT_BODY_COLS-4); break;
+			case MIN_INSTRUMENT_INDEX + 5: printf("\033[%d;%dH", y+4, x+INSTRUMENT_BODY_COLS-4); break;
 		}
 	}
 }
@@ -470,31 +468,21 @@ int instrumentInput(int input)
 									break;
 								case BUTTON1: case BUTTON3: case BUTTON1_CTRL: case BUTTON3_CTRL:
 									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
-									if (x < w->instrumentcelloffset
-											|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS - 1
-											|| y < w->instrumentrowoffset
-											|| y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS)
-									{
-										previewNote(0, 255, w->channel, 1);
-										w->popup = 0;
-										break;
-									}
-
-									switch (y - w->instrumentrowoffset)
+									switch (MAX(0, y - w->instrumentrowoffset))
 									{
 										case 0: /* index */
 											w->fieldpointer = 0;
 											w->instrumentindex = MIN_INSTRUMENT_INDEX;
 											break;
 										case 1: case 2: /* type */
-											if (x < ws.ws_col / 2)
+											if (x - w->instrumentcelloffset < INSTRUMENT_BODY_COLS / 2)
 												w->instrumentindex = MIN_INSTRUMENT_INDEX + 1;
 											else
 												w->instrumentindex = MIN_INSTRUMENT_INDEX + 3;
 											w->fieldpointer = 0;
 											break;
 										case 3:
-											if (x < ws.ws_col / 2)
+											if (x - w->instrumentcelloffset < INSTRUMENT_BODY_COLS / 2)
 												w->instrumentindex = MIN_INSTRUMENT_INDEX + 2;
 											else
 											{
@@ -504,7 +492,7 @@ int instrumentInput(int input)
 											w->fieldpointer = 0;
 											break;
 										case 4:
-											if (x < ws.ws_col / 2)
+											if (x - w->instrumentcelloffset < INSTRUMENT_BODY_COLS / 2)
 												w->instrumentindex = MIN_INSTRUMENT_INDEX + 2;
 											else
 											{
@@ -518,7 +506,7 @@ int instrumentInput(int input)
 											if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex)
 												t->f[iv->type].mouseToIndex(
 														y - w->instrumentrowoffset - 5,
-														x - w->instrumentcelloffset - 2,
+														x - w->instrumentcelloffset - (INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2,
 														button,
 														&w->instrumentindex);
 											break;

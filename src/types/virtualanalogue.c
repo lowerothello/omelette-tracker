@@ -60,97 +60,97 @@ typedef struct
 void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned short y, short *cursor, char adjust)
 {
 	analogue_state *as = iv->state[iv->type];
-	printf("\033[%d;%dH [virtual analogue] ", y-1, x+28);
+	printf("\033[%d;%dH [virtual analogue] ", y-1, x+21);
 
 	for (char i = 1; i < 7; i++)
-		printf("\033[%d;%dH│", y+i, x+55);
+		printf("\033[%d;%dH│", y+i, x+48);
 	for (char i = 8; i < 13; i++)
-		printf("\033[%d;%dH│", y+i, x+47);
-	for (char i = 28; i < 69; i++)
+		printf("\033[%d;%dH│", y+i, x+40);
+	for (char i = 21; i < 62; i++)
 		printf("\033[%d;%dH─", y+7, x+i);
-	printf("\033[%d;%dH┬\033[%d;%dH┴", y+7, x+47, y+7, x+55);
-	printf("\033[%d;%dH\033[1mOSCILLATOR1\033[m   [%02x]",   y+1,  x+7, as->osc1.mix);
-	printf("\033[%d;%dHwaveform",                y+2,  x+7);
-	printf("\033[%d;%dHfm/ringmod [%02x]",       y+3,  x+7, as->osc1.fm);
+	printf("\033[%d;%dH┬\033[%d;%dH┴", y+7, x+40, y+7, x+48);
+	printf("\033[%d;%dH\033[1mOSCILLATOR1\033[m   [%02x]",   y+1,  x+0, as->osc1.mix);
+	printf("\033[%d;%dHwaveform",                y+2,  x+0);
+	printf("\033[%d;%dHfm/ringmod [%02x]",       y+3,  x+0, as->osc1.fm);
 	drawBit(as->osc1.flags & 0b1);
-	printf("\033[%d;%dHsync/lfo   ", y+4,  x+7);
+	printf("\033[%d;%dHsync/lfo   ", y+4,  x+0);
 	drawBit(as->osc1.flags & 0b10);
-	printf("\033[%d;%dH[%02x]",      y+4,  x+21, as->osc1.lfo);
-	printf("\033[%d;%dH──────────────────",      y+5,  x+7);
-	printf("\033[%d;%dH\033[1mOSCILLATOR2\033[m   [%02x]",   y+6,  x+7, as->osc2.mix);
-	printf("\033[%d;%dHwaveform",                y+7,  x+7);
-	printf("\033[%d;%dHdetune [%+1d][%x][%02x]", y+8,  x+7, as->osc2.oct, as->osc2.semi, as->osc2.detune);
-	printf("\033[%d;%dHtrack/lfo  ", y+9,  x+7);
+	printf("\033[%d;%dH[%02x]",      y+4,  x+14, as->osc1.lfo);
+	printf("\033[%d;%dH──────────────────",      y+5,  x+0);
+	printf("\033[%d;%dH\033[1mOSCILLATOR2\033[m   [%02x]",   y+6,  x+0, as->osc2.mix);
+	printf("\033[%d;%dHwaveform",                y+7,  x+0);
+	printf("\033[%d;%dHdetune [%+1d][%x][%02x]", y+8,  x+0, as->osc2.oct, as->osc2.semi, as->osc2.detune);
+	printf("\033[%d;%dHtrack/lfo  ", y+9,  x+0);
 	drawBit(as->osc2.flags & 0b1);
-	printf("\033[%d;%dH[%02x]",      y+9,  x+21, as->osc2.lfo);
-	printf("\033[%d;%dH──────────────────",      y+10, x+7);
-	printf("\033[%d;%dH\033[1mSUB OSC\033[m   [%+1d][%02x]", y+11, x+7, as->sub.oct, as->sub.mix);
-	printf("\033[%d;%dHwaveform",                y+12, x+7);
-	printf("\033[%d;%dH\033[1mFILTER\033[m",     y+1,  x+38);
-	printf("\033[%d;%dHcutoff  [%02x]  attack  [%02x]", y+2, x+28, as->filter.cutoff, as->filter.env.a);
-	printf("\033[%d;%dHreso    [%02x]  decay   [%02x]", y+3, x+28, as->filter.resonance, as->filter.env.d);
-	printf("\033[%d;%dHlfo     [%02x]  sustain [%02x]", y+4, x+28, as->filter.lfo, as->filter.env.s);
-	printf("\033[%d;%dHtrack   [%02x]  release [%02x]", y+5, x+28, as->filter.track, as->filter.env.r);
-	printf("\033[%d;%dHhigh resonance (loud)  ",        y+6, x+28);
+	printf("\033[%d;%dH[%02x]",      y+9,  x+14, as->osc2.lfo);
+	printf("\033[%d;%dH──────────────────",      y+10, x+0);
+	printf("\033[%d;%dH\033[1mSUB OSC\033[m   [%+1d][%02x]", y+11, x+0, as->sub.oct, as->sub.mix);
+	printf("\033[%d;%dHwaveform",                y+12, x+0);
+	printf("\033[%d;%dH\033[1mFILTER\033[m",     y+1,  x+31);
+	printf("\033[%d;%dHcutoff  [%02x]  attack  [%02x]", y+2, x+21, as->filter.cutoff, as->filter.env.a);
+	printf("\033[%d;%dHreso    [%02x]  decay   [%02x]", y+3, x+21, as->filter.resonance, as->filter.env.d);
+	printf("\033[%d;%dHlfo     [%02x]  sustain [%02x]", y+4, x+21, as->filter.lfo, as->filter.env.s);
+	printf("\033[%d;%dHtrack   [%02x]  release [%02x]", y+5, x+21, as->filter.track, as->filter.env.r);
+	printf("\033[%d;%dHhigh resonance (loud)  ",        y+6, x+21);
 	drawBit(as->filter.flags & 0b1);
-	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",   y+1, x+58);
-	printf("\033[%d;%dHattack  [%02x]", y+2, x+57, as->amp.a);
-	printf("\033[%d;%dHdecay   [%02x]", y+3, x+57, as->amp.d);
-	printf("\033[%d;%dHsustain [%02x]", y+4, x+57, as->amp.s);
-	printf("\033[%d;%dHrelease [%02x]", y+5, x+57, as->amp.r);
-	printf("\033[%d;%dH\033[1mLFO\033[m",       y+8,  x+36);
-	printf("\033[%d;%dHwaveform",               y+9,  x+28);
-	printf("\033[%d;%dHrate          [%02x]",   y+10, x+28, as->lfo.rate);
-	printf("\033[%d;%dHpulse width   [%02x]",   y+11, x+28, as->lfo.pwm);
-	printf("\033[%d;%dH\033[1mMIXER\033[m",     y+8,  x+56);
-	printf("\033[%d;%dHnoise           [%02x]", y+9,  x+49, as->noise);
-	printf("\033[%d;%dHosc unison       [%x]",  y+10, x+49, as->unison);
-	printf("\033[%d;%dHunison detune   [%02x]", y+11, x+49, as->detune);
-	printf("\033[%d;%dHunison stereo    [%x]",  y+12, x+49, as->stereo);
+	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",   y+1, x+51);
+	printf("\033[%d;%dHattack  [%02x]", y+2, x+50, as->amp.a);
+	printf("\033[%d;%dHdecay   [%02x]", y+3, x+50, as->amp.d);
+	printf("\033[%d;%dHsustain [%02x]", y+4, x+50, as->amp.s);
+	printf("\033[%d;%dHrelease [%02x]", y+5, x+50, as->amp.r);
+	printf("\033[%d;%dH\033[1mLFO\033[m",       y+8,  x+29);
+	printf("\033[%d;%dHwaveform",               y+9,  x+21);
+	printf("\033[%d;%dHrate          [%02x]",   y+10, x+21, as->lfo.rate);
+	printf("\033[%d;%dHpulse width   [%02x]",   y+11, x+21, as->lfo.pwm);
+	printf("\033[%d;%dH\033[1mMIXER\033[m",     y+8,  x+49);
+	printf("\033[%d;%dHnoise           [%02x]", y+9,  x+42, as->noise);
+	printf("\033[%d;%dHosc unison       [%x]",  y+10, x+42, as->unison);
+	printf("\033[%d;%dHunison detune   [%02x]", y+11, x+42, as->detune);
+	printf("\033[%d;%dHunison stereo    [%x]",  y+12, x+42, as->stereo);
 
-	drawWave(as->lfo.waveform,  y+9,  x+38, *cursor == 25 && adjust);
-	drawWave(as->sub.waveform,  y+12, x+17, *cursor == 15 && adjust);
-	drawWave(as->osc2.waveform, y+7,  x+17, *cursor == 7 && adjust);
-	drawWave(as->osc1.waveform, y+2,  x+17, *cursor == 1 && adjust);
+	drawWave(as->lfo.waveform,  y+9,  x+31, *cursor == 25 && adjust);
+	drawWave(as->sub.waveform,  y+12, x+10, *cursor == 15 && adjust);
+	drawWave(as->osc2.waveform, y+7,  x+10, *cursor == 7 && adjust);
+	drawWave(as->osc1.waveform, y+2,  x+10, *cursor == 1 && adjust);
 
 	switch (*cursor)
 	{
-		case 0:  printf("\033[%d;%dH", y+1,  x+23 - w->fieldpointer); break;
-		case 1:  printf("\033[%d;%dH", y+2,  x+23); break;
-		case 2:  printf("\033[%d;%dH", y+3,  x+20 - w->fieldpointer); break;
-		case 3:  printf("\033[%d;%dH", y+3,  x+23); break;
-		case 4:  printf("\033[%d;%dH", y+4,  x+19); break;
-		case 5:  printf("\033[%d;%dH", y+4,  x+23 - w->fieldpointer); break;
-		case 6:  printf("\033[%d;%dH", y+6,  x+23 - w->fieldpointer); break;
-		case 7:  printf("\033[%d;%dH", y+7,  x+23); break;
-		case 8:  printf("\033[%d;%dH", y+8,  x+16); break;
-		case 9:  printf("\033[%d;%dH", y+8,  x+19); break;
-		case 10: printf("\033[%d;%dH", y+8,  x+23 - w->fieldpointer); break;
-		case 11: printf("\033[%d;%dH", y+9,  x+19); break;
-		case 12: printf("\033[%d;%dH", y+9,  x+23 - w->fieldpointer); break;
-		case 13: printf("\033[%d;%dH", y+11, x+19); break;
-		case 14: printf("\033[%d;%dH", y+11, x+23 - w->fieldpointer); break;
-		case 15: printf("\033[%d;%dH", y+12, x+23); break;
-		case 16: printf("\033[%d;%dH", y+2,  x+38 - w->fieldpointer); break;
-		case 17: printf("\033[%d;%dH", y+3,  x+38 - w->fieldpointer); break;
-		case 18: printf("\033[%d;%dH", y+4,  x+38 - w->fieldpointer); break;
-		case 19: printf("\033[%d;%dH", y+5,  x+38 - w->fieldpointer); break;
-		case 20: printf("\033[%d;%dH", y+2,  x+52 - w->fieldpointer); break;
-		case 21: printf("\033[%d;%dH", y+3,  x+52 - w->fieldpointer); break;
-		case 22: printf("\033[%d;%dH", y+4,  x+52 - w->fieldpointer); break;
-		case 23: printf("\033[%d;%dH", y+5,  x+52 - w->fieldpointer); break;
-		case 24: printf("\033[%d;%dH", y+6,  x+52); break;
-		case 25: printf("\033[%d;%dH", y+9,  x+44); break;
-		case 26: printf("\033[%d;%dH", y+10, x+44 - w->fieldpointer); break;
-		case 27: printf("\033[%d;%dH", y+11, x+44 - w->fieldpointer); break;
-		case 28: printf("\033[%d;%dH", y+2,  x+67 - w->fieldpointer); break;
-		case 29: printf("\033[%d;%dH", y+3,  x+67 - w->fieldpointer); break;
-		case 30: printf("\033[%d;%dH", y+4,  x+67 - w->fieldpointer); break;
-		case 31: printf("\033[%d;%dH", y+5,  x+67 - w->fieldpointer); break;
-		case 32: printf("\033[%d;%dH", y+9,  x+67 - w->fieldpointer); break;
-		case 33: printf("\033[%d;%dH", y+10, x+67); break;
-		case 34: printf("\033[%d;%dH", y+11, x+67 - w->fieldpointer); break;
-		case 35: printf("\033[%d;%dH", y+12, x+67); break;
+		case 0:  printf("\033[%d;%dH", y+1,  x+16 - w->fieldpointer); break;
+		case 1:  printf("\033[%d;%dH", y+2,  x+16); break;
+		case 2:  printf("\033[%d;%dH", y+3,  x+13 - w->fieldpointer); break;
+		case 3:  printf("\033[%d;%dH", y+3,  x+16); break;
+		case 4:  printf("\033[%d;%dH", y+4,  x+12); break;
+		case 5:  printf("\033[%d;%dH", y+4,  x+16 - w->fieldpointer); break;
+		case 6:  printf("\033[%d;%dH", y+6,  x+16 - w->fieldpointer); break;
+		case 7:  printf("\033[%d;%dH", y+7,  x+16); break;
+		case 8:  printf("\033[%d;%dH", y+8,  x+9); break;
+		case 9:  printf("\033[%d;%dH", y+8,  x+12); break;
+		case 10: printf("\033[%d;%dH", y+8,  x+16 - w->fieldpointer); break;
+		case 11: printf("\033[%d;%dH", y+9,  x+12); break;
+		case 12: printf("\033[%d;%dH", y+9,  x+16 - w->fieldpointer); break;
+		case 13: printf("\033[%d;%dH", y+11, x+12); break;
+		case 14: printf("\033[%d;%dH", y+11, x+16 - w->fieldpointer); break;
+		case 15: printf("\033[%d;%dH", y+12, x+16); break;
+		case 16: printf("\033[%d;%dH", y+2,  x+31 - w->fieldpointer); break;
+		case 17: printf("\033[%d;%dH", y+3,  x+31 - w->fieldpointer); break;
+		case 18: printf("\033[%d;%dH", y+4,  x+31 - w->fieldpointer); break;
+		case 19: printf("\033[%d;%dH", y+5,  x+31 - w->fieldpointer); break;
+		case 20: printf("\033[%d;%dH", y+2,  x+45 - w->fieldpointer); break;
+		case 21: printf("\033[%d;%dH", y+3,  x+45 - w->fieldpointer); break;
+		case 22: printf("\033[%d;%dH", y+4,  x+45 - w->fieldpointer); break;
+		case 23: printf("\033[%d;%dH", y+5,  x+45 - w->fieldpointer); break;
+		case 24: printf("\033[%d;%dH", y+6,  x+45); break;
+		case 25: printf("\033[%d;%dH", y+9,  x+37); break;
+		case 26: printf("\033[%d;%dH", y+10, x+37 - w->fieldpointer); break;
+		case 27: printf("\033[%d;%dH", y+11, x+37 - w->fieldpointer); break;
+		case 28: printf("\033[%d;%dH", y+2,  x+60 - w->fieldpointer); break;
+		case 29: printf("\033[%d;%dH", y+3,  x+60 - w->fieldpointer); break;
+		case 30: printf("\033[%d;%dH", y+4,  x+60 - w->fieldpointer); break;
+		case 31: printf("\033[%d;%dH", y+5,  x+60 - w->fieldpointer); break;
+		case 32: printf("\033[%d;%dH", y+9,  x+60 - w->fieldpointer); break;
+		case 33: printf("\033[%d;%dH", y+10, x+60); break;
+		case 34: printf("\033[%d;%dH", y+11, x+60 - w->fieldpointer); break;
+		case 35: printf("\033[%d;%dH", y+12, x+60); break;
 	}
 }
 
@@ -426,65 +426,65 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 {
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
 	analogue_state *as = iv->state[iv->type];
-	if (x < 27)
+	if (x < 20)
 		switch (y)
 		{
-			case 1: case 2:   *index = 0; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+			case 1: case 2:   *index = 0; if (x < 16) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 			case 3:           *index = 1; break;
 			case 4:
-				if (x < 22) { *index = 2; if (x < 20) w->fieldpointer = 1; else w->fieldpointer = 0; }
+				if (x < 15) { *index = 2; if (x < 13) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				else        { *index = 3; as->osc1.flags ^= 0b1; }
 				break;
 			case 5:
-				if (x < 21) { *index = 4; as->osc1.flags ^= 0b10; }
-				else        { *index = 5; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
+				if (x < 14) { *index = 4; as->osc1.flags ^= 0b10; }
+				else        { *index = 5; if (x < 16) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
-			case 6: case 7:   *index = 6; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+			case 6: case 7:   *index = 6; if (x < 16) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 			case 8:           *index = 7; break;
 			case 9:
-				if (x < 18)        *index = 8;
-				else if (x < 21)   *index = 9;
-				else             { *index = 10; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
+				if (x < 11)        *index = 8;
+				else if (x < 14)   *index = 9;
+				else             { *index = 10; if (x < 16) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
 			case 10:
-				if (x < 21) { *index = 11; as->osc2.flags ^= 0b1; }
-				else        { *index = 12; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
+				if (x < 14) { *index = 11; as->osc2.flags ^= 0b1; }
+				else        { *index = 12; if (x < 16) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
 			case 11: case 12:
-				if (x < 21)   *index = 13;
-				else        { *index = 14; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
+				if (x < 14)   *index = 13;
+				else        { *index = 14; if (x < 16) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
 			default:          *index = 15; break;
 		}
 	else if (y < 8)
 	{
-		if (x < 56)
+		if (x < 49)
 		{
 			if (y >= 7) { *index = 24; as->filter.flags ^= 0b1; }
-			else if (x < 41)
+			else if (x < 34)
 				switch (y)
 				{
-					case 1: case 2: case 3:  *index = 16; if (x < 38) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 4:                  *index = 17; if (x < 38) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 5:                  *index = 18; if (x < 38) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					default:                 *index = 19; if (x < 38) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 1: case 2: case 3:  *index = 16; if (x < 31) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 4:                  *index = 17; if (x < 31) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 5:                  *index = 18; if (x < 31) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					default:                 *index = 19; if (x < 31) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 				}
 			else
 				switch (y)
 				{
-					case 1: case 2: case 3:  *index = 20; if (x < 52) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 4:                  *index = 21; if (x < 52) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					case 5:                  *index = 22; if (x < 52) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-					default:                 *index = 23; if (x < 52) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 1: case 2: case 3:  *index = 20; if (x < 45) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 4:                  *index = 21; if (x < 45) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					case 5:                  *index = 22; if (x < 45) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+					default:                 *index = 23; if (x < 45) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 				}
 		}
 		else
 			switch (y)
 			{
-				case 1: case 2: case 3:  *index = 28; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				case 4:                  *index = 29; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				case 5:                  *index = 30; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				default:                 *index = 31; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 1: case 2: case 3:  *index = 28; if (x < 60) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 4:                  *index = 29; if (x < 60) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 5:                  *index = 30; if (x < 60) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				default:                 *index = 31; if (x < 60) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 			}
 	} else
 	{
@@ -492,15 +492,15 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 			switch (y)
 			{
 				case 8: case 9: case 10:  *index = 25; break;
-				case 11:                  *index = 26; if (x < 44) w->fieldpointer = 1; else w->fieldpointer = 0; break;
-				default:                  *index = 27; if (x < 44) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 11:                  *index = 26; if (x < 37) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				default:                  *index = 27; if (x < 37) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 			}
 		else
 			switch (y)
 			{
-				case 8: case 9: case 10:  *index = 32; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 8: case 9: case 10:  *index = 32; if (x < 60) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 				case 11:                  *index = 33; break;
-				case 12:                  *index = 34; if (x < 67) w->fieldpointer = 1; else w->fieldpointer = 0; break;
+				case 12:                  *index = 34; if (x < 60) w->fieldpointer = 1; else w->fieldpointer = 0; break;
 				default:                  *index = 35; break;
 			}
 	}
@@ -764,6 +764,7 @@ void analogueRead(void **state, unsigned char major, unsigned char minor, FILE *
 void analogueInit(int index)
 {
 	t->f[index].indexc = 35;
+	t->f[index].cellwidth = 62;
 	t->f[index].statesize = sizeof(analogue_state);
 	t->f[index].draw = &drawAnalogue;
 	t->f[index].adjustUp = &analogueAdjustUp;
