@@ -6,7 +6,7 @@ typedef struct
 		uint8_t lfo;
 		uint8_t mix;
 		uint8_t fm;
-		uint8_t attributes; /* %1:ringmod  %2:sync */
+		uint8_t flags; /* %1:ringmod  %2:sync */
 	} osc1;
 	struct {
 		uint8_t waveform;
@@ -15,7 +15,7 @@ typedef struct
 		uint8_t detune;
 		uint8_t lfo;
 		uint8_t mix;
-		uint8_t attributes; /* %1:track */
+		uint8_t flags; /* %1:track */
 	} osc2;
 	struct {
 		uint8_t waveform;
@@ -33,7 +33,7 @@ typedef struct
 		uint8_t lfo;
 		adsr    env;
 		uint8_t track;
-		uint8_t attributes; /* %1:high resonance */
+		uint8_t flags; /* %1:high resonance */
 	} filter;
 	adsr        amp;
 	uint8_t noise;
@@ -72,16 +72,16 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 	printf("\033[%d;%dH\033[1mOSCILLATOR1\033[m   [%02x]",   y+1,  x+7, as->osc1.mix);
 	printf("\033[%d;%dHwaveform",                y+2,  x+7);
 	printf("\033[%d;%dHfm/ringmod [%02x]",       y+3,  x+7, as->osc1.fm);
-	drawBit(as->osc1.attributes & 0b1);
+	drawBit(as->osc1.flags & 0b1);
 	printf("\033[%d;%dHsync/lfo   ", y+4,  x+7);
-	drawBit(as->osc1.attributes & 0b10);
+	drawBit(as->osc1.flags & 0b10);
 	printf("\033[%d;%dH[%02x]",      y+4,  x+21, as->osc1.lfo);
 	printf("\033[%d;%dH──────────────────",      y+5,  x+7);
 	printf("\033[%d;%dH\033[1mOSCILLATOR2\033[m   [%02x]",   y+6,  x+7, as->osc2.mix);
 	printf("\033[%d;%dHwaveform",                y+7,  x+7);
 	printf("\033[%d;%dHdetune [%+1d][%x][%02x]", y+8,  x+7, as->osc2.oct, as->osc2.semi, as->osc2.detune);
 	printf("\033[%d;%dHtrack/lfo  ", y+9,  x+7);
-	drawBit(as->osc2.attributes & 0b1);
+	drawBit(as->osc2.flags & 0b1);
 	printf("\033[%d;%dH[%02x]",      y+9,  x+21, as->osc2.lfo);
 	printf("\033[%d;%dH──────────────────",      y+10, x+7);
 	printf("\033[%d;%dH\033[1mSUB OSC\033[m   [%+1d][%02x]", y+11, x+7, as->sub.oct, as->sub.mix);
@@ -92,7 +92,7 @@ void drawAnalogue(instrument *iv, uint8_t index, unsigned short x, unsigned shor
 	printf("\033[%d;%dHlfo     [%02x]  sustain [%02x]", y+4, x+28, as->filter.lfo, as->filter.env.s);
 	printf("\033[%d;%dHtrack   [%02x]  release [%02x]", y+5, x+28, as->filter.track, as->filter.env.r);
 	printf("\033[%d;%dHhigh resonance (loud)  ",        y+6, x+28);
-	drawBit(as->filter.attributes & 0b1);
+	drawBit(as->filter.flags & 0b1);
 	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",   y+1, x+58);
 	printf("\033[%d;%dHattack  [%02x]", y+2, x+57, as->amp.a);
 	printf("\033[%d;%dHdecay   [%02x]", y+3, x+57, as->amp.d);
@@ -394,10 +394,10 @@ void analogueInput(int *input)
 		case 10: case 13: /* return */
 			switch (w->instrumentindex)
 			{
-				case 3:  as->osc1.attributes ^= 0b1;   *input = 0; break;
-				case 4:  as->osc1.attributes ^= 0b10;  *input = 0; break;
-				case 11: as->osc2.attributes ^= 0b1;   *input = 0; break;
-				case 24: as->filter.attributes ^= 0b1; *input = 0; break;
+				case 3:  as->osc1.flags ^= 0b1;   *input = 0; break;
+				case 4:  as->osc1.flags ^= 0b10;  *input = 0; break;
+				case 11: as->osc2.flags ^= 0b1;   *input = 0; break;
+				case 24: as->filter.flags ^= 0b1; *input = 0; break;
 			}
 			break;
 		case 1:  /* ^a */ w->fieldpointer = 0; analogueAdjustUp(iv, w->instrumentindex, 0);   break;
@@ -433,10 +433,10 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 			case 3:           *index = 1; break;
 			case 4:
 				if (x < 22) { *index = 2; if (x < 20) w->fieldpointer = 1; else w->fieldpointer = 0; }
-				else        { *index = 3; as->osc1.attributes ^= 0b1; }
+				else        { *index = 3; as->osc1.flags ^= 0b1; }
 				break;
 			case 5:
-				if (x < 21) { *index = 4; as->osc1.attributes ^= 0b10; }
+				if (x < 21) { *index = 4; as->osc1.flags ^= 0b10; }
 				else        { *index = 5; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
 			case 6: case 7:   *index = 6; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; break;
@@ -447,7 +447,7 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 				else             { *index = 10; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
 			case 10:
-				if (x < 21) { *index = 11; as->osc2.attributes ^= 0b1; }
+				if (x < 21) { *index = 11; as->osc2.flags ^= 0b1; }
 				else        { *index = 12; if (x < 23) w->fieldpointer = 1; else w->fieldpointer = 0; }
 				break;
 			case 11: case 12:
@@ -460,7 +460,7 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 	{
 		if (x < 56)
 		{
-			if (y >= 7) { *index = 24; as->filter.attributes ^= 0b1; }
+			if (y >= 7) { *index = 24; as->filter.flags ^= 0b1; }
 			else if (x < 41)
 				switch (y)
 				{
@@ -522,11 +522,11 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 
 	/* osc2 */
 	float osc2;
-	if (as->osc1.attributes & 0b10 && ac->unison[index].osc1phase >= 1.0) /* sync (1 sample behind, but that's fine) */
+	if (as->osc1.flags & 0b10 && ac->unison[index].osc1phase >= 1.0) /* sync (1 sample behind, but that's fine) */
 		ac->unison[index].osc2phase = 0.0;
 	else
 	{
-		if (as->osc2.attributes & 0b1) /* pitch tracking */
+		if (as->osc2.flags & 0b1) /* pitch tracking */
 			ac->unison[index].osc2phase += pps
 				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune/256.0 + 0.5) * 12)
 				+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
@@ -546,7 +546,7 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 	ac->unison[index].osc1phase = fmodf(ac->unison[index].osc1phase, 1.0);
 	ac->unison[index].osc1phase += pps + osc1lfo + (osc2 * as->osc1.fm/256.0);
 
-	if (as->osc1.attributes & 0b1) /* osc2 ringmod */
+	if (as->osc1.flags & 0b1) /* osc2 ringmod */
 		output += oscillator(as->osc1.waveform, ac->unison[index].osc1phase, pw)
 			* as->osc1.mix * fabsf(osc2) * 2;
 	else
@@ -627,7 +627,7 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 		/* filter */
 		float cutoff = fgain * as->filter.cutoff/256.0
 				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->finetune) * as->filter.track/256.0);
-		if (as->filter.attributes & 0b1) /* high resonance */
+		if (as->filter.flags & 0b1) /* high resonance */
 			calcFilter(&ac->fl, cutoff * -1, 1.0 - as->filter.resonance/256.0);
 		else
 			calcFilter(&ac->fl, cutoff, as->filter.resonance/256.0);
@@ -665,7 +665,7 @@ void analogueAddType(void **state)
 	as->osc1.mix = 0x80;
 	as->osc2.mix = 0x00;
 	as->osc2.detune = 0x80;
-	as->osc2.attributes = 0b00000001; /* pitch tracking on */
+	as->osc2.flags = 0b00000001; /* pitch tracking on */
 	as->sub.oct = -1;
 	as->sub.waveform = 4; /* sine */
 	as->filter.cutoff = 255;
@@ -698,14 +698,14 @@ void analogueWrite(void **state, FILE *fp)
 	fwrite(&as->osc1.lfo, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc1.mix, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc1.fm, sizeof(uint8_t), 1, fp);
-	fwrite(&as->osc1.attributes, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc1.flags, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc2.waveform, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc2.oct, sizeof(int8_t), 1, fp);
 	fwrite(&as->osc2.semi, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc2.detune, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc2.lfo, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc2.mix, sizeof(uint8_t), 1, fp);
-	fwrite(&as->osc2.attributes, sizeof(uint8_t), 1, fp);
+	fwrite(&as->osc2.flags, sizeof(uint8_t), 1, fp);
 	fwrite(&as->sub.waveform, sizeof(uint8_t), 1, fp);
 	fwrite(&as->sub.oct, sizeof(int8_t), 1, fp);
 	fwrite(&as->sub.mix, sizeof(uint8_t), 1, fp);
@@ -717,7 +717,7 @@ void analogueWrite(void **state, FILE *fp)
 	fwrite(&as->filter.lfo, sizeof(uint8_t), 1, fp);
 	fwrite(&as->filter.env, sizeof(adsr), 1, fp);
 	fwrite(&as->filter.track, sizeof(uint8_t), 1, fp);
-	fwrite(&as->filter.attributes, sizeof(uint8_t), 1, fp);
+	fwrite(&as->filter.flags, sizeof(uint8_t), 1, fp);
 	fwrite(&as->amp, sizeof(adsr), 1, fp);
 	fwrite(&as->noise, sizeof(uint8_t), 1, fp);
 	fwrite(&as->unison, sizeof(uint8_t), 1, fp);
@@ -733,14 +733,14 @@ void analogueRead(void **state, unsigned char major, unsigned char minor, FILE *
 	fread(&as->osc1.lfo, sizeof(uint8_t), 1, fp);
 	fread(&as->osc1.mix, sizeof(uint8_t), 1, fp);
 	fread(&as->osc1.fm, sizeof(uint8_t), 1, fp);
-	fread(&as->osc1.attributes, sizeof(uint8_t), 1, fp);
+	fread(&as->osc1.flags, sizeof(uint8_t), 1, fp);
 	fread(&as->osc2.waveform, sizeof(uint8_t), 1, fp);
 	fread(&as->osc2.oct, sizeof(int8_t), 1, fp);
 	fread(&as->osc2.semi, sizeof(uint8_t), 1, fp);
 	fread(&as->osc2.detune, sizeof(uint8_t), 1, fp);
 	fread(&as->osc2.lfo, sizeof(uint8_t), 1, fp);
 	fread(&as->osc2.mix, sizeof(uint8_t), 1, fp);
-	fread(&as->osc2.attributes, sizeof(uint8_t), 1, fp);
+	fread(&as->osc2.flags, sizeof(uint8_t), 1, fp);
 	fread(&as->sub.waveform, sizeof(uint8_t), 1, fp);
 	fread(&as->sub.oct, sizeof(int8_t), 1, fp);
 	fread(&as->sub.mix, sizeof(uint8_t), 1, fp);
@@ -752,7 +752,7 @@ void analogueRead(void **state, unsigned char major, unsigned char minor, FILE *
 	fread(&as->filter.lfo, sizeof(uint8_t), 1, fp);
 	fread(&as->filter.env, sizeof(adsr), 1, fp);
 	fread(&as->filter.track, sizeof(uint8_t), 1, fp);
-	fread(&as->filter.attributes, sizeof(uint8_t), 1, fp);
+	fread(&as->filter.flags, sizeof(uint8_t), 1, fp);
 	fread(&as->amp, sizeof(adsr), 1, fp);
 	fread(&as->noise, sizeof(uint8_t), 1, fp);
 	fread(&as->unison, sizeof(uint8_t), 1, fp);

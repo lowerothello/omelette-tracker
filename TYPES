@@ -1,9 +1,9 @@
 STAGING DESIGNS
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
-│                                                    [START]  RECORD  [CANCEL] │
-│   type   [00]                                      record source  [ line in] │
-│   fader  [88]                                      only cursor channel   [ ] │
-│                                                    gate next pattern     [X] │
+│                                                             RECORD           │
+│   type   [00]                                     record source   [ line in] │
+│   fader  [88]                                     only loop back cursor  [ ] │
+│                                                   gate the next pattern  [ ] │
 │┌──────────────────────────────── [sampler] ─────────────────────────────────┐│
 ││                                                                            ││
 ││                     GENERAL        │       TIMESTRETCH                     ││
@@ -15,9 +15,9 @@ STAGING DESIGNS
 ││                    AMPLIFIER       │ [00000000]   [00000000]               ││
 ││              attack           [00] │ [00000000]   [00000000]               ││
 ││              decay            [00] │   00->ff       00->00                 ││
-││              sustain          [ff] │ loop ramping        [X]               ││
-││              release          [00] │ ping-pong loop      [ ]               ││
-││              gain             [80] │ reverse playback    [ ]               ││
+││              sustain          [ff] │ reverse playback    [ ]               ││
+││              release          [00] │ loop ramping        [X]               ││
+││              gain             [80] │ ping-pong loop      [ ]               ││
 ││                                                                            ││
 │└────────────────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────────────┘

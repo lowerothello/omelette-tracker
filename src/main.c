@@ -32,7 +32,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 50;
+const unsigned char MINOR = 60;
 
 
 jack_nframes_t samplerate;
@@ -317,10 +317,10 @@ void cleanup(int ret)
 	free(w->previewinstrument.state[0]);
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (w->instrumentbuffer.state[i])
-		{
 			t->f[i].delType(&w->instrumentbuffer.state[i]);
-			w->instrumentbuffer.state[i] = NULL;
-		}
+
+	if (w->recbuffer) free(w->recbuffer);
+	if (w->recchannelbuffer) free(w->recchannelbuffer);
 
 
 	free(w);
@@ -497,7 +497,13 @@ int main(int argc, char **argv)
 		changeInstrumentType(s, 0);
 
 		/* finish freeing the record buffer */
-		if (w->instrumentrecv == INST_REC_LOCK_END)
+		if (w->instrumentrecv == INST_REC_LOCK_CANCEL)
+		{
+			free(w->recbuffer); w->recbuffer = NULL;
+			free(w->recchannelbuffer); w->recchannelbuffer = NULL;
+			w->instrumentrecv = INST_REC_LOCK_OK;
+			redraw();
+		} else if (w->instrumentrecv == INST_REC_LOCK_END)
 		{
 			if (w->recptr > 0)
 			{
@@ -524,12 +530,13 @@ int main(int argc, char **argv)
 			}
 
 			free(w->recbuffer); w->recbuffer = NULL;
+			free(w->recchannelbuffer); w->recchannelbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
 			redraw();
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
-		req.tv_nsec = 16666666; // wait ~>16.8ms (60hz)
+		req.tv_nsec = 16666666; // wait ~>16.7ms (60hz)
 		while(nanosleep(&req, &req) < 0);
 	}
 

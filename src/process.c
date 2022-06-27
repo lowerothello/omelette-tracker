@@ -237,6 +237,13 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		pb.outl[fptr] += l;
 		pb.outr[fptr] += r;
 	}
+	if (p->w->instrumentrecv == INST_REC_LOCK_CONT
+			&& p->w->recordsource == 1
+			&& p->w->recordflags & 0b1)
+	{
+		p->w->recchannelbuffer[fptr * 2 + 0] = l;
+		p->w->recchannelbuffer[fptr * 2 + 1] = r;
+	}
 }
 
 void bendUp(channel *cv, uint32_t spr, uint32_t count)
@@ -428,6 +435,11 @@ int process(jack_nframes_t nfptr, void *arg)
 	/* will no longer write to the record buffer */
 	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_END)
 		p->w->instrumentrecv = INST_REC_LOCK_END;
+	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_CANCEL)
+		p->w->instrumentrecv = INST_REC_LOCK_CANCEL;
+	/* start recording if gate pattern is off */
+	if (p->w->instrumentrecv == INST_REC_LOCK_START && !(p->w->recordflags & 0b10))
+		p->w->instrumentrecv = INST_REC_LOCK_CONT;
 	/* will no longer access the instrument state */
 	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE
 			|| p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST
@@ -444,17 +456,10 @@ int process(jack_nframes_t nfptr, void *arg)
 			p->w->previewtrigger++;
 			break;
 		case 3: // start sample preview
-			// _triggerNote(&p->w->previewchannelplay, p->w->previewnote, p->w->previewinst);
 			p->w->previewtrigger++;
 			break;
-		case 5: // unload sample
-			/* free(p->w->previewinstrument.sampledata);
-			p->w->previewinstrument.sampledata = NULL; */
-			break;
-
 		case 4: // continue sample preview
-			/* for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-				playChannel(fptr, p, pb, &p->w->previewchannelplay, 255); */
+		case 5: // unload sample
 			break;
 	}
 
@@ -546,6 +551,9 @@ int process(jack_nframes_t nfptr, void *arg)
 				}
 			}
 		}
+		/* start recording if gate pattern is on */
+		if (p->w->instrumentrecv == INST_REC_LOCK_START && p->w->recordflags & 0b10)
+			p->w->instrumentrecv = INST_REC_LOCK_CONT;
 
 		p->s->playing = PLAYING_CONT;
 	} else if (p->s->playing == PLAYING_PREP_STOP)
@@ -576,36 +584,12 @@ int process(jack_nframes_t nfptr, void *arg)
 	/* loop over samples */
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 	{
+		/* preprocess the channel */
 		if (p->s->playing == PLAYING_CONT)
-		{
-			/* record */
-			if (p->w->instrumentrecv == INST_REC_LOCK_CONT)
-			{
-				if (p->w->recptr + 1 > RECORD_LENGTH * samplerate)
-				{
-					strcpy(p->w->command.error, "record buffer full");
-					p->w->instrumentrecv = INST_REC_LOCK_END;
-				} else
-				{
-					int c;
-					c = (float)pb.inl[fptr] * (float)SHRT_MAX;
-					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
-					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
-					else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
-					c = (float)pb.inr[fptr] * (float)SHRT_MAX;
-					if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
-					else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
-					else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
-					p->w->recptr++;
-				}
-			}
-
-			/* preprocess the channel */
 			if (p->s->sprp == 0)
 				for (uint8_t c = 0; c < p->s->channelc; c++)
 					preprocessRow(&p->s->channelv[c],
 							p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr]);
-		}
 
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
@@ -641,6 +625,13 @@ int process(jack_nframes_t nfptr, void *arg)
 					p->w->trackerfy = 0;
 				p->dirty = 1;
 				
+				/* stop recording if gate pattern is on */
+				if (p->w->instrumentrecv == INST_REC_LOCK_CONT && p->w->recordflags & 0b10)
+					p->w->instrumentrecv = INST_REC_LOCK_END;
+				/* start recording if gate pattern is on */
+				if (p->w->instrumentrecv == INST_REC_LOCK_START && p->w->recordflags & 0b10)
+					p->w->instrumentrecv = INST_REC_LOCK_CONT;
+
 				if (p->w->songnext)
 				{
 					if (p->w->songfx == p->s->songp && !(w->popup == 0 && w->mode != 0))
@@ -649,7 +640,7 @@ int process(jack_nframes_t nfptr, void *arg)
 
 					p->s->songp = p->w->songnext - 1;
 					p->w->songnext = 0;
-				} else if (p->s->songa[p->s->songp]) /* loop */
+				} else if (p->s->songf[p->s->songp]) /* loop */
 				{
 					/* do nothing, don't inc the song pointer */
 				} else if (p->s->songi[p->s->songp + 1] == 255)
@@ -684,13 +675,60 @@ int process(jack_nframes_t nfptr, void *arg)
 		}
 	}
 
-	/* final mixdown */
-	/* master output volume */
-	/* for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+	/* record */
+	if (p->s->playing == PLAYING_CONT && p->w->instrumentrecv == INST_REC_LOCK_CONT)
 	{
-		pb.outl[fptr] *= 0.25;
-		pb.outr[fptr] *= 0.25;
-	} */
+		if (p->w->recptr + nfptr > RECORD_LENGTH * samplerate)
+		{
+			strcpy(p->w->command.error, "record buffer full");
+			p->w->instrumentrecv = INST_REC_LOCK_END;
+		} else
+		{
+			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+			{
+				switch (p->w->recordsource)
+				{
+					case 0:
+						int c;
+						c = (float)pb.inl[fptr] * (float)SHRT_MAX;
+						if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
+						else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
+						else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
+						c = (float)pb.inr[fptr] * (float)SHRT_MAX;
+						if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
+						else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
+						else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
+						break;
+					case 1:
+						if (p->w->recordflags & 0b1)
+						{
+							int c;
+							c = (float)p->w->recchannelbuffer[fptr * 2 + 0] * (float)SHRT_MAX;
+							if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
+							else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
+							else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
+							c = (float)p->w->recchannelbuffer[fptr * 2 + 1] * (float)SHRT_MAX;
+							if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
+							else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
+							else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
+						} else
+						{
+							int c;
+							c = (float)pb.outl[fptr] * (float)SHRT_MAX;
+							if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
+							else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
+							else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
+							c = (float)pb.outr[fptr] * (float)SHRT_MAX;
+							if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
+							else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
+							else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
+						}
+						break;
+				}
+				p->w->recptr++;
+			}
+		}
+	}
 
 	return 0;
 }

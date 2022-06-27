@@ -11,7 +11,7 @@ typedef struct
 	uint32_t trim[2];
 	uint32_t loop[2];
 	adsr     volume;
-	uint8_t  attributes;   /* %1: persistent tempo
+	uint8_t  flags;        /* %1: persistent tempo
 	                        * %2: quantize cycles
 	                        * %3: loop ramping
 	                        * %4: mono
@@ -129,18 +129,18 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 	printf("\033[%d;%dHC-5 rate     [%08x]",       y+2,  x+14, ss->c5rate);
 	printf("\033[%d;%dHsamplerate         [%02x]", y+3,  x+14, ss->samplerate);
 	printf("\033[%d;%dHmono/8-bit       ",         y+4,  x+14);
-	drawBit(ss->attributes & 0b1000); drawBit(ss->attributes & 0b10000);
+	drawBit(ss->flags & 0b1000); drawBit(ss->flags & 0b10000);
 	printf("\033[%d;%dHunsigned            ",      y+5,  x+14);
-	drawBit(ss->attributes & 0b100000);
+	drawBit(ss->flags & 0b100000);
 	printf("\033[%d;%dHinvert phase        ",      y+6,  x+14);
-	drawBit(ss->attributes & 0b1000000);
+	drawBit(ss->flags & 0b1000000);
 	printf("\033[%d;%dH────────────────────────┤", y+7,  x+14);
 	printf("\033[%d;%dH\033[1mTIMESTRETCH\033[m",         y+8,  x+20);
 	printf("\033[%d;%dHpersistent tempo    ",      y+9,  x+14);
-	drawBit(ss->attributes & 0b1);
+	drawBit(ss->flags & 0b1);
 	printf("\033[%d;%dHcycle length     [%04x]",   y+10, x+14, ss->cyclelength);
 	printf("\033[%d;%dHquantize cycles     ",      y+11, x+14);
-	drawBit(ss->attributes & 0b10);
+	drawBit(ss->flags & 0b10);
 	printf("\033[%d;%dH\033[1mAMPLIFIER\033[m",       y+1,  x+46);
 	printf("\033[%d;%dHattack           [%02x]",      y+2,  x+40, ss->volume.a);
 	printf("\033[%d;%dHdecay            [%02x]",      y+3,  x+40, ss->volume.d);
@@ -156,7 +156,7 @@ void drawSampler(instrument *iv, uint8_t index, unsigned short x, unsigned short
 			(uint8_t)((float)ss->loop[0] / (float)ss->length * 255),
 			(uint8_t)((float)ss->loop[1] / (float)ss->length * 255));
 	printf("\033[%d;%dHloop ramping      ",           y+11, x+40);
-	drawBit(ss->attributes & 0b100);
+	drawBit(ss->flags & 0b100);
 
 	if (w->instrumentrecv == INST_REC_LOCK_CONT)
 		printf("\033[%d;%dHREC", y, x + 1);
@@ -407,10 +407,6 @@ void samplerInput(int *input)
 					samplerApplyTrimming(iv);
 					redraw();
 					break;
-				case 'r': /* arm for recording */
-					startRecording(w->instrument);
-					redraw();
-					break;
 				case 'e': /* export */
 					setCommand(&w->command, &samplerExportCallback, NULL, NULL, 0, "File name: ", "");
 					w->mode = 255;
@@ -425,31 +421,31 @@ void samplerInput(int *input)
 					switch (w->instrumentindex)
 					{
 						case 7: /* persistent tempo */
-							ss->attributes ^= 0b1;
+							ss->flags ^= 0b1;
 							redraw(); *input = 0;
 							break;
 						case 9: /* quantize cycles */
-							ss->attributes ^= 0b10;
+							ss->flags ^= 0b10;
 							redraw(); *input = 0;
 							break;
 						case 18: /* loop ramping */
-							ss->attributes ^= 0b100;
+							ss->flags ^= 0b100;
 							redraw(); *input = 0;
 							break;
 						case 3: /* mono */
-							ss->attributes ^= 0b1000;
+							ss->flags ^= 0b1000;
 							redraw(); *input = 0;
 							break;
 						case 4: /* 8-bit */
-							ss->attributes ^= 0b10000;
+							ss->flags ^= 0b10000;
 							redraw(); *input = 0;
 							break;
 						case 5: /* unsigned */
-							ss->attributes ^= 0b100000;
+							ss->flags ^= 0b100000;
 							redraw(); *input = 0;
 							break;
 						case 6: /* invert phase */
-							ss->attributes ^= 0b1000000;
+							ss->flags ^= 0b1000000;
 							redraw(); *input = 0;
 							break;
 					}
@@ -536,18 +532,18 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 						if (x < 35) w->fieldpointer = 1; else w->fieldpointer = 0;
 						break;
 					case 5:
-						if (x < 34) { *index = 3; ss->attributes ^= 0b1000; }
-						else        { *index = 4; ss->attributes ^= 0b10000; }
+						if (x < 34) { *index = 3; ss->flags ^= 0b1000; }
+						else        { *index = 4; ss->flags ^= 0b10000; }
 						w->fieldpointer = 0; break;
-					case 6: *index = 5; ss->attributes ^= 0b100000; break;
-					case 7: case 8: *index = 6; ss->attributes ^= 0b1000000; break;
-					case 9: case 10: *index = 7; ss->attributes ^= 0b1; break;
+					case 6: *index = 5; ss->flags ^= 0b100000; break;
+					case 7: case 8: *index = 6; ss->flags ^= 0b1000000; break;
+					case 9: case 10: *index = 7; ss->flags ^= 0b1; break;
 					case 11: *index = 8;
 						if (x < 32)          w->fieldpointer = 0;
 						else if (x > 32 + 3) w->fieldpointer = 3;
 						else w->fieldpointer = x - 32;
 						break;
-					default: *index = 9; ss->attributes ^= 0b10; break;
+					default: *index = 9; ss->flags ^= 0b10; break;
 				}
 			else
 				switch (y)
@@ -592,7 +588,7 @@ void samplerMouseToIndex(int y, int x, int button, short *index)
 							else if (x > 52 + 7) w->fieldpointer = 7;
 							else w->fieldpointer = x - 52;
 						} break;
-					default: *index = 18; ss->attributes ^= 0b100; break;
+					default: *index = 18; ss->flags ^= 0b100; break;
 				}
 			break;
 	}
@@ -611,7 +607,7 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 		{ /* if there is a loop range */
 			if (ss->loop[0] < ss->loop[1])
 			{ /* forwards loop */
-				if (ss->attributes & 0b100)
+				if (ss->flags & 0b100)
 				{
 					uint32_t looprampmax = MIN(samplerate / 1000 * LOOP_RAMP_MS, (ss->loop[1] - ss->loop[0]) / 2);
 					uint32_t loopoffset = ss->loop[1] - ss->loop[0] - looprampmax;
@@ -627,7 +623,7 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 							uint32_t ramppointer = (pitchedpointer - loopoffset);
 							ramppointer -= ramppointer % ss->channels; /* align with channels */
 
-							if (ss->attributes & 0b10000) /* 8-bit */
+							if (ss->flags & 0b10000) /* 8-bit */
 							{
 								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
 									+ (signed char)(ss->sampledata[ramppointer * ss->channels]>>8) / (float)SCHAR_MAX * lerp;
@@ -648,7 +644,7 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 							}
 						} else
 						{
-							if (ss->attributes & 0b10000) /* 8-bit */
+							if (ss->flags & 0b10000) /* 8-bit */
 							{
 								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
 								if (ss->channels > 1) *r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
@@ -686,7 +682,7 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 		{ /* if there is a loop range */
 			if (ss->loop[0] > ss->loop[1])
 			{
-				if (ss->attributes & 0b100)
+				if (ss->flags & 0b100)
 				{
 					uint32_t looprampmax = MIN(samplerate / 1000 * LOOP_RAMP_MS, (ss->loop[0] - ss->loop[1]) / 2);
 					uint32_t loopoffset = ss->loop[0] - ss->loop[1] - looprampmax;
@@ -702,7 +698,7 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 							uint32_t ramppointer = (pitchedpointer + loopoffset);
 							ramppointer -= ramppointer % ss->channels; /* align with channels */
 
-							if (ss->attributes & 0b10000) /* 8-bit */
+							if (ss->flags & 0b10000) /* 8-bit */
 							{
 								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX * (1.0 - lerp)
 								+ (signed char)(ss->sampledata[ramppointer * ss->channels]>>8) / (float)SCHAR_MAX * lerp;
@@ -723,7 +719,7 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 							}
 						} else
 						{
-							if (ss->attributes & 0b10000) /* 8-bit */
+							if (ss->flags & 0b10000) /* 8-bit */
 							{
 								*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
 								if (ss->channels > 1) *r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
@@ -755,11 +751,11 @@ uint32_t trimloop(uint32_t pitchedpointer, uint32_t pointer,
 	}
 
 	pitchedpointer -= pitchedpointer % ss->channels; /* always point to the left channel */
-	if (!(ss->attributes & 0b100) || !(ss->loop[0] || ss->loop[1]))
+	if (!(ss->flags & 0b100) || !(ss->loop[0] || ss->loop[1]))
 	{
 		if (pitchedpointer <= ss->length)
 		{
-			if (ss->attributes & 0b10000) /* 8-bit */
+			if (ss->flags & 0b10000) /* 8-bit */
 			{
 				*l = (signed char)(ss->sampledata[pitchedpointer * ss->channels]>>8) / (float)SCHAR_MAX;
 				if (ss->channels > 1) *r = (signed char)(ss->sampledata[pitchedpointer * ss->channels + 1]>>8) / (float)SCHAR_MAX;
@@ -788,7 +784,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 	if (ss->length > 0)
 	{
 		float decimate = 1.0 + (1.0 - ss->samplerate/256.0) * 20;
-		if (ss->attributes & 0b1) /* persistent tempo */
+		if (ss->flags & 0b1) /* persistent tempo */
 		{
 			if (pointer % MAX(ss->cyclelength, sc->stretchrampmax) == 0) /* first sample of a cycle */
 			{
@@ -856,17 +852,17 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		sc->stretchrampindex++;
 	}
 
-	if (ss->attributes & 0b1000) /* mono */
+	if (ss->flags & 0b1000) /* mono */
 	{
 		*l = (*l + *r) / 2.0;
 		*r = *l;
 	}
-	if (ss->attributes & 0b1000000) /* invert phase */
+	if (ss->flags & 0b1000000) /* invert phase */
 	{
 		*l *= -1;
 		*r *= -1;
 	}
-	if (ss->attributes & 0b100000) // signed unsigned conversion
+	if (ss->flags & 0b100000) // signed unsigned conversion
 	{
 		if (*l != 0.0)
 		{
@@ -919,7 +915,7 @@ void samplerAddType(void **state)
 	sampler_state *ss = *state;
 	ss->volume.s = 255;
 	ss->samplerate = 255;
-	ss->attributes = 0b00000100; /* loop ramping on by default */
+	ss->flags = 0b00000100; /* loop ramping on by default */
 	ss->cyclelength = 0x6ff; /* feels like a good default? hard to be sure */
 }
 
@@ -973,15 +969,15 @@ void samplerWrite(void **state, FILE *fp)
 {
 	sampler_state *ss = *state;
 
-	fwrite(&ss->length,       sizeof(uint32_t), 1, fp);
-	fwrite(&ss->channels,     sizeof(uint8_t),  1, fp);
-	fwrite(&ss->c5rate,       sizeof(uint32_t), 1, fp);
-	fwrite(&ss->samplerate,   sizeof(uint8_t),  1, fp);
-	fwrite(&ss->cyclelength,  sizeof(uint16_t), 1, fp);
-	fwrite(ss->trim,          sizeof(uint32_t), 2, fp);
-	fwrite(ss->loop,          sizeof(uint32_t), 2, fp);
-	fwrite(&ss->volume,       sizeof(adsr),     1, fp);
-	fwrite(&ss->attributes,   sizeof(uint8_t),  1, fp);
+	fwrite(&ss->length, sizeof(uint32_t), 1, fp);
+	fwrite(&ss->channels, sizeof(uint8_t), 1, fp);
+	fwrite(&ss->c5rate, sizeof(uint32_t), 1, fp);
+	fwrite(&ss->samplerate, sizeof(uint8_t), 1, fp);
+	fwrite(&ss->cyclelength, sizeof(uint16_t), 1, fp);
+	fwrite(ss->trim, sizeof(uint32_t), 2, fp);
+	fwrite(ss->loop, sizeof(uint32_t), 2, fp);
+	fwrite(&ss->volume, sizeof(adsr), 1, fp);
+	fwrite(&ss->flags, sizeof(uint8_t), 1, fp);
 	fwrite(&ss->samplelength, sizeof(uint32_t), 1, fp);
 
 	if (ss->samplelength)
@@ -993,15 +989,15 @@ void samplerRead(void **state, unsigned char major, unsigned char minor, FILE *f
 {
 	sampler_state *ss = *state;
 
-	fread(&ss->length,       sizeof(uint32_t), 1, fp);
-	fread(&ss->channels,     sizeof(uint8_t),  1, fp);
-	fread(&ss->c5rate,       sizeof(uint32_t), 1, fp);
-	fread(&ss->samplerate,   sizeof(uint8_t),  1, fp);
-	fread(&ss->cyclelength,  sizeof(uint16_t), 1, fp);
-	fread(ss->trim,          sizeof(uint32_t), 2, fp);
-	fread(ss->loop,          sizeof(uint32_t), 2, fp);
-	fread(&ss->volume,       sizeof(adsr),     1, fp);
-	fread(&ss->attributes,   sizeof(uint8_t),  1, fp);
+	fread(&ss->length, sizeof(uint32_t), 1, fp);
+	fread(&ss->channels, sizeof(uint8_t), 1, fp);
+	fread(&ss->c5rate, sizeof(uint32_t), 1, fp);
+	fread(&ss->samplerate, sizeof(uint8_t), 1, fp);
+	fread(&ss->cyclelength, sizeof(uint16_t), 1, fp);
+	fread(ss->trim, sizeof(uint32_t), 2, fp);
+	fread(ss->loop, sizeof(uint32_t), 2, fp);
+	fread(&ss->volume, sizeof(adsr), 1, fp);
+	fread(&ss->flags, sizeof(uint8_t), 1, fp);
 	fread(&ss->samplelength, sizeof(uint32_t), 1, fp);
 
 	if (ss->samplelength)

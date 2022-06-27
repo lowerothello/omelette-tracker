@@ -86,7 +86,7 @@ typedef struct
 	char            channelbuffermute;
 
 	uint8_t         songi[256];              /* song list backref, links to patterns */
-	uint8_t         songa[256];              /* song list attributes */
+	uint8_t         songf[256];              /* song list flags */
 
 	uint8_t         songp;                   /* song pos, analogous to window->songfx */
 	short           songr;                   /* song row, analogous to window->trackerfy */
@@ -109,10 +109,13 @@ song *s;
 #define INST_GLOBAL_LOCK_PREP_PUT 5  /* playback unsafe, preparing to overwrite state */
 #define INST_GLOBAL_LOCK_PUT 6       /* playback has stopped, overwriting state */
 
-#define INST_REC_LOCK_OK 0       /* playback and most memory ops are safe */
-#define INST_REC_LOCK_CONT 1     /* recording                             */
-#define INST_REC_LOCK_PREP_END 2 /* start stopping recording              */
-#define INST_REC_LOCK_END 3      /* stopping recording has finished       */
+#define INST_REC_LOCK_OK 0          /* playback and most memory ops are safe */
+#define INST_REC_LOCK_START 1       /* playback and most memory ops are safe */
+#define INST_REC_LOCK_CONT 2        /* recording                             */
+#define INST_REC_LOCK_PREP_END 3    /* start stopping recording              */
+#define INST_REC_LOCK_END 4         /* stopping recording has finished       */
+#define INST_REC_LOCK_PREP_CANCEL 5 /* start cancelling recording            */
+#define INST_REC_LOCK_CANCEL 6      /* cancelling recording has finished     */
 
 #define REQ_OK 0  /* do nothing / done */
 #define REQ_BPM 1 /* re-apply the song bpm */
@@ -188,7 +191,10 @@ typedef struct
 	uint8_t        instrumentreci;               /* realindex */
 	uint8_t        instrumentrecv;               /* value, set to an INST_REC_LOCK constant */
 	short         *recbuffer;                    /* disallow changing the type or removing while recording */
+	sample_t      *recchannelbuffer;             /* buffer for recordflags bit 1 focused channel */
 	uint32_t       recptr;
+	char           recordsource;                 /* 0:line in, 1:loopback */
+	uint8_t        recordflags;                  /* %1: only loop back cursor channel, %2: gate around the next pattern */
 
 	char           newfilename[COMMAND_LENGTH];  /* used by readSong */
 } window;
@@ -1003,7 +1009,7 @@ int delInstrument(uint8_t index)
 }
 
 
-void startRecording(uint8_t inst)
+void toggleRecording(uint8_t inst)
 {
 	if (w->instrumentrecv == INST_REC_LOCK_OK)
 		w->instrumentreci = s->instrumenti[inst];
@@ -1013,15 +1019,18 @@ void startRecording(uint8_t inst)
 		{
 			case INST_REC_LOCK_OK:
 				w->recbuffer = malloc(sizeof(short) * RECORD_LENGTH * samplerate * 2);
-				if (w->recbuffer == NULL)
+				w->recchannelbuffer = malloc(sizeof(sample_t) * buffersize * 2);
+				if (!w->recbuffer || !w->recchannelbuffer)
 				{
 					strcpy(w->command.error, "failed to start recording, out of memory");
+					if (w->recbuffer) { free(w->recbuffer); w->recbuffer = NULL; }
+					if (w->recchannelbuffer) { free(w->recchannelbuffer); w->recchannelbuffer = NULL; }
 					break;
 				}
 				w->recptr = 0;
-				w->instrumentrecv = INST_REC_LOCK_CONT;
+				w->instrumentrecv = INST_REC_LOCK_START;
 				break;
-			case INST_REC_LOCK_CONT:
+			default:
 				w->instrumentrecv = INST_REC_LOCK_PREP_END;
 				break;
 		}
@@ -1191,9 +1200,9 @@ int writeSong(char *path)
 	/* songi */
 	for (i = 0; i < 256; i++)
 		fputc(s->songi[i], fp);
-	/* songa */
+	/* songf */
 	for (i = 0; i < 256; i++)
-		fputc(s->songa[i], fp);
+		fputc(s->songf[i], fp);
 	/* patterni */
 	for (i = 0; i < 256; i++)
 		fputc(s->patterni[i], fp);
@@ -1311,9 +1320,9 @@ song *readSong(char *path)
 	/* songi */
 	for (i = 0; i < 256; i++)
 		cs->songi[i] = fgetc(fp);
-	/* songa */
+	/* songf */
 	for (i = 0; i < 256; i++)
-		cs->songa[i] = fgetc(fp);
+		cs->songf[i] = fgetc(fp);
 	/* patterni */
 	for (i = 0; i < 256; i++)
 		cs->patterni[i] = fgetc(fp);
@@ -1356,6 +1365,8 @@ song *readSong(char *path)
 				t->f[j-1].addType(&iv->state[j-1]);
 				t->f[j-1].read(&iv->state[j-1], filemajor, fileminor, fp);
 			}
+		if (!(iv->state[0]))
+			t->f[0].addType(&iv->state[0]);
 
 		pushInstrumentHistory(cs->instrumentv[i]);
 	}
