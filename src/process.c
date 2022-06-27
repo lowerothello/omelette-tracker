@@ -320,7 +320,7 @@ void preprocessRow(channel *cv, row r)
 					m = ifMacro(r, 'd');
 					if (m >= 0) // fine delay
 					{
-						cv->delaysamples = p->s->spr * m/256.0;
+						cv->delaysamples = p->s->spr * m*DIV256;
 						cv->delaynote = r.note;
 						cv->delayinst = r.inst;
 					}

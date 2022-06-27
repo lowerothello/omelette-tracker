@@ -513,12 +513,12 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 
 	ac->unison[index].lfophase += 1.0 / ((float)samplerate * LFO_MAX
 		+ (float)samplerate * (LFO_MIN - LFO_MAX)
-		* (1.0 - as->lfo.rate/256.0) + detune);
+		* (1.0 - as->lfo.rate*DIV256) + detune);
 	while (ac->unison[index].lfophase > 1.0) ac->unison[index].lfophase -= 1.0;
 
 	float output = 0.0;
 	float lfo = (oscillator(as->lfo.waveform, ac->unison[index].lfophase, 0.5) + 1.0) / 2;
-	float pw = 0.5 * (1.0 + lfo * as->lfo.pwm/256.0);
+	float pw = 0.5 * (1.0 + lfo * as->lfo.pwm*DIV256);
 
 	/* osc2 */
 	float osc2;
@@ -528,23 +528,23 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 	{
 		if (as->osc2.flags & 0b1) /* pitch tracking */
 			ac->unison[index].osc2phase += pps
-				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune/256.0 + 0.5) * 12)
-				+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
+				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune*DIV256 + 0.5) * 12)
+				+ (lfo * FM_DEPTH * as->osc2.lfo*DIV256);
 		else
 			ac->unison[index].osc2phase += 1.0 / ((float)samplerate / C5_FREQ)
-				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune/256.0 + 0.5) * 12)
-				+ (lfo * FM_DEPTH * as->osc2.lfo/256.0);
+				* powf(M_12_ROOT_2, as->osc2.semi + (as->osc2.oct-1 + as->osc2.detune*DIV256 + 0.5) * 12)
+				+ (lfo * FM_DEPTH * as->osc2.lfo*DIV256);
 		ac->unison[index].osc2phase = fmodf(ac->unison[index].osc2phase, 1.0);
 	}
 
 	osc2 = oscillator(as->osc2.waveform, ac->unison[index].osc2phase, pw);
 	output += osc2 * as->osc2.mix;
 
-	float osc1lfo = lfo * FM_DEPTH * as->osc1.lfo/256.0;
+	float osc1lfo = lfo * FM_DEPTH * as->osc1.lfo*DIV256;
 
 	/* osc1 */
 	ac->unison[index].osc1phase = fmodf(ac->unison[index].osc1phase, 1.0);
-	ac->unison[index].osc1phase += pps + osc1lfo + (osc2 * as->osc1.fm/256.0);
+	ac->unison[index].osc1phase += pps + osc1lfo + (osc2 * as->osc1.fm*DIV256);
 
 	if (as->osc1.flags & 0b1) /* osc2 ringmod */
 		output += oscillator(as->osc1.waveform, ac->unison[index].osc1phase, pw)
@@ -560,7 +560,7 @@ float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, ui
 	output += oscillator(as->sub.waveform, ac->unison[index].subphase, pw)
 		* as->sub.mix;
 
-	return output/256.0;
+	return output*DIV256;
 }
 
 void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, float *r)
@@ -586,7 +586,8 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 
 	float again = adsrEnvelope(as->amp,        1.0, pointer, cv->releasepointer);
 	float fgain = adsrEnvelope(as->filter.env, 0.0, pointer, cv->releasepointer);
-	if (cv->pointer > 10 && again == 0.0 && fgain == 0.0) /* sound has fully finished */
+	if (pointer > MAX(as->amp.a, as->filter.env.a) * ENVELOPE_ATTACK * samplerate
+			&& again == 0.0 && fgain == 0.0) /* sound has fully finished */
 	{
 		cv->r.note = 0;
 	} else
@@ -599,7 +600,7 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 		{
 			gain = i / as->unison;
 			width = (1.0 - gain) * as->stereo / 16.0;
-			detune = gain * as->detune/256.0 + cv->finetune;
+			detune = gain * as->detune*DIV256 + cv->finetune;
 			if (i % 2)
 			{
 				c = analogueInstance(as, ac, cv, i * 2 + 0,  detune);
@@ -625,12 +626,12 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 		*r += noise;
 
 		/* filter */
-		float cutoff = fgain * as->filter.cutoff/256.0
-				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->finetune) * as->filter.track/256.0);
+		float cutoff = fgain * as->filter.cutoff*DIV256
+				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->finetune) * as->filter.track*DIV256);
 		if (as->filter.flags & 0b1) /* high resonance */
-			calcFilter(&ac->fl, cutoff * -1, 1.0 - as->filter.resonance/256.0);
+			calcFilter(&ac->fl, cutoff * -1, 1.0 - as->filter.resonance*DIV256);
 		else
-			calcFilter(&ac->fl, cutoff, as->filter.resonance/256.0);
+			calcFilter(&ac->fl, cutoff, as->filter.resonance*DIV256);
 		*l = runFilter(&ac->fl, *l);
 		*r = runFilter(&ac->fl, *r);
 		ac->fl.n2 = ac->fl.n1; ac->fl.n1 = MIN(MAX(*l, -6.0), 6.0);

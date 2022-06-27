@@ -6,26 +6,26 @@ STAGING DESIGNS
 │                                                   gate the next pattern  [ ] │
 │┌──────────────────────────────── [sampler] ─────────────────────────────────┐│
 ││                                                                            ││
-││                     GENERAL        │       TIMESTRETCH                     ││
-││              C-5 rate   [00000000] │ quantize cycles     [ ]               ││
-││              mono/rate     [ ][ff] │ cycle length     [06ff]               ││
-││              phase/8-bit    [ ][ ] │ pitch/formants [80][80]               ││
-││              timestretch tempo [ ] ├────────────────────────               ││
-││              ──────────────────────┤    TRIM         LOOP                  ││
-││                    AMPLIFIER       │ [00000000]   [00000000]               ││
-││              attack           [00] │ [00000000]   [00000000]               ││
-││              decay            [00] │   00->ff       00->00                 ││
-││              sustain          [ff] │ reverse playback    [ ]               ││
-││              release          [00] │ loop ramping        [X]               ││
-││              gain             [80] │ ping-pong loop      [ ]               ││
+││                     GENERAL        │    TRIM         LOOP                  ││
+││              C-5 rate   [00000000] │ [00000000]   [00000000]               ││
+││              mono/rate     [ ][ff] │ [00000000]   [00000000]               ││
+││              phase/8-bit    [ ][ ] │   00->ff       00->00                 ││
+││              timestretch tempo [ ] │ reverse playback    [ ]               ││
+││              ──────────────────────┤ loop ramping        [X] <             ││
+││                    AMPLIFIER       ├────────────────────────               ││
+││              attack           [00] │       TIMESTRETCH                     ││
+││              decay            [00] │ quantize cycles     [ ] <             ││
+││              sustain          [ff] │ cycle length     [06ff]               ││
+││              release          [00] │ formant shift      [80]               ││
+││              gain             [80] │  " cycle length  [00ff]               ││
 ││                                                                            ││
 │└────────────────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
-│                                                                              │
-│   type   [01]                                                                │
-│   volume [88]                                                                │
-│                                                                              │
+│                                                             RECORD           │
+│   type   [01]                                     record source   [ line in] │
+│   fader  [88]                                     only loop back cursor  [ ] │
+│                                                   gate the next pattern  [ ] │
 │┌──────────────────────────── [virtual analogue] ────────────────────────────┐│
 ││                                                                            ││
 ││       OSCILLATOR1   [80]             FILTER           │  AMPLIFIER         ││

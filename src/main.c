@@ -32,11 +32,11 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 60;
+const unsigned char MINOR = 70;
 
 
 jack_nframes_t samplerate;
-jack_nframes_t rampmax;
+jack_nframes_t rampmax, stretchrampmax;
 jack_nframes_t buffersize;
 struct winsize ws;
 struct termios term, origterm;
@@ -373,6 +373,7 @@ int main(int argc, char **argv)
 
 	samplerate = jack_get_sample_rate(client);
 	rampmax = samplerate / 1000 * RAMP_MS;
+	stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
 	buffersize = jack_get_buffer_size(client);
 
 	w = calloc(1, sizeof(window));

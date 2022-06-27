@@ -18,6 +18,11 @@
 /* </seconds> */
 
 
+#define DIV256 0.00390625
+#define DIV128 0.0078125
+#define DIV64  0.015625
+
+
 
 /* https://www.musicdsp.org/en/latest/Synthesis/216-fast-whitenoise-generator.html */
 const float wnoisescale = 2.0f / 0xffffffff;
@@ -255,7 +260,7 @@ float adsrEnvelope(adsr env, float curve,
 	if (releasepointer && releasepointer < pointer)
 	{ /* release */
 		uint32_t releaselength = env.r * ENVELOPE_RELEASE * samplerate;
-		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * env.s / 256.0;
+		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * (env.s*DIV256);
 	} else
 	{
 		uint32_t attacklength = env.a * ENVELOPE_ATTACK * samplerate;
@@ -263,12 +268,12 @@ float adsrEnvelope(adsr env, float curve,
 		if (pointer < attacklength)
 		{ /* attack */
 			linear = (float)pointer / (float)attacklength;
-			if (!env.d) linear *= env.s / 256.0; /* ramp to sustain if there's no decay stage */
+			if (!env.d) linear *= env.s*DIV256; /* ramp to sustain if there's no decay stage */
 		} else if (env.s < 255 && pointer < attacklength + decaylength)
 		{ /* decay */
-			linear = 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - env.s / 256.0);
+			linear = 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - env.s*DIV256);
 		} else /* sustain */
-			linear = env.s / 256.0;
+			linear = env.s*DIV256;
 	}
 	/* lerp between linear and exponential */
 	return linear * (1.0 - curve) + powf(linear, 2.0) * curve;

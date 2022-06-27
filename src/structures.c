@@ -1035,6 +1035,7 @@ void toggleRecording(uint8_t inst)
 				break;
 		}
 	}
+	redraw();
 }
 
 
