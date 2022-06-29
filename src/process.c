@@ -22,11 +22,13 @@ typedef struct
 	sample_t *outr;
 } portbuffers;
 
-int ifMacro(row r, char m)
+char ifMacro(channel *cv, row r, char m, char (*callback)(int, channel *, row))
 {
-	if (r.macroc[0] == m) return (int)r.macrov[0];
-	if (r.macroc[1] == m) return (int)r.macrov[1];
-	return -1;
+	char ret = 0;
+	for (int i = 0; i < cv->macroc; i++)
+		if (r.macro[i].c == m)
+			ret = callback(r.macro[i].v, cv, r);
+	return ret;
 }
 
 void changeBpm(song *s, uint8_t newbpm)
@@ -77,7 +79,7 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 	{
 		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+					&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
 				&& cv->r.note && iv->type < INSTRUMENT_TYPE_COUNT)
 			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 		cv->rampindex = 0; /* set this even if it's not populated */
@@ -95,6 +97,13 @@ void calcVibrato(channel *cv, int m)
 	cv->vibratosamplepointer = MIN(cv->vibratosamplepointer, cv->vibratosamples - 1);
 }
 
+char Vc(int m, channel *cv, row r)
+{
+	if (m >= 0)
+		calcVibrato(cv, m);
+	else cv->vibratosamples = 0;
+	return 0;
+}
 /* inst==255 for off */
 void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *cv, uint8_t inst)
 {
@@ -111,10 +120,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		if (cv->vibratosamplepointer > cv->vibratosamples)
 		{
 			cv->vibratosamplepointer = 0;
-			int m = ifMacro(cv->r, 'V');
-			if (m >= 0) // vibrato
-				calcVibrato(cv, m);
-			else cv->vibratosamples = 0;
+			ifMacro(cv, cv->r, 'V', &Vc); // vibrato
 		}
 	}
 
@@ -134,23 +140,31 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 
 	float l, r;
 	/* process the type */
-	if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-			&& cv->r.note && cv->r.note != 255 && iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].process)
+	if (iv && cv->r.note)
 	{
-		if (cv->rtrigsamples && inst != 255)
+		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+					&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+				&& cv->r.note != 255 && iv->type < INSTRUMENT_TYPE_COUNT)
 		{
-			uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
-			uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
-			if (rtrigoffset == 0 && cv->pointer > cv->rtrigpointer)
-			{ /* first sample of any retrigger but the first */
-				ramp(p, cv, p->s->instrumenti[inst], cv->pointer + cv->rtrigsamples);
-				cv->rampindex = 0;
-			}
-			t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &l, &r);
-			cv->r.note = oldnote;
+			if (cv->rtrigsamples && inst != 255)
+			{
+				uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
+				uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
+				if (rtrigoffset == 0 && cv->pointer > cv->rtrigpointer)
+				{ /* first sample of any retrigger but the first */
+					ramp(p, cv, p->s->instrumenti[inst], cv->pointer + cv->rtrigsamples);
+					cv->rampindex = 0;
+				}
+				t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &l, &r);
+				cv->r.note = oldnote;
+			} else
+				t->f[iv->type].process(iv, cv, cv->pointer, &l, &r);
+			cv->pointer++;
 		} else
-			t->f[iv->type].process(iv, cv, cv->pointer, &l, &r);
-		cv->pointer++;
+		{
+			cv->vibrato = 0;
+			l = r = 0.0;
+		}
 	} else
 	{
 		cv->vibrato = 0;
@@ -165,6 +179,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		r = r * gain + cv->rampbuffer[cv->rampindex * 2 + 1] * (1.0 - gain);
 		cv->rampindex++;
 	}
+
+	if (l == 0.0 && r == 0.0) return;
 
 	/* waveshapers */ /* TODO: ramping */
 	if (cv->wavefolder)
@@ -278,16 +294,15 @@ void bendDown(channel *cv, uint32_t spr, uint32_t count)
 	}
 }
 
-void preprocessRow(channel *cv, row r)
+char Bc(int m, channel *cv, row r)
 {
-	int m;
-
-	m = ifMacro(r, 'B');
-	if (m >= 32) // bpm
+	if (m >= 32)
 		changeBpm(p->s, m);
-
-	m = ifMacro(r, 'C'); // cut
-	if (m != -1 && m>>4 == 0) // note cut
+	return 0;
+}
+char Cc(int m, channel *cv, row r)
+{
+	if (m != -1 && m>>4 == 0)
 	{
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
@@ -295,49 +310,49 @@ void preprocessRow(channel *cv, row r)
 		cv->rampindex = 0;
 		cv->r.note = 0;
 		cv->vibrato = 0;
-	} else
+		return 1;
+	} else if (m != -1 && m%16 != 0) /* cut, don't divide by 0 */
 	{
-		if (m >= 0 && m%16 != 0) /* cut, don't divide by 0 */
-			cv->cutsamples = p->s->spr * (float)(m>>4) / (float)(m%16);
-
-		if (r.note)
-		{
-			m = ifMacro(r, 'P');
-			if (m >= 0) // portamento
-			{
-				cv->portamento = r.note;
-				cv->portamentospeed = m;
-			} else
-			{
-				m = ifMacro(r, 'D');
-				if (m >= 0 && m%16 != 0) // delay
-				{
-					cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
-					cv->delaynote = r.note;
-					cv->delayinst = r.inst;
-				} else
-				{
-					m = ifMacro(r, 'd');
-					if (m >= 0) // fine delay
-					{
-						cv->delaysamples = p->s->spr * m*DIV256;
-						cv->delaynote = r.note;
-						cv->delayinst = r.inst;
-					}
-					else triggerNote(cv, r.note, r.inst);
-				}
-			}
-		}
+		cv->cutsamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+		return 1;
 	}
-
-	/* gain */
-	if (cv->targetgain != -1)
+	return 0;
+}
+char Pc(int m, channel *cv, row r)
+{
+	if (m != -1)
 	{
-		cv->gain = cv->targetgain;
-		cv->targetgain = -1;
+		cv->portamento = r.note;
+		cv->portamentospeed = m;
+		return 1;
 	}
-	m = ifMacro(r, 'G');
-	if (m != -1) // gain
+	return 0;
+}
+char Dc(int m, channel *cv, row r)
+{
+	if (m != -1 && m%16 != 0)
+	{
+		cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+		cv->delaynote = r.note;
+		cv->delayinst = r.inst;
+		return 1;
+	}
+	return 0;
+}
+char dc(int m, channel *cv, row r)
+{
+	if (m != -1)
+	{
+		cv->delaysamples = p->s->spr * m*DIV256;
+		cv->delaynote = r.note;
+		cv->delayinst = r.inst;
+		return 1;
+	}
+	return 0;
+}
+char Gc(int m, channel *cv, row r)
+{
+	if (m != -1)
 	{
 		if (cv->pointer)
 		{
@@ -345,21 +360,24 @@ void preprocessRow(channel *cv, row r)
 			cv->rampindex = 0;
 		}
 		cv->gain = m;
-	} else
-	{
-		m = ifMacro(r, 'g');
-		if (m != -1) // smooth gain
-		{
-			if (cv->pointer) /* only slide if a note is already playing */
-				cv->targetgain = m;
-			else
-				cv->gain = m;
-		}
+		return 1;
 	}
-
-
-	m = ifMacro(r, 'R');
-	if (m != -1 && m%16 != 0) // retrigger
+	return 0;
+}
+char gc(int m, channel *cv, row r)
+{
+	if (m != -1)
+	{
+		if (cv->pointer) /* only slide if a note is already playing */
+			cv->targetgain = m;
+		else
+			cv->gain = m;
+	}
+	return 0;
+}
+char Rc(int m, channel *cv, row r)
+{
+	if (m != -1 && m%16 != 0)
 	{
 		cv->rtrigpointer = cv->pointer;
 		cv->rtrigsamples = (p->s->spr / (m%16)) * ((m>>4) + 1);
@@ -371,30 +389,10 @@ void preprocessRow(channel *cv, row r)
 		else
 			cv->rtrigsamples = 0;
 	}
-
-	m = ifMacro(r, 'V');
-	if (m != -1) // vibrato
-		calcVibrato(cv, m);
-
-	/* type macros */
-	/* only 1 read per row */
-	uint8_t num;
-	m = -1;
-
-	if (isdigit(r.macroc[0]))
-	{ num = r.macroc[0] - 48; m = r.macrov[0]; }
-	else if (isdigit(r.macroc[1]))
-	{ num = r.macroc[1] - 48; m = r.macrov[1]; }
-
-	if (m != -1)
-	{
-		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-		if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].macro)
-			t->f[iv->type].macro(iv, cv, r, num, m);
-	}
-
-	/* waveshapers */
-	m = ifMacro(r, 'W');
+	return 0;
+}
+char Wc(int m, channel *cv, row r)
+{
 	if (m != -1)
 	{
 		switch (m>>4)
@@ -408,11 +406,63 @@ void preprocessRow(channel *cv, row r)
 			case 6: cv->signedunsigned = m%16; break;
 		}
 	}
+	return 0;
+}
+void preprocessRow(channel *cv, row r)
+{
+	char ret;
 
-	cv->r.macroc[0] = r.macroc[0];
-	cv->r.macrov[0] = r.macrov[0];
-	cv->r.macroc[1] = r.macroc[1];
-	cv->r.macrov[1] = r.macrov[1];
+	ifMacro(cv, r, 'B', &Bc); // bpm
+
+	ret = ifMacro(cv, r, 'C', &Cc); // cut
+	if (!ret && r.note)
+	{
+		ret = ifMacro(cv, r, 'P', &Pc);
+		if (!ret)
+		{
+			ret = ifMacro(cv, r, 'D', &Dc);
+			if (!ret)
+			{
+				ret = ifMacro(cv, r, 'd', &dc);
+				if (!ret) triggerNote(cv, r.note, r.inst);
+			}
+		}
+	}
+
+	/* gain */
+	if (cv->targetgain != -1)
+	{
+		cv->gain = cv->targetgain;
+		cv->targetgain = -1;
+	}
+	ret = ifMacro(cv, r, 'G', &Gc);
+	if (!ret)
+	{
+		ifMacro(cv, r, 'g', &gc);
+	}
+
+
+	ifMacro(cv, r, 'R', &Rc);
+
+	ifMacro(cv, r, 'V', &Vc);
+
+	/* type macros */
+	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+	for (int i = 0; i < cv->macroc; i++)
+	{
+		if (isdigit(r.macro[i].c))
+		{
+			int m = r.macro[i].v;
+			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].macro)
+				t->f[iv->type].macro(iv, cv, r, r.macro[i].c - 48, m);
+		}
+	}
+
+	/* waveshapers */
+	ifMacro(cv, r, 'W', &Wc);
+
+	for (int i = 0; i < cv->macroc; i++)
+		cv->r.macro[i] = r.macro[i];
 }
 
 int process(jack_nframes_t nfptr, void *arg)
@@ -621,7 +671,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			if (p->s->songr++ >= p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowc)
 			{
 				p->s->songr = 0;
-				if (p->w->songfx == p->s->songp && !(w->popup == 0 && w->mode != 0))
+				if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
 					p->w->trackerfy = 0;
 				p->dirty = 1;
 				
@@ -634,8 +684,8 @@ int process(jack_nframes_t nfptr, void *arg)
 
 				if (p->w->songnext)
 				{
-					if (p->w->songfx == p->s->songp && !(w->popup == 0 && w->mode != 0))
-						p->w->songfx = p->w->songnext - 1;
+					if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
+						p->w->songfy = p->w->songnext - 1;
 					p->dirty = 1;
 
 					p->s->songp = p->w->songnext - 1;
@@ -653,22 +703,22 @@ int process(jack_nframes_t nfptr, void *arg)
 							break;
 						}
 
-					if (p->w->songfx == p->s->songp && !(w->popup == 0 && w->mode != 0))
-						p->w->songfx = blockstart;
+					if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
+						p->w->songfy = blockstart;
 					p->dirty = 1;
 
 					p->s->songp = blockstart;
 				} else
 				{
-					if (p->w->songfx == p->s->songp && !(w->popup == 0 && w->mode != 0))
-						p->w->songfx++;
+					if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
+						p->w->songfy++;
 					p->dirty = 1;
 
 					p->s->songp++;
 				}
 			} else
 			{
-				if (p->w->songfx == p->s->songp && !(w->popup == 0 && w->mode != 0))
+				if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
 					p->w->trackerfy = p->s->songr;
 				p->dirty = 1;
 			}

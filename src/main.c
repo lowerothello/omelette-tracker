@@ -32,7 +32,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 70;
+const unsigned char MINOR = 80;
 
 
 jack_nframes_t samplerate;
@@ -43,8 +43,6 @@ struct termios term, origterm;
 int fl;
 
 #define LINENO_COLS 5
-#define ROW_COLS 17
-#define ROW_FIELDS 6
 #define SONG_COLS 5
 
 /* main ramp buffer */
@@ -52,9 +50,12 @@ int fl;
 #define INSTRUMENT_TYPE_COUNT 2
 #define MIN_EFFECT_INDEX 0
 
-#define INSTRUMENT_BODY_COLS 68
-#define INSTRUMENT_BODY_ROWS 21
+#define INSTRUMENT_BODY_COLS 70
+#define INSTRUMENT_BODY_ROWS 20
 #define INSTRUMENT_TYPE_ROWS 14
+
+#define CHANNEL_ROW 4
+#define BORDER 2
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
 
@@ -69,6 +70,7 @@ int DEBUG;
 /* prototypes */
 int changeDirectory(void);
 void redraw(void);
+void resize(int);
 void startPlayback(void);
 void stopPlayback(void);
 
@@ -78,12 +80,13 @@ void stopPlayback(void);
 #include "dsp.c"
 #include "structures.c"
 
-int ifMacro(row, char);
+// int ifMacro(row, char, void (*)(int));
 
 #include "input.c"
 #include "instrument.c"
 #include "filebrowser.c"
 #include "tracker.c"
+#include "song.c"
 #include "process.c"
 
 jack_client_t *client;
@@ -130,6 +133,7 @@ void redraw(void)
 		case 0: drawTracker(); break;
 		case 1: drawInstrument(); break;
 		case 2: drawFilebrowser(); break;
+		case 3: drawSong(); break;
 	}
 	drawCommand(&w->command, w->mode);
 
@@ -140,14 +144,14 @@ void filebrowserEditCallback(char *path)
 {
 	strcpy(w->newfilename, path);
 	p->lock = PLAY_LOCK_START;
-	w->songfx = 0;
+	w->songfy = 0;
 }
 void commandTabCallback(char *text)
 {
 	char *buffer = malloc(strlen(text) + 1);
 	wordSplit(buffer, text, 0);
 	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
-	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows 0x%02x", s->patternv[s->patterni[s->songi[w->songfx]]]->rowc);
+	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows 0x%02x", s->patternv[s->patterni[s->songi[w->songfy]]]->rowc);
 	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight 0x%02x", s->rowhighlight);
 	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step 0x%x", w->step);
 	else if (!strcmp(buffer, "octave")) snprintf(text, COMMAND_LENGTH + 1, "octave %d", w->octave);
@@ -176,7 +180,7 @@ int commandCallback(char *command, unsigned char *mode)
 		{
 			strcpy(w->newfilename, buffer);
 			p->lock = PLAY_LOCK_START;
-			w->songfx = 0;
+			w->songfy = 0;
 		}
 	} else if (!strcmp(buffer, "bpm"))
 	{
@@ -188,7 +192,7 @@ int commandCallback(char *command, unsigned char *mode)
 	} else if (!strcmp(buffer, "rows")) /* pattern length */
 	{
 		wordSplit(buffer, command, 1);
-		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfy]]];
 		pattern->rowc = strtol(buffer, NULL, 16);
 		w->defpatternlength = pattern->rowc;
 		if (w->trackerfy > pattern->rowc)
@@ -214,11 +218,14 @@ int commandCallback(char *command, unsigned char *mode)
 
 void startPlayback(void)
 {
-	s->songp = w->songfx;
-	s->songr = 0;
-	if (!(w->popup == 0 && w->mode != 0))
-		w->trackerfy = 0;
-	s->playing = PLAYING_START;
+	if (s->patterni[s->songi[w->songfy]])
+	{
+		s->songp = w->songfy;
+		s->songr = 0;
+		if (!(w->popup == 0 && w->mode != 0))
+			w->trackerfy = 0;
+		s->playing = PLAYING_START;
+	} else strcpy(w->command.error, "failed to start playback, invalid pattern selected");
 	redraw();
 }
 void stopPlayback(void)
@@ -259,9 +266,10 @@ int input(void)
 			redraw();
 		} else switch (w->popup)
 		{
-			case 0: trackerInput(input);     break;
-			case 1: instrumentInput(input);  break;
-			case 2: filebrowserInput(input);  break;
+			case 0: trackerInput(input); break;
+			case 1: instrumentInput(input); break;
+			case 2: filebrowserInput(input); break;
+			case 3: songInput(input); break;
 		}
 	}
 	return 0;
@@ -312,16 +320,13 @@ int changeDirectory(void)
 void resize(int)
 {
 	ioctl(1, TIOCGWINSZ, &ws);
-	w->visiblechannels =          (ws.ws_col - LINENO_COLS - 2) / ROW_COLS;
-	w->trackercelloffset =       ((ws.ws_col - LINENO_COLS - 2) % ROW_COLS) / 2 + 1;
+	// w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 7;
 	w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
-	// w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) + 2;
 	w->instrumentrowoffset =      (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
-	w->songvisible =               ws.ws_col / SONG_COLS;
-	w->songcelloffset =           (ws.ws_col % SONG_COLS) / 2 + 1;
 	w->centre =                    ws.ws_row / 2;
+
 	redraw();
-	signal(SIGWINCH, &resize); /* not sure why this needs to be redefined every time */
+	signal(SIGWINCH, &resize); /* not sure why this needs to be redefined every time sometimes */
 }
 
 void common_cleanup(int ret)

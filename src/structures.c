@@ -2,10 +2,14 @@
 
 typedef struct
 {
+	char    c; /* command */
+	uint8_t v; /* argument */
+} macro;
+typedef struct
+{
 	uint8_t note;
 	uint8_t inst;
-	char    macroc[2]; /* command */
-	uint8_t macrov[2]; /* argument */
+	macro   macro[8];
 } row;
 typedef struct
 {
@@ -16,6 +20,8 @@ typedef struct
 typedef struct
 {
 	char      mute;                         /* saved to disk */
+	char      macroc;                       /* macro count */
+
 	uint32_t  pointer;                      /* progress through the sound */
 	uint32_t  pointeroffset;                /* where to base pointer off of */
 	uint32_t  releasepointer;               /* 0 for no release, where releasing started */
@@ -88,7 +94,7 @@ typedef struct
 	uint8_t         songi[256];              /* song list backref, links to patterns */
 	uint8_t         songf[256];              /* song list flags */
 
-	uint8_t         songp;                   /* song pos, analogous to window->songfx */
+	uint8_t         songp;                   /* song pos, analogous to window->songfy */
 	short           songr;                   /* song row, analogous to window->trackerfy */
 
 	uint8_t         rowhighlight;
@@ -145,10 +151,10 @@ typedef struct
 	short          trackerfy, trackerfx;
 	short          visualfy, visualfx;
 	uint8_t        visualchannel;
-	unsigned short trackercelloffset;
 	short          instrumentindex;
 	uint8_t        instrument;                   /* focused instrument */
 	unsigned short instrumentcelloffset;
+	unsigned short instrumentrowoffset;
 
 	unsigned short mousey, mousex;
 
@@ -161,11 +167,7 @@ typedef struct
 	unsigned char  dircols;
 	DIR           *dir;
 
-	uint8_t        songfx;
-	uint8_t        songoffset, songvisible;
-	unsigned short songcelloffset;
-
-	unsigned short instrumentrowoffset;
+	short          songfy, songfx;
 
 	char           octave;
 	uint8_t        step;
@@ -260,6 +262,7 @@ void _addChannel(channel *cv)
 }
 int addChannel(song *cs, uint8_t index)
 {
+	if (cs->channelc >= 63) return 1;
 	_addChannel(&cs->channelv[cs->channelc]); /* allocate memory */
 	if (cs->channelc > 0) /* contiguity */
 		for (uint8_t i = cs->channelc; i >= index; i--)
@@ -269,14 +272,17 @@ int addChannel(song *cs, uint8_t index)
 					cs->patternv[p]->rowv[i],
 					sizeof(row) * 256);
 			cs->channelv[i + 1].mute = cs->channelv[i].mute;
+			cs->channelv[i + 1].macroc = cs->channelv[i].macroc;
 		}
 
 	cs->channelv[index].mute = 0;
+	cs->channelv[index].macroc = 2;
 
 	for (uint8_t p = 1; p < cs->patternc; p++)
 	{
 		memset(cs->patternv[p]->rowv[index], 0, sizeof(row) * 256);
-		for (short r = 0; r < 256; r++) cs->patternv[p]->rowv[index][r].inst = 255;
+		for (short r = 0; r < 256; r++)
+			cs->patternv[p]->rowv[index][r].inst = 255;
 	}
 
 	cs->channelc++;
@@ -309,6 +315,7 @@ int delChannel(uint8_t index)
 				s->patternv[p]->rowv[0][r].inst = 255;
 		}
 		s->channelv[s->channelc].mute = 0;
+		s->channelv[s->channelc].macroc = 2;
 	} else
 	{
 		_delChannel(s, index);
@@ -324,6 +331,9 @@ int delChannel(uint8_t index)
 				sizeof(channel));
 		}
 		s->channelc--;
+
+		if (w->channeloffset)
+			w->channeloffset--;
 	}
 	return 0;
 }
@@ -446,25 +456,19 @@ int delPattern(uint8_t index)
 
 short tfxToVfx(short trackerfx)
 {
-	switch (trackerfx)
-	{
-		case 2: case 3: return 2;
-		case 4: case 5: return 3;
-	}
+	if (trackerfx > 1)
+		return 2 + (trackerfx - 2) / 2;
 	return trackerfx;
 }
 short vfxToTfx(short visualfx)
 {
-	switch (visualfx)
-	{
-		case 2: return 2;
-		case 3: return 4;
-	}
+	if (visualfx > 1)
+		return 2 + (visualfx - 2) * 2;
 	return visualfx;
 }
 void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	memcpy(&w->patternbuffer, s->patternv[s->patterni[s->songi[w->songfx]]], sizeof(pattern));
+	memcpy(&w->patternbuffer, s->patternv[s->patterni[s->songi[w->songfy]]], sizeof(pattern));
 	w->pbfx[0] = x1;
 	w->pbfx[1] = x2;
 	w->pbfy[0] = y1;
@@ -476,7 +480,7 @@ void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 void putPartPattern(void)
 {
 	if (!w->pbpopulated) return;
-	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
 	if (w->pbchannel[0] == w->pbchannel[1]) /* only one channel */
 	{
 		if ((w->pbfx[0] == 2 && w->pbfx[1] == 2) || (w->pbfx[0] == 3 && w->pbfx[1] == 3)) /* just one macro column */
@@ -490,8 +494,8 @@ void putPartPattern(void)
 				uint8_t row = w->trackerfy + j - w->pbfy[0];
 				if (row <= destpattern->rowc)
 				{
-					destpattern->rowv[w->channel][row].macroc[targetmacro] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[w->pbfx[0] - 2];
-					destpattern->rowv[w->channel][row].macrov[targetmacro] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[w->pbfx[0] - 2];
+					destpattern->rowv[w->channel][row].macro[targetmacro].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0] - 2].c;
+					destpattern->rowv[w->channel][row].macro[targetmacro].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0] - 2].v;
 				} else break;
 			}
 			w->trackerfx = vfxToTfx(targetmacro + 2);
@@ -506,13 +510,13 @@ void putPartPattern(void)
 					if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
 					if (w->pbfx[0] <= 2 && w->pbfx[1] >= 2)
 					{
-						destpattern->rowv[w->channel][row].macroc[0] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[0];
-						destpattern->rowv[w->channel][row].macrov[0] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[0];
+						destpattern->rowv[w->channel][row].macro[0].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[0].c;
+						destpattern->rowv[w->channel][row].macro[0].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[0].v;
 					}
 					if (w->pbfx[0] <= 3 && w->pbfx[1] >= 3)
 					{
-						destpattern->rowv[w->channel][row].macroc[1] = w->patternbuffer.rowv[w->pbchannel[0]][j].macroc[1];
-						destpattern->rowv[w->channel][row].macrov[1] = w->patternbuffer.rowv[w->pbchannel[0]][j].macrov[1];
+						destpattern->rowv[w->channel][row].macro[1].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[1].c;
+						destpattern->rowv[w->channel][row].macro[1].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[1].v;
 					}
 				} else break;
 			}
@@ -536,13 +540,13 @@ void putPartPattern(void)
 							if (w->pbfx[0] <= 1) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
 							if (w->pbfx[0] <= 2)
 							{
-								destpattern->rowv[channel][row].macroc[0] = w->patternbuffer.rowv[i][j].macroc[0];
-								destpattern->rowv[channel][row].macrov[0] = w->patternbuffer.rowv[i][j].macrov[0];
+								destpattern->rowv[channel][row].macro[0].c = w->patternbuffer.rowv[i][j].macro[0].c;
+								destpattern->rowv[channel][row].macro[0].v = w->patternbuffer.rowv[i][j].macro[0].v;
 							}
 							if (w->pbfx[0] <= 3)
 							{
-								destpattern->rowv[channel][row].macroc[1] = w->patternbuffer.rowv[i][j].macroc[1];
-								destpattern->rowv[channel][row].macrov[1] = w->patternbuffer.rowv[i][j].macrov[1];
+								destpattern->rowv[channel][row].macro[1].c = w->patternbuffer.rowv[i][j].macro[1].c;
+								destpattern->rowv[channel][row].macro[1].v = w->patternbuffer.rowv[i][j].macro[1].v;
 							}
 						} else if (i == w->pbchannel[1]) /* last channel */
 						{
@@ -550,13 +554,13 @@ void putPartPattern(void)
 							if (w->pbfx[1] >= 1) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
 							if (w->pbfx[1] >= 2)
 							{
-								destpattern->rowv[channel][row].macroc[0] = w->patternbuffer.rowv[i][j].macroc[0];
-								destpattern->rowv[channel][row].macrov[0] = w->patternbuffer.rowv[i][j].macrov[0];
+								destpattern->rowv[channel][row].macro[0].c = w->patternbuffer.rowv[i][j].macro[0].c;
+								destpattern->rowv[channel][row].macro[0].v = w->patternbuffer.rowv[i][j].macro[0].v;
 							}
 							if (w->pbfx[1] >= 3)
 							{
-								destpattern->rowv[channel][row].macroc[1] = w->patternbuffer.rowv[i][j].macroc[1];
-								destpattern->rowv[channel][row].macrov[1] = w->patternbuffer.rowv[i][j].macrov[1];
+								destpattern->rowv[channel][row].macro[1].c = w->patternbuffer.rowv[i][j].macro[1].c;
+								destpattern->rowv[channel][row].macro[1].v = w->patternbuffer.rowv[i][j].macro[1].v;
 							}
 						} else /* middle channel */
 							destpattern->rowv[channel][row] = w->patternbuffer.rowv[i][j];
@@ -569,7 +573,7 @@ void putPartPattern(void)
 }
 void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
 	if (c1 == c2) /* only one channel */
 	{
 		for (uint8_t j = y1; j <= y2; j++)
@@ -580,13 +584,13 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 				if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][j].inst = 255;
 				if (x1 <= 2 && x2 >= 2)
 				{
-					destpattern->rowv[c1][j].macroc[0] = 0;
-					destpattern->rowv[c1][j].macrov[0] = 0;
+					destpattern->rowv[c1][j].macro[0].c = 0;
+					destpattern->rowv[c1][j].macro[0].v = 0;
 				}
 				if (x1 <= 3 && x2 >= 3)
 				{
-					destpattern->rowv[c1][j].macroc[1] = 0;
-					destpattern->rowv[c1][j].macrov[1] = 0;
+					destpattern->rowv[c1][j].macro[1].c = 0;
+					destpattern->rowv[c1][j].macro[1].v = 0;
 				}
 			} else break;
 		}
@@ -605,13 +609,13 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 							if (x1 <= 1) destpattern->rowv[i][j].inst = 255;
 							if (x1 <= 2)
 							{
-								destpattern->rowv[i][j].macroc[0] = 0;
-								destpattern->rowv[i][j].macrov[0] = 0;
+								destpattern->rowv[i][j].macro[0].c = 0;
+								destpattern->rowv[i][j].macro[0].v = 0;
 							}
 							if (x1 <= 3)
 							{
-								destpattern->rowv[i][j].macroc[1] = 0;
-								destpattern->rowv[i][j].macrov[1] = 0;
+								destpattern->rowv[i][j].macro[1].c = 0;
+								destpattern->rowv[i][j].macro[1].v = 0;
 							}
 						} else if (i == c2) /* last channel */
 						{
@@ -619,13 +623,13 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 							if (x2 >= 1) destpattern->rowv[i][j].inst = 255;
 							if (x2 >= 2)
 							{
-								destpattern->rowv[i][j].macroc[0] = 0;
-								destpattern->rowv[i][j].macrov[0] = 0;
+								destpattern->rowv[i][j].macro[0].c = 0;
+								destpattern->rowv[i][j].macro[0].v = 0;
 							}
 							if (x2 >= 3)
 							{
-								destpattern->rowv[i][j].macroc[1] = 0;
-								destpattern->rowv[i][j].macrov[1] = 0;
+								destpattern->rowv[i][j].macro[1].c = 0;
+								destpattern->rowv[i][j].macro[1].v = 0;
 							}
 						} else /* middle channel */
 						{
@@ -639,7 +643,7 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 }
 void addPartPattern(signed char value, short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfx]]];
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
 	if (c1 == c2) /* only one channel */
 	{
 		for (uint8_t j = y1; j <= y2; j++)
@@ -648,8 +652,8 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 			{
 				if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][j].note += value;
 				if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][j].inst += value;
-				if (x1 <= 2 && x2 >= 2) destpattern->rowv[c1][j].macrov[0] += value;
-				if (x1 <= 3 && x2 >= 3) destpattern->rowv[c1][j].macrov[1] += value;
+				if (x1 <= 2 && x2 >= 2) destpattern->rowv[c1][j].macro[0].v += value;
+				if (x1 <= 3 && x2 >= 3) destpattern->rowv[c1][j].macro[1].v += value;
 			} else break;
 		}
 	} else
@@ -665,21 +669,21 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 						{
 							if (x1 <= 0) destpattern->rowv[i][j].note += value;
 							if (x1 <= 1) destpattern->rowv[i][j].inst += value;
-							if (x1 <= 2) destpattern->rowv[i][j].macrov[0] += value;
-							if (x1 <= 3) destpattern->rowv[i][j].macrov[1] += value;
+							if (x1 <= 2) destpattern->rowv[i][j].macro[0].v += value;
+							if (x1 <= 3) destpattern->rowv[i][j].macro[1].v += value;
 						} else if (i == c2) /* last channel */
 						{
 							if (x2 >= 0) destpattern->rowv[i][j].note += value;
 							if (x2 >= 1) destpattern->rowv[i][j].inst += value;
-							if (x2 >= 2) destpattern->rowv[i][j].macrov[0] += value;
-							if (x2 >= 3) destpattern->rowv[i][j].macrov[1] += value;
+							if (x2 >= 2) destpattern->rowv[i][j].macro[0].v += value;
+							if (x2 >= 3) destpattern->rowv[i][j].macro[1].v += value;
 						} else /* middle channel */
 						{
 							destpattern->rowv[i][j].inst += value;
 							destpattern->rowv[i][j].note += value;
 							destpattern->rowv[i][j].inst += value;
-							destpattern->rowv[i][j].macrov[0] += value;
-							destpattern->rowv[i][j].macrov[1] += value;
+							destpattern->rowv[i][j].macro[0].v += value;
+							destpattern->rowv[i][j].macro[1].v += value;
 						}
 					} else break;
 				}
@@ -1165,7 +1169,7 @@ int writeSong(char *path)
 	} else strcpy(w->filepath, pathext);
 
 	FILE *fp = fopen(pathext, "wb");
-	int i, j, k;
+	int i, j, k, l;
 
 	/* egg, for each and every trying time (the most important) */
 	fputc('e', fp);
@@ -1177,7 +1181,7 @@ int writeSong(char *path)
 	fputc(MINOR, fp);
 
 	/* counts */
-	fwrite(&s->songbpm, sizeof(uint8_t), 1, fp);
+	fputc(s->songbpm, fp);
 	fputc(s->patternc, fp);
 	fputc(s->instrumentc, fp);
 	fputc(s->channelc, fp);
@@ -1198,6 +1202,8 @@ int writeSong(char *path)
 		if (s->channelv[i * 8 + 7].mute) byte |= 0b00000001;
 		fputc(byte, fp);
 	}
+	for (i = 0; i < s->channelc; i++)
+		fputc(s->channelv[i].macroc, fp);
 
 	/* songi */
 	for (i = 0; i < 256; i++)
@@ -1217,15 +1223,19 @@ int writeSong(char *path)
 	{
 		fputc(s->patternv[i]->rowc, fp);
 		for (j = 0; j < s->channelc; j++)
+		{
+			char macroc = s->channelv[j].macroc;
 			for (k = 0; k < s->patternv[i]->rowc + 1; k++)
 			{
 				fputc(s->patternv[i]->rowv[j][k].note, fp);
 				fputc(s->patternv[i]->rowv[j][k].inst, fp);
-				fputc(s->patternv[i]->rowv[j][k].macroc[0], fp);
-				fputc(s->patternv[i]->rowv[j][k].macroc[1], fp);
-				fputc(s->patternv[i]->rowv[j][k].macrov[0], fp);
-				fputc(s->patternv[i]->rowv[j][k].macrov[1], fp);
+				for (l = 0; l < macroc; l++)
+				{
+					fputc(s->patternv[i]->rowv[j][k].macro[l].c, fp);
+					fputc(s->patternv[i]->rowv[j][k].macro[l].v, fp);
+				}
 			}
+		}
 	}
 
 	/* instrumentv */
@@ -1267,7 +1277,7 @@ song *readSong(char *path)
 		return NULL;
 	}
 
-	int i, j, k;
+	int i, j, k, l;
 
 	/* ensure egg wasn't broken in transit */
 	/* the most important check */
@@ -1293,7 +1303,7 @@ song *readSong(char *path)
 	unsigned char fileminor = fgetc(fp);
 
 	/* counts */
-	fread(&cs->songbpm, sizeof(uint8_t), 1, fp);
+	cs->songbpm = fgetc(fp);
 	w->request = REQ_BPM;
 
 	cs->patternc = fgetc(fp);
@@ -1316,8 +1326,9 @@ song *readSong(char *path)
 		if (byte & 0b00000100) cs->channelv[i * 8 + 5].mute = 1;
 		if (byte & 0b00000010) cs->channelv[i * 8 + 6].mute = 1;
 		if (byte & 0b00000001) cs->channelv[i * 8 + 7].mute = 1;
-		fputc(byte, fp);
 	}
+	for (i = 0; i < cs->channelc; i++)
+		cs->channelv[i].macroc = fgetc(fp);
 
 	/* songi */
 	for (i = 0; i < 256; i++)
@@ -1338,15 +1349,19 @@ song *readSong(char *path)
 		_addPattern(cs, i);
 		cs->patternv[i]->rowc = fgetc(fp);
 		for (j = 0; j < cs->channelc; j++)
+		{
+			char macroc = cs->channelv[j].macroc;
 			for (k = 0; k < cs->patternv[i]->rowc + 1; k++)
 			{
 				cs->patternv[i]->rowv[j][k].note = fgetc(fp);
 				cs->patternv[i]->rowv[j][k].inst = fgetc(fp);
-				cs->patternv[i]->rowv[j][k].macroc[0] = fgetc(fp);
-				cs->patternv[i]->rowv[j][k].macroc[1] = fgetc(fp);
-				cs->patternv[i]->rowv[j][k].macrov[0] = fgetc(fp);
-				cs->patternv[i]->rowv[j][k].macrov[1] = fgetc(fp);
+				for (l = 0; l < macroc; l++)
+				{
+					cs->patternv[i]->rowv[j][k].macro[l].c = fgetc(fp);
+					cs->patternv[i]->rowv[j][k].macro[l].v = fgetc(fp);
+				}
 			}
+		}
 	}
 
 	/* instrumentv */

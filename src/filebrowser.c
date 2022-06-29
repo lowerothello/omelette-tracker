@@ -103,7 +103,7 @@ int getSubdir(char *newpath)
 	return 0; /* fail case, reachable only for empty dirs i think? idk */
 }
 
-int filebrowserInput(int input)
+void filebrowserInput(int input)
 {
 	switch (input)
 	{
@@ -142,8 +142,12 @@ int filebrowserInput(int input)
 					switch (getchar())
 					{
 						case 'P':
-							w->popup = 0;
 							w->instrumentindex = 0;
+							w->popup = 0;
+							w->mode = 0;
+							break;
+						case 'Q':
+							w->popup = 3;
 							w->mode = 0;
 							break;
 					}
@@ -374,5 +378,4 @@ int filebrowserInput(int input)
 			}
 			break;
 	}
-	return 0;
 }

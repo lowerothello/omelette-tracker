@@ -38,32 +38,29 @@ void drawRecordSource(uint8_t source, unsigned short y, unsigned short x, char a
 
 void drawInstrument(void)
 {
+	printf("\033[%d;%dH\033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
+
 	switch (w->mode)
 	{
 		case 1:
 			printf("\033[%d;0H\033[1m-- PREVIEW --\033[m", ws.ws_row);
-			printf("\033[3 q");
-			w->command.error[0] = '\0';
+			printf("\033[3 q"); w->command.error[0] = '\0';
 			break;
 		case 2:
 			printf("\033[%d;0H\033[1m-- ADJUST --\033[m", ws.ws_row);
-			printf("\033[0 q");
-			w->command.error[0] = '\0';
+			printf("\033[0 q"); w->command.error[0] = '\0';
 			break;
 		case 3:
 			printf("\033[%d;0H\033[1m-- PREVIEW ADJUST --\033[m", ws.ws_row);
-			printf("\033[0 q");
-			w->command.error[0] = '\0';
+			printf("\033[0 q"); w->command.error[0] = '\0';
 			break;
 		case 4:
 			printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m", ws.ws_row);
-			printf("\033[0 q");
-			w->command.error[0] = '\0';
+			printf("\033[0 q"); w->command.error[0] = '\0';
 			break;
 		case 5:
 			printf("\033[%d;0H\033[1m-- PREVIEW MOUSE ADJUST --\033[m", ws.ws_row);
-			printf("\033[0 q");
-			w->command.error[0] = '\0';
+			printf("\033[0 q"); w->command.error[0] = '\0';
 			break;
 		default:
 			printf("\033[0 q");
@@ -73,11 +70,29 @@ void drawInstrument(void)
 	unsigned short x = w->instrumentcelloffset;
 	unsigned short y = w->instrumentrowoffset;
 
+	/* for (int i = 0; i < 255; i++)
+	{
+		if (w->centre - w->instrument + i > CHANNEL_ROW
+				&& w->centre - w->instrument + i < ws.ws_row)
+		{
+			printf("\033[%d;%dH%02x", w->centre - w->instrument + i, x - 10, i);
+			if (s->rowhighlight && !(i % s->rowhighlight))
+				printf(" * ");
+			else
+				printf("   ");
+
+			if (!s->instrumenti[i])
+				printf(".. ..");
+			else
+				printf("%02x %02x", s->instrumentv[s->instrumenti[i]]->type, s->instrumentv[s->instrumenti[i]]->defgain);
+		}
+	} */
+
 	printf("\033[%d;%dH  <- INSTRUMENT (%02x) ->  ", y+0, x+(INSTRUMENT_BODY_COLS-26) / 2, w->instrument);
-	if (s->instrumenti[w->instrument] == 0)
+	if (!s->instrumenti[w->instrument])
 	{
 		printf("\033[%d;%dH(not added)", y+2, x+(INSTRUMENT_BODY_COLS-12) / 2);
-		printf("\033[%d;%dH", y, x+32);
+		printf("\033[%d;%dH", y+0, x+(INSTRUMENT_BODY_COLS-16) / 2);
 	} else
 	{
 		instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -91,20 +106,20 @@ void drawInstrument(void)
 		drawBit(w->recordflags & 0b10);
 		drawRecordSource(w->recordsource, y+2, x+INSTRUMENT_BODY_COLS-13, w->instrumentindex == MIN_INSTRUMENT_INDEX + 3 && w->mode > 1 && w->mode < 255);
 
-		printf("\033[%d;%dH┌\033[%d;%dH┐", y+5,x+1, y+5,x+INSTRUMENT_BODY_COLS-2);
+		/* printf("\033[%d;%dH┌\033[%d;%dH┐", y+5,x+1, y+5,x+INSTRUMENT_BODY_COLS-2);
 		printf("\033[%d;%dH└\033[%d;%dH┘", y+6+INSTRUMENT_TYPE_ROWS,x+1, y+6+INSTRUMENT_TYPE_ROWS,x+INSTRUMENT_BODY_COLS-2);
 		for (int i = 0; i < INSTRUMENT_BODY_COLS-4; i++)
 			printf("\033[%d;%dH─\033[%d;%dH─", y+5,x+2+i, y+6+INSTRUMENT_TYPE_ROWS, x+2+i);
 		for (int i = 0; i < INSTRUMENT_TYPE_ROWS; i++)
-			printf("\033[%d;%dH│\033[%d;%dH│", y+6+i,x+1, y+6+i,x+INSTRUMENT_BODY_COLS-2);
+			printf("\033[%d;%dH│\033[%d;%dH│", y+6+i,x+1, y+6+i,x+INSTRUMENT_BODY_COLS-2); */
 
 		if (iv->typefollow == iv->type
 				&& iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
 		{
 			if (w->mode > 1 && w->mode < 6)
-				t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+6, &w->instrumentindex, 1);
+				t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+7, &w->instrumentindex, 1);
 			else
-				t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+6, &w->instrumentindex, 0);
+				t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+7, &w->instrumentindex, 0);
 		}
 
 		switch (w->instrumentindex)
@@ -254,7 +269,7 @@ void instrumentAdjustRight(instrument *iv, short index, char mouse)
 	}
 }
 
-int instrumentInput(int input)
+void instrumentInput(int input)
 {
 	if (!s->instrumenti[w->instrument])
 		w->instrumentindex = MIN_INSTRUMENT_INDEX;
@@ -270,6 +285,11 @@ int instrumentInput(int input)
 						case 'P':
 							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 							w->popup = 0;
+							w->mode = 0;
+							break;
+						case 'Q':
+							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
+							w->popup = 3;
 							w->mode = 0;
 							break;
 					}
@@ -393,7 +413,7 @@ int instrumentInput(int input)
 									getchar(); /* extraneous tilde */
 									startPlayback();
 									break;
-								case '7': /* f6 (yes, f6 is '7'), stop */
+								case '7': /* f6, stop */
 									getchar(); /* extraneous tilde */
 									stopPlayback();
 									break;
@@ -505,7 +525,7 @@ int instrumentInput(int input)
 											if (!s->instrumenti[w->instrument]) break;
 											if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex)
 												t->f[iv->type].mouseToIndex(
-														y - w->instrumentrowoffset - 5,
+														y - w->instrumentrowoffset - 6,
 														x - w->instrumentcelloffset - (INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2,
 														button,
 														&w->instrumentindex);
@@ -781,6 +801,4 @@ int instrumentInput(int input)
 		redraw();
 	}
 i_afterchordunset:
-
-	return 0;
 }
