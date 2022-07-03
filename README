@@ -3,68 +3,14 @@ omelette tracker
 
 src/lib/libdrawille: https://github.com/huulivoide/libdrawille
 
-TODO: proper readme
 
+INSTALL:
+$ git submodule init
+$ git submodule update
+$ cd src/lib/libdrawille; cmake .; make; cd ../../..
+$ ./make 1
+$ ./omelette
 
-
-
-
-
-### dev notes ###
-TODO:
--> main
--> playback
-	^ test retrigger blocks
--> tracker
-	^ visual delete misses the bottom row of the selection
-	^ channel delete can fail to yank, not sure why
--> instruments
-	^ test retaining relative instrument params after processing
-	^ sample compression
-	^ change away from modal input (preview should always be bound)
-
-
-MACROS:
-BPM             - Bxx: set bpm to xx
-NOTE CUT        - Cxy: send a note cut at x/y through the row
-NOTE DELAY      - Dxy: start the note at x/y through the row, useful for non-4/4 timing
-FINE NOTE DELAY - dxx: start the note at xx/255 through the row, useful for comb filtering
-GAIN/PAN        - Gxy: x/y is the new gain for the left/right channel
-SMOOTH GAIN/PAN - gxy: like Gxy, but interpolated over the entire row
-PITCH SLIDE     - Pxx: xx is the slide speed, the note field sets the target
-RETRIGGER       - Rxy:
-					x is the number of rows the block continues past this row
-					y is the number of slices in the block
-					(y < 2) does nothing
-					->	will ratchet the current point in the sample
-						and continue as if nothing happened after the block
-VIBRATO         - Vxy: x is the speed, y is the depth
-
-
-
-
-Effect redesign:
-* use custom effects, lv2s are unportable
-* should be channelwise, not instrumentwise
-* all configuration should be done in the tracker, no additional dialogue box
-* changes should persist in channel memory
-* last parameter should always control a variant of "mix", 0 being completely off
-* channel effect ideas:
-	- ring mod        axy           x: rate        y: mix
-	- phaser (8pole)  pxy {MEMTIME} x: rate        y: mix
-	- reverb          vxy           x: tone        y: input mix
-	- saturation      sxy           x: input gain  y: mix
-	- wavefolder       xy           x: input gain  y: mix
-	- gate            gxy           x: speed       y: threshold
-	- low pass         xy {MEMFLTR} x: resonance   y: cutoff (0: highest, f: lowest)
-	- high pass        xy {MEMFLTR} x: resonance   y: cutoff (0: lowest, f: highest)
-	- band pass        xy {MEMFLTR} x: centre      y: width (0: wide, f: narrow)
-	- sidechain        xy           x: channel     y: input gain
-	- vocoder          xy           x: channel     y: mix
-	- autopan          xy           x: rate        y: width
-
-glossary:
-*channel = a channel index to pull sample data from, only channels 0-15 are indexable
 
 
 
