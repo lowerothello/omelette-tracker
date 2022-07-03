@@ -1,47 +1,90 @@
 STAGING DESIGNS
-┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
-│                                                             RECORD           │
-│   type   [00]                                     record source   [ line in] │
-│   fader  [88]                                     only loop back cursor  [ ] │
-│                                                   gate the next pattern  [ ] │
-│┌──────────────────────────────── [sampler] ─────────────────────────────────┐│
-││                                                                            ││
-││                     GENERAL        │    TRIM         LOOP                  ││
-││              C-5 rate   [00000000] │ [00000000]   [00000000]               ││
-││              mono/rate     [ ][ff] │ [00000000]   [00000000]               ││
-││              phase/8-bit    [ ][ ] │   00->ff       00->00                 ││
-││              timestretch tempo [ ] │ reverse playback    [ ]               ││
-││              ──────────────────────┤ loop ramping        [X] <             ││
-││                    AMPLIFIER       ├────────────────────────               ││
-││              attack           [00] │       TIMESTRETCH                     ││
-││              decay            [00] │ quantize cycles     [ ] <             ││
-││              sustain          [ff] │ cycle length     [06ff]               ││
-││              release          [00] │ formant shift      [80]               ││
-││              gain             [80] │  " cycle length  [00ff]               ││
-││                                                                            ││
-│└────────────────────────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────────────────┘
-┌──────────────────────────  <- INSTRUMENT (00) ->  ───────────────────────────┐
-│                                                             RECORD           │
-│   type   [01]                                     record source   [ line in] │
-│   fader  [88]                                     only loop back cursor  [ ] │
-│                                                   gate the next pattern  [ ] │
-│┌──────────────────────────── [virtual analogue] ────────────────────────────┐│
-││                                                                            ││
-││       OSCILLATOR1   [80]             FILTER           │  AMPLIFIER         ││
-││       waveform   [  tri]   cutoff  [ff]  attack  [00] │ attack  [00]       ││
-││       fm/ringmod [00][ ]   reso    [00]  decay   [00] │ decay   [00]       ││
-││       sync/lfo   [ ][00] > lfo     [00]  sustain [ff] │ sustain [ff]       ││
-││       ──────────────────   track   [00]  release [00] │ release [00]       ││
-││       OSCILLATOR2   [80]   high resonance (loud)  [ ] │ gain    [80] <     ││
-││       waveform   [  tri]   ───────────────────┬───────┴─────────────       ││
-││       detune [+0][0][7f]          LFO         │ NOISE           [00] <     ││
-││       track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00] <     ││
-││       ──────────────────   rate          [80] ├─────────────────────       ││
-││       SUB OSC   [-0][00]   pulse width   [00] │ UNISON           [0]       ││
-││       waveform   [pulse]                      │ detune/width [00][0]       ││
-││                                                                            ││
-│└────────────────────────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────────────────┘
+                       <- INSTRUMENT (00) ->                        
+                                                   RECORD           
+   type   [00]                           record source   [ line in] 
+   fader  [88]                           only loop back cursor  [ ] 
+                                         gate the next pattern  [ ] 
+┌─────────────────────────── [sampler] ────────────────────────────┐
+│                                                                  │
+│          [     NO SAMPLE     ] │    TRIM        LOOP             │
+│          C-5 rate   [00000000] │ [00000000]  [00000000]          │
+│          mono/rate     [ ][ff] │ [00000000]  [00000000]          │
+│          invert/8-bit   [ ][ ] │   00->ff      00->00            │
+│          gain             [80] │ reverse playback   [ ]          │
+│          ──────────────────────┤ loop crossfade    [00]          │
+│                 AMPLIFIER      │ ping-pong loop     [ ]          │
+│          attack           [00] ├───────────────────────          │
+│          decay            [00] │      TIMESTRETCH                │
+│          sustain          [ff] │ match tempo  [06ff][ ]          │
+│          release          [00] │ pitch shift [06ff][80]          │
+│                                │                                 │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+
+
+                       <- INSTRUMENT (00) ->                        
+                                                   RECORD           
+   type   [01]                           record source   [ line in] 
+   fader  [88]                           only loop back cursor  [ ] 
+                                         gate the next pattern  [ ] 
+┌─────────────────────── [virtual analogue] ───────────────────────┐
+│                                                                  │
+│  OSCILLATOR1   [80]             FILTER           │  AMPLIFIER    │
+│  waveform   [  tri]   cutoff  [ff]  attack  [00] │ attack  [00]  │
+│  fm/ringmod [00][ ]   reso    [00]  decay   [00] │ decay   [00]  │
+│  sync/lfo   [ ][00]  >lfo     [00]  sustain [ff] │ sustain [ff]  │
+│  ──────────────────   track   [00]  release [00] │ release [00]  │
+│  OSCILLATOR2   [80]   high resonance (loud)  [ ] │ gain    [80]< │
+│  waveform   [  tri]   ───────────────────┬───────┴─────────────  │
+│  detune [+0][0][7f]          LFO         │ NOISE           [00]< │
+│  track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]< │
+│  ──────────────────   rate          [80] ├─────────────────────  │
+│  SUB OSC   [-0][00]   pulse width   [00] │ UNISON           [0]  │
+│  waveform   [pulse]                      │ detune/width [00][0]  │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+
+
+00 * ... .. ... ... * ... .. ... ... *
+
+
+// collapse channels
+       CHANNEL 00     C01     CHANNEL 02       CHANNEL 03
+00 * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
+01   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+02   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+03   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+04 * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
+05   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+06   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+07   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+08 * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
+09   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+0a   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+0b   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
+0c * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
+
+
+// wide instrument view
+                             ┌─────────────────────────── [sampler] ────────────────────────────┐
+    <- INSTRUMENT (00) ->    │                                                                  │
+                             │          [     NO SAMPLE     ] │    TRIM        LOOP             │
+                             │          C-5 rate   [00000000] │ [00000000]  [00000000]          │
+    type             [00]    │          mono/rate     [ ][ff] │ [00000000]  [00000000]          │
+    fader            [88]    │          invert/8-bit   [ ][ ] │   00->ff      00->00            │
+                             │          gain             [80] │ reverse playback   [ ]          │
+                             │          ──────────────────────┤ loop crossfade    [00]          │
+                             │                 AMPLIFIER      │ ping-pong loop     [ ]          │
+                             │          attack           [00] ├───────────────────────          │
+                             │          decay            [00] │      TIMESTRETCH                │
+          RECORDING          │          sustain          [ff] │ match tempo  [06ff][ ]          │
+  record source  [ line in]  │          release          [00] │ pitch shift [06ff][80]          │
+  only loop back cursor [ ]  │                                │                                 │
+  gate the next pattern [ ]  │                                                                  │
+                             └──────────────────────────────────────────────────────────────────┘
+
+
 
 vim: sidescrolloff=0

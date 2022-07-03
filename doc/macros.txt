@@ -1,0 +1,86 @@
+.-----------------.
+| MACRO REFERENCE |
+'-----------------'
+
+All the macros that are supported by omelette, and their semantics. Some macros
+are heavily inspired by other trackers, some are wholly original.
+	- Listed in alphabetical order.
+	- All arguments are in hexadecimal (base 16).
+	- Case is inverted, to input a lowercase macro hold shift.
+
+
+Bxx - BPM
+	set the bpm of the song to xx, values between 32 and 255 are allowed
+
+Cxy - FRACTIONAL NOTE CUT
+	send a note off x/y through the row
+
+Dxy - FRACTIONAL NOTE DELAY
+	wait until x/y through the row to trigger the note
+	only has any effect if a note is specified
+	useful for triplets and similar sub-row timing
+
+dxx - FINE NOTE DELAY
+	wait until xx/255 through the row to trigger the note
+	only has any effect if a note is specified
+	useful for precise delays and sequencer abuse, eg:
+		- comb filtering with a duplicate channel
+		- flanging, when combined with Vxy and a duplicate channel
+
+Gxy - STEREO GAIN
+	set the gain of the left channel to x/15
+	set the gain of the right channel to y/15
+	reset back to the instrument gain on each new note
+
+gxy - SMOOTH STEREO GAIN
+	slide the gain of the left channel to x/15 over the row
+	slide the gain of the right channel to y/15 over the row
+	reset back to the instrument gain on each new note
+
+Pxx - PITCH SLIDE
+	portamento to the note specified at speed xx
+	low xx values are slower
+
+Rxy - BLOCK RETRIGGER
+	retrigger y times over a block of size x rows
+	overridden by another Rxy macro if the block hasn't finished
+	won't restart the sample, \
+		will continue as if nothing happened at the end of the block
+
+txy - GATE
+	gate the signal aggressively, more of an effect than a noise gate
+	x is the strength of the effect (max reduction and speed)
+	y is the threshold
+
+Vxy - VIBRATO
+	modulate the pitch of the sample at speed x and depth y
+	lfo is hardcoded to a triangle wave
+	modulation goes both up and down
+	will NOT be overridden, \
+		will only read another Vxy macro only if the lfo has ended
+
+WAVESHAPERS (Wxy)
+W0x - HARD CLIPPER
+	clips off the tips of the signal
+	x is the input gain
+W1x - SOFT CLIPPER (smoothly add odd harmonics)
+	rounds off the tips of the signal
+	x is the input gain
+W2x - RECTIFIER (aggressively add even harmonics)
+	full-wave rectifies the signal
+	full mix will not play the fundamental since that is an odd harmonic
+	x is the mix
+W3x - RECTIFIERx2 (poor man's octaver)
+	full-wave rectifies the signal twice
+	full mix will not play the fundamental since that is an odd harmonic
+	x is the mix
+W4x - WAVEFOLDER
+	folds over the tips of the signal
+	x is the input gain
+W5x - WAVEWRAPPER
+	wraps the signal back to 0 when it crosses 1
+	x is the input gain
+W6x - SIGN CONVERSION
+	simulates reading an unsigned number as a signed number
+	adds a nasty DC offset, be careful!
+	x is the mix

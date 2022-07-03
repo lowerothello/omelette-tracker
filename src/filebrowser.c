@@ -1,12 +1,13 @@
 void drawFilebrowser(void)
 {
-	unsigned short x = w->instrumentcelloffset;
+	printf("\033[%d;%dH\033[1mFILEBROWSER\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
+
+	unsigned short x = w->instrumentcelloffset - 5;
 	unsigned short y = w->instrumentrowoffset;
-	printf(    "\033[%d;%dH┌──────────────────────────────────────────────────────────────────────────────┐", y+0, x);
+	/* printf(    "\033[%d;%dH┌──────────────────────────────────────────────────────────────────────────────┐", y+0, x);
 	for (int i = 1; i < INSTRUMENT_BODY_ROWS; i++)
 		printf("\033[%d;%dH│                                                                              │", y+i, x);
-	printf(    "\033[%d;%dH└──────────────────────────────────────────────────────────────────────────────┘", y+INSTRUMENT_BODY_ROWS, x);
-	printf("\033[%d;%dH  FILEBROWSER  ", y+0, x+32);
+	printf(    "\033[%d;%dH└──────────────────────────────────────────────────────────────────────────────┘", y+INSTRUMENT_BODY_ROWS, x); */
 
 	if (strlen(w->dirpath) > INSTRUMENT_BODY_COLS - 4)
 	{
@@ -186,10 +187,12 @@ void filebrowserInput(int input)
 							redraw();
 							break;
 						case '4': /* end */
-							getchar();
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-							w->instrumentindex = w->dirc - 1;
-							redraw();
+							if (getchar() == '~')
+							{
+								if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
+								w->instrumentindex = w->dirc - 1;
+								redraw();
+							}
 							break;
 						case '5': /* page up */
 							getchar();
@@ -219,8 +222,7 @@ void filebrowserInput(int input)
 								case ';': /* mod+arrow */
 									getchar();
 									break;
-							}
-							break;
+							} break;
 						case 'M': /* mouse */
 							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							int button = getchar();
@@ -241,9 +243,6 @@ void filebrowserInput(int input)
 								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL: /* release click */
 									w->instrumentindex += w->fyoffset * w->dircols;
 									w->fyoffset = 0;
-									/* leave adjust mode */
-									if (w->mode > 3) w->mode = w->mode - 4;
-									if (w->mode > 1) w->mode = w->mode - 2;
 									break;
 								case BUTTON1: case BUTTON3: case BUTTON1_CTRL: case BUTTON3_CTRL:
 									if (x < w->instrumentcelloffset
@@ -296,43 +295,40 @@ void filebrowserInput(int input)
 												} else w->instrumentindex = 0;
 												break;
 										}
-									}
-									break;
+									} break;
 							}
 							redraw();
 							break;
-					}
-					break;
+					} break;
 				default:
 					switch (w->mode)
 					{
-						case 0: case 2: case 4: /* leave the popup */
+						case 0: /* leave the popup */
 							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
+							// pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 							w->popup = 1;
 							w->instrumentindex = 0;
 							break;
-						case 1: case 3: case 5: /* leave preview */
-							w->mode--;
+						case 1: /* leave preview */
+							w->mode = 0;
 							break;
 					}
 					redraw();
 					break;
-			}
-			break;
+			} break;
 		default:
 			switch (w->mode)
 			{
-				case 0: case 2: case 4:
+				case 0:
 					switch (input)
 					{
 						case 'i': /* enter preview */
-							w->mode++;
+							w->mode = 1;
 							redraw();
 							break;
 					}
 					break;
-				case 1: case 3: case 5: /* preview */
+				case 1: /* preview */
 					switch (input)
 					{
 						case '0': w->octave = 0; break;
@@ -367,15 +363,13 @@ void filebrowserInput(int input)
 							}
 							if (w->previewsamplestatus == 1)
 							{
-								w->previewnote = charToNote(input, w->octave);
+								w->previewnote = charToNote(input);
 								w->previewchannel = w->channel;
 								w->previewinst = 255;
 								w->previewtrigger = 3; // trigger the preview sample
 							} */
 							break;
-					}
-					break;
-			}
-			break;
+					} break;
+			} break;
 	}
 }

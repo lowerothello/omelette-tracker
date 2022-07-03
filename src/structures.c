@@ -1,4 +1,5 @@
 #define MAX_VALUE_LEN 128
+#define MAX_CHANNELS 33 /* TODO: index 0 is unused */
 
 typedef struct
 {
@@ -14,8 +15,19 @@ typedef struct
 typedef struct
 {
 	uint8_t rowc;
-	row     rowv[64][256]; /* 64 channels, each with 256 rows */
+	row     rowv[MAX_CHANNELS][256]; /* MAX_CHANNELS channels, each with 256 rows */
 } pattern;
+
+typedef struct
+{
+	jack_port_t *l;
+	jack_port_t *r;
+} portpair;
+typedef struct
+{
+	sample_t *l;
+	sample_t *r;
+} portbufferpair;
 
 typedef struct
 {
@@ -42,6 +54,8 @@ typedef struct
 	char      vibrato;                      /* vibrato depth, 0-f */
 	uint32_t  vibratosamples;               /* samples per full phase walk */
 	uint32_t  vibratosamplepointer;         /* distance through cv->vibratosamples */
+	uint8_t   gate;                         /* gain m */
+	float     gateopen;
 
 	/* waveshapers */
 	char      softclip;
@@ -87,8 +101,8 @@ typedef struct
 	instrument     *instrumentv[256];        /* instrument values */
 
 	uint8_t         channelc;                /* channel count */
-	channel         channelv[64];            /* channel values */
-	row            *channelbuffer[64];       /* channel paste buffer */
+	channel         channelv[32];            /* channel values */
+	row            *channelbuffer[32];       /* channel paste buffer */
 	char            channelbuffermute;
 
 	uint8_t         songi[256];              /* song list backref, links to patterns */
@@ -114,7 +128,6 @@ song *s;
 #define INST_GLOBAL_LOCK_HIST 4      /* playback has stopped, restoring history */
 #define INST_GLOBAL_LOCK_PREP_PUT 5  /* playback unsafe, preparing to overwrite state */
 #define INST_GLOBAL_LOCK_PUT 6       /* playback has stopped, overwriting state */
-
 #define INST_REC_LOCK_OK 0          /* playback and most memory ops are safe */
 #define INST_REC_LOCK_START 1       /* playback and most memory ops are safe */
 #define INST_REC_LOCK_CONT 2        /* recording                             */
@@ -122,10 +135,8 @@ song *s;
 #define INST_REC_LOCK_END 4         /* stopping recording has finished       */
 #define INST_REC_LOCK_PREP_CANCEL 5 /* start cancelling recording            */
 #define INST_REC_LOCK_CANCEL 6      /* cancelling recording has finished     */
-
 #define REQ_OK 0  /* do nothing / done */
 #define REQ_BPM 1 /* re-apply the song bpm */
-
 typedef struct
 {
 	pattern        songbuffer;                   /* full pattern paste buffer, TODO: use */
@@ -167,14 +178,22 @@ typedef struct
 	unsigned char  dircols;
 	DIR           *dir;
 
+	Canvas        *waveformcanvas;
+	char         **waveformbuffer;
+	size_t         waveformw, waveformh;
+	uint32_t       waveformoffset;
+	uint32_t       waveformwidth;
+
 	short          songfy, songfx;
 
 	char           octave;
 	uint8_t        step;
+	char           keyboardmacro;
 
 	uint8_t        songnext;
 
 	uint8_t        previewnote, previewinst;
+	macro          previewmacro;
 	uint8_t        previewchannel;
 	instrument     previewinstrument;            /* used by the file browser */
 	char           previewtrigger;               /* 0:cut
@@ -201,6 +220,19 @@ typedef struct
 	char           newfilename[COMMAND_LENGTH];  /* used by readSong */
 } window;
 window *w;
+
+typedef struct
+{
+	song        *s;
+	window      *w;
+	portpair     in, out;
+	portpair     cin[MAX_CHANNELS];
+	portpair     cout[MAX_CHANNELS];
+	char         dirty;
+	char         lock;  /* PLAY_LOCK */
+} playbackinfo;
+playbackinfo *p;
+
 
 typedef struct
 {
@@ -255,15 +287,22 @@ void strrep(char *string, char *find, char *replace)
 
 
 
-void _addChannel(channel *cv)
+void _addChannel(song *cs, channel *cv)
 {
 	cv->rampindex = rampmax;
 	cv->rampbuffer = malloc(sizeof(sample_t) * rampmax * 2); /* *2 for stereo */
+	// jack_deactivate(client);
+	/* char buffer[16];
+	snprintf(buffer, 16, "channel%02d_inl", cs->channelc); p->cin[cs->channelc].l = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+	snprintf(buffer, 16, "channel%02d_inr", cs->channelc); p->cin[cs->channelc].r = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+	snprintf(buffer, 16, "channel%02d_outl", cs->channelc); p->cout[cs->channelc].l = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+	snprintf(buffer, 16, "channel%02d_outr", cs->channelc); p->cout[cs->channelc].r = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0); */
+	// jack_activate(client);
 }
 int addChannel(song *cs, uint8_t index)
 {
-	if (cs->channelc >= 63) return 1;
-	_addChannel(&cs->channelv[cs->channelc]); /* allocate memory */
+	if (cs->channelc >= MAX_CHANNELS-1) return 1;
+	_addChannel(cs, &cs->channelv[cs->channelc]); /* allocate memory */
 	if (cs->channelc > 0) /* contiguity */
 		for (uint8_t i = cs->channelc; i >= index; i--)
 		{
@@ -302,17 +341,16 @@ void _delChannel(song *cs, uint8_t index)
 }
 int delChannel(uint8_t index)
 {
-	uint8_t i;
-	uint8_t p;
+	uint8_t i, j;
 	/* if there's only one channel then clear it */
 	if (s->channelc == 1)
 	{
-		for (p = 1; p < s->patternc; p++)
+		for (j = 1; j < s->patternc; j++)
 		{
-			memset(s->patternv[p]->rowv,
+			memset(s->patternv[j]->rowv,
 				0, sizeof(row) * 256);
 			for (short r = 0; r < 256; r++)
-				s->patternv[p]->rowv[0][r].inst = 255;
+				s->patternv[j]->rowv[0][r].inst = 255;
 		}
 		s->channelv[s->channelc].mute = 0;
 		s->channelv[s->channelc].macroc = 2;
@@ -322,15 +360,22 @@ int delChannel(uint8_t index)
 
 		for (i = index; i < s->channelc; i++)
 		{
-			for (p = 1; p < s->patternc; p++)
-				memcpy(s->patternv[p]->rowv[i],
-					s->patternv[p]->rowv[i + 1],
+			for (j = 1; j < s->patternc; j++)
+				memcpy(s->patternv[j]->rowv[i],
+					s->patternv[j]->rowv[i + 1],
 					sizeof(row) * 256);
 			memcpy(&s->channelv[i],
 				&s->channelv[i + 1],
 				sizeof(channel));
 		}
 		s->channelc--;
+
+		// jack_deactivate(client);
+		/* jack_port_unregister(client, p->cin[s->channelc].l);
+		jack_port_unregister(client, p->cin[s->channelc].r);
+		jack_port_unregister(client, p->cout[s->channelc].l);
+		jack_port_unregister(client, p->cout[s->channelc].r); */
+		// jack_activate(client);
 
 		if (w->channeloffset)
 			w->channeloffset--;
@@ -368,7 +413,7 @@ int _addPattern(song *cs, uint8_t realindex)
 	cs->patternv[realindex] = calloc(1, sizeof(pattern));
 	if (!cs->channelbuffer[realindex] || !cs->patternv[realindex])
 		return 1;
-	for (short c = 0; c < 64; c++)
+	for (short c = 0; c < MAX_CHANNELS; c++)
 		for (short r = 0; r < 256; r++)
 			cs->patternv[realindex]->rowv[c][r].inst = 255;
 	return 0;
@@ -1046,6 +1091,7 @@ void toggleRecording(uint8_t inst)
 
 short *_loadSample(char *path, SF_INFO *sfinfo)
 {
+	fcntl(0, F_SETFL, 0); /* blocking */
 	memset(sfinfo, 0, sizeof(SF_INFO));
 
 	SNDFILE *sndfile = sf_open(path, SFM_READ, sfinfo);
@@ -1059,7 +1105,10 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 
 		ptr = malloc(buf.st_size - buf.st_size % sizeof(short));
 		if (ptr == NULL) // malloc failed
+		{
+			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 			return NULL;
+		}
 
 		/* read the whole file into memory */
 		FILE *fp = fopen(path, "r");
@@ -1075,6 +1124,7 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 		if (sfinfo->channels > 2) /* fail on high channel files */
 		{
 			sf_close(sndfile);
+			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 			return NULL;
 		}
 
@@ -1082,6 +1132,7 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 		if (ptr == NULL) // malloc failed
 		{
 			sf_close(sndfile);
+			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 			return NULL;
 		}
 
@@ -1090,6 +1141,7 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 
 		sf_close(sndfile);
 	}
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 	return ptr;
 }
 
@@ -1125,7 +1177,13 @@ song *addSong(void)
 void delSong(song *cs)
 {
 	for (int i = 0; i < cs->channelc; i++)
+	{
+		/* jack_port_unregister(client, p->cin[i].l);
+		jack_port_unregister(client, p->cin[i].r);
+		jack_port_unregister(client, p->cout[i].l);
+		jack_port_unregister(client, p->cout[i].r); */
 		_delChannel(cs, i);
+	}
 
 	for (int i = 1; i < cs->patternc; i++)
 	{
@@ -1168,6 +1226,7 @@ int writeSong(char *path)
 		strcpy(pathext, w->filepath);
 	} else strcpy(w->filepath, pathext);
 
+	fcntl(0, F_SETFL, 0); /* blocking */
 	FILE *fp = fopen(pathext, "wb");
 	int i, j, k, l;
 
@@ -1189,7 +1248,7 @@ int writeSong(char *path)
 
 	/* mutes */
 	char byte;
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 4; i++)
 	{
 		byte = 0b00000000;
 		if (s->channelv[i * 8 + 0].mute) byte |= 0b10000000;
@@ -1256,6 +1315,7 @@ int writeSong(char *path)
 	}
 
 	fclose(fp);
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", pathext);
 	free(pathext);
 	return 0;
@@ -1263,6 +1323,7 @@ int writeSong(char *path)
 
 song *readSong(char *path)
 {
+	fcntl(0, F_SETFL, 0); /* blocking */
 	FILE *fp = fopen(path, "r");
 	if (!fp) // file doesn't exist, or fopen otherwise failed
 	{
@@ -1310,12 +1371,12 @@ song *readSong(char *path)
 	cs->instrumentc = fgetc(fp);
 	cs->channelc = fgetc(fp);
 	for (int i = 0; i < cs->channelc; i++)
-		_addChannel(&cs->channelv[i]);
+		_addChannel(cs, &cs->channelv[i]);
 	cs->rowhighlight = fgetc(fp);
 
 	/* mutes */
 	char byte;
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 4; i++)
 	{
 		byte = fgetc(fp);
 		if (byte & 0b10000000) cs->channelv[i * 8 + 0].mute = 1;
@@ -1390,6 +1451,7 @@ song *readSong(char *path)
 
 
 	fclose(fp);
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 	_allocChannelMemory(cs);
 	return cs;
 }

@@ -3,23 +3,10 @@
 #define PLAY_LOCK_CONT 2  /* p->s and p->w are unsafe */
 typedef struct
 {
-	song        *s;
-	window      *w;
-	jack_port_t *inl;
-	jack_port_t *inr;
-	jack_port_t *outl;
-	jack_port_t *outr;
-	char         dirty;
-	char         lock;  /* PLAY_LOCK */
-} playbackinfo;
-playbackinfo *p;
-
-typedef struct
-{
-	sample_t *inl;
-	sample_t *inr;
-	sample_t *outl;
-	sample_t *outr;
+	portbufferpair in;
+	portbufferpair out;
+	portbufferpair cin[MAX_CHANNELS];
+	portbufferpair cout[MAX_CHANNELS];
 } portbuffers;
 
 char ifMacro(channel *cv, row r, char m, char (*callback)(int, channel *, row))
@@ -48,7 +35,7 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 		for (uint16_t i = 0; i < rampmax; i++)
 		{
 			if (!cv->r.note) break;
-			t->f[iv->type].process(iv, cv, pointeroffset + i,
+			t->f[iv->type].process(iv, cv, pointeroffset+i,
 					&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 		}
 	}
@@ -113,7 +100,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	if (cv->vibratosamples)
 	{
 		cv->finetune += oscillator(0, (float)cv->vibratosamplepointer / (float)cv->vibratosamples, 0.5)
-			* cv->vibrato/8.0;
+			* cv->vibrato*DIV16;
 
 		/* re-read the macro once phase is about to overflow */
 		cv->vibratosamplepointer++;
@@ -138,7 +125,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		cv->delaysamples = 0;
 	}
 
-	float l, r;
+	float l, r = 0.0;
 	/* process the type */
 	if (iv && cv->r.note)
 	{
@@ -148,15 +135,15 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		{
 			if (cv->rtrigsamples && inst != 255)
 			{
-				uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
 				uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
 				if (rtrigoffset == 0 && cv->pointer > cv->rtrigpointer)
 				{ /* first sample of any retrigger but the first */
+					uint8_t oldnote = cv->r.note; /* in case the ramping freewheel cuts the note */
 					ramp(p, cv, p->s->instrumenti[inst], cv->pointer + cv->rtrigsamples);
+					cv->r.note = oldnote;
 					cv->rampindex = 0;
 				}
 				t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &l, &r);
-				cv->r.note = oldnote;
 			} else
 				t->f[iv->type].process(iv, cv, cv->pointer, &l, &r);
 			cv->pointer++;
@@ -185,13 +172,13 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	/* waveshapers */ /* TODO: ramping */
 	if (cv->wavefolder)
 	{
-		float gain = 1.0 + cv->wavefolder*0.23;
+		float gain = 1.0 + cv->wavefolder*0.3;
 		l = wavefolder(l * gain);
 		r = wavefolder(r * gain);
 	}
 	if (cv->wavewrapper)
 	{
-		float gain = 1.0 + cv->wavewrapper*0.18;
+		float gain = 1.0 + cv->wavewrapper*0.2;
 		l = wavewrapper(l * gain);
 		r = wavewrapper(r * gain);
 	}
@@ -213,18 +200,33 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		l = hardclip(l * gain);
 		r = hardclip(r * gain);
 	}
+	if (cv->softclip)
+	{
+		float gain = 1.0 + cv->softclip*0.4;
+		l = thirddegreepolynomial(l * gain);
+		r = thirddegreepolynomial(r * gain);
+	}
+
+	/* gate */
+	if (MAX(fabsf(l), fabsf(r)) < (cv->gate%16)*0.025)
+		cv->gateopen = MAX(0.5 - ((cv->gate>>4)/15.0) * 0.5, cv->gateopen - MIN_GATE_SPEED_SEC/samplerate - (cv->gate>>4)*DIV128);
+	else
+		cv->gateopen = MIN(1.0, cv->gateopen + MIN_GATE_SPEED_SEC/samplerate + (cv->gate>>4)*DIV128);
+	l *= cv->gateopen;
+	r *= cv->gateopen;
 
 	/* gain macro, and all it's inversions */
 	if (cv->targetgain != -1)
 	{
+		float rowprogress = (float)p->s->sprp / (float)p->s->spr;
 		if (cv->gain != -1)
 		{
-			l *= (cv->gain>>4) / 15.0 + ((cv->targetgain>>4) - (cv->gain>>4)) / 15.0 * (float)p->s->sprp / (float)p->s->spr;
-			r *= (cv->gain%16) / 15.0 + ((cv->targetgain%16) - (cv->gain%16)) / 15.0 * (float)p->s->sprp / (float)p->s->spr;
+			l *= (cv->gain>>4) / 15.0 + ((cv->targetgain>>4) - (cv->gain>>4)) / 15.0 * rowprogress;
+			r *= (cv->gain%16) / 15.0 + ((cv->targetgain%16) - (cv->gain%16)) / 15.0 * rowprogress;
 		} else if (iv)
 		{
-			l *= (iv->defgain>>4) / 15.0 + ((cv->targetgain>>4) - (iv->defgain>>4)) / 15.0 * (float)p->s->sprp / (float)p->s->spr;
-			r *= (iv->defgain%16) / 15.0 + ((cv->targetgain%16) - (iv->defgain%16)) / 15.0 * (float)p->s->sprp / (float)p->s->spr;
+			l *= (iv->defgain>>4) / 15.0 + ((cv->targetgain>>4) - (iv->defgain>>4)) / 15.0 * rowprogress;
+			r *= (iv->defgain%16) / 15.0 + ((cv->targetgain%16) - (iv->defgain%16)) / 15.0 * rowprogress;
 		}
 	} else
 	{
@@ -239,19 +241,10 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 		}
 	}
 
-	if (cv->softclip)
-	{
-		float gain = 1.0 + cv->softclip*0.2;
-		/* l = tanh(l * gain);
-		r = tanh(r * gain); */
-		l = thirddegreepolynomial(l * gain);
-		r = thirddegreepolynomial(r * gain);
-	}
-
 	if (!cv->mute)
 	{
-		pb.outl[fptr] += l;
-		pb.outr[fptr] += r;
+		pb.out.l[fptr] += l;
+		pb.out.r[fptr] += r;
 	}
 	if (p->w->instrumentrecv == INST_REC_LOCK_CONT
 			&& p->w->recordsource == 1
@@ -295,11 +288,8 @@ void bendDown(channel *cv, uint32_t spr, uint32_t count)
 }
 
 char Bc(int m, channel *cv, row r)
-{
-	if (m >= 32)
-		changeBpm(p->s, m);
-	return 0;
-}
+{ if (m >= 32) changeBpm(p->s, m); return 0; }
+
 char Cc(int m, channel *cv, row r)
 {
 	if (m != -1 && m>>4 == 0)
@@ -408,6 +398,10 @@ char Wc(int m, channel *cv, row r)
 	}
 	return 0;
 }
+
+char tc(int m, channel *cv, row r)
+{ cv->gate = m; return 0; }
+
 void preprocessRow(channel *cv, row r)
 {
 	char ret;
@@ -437,14 +431,10 @@ void preprocessRow(channel *cv, row r)
 	}
 	ret = ifMacro(cv, r, 'G', &Gc);
 	if (!ret)
-	{
 		ifMacro(cv, r, 'g', &gc);
-	}
 
-
-	ifMacro(cv, r, 'R', &Rc);
-
-	ifMacro(cv, r, 'V', &Vc);
+	ifMacro(cv, r, 'R', &Rc); /* retrigger */
+	ifMacro(cv, r, 'V', &Vc); /* vibrato   */
 
 	/* type macros */
 	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
@@ -458,8 +448,8 @@ void preprocessRow(channel *cv, row r)
 		}
 	}
 
-	/* waveshapers */
-	ifMacro(cv, r, 'W', &Wc);
+	ifMacro(cv, r, 'W', &Wc); /* waveshaper */
+	ifMacro(cv, r, 't', &tc); /* gate       */
 
 	for (int i = 0; i < cv->macroc; i++)
 		cv->r.macro[i] = r.macro[i];
@@ -470,10 +460,10 @@ int process(jack_nframes_t nfptr, void *arg)
 	playbackinfo *p = arg;
 	channel *cv;
 	portbuffers pb;
-	pb.inl =  jack_port_get_buffer(p->inl, nfptr);
-	pb.inr =  jack_port_get_buffer(p->inr, nfptr);
-	pb.outl = jack_port_get_buffer(p->outl, nfptr); memset(pb.outl, 0, nfptr * sizeof(sample_t));
-	pb.outr = jack_port_get_buffer(p->outr, nfptr); memset(pb.outr, 0, nfptr * sizeof(sample_t));
+	pb.in.l =  jack_port_get_buffer(p->in.l, nfptr);
+	pb.in.r =  jack_port_get_buffer(p->in.r, nfptr);
+	pb.out.l = jack_port_get_buffer(p->out.l, nfptr); memset(pb.out.l, 0, nfptr * sizeof(sample_t));
+	pb.out.r = jack_port_get_buffer(p->out.r, nfptr); memset(pb.out.r, 0, nfptr * sizeof(sample_t));
 
 	if (p->lock == PLAY_LOCK_START)
 		p->lock = PLAY_LOCK_CONT;
@@ -489,7 +479,10 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->instrumentrecv = INST_REC_LOCK_CANCEL;
 	/* start recording if gate pattern is off */
 	if (p->w->instrumentrecv == INST_REC_LOCK_START && !(p->w->recordflags & 0b10))
+	{
 		p->w->instrumentrecv = INST_REC_LOCK_CONT;
+		p->dirty = 1;
+	}
 	/* will no longer access the instrument state */
 	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE
 			|| p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST
@@ -502,7 +495,13 @@ int process(jack_nframes_t nfptr, void *arg)
 		case 1: // start instrument preview
 			channel *cv = &p->s->channelv[p->w->previewchannel];
 			cv->gain = -1;
-			triggerNote(cv, p->w->previewnote, p->w->previewinst);
+			// triggerNote(cv, p->w->previewnote, p->w->previewinst);
+			row r;
+			r.note = p->w->previewnote;
+			r.inst = p->w->previewinst;
+			r.macro[0].c = p->w->previewmacro.c;
+			r.macro[0].v = p->w->previewmacro.v;
+			preprocessRow(cv, r);
 			p->w->previewtrigger++;
 			break;
 		case 3: // start sample preview
@@ -531,6 +530,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv->wavewrapper = 0;
 			cv->signedunsigned = 0;
 			cv->rectifier = 0;
+			cv->gate = 0;
+			cv->gateopen = 1.0;
 		}
 
 		/* non-volatile state */
@@ -635,11 +636,10 @@ int process(jack_nframes_t nfptr, void *arg)
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 	{
 		/* preprocess the channel */
-		if (p->s->playing == PLAYING_CONT)
-			if (p->s->sprp == 0)
-				for (uint8_t c = 0; c < p->s->channelc; c++)
-					preprocessRow(&p->s->channelv[c],
-							p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr]);
+		if (p->s->playing == PLAYING_CONT && p->s->sprp == 0)
+			for (uint8_t c = 0; c < p->s->channelc; c++)
+				preprocessRow(&p->s->channelv[c],
+						p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr]);
 
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
@@ -653,10 +653,10 @@ int process(jack_nframes_t nfptr, void *arg)
 					else
 						bendDown(cv, p->s->spr, 1);
 				} else if (cv->r.note < cv->portamento)
-				{ /* bend up */
+				{ /* coarse bend up */
 					bendUp(cv, p->s->spr, 1);
 				} else
-				{ /* bend down */
+				{ /* coarse bend down */
 					bendDown(cv, p->s->spr, 1);
 				}
 			}
@@ -664,63 +664,66 @@ int process(jack_nframes_t nfptr, void *arg)
 		}
 
 		/* next row */
-		if (p->s->playing == PLAYING_CONT && p->s->sprp++ > p->s->spr)
+		if (p->s->sprp++ > p->s->spr)
 		{
 			p->s->sprp = 0;
-			/* next pattern */
-			if (p->s->songr++ >= p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowc)
+			if (p->s->playing == PLAYING_CONT)
 			{
-				p->s->songr = 0;
-				if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
-					p->w->trackerfy = 0;
-				p->dirty = 1;
-				
-				/* stop recording if gate pattern is on */
-				if (p->w->instrumentrecv == INST_REC_LOCK_CONT && p->w->recordflags & 0b10)
-					p->w->instrumentrecv = INST_REC_LOCK_END;
-				/* start recording if gate pattern is on */
-				if (p->w->instrumentrecv == INST_REC_LOCK_START && p->w->recordflags & 0b10)
-					p->w->instrumentrecv = INST_REC_LOCK_CONT;
-
-				if (p->w->songnext)
+				/* next pattern */
+				if (p->s->songr++ >= p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowc)
 				{
+					p->s->songr = 0;
 					if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
-						p->w->songfy = p->w->songnext - 1;
+						p->w->trackerfy = 0;
 					p->dirty = 1;
+					
+					/* stop recording if gate pattern is on */
+					if (p->w->instrumentrecv == INST_REC_LOCK_CONT && p->w->recordflags & 0b10)
+						p->w->instrumentrecv = INST_REC_LOCK_END;
+					/* start recording if gate pattern is on */
+					if (p->w->instrumentrecv == INST_REC_LOCK_START && p->w->recordflags & 0b10)
+						p->w->instrumentrecv = INST_REC_LOCK_CONT;
 
-					p->s->songp = p->w->songnext - 1;
-					p->w->songnext = 0;
-				} else if (p->s->songf[p->s->songp]) /* loop */
-				{
-					/* do nothing, don't inc the song pointer */
-				} else if (p->s->songi[p->s->songp + 1] == 255)
-				{ /* no next pattern, go to the beginning of the block */
-					uint8_t blockstart = 0;
-					for (uint8_t i = p->s->songp; i >= 0; i--)
-						if (p->s->songi[i] == 255)
-						{
-							blockstart = i + 1;
-							break;
-						}
+					if (p->w->songnext)
+					{
+						if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
+							p->w->songfy = p->w->songnext - 1;
+						p->dirty = 1;
 
-					if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
-						p->w->songfy = blockstart;
-					p->dirty = 1;
+						p->s->songp = p->w->songnext - 1;
+						p->w->songnext = 0;
+					} else if (p->s->songf[p->s->songp]) /* loop */
+					{
+						/* do nothing, don't inc the song pointer */
+					} else if (p->s->songi[p->s->songp + 1] == 255)
+					{ /* no next pattern, go to the beginning of the block */
+						uint8_t blockstart = 0;
+						for (uint8_t i = p->s->songp; i >= 0; i--)
+							if (p->s->songi[i] == 255)
+							{
+								blockstart = i + 1;
+								break;
+							}
 
-					p->s->songp = blockstart;
+						if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
+							p->w->songfy = blockstart;
+						p->dirty = 1;
+
+						p->s->songp = blockstart;
+					} else
+					{
+						if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
+							p->w->songfy++;
+						p->dirty = 1;
+
+						p->s->songp++;
+					}
 				} else
 				{
 					if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
-						p->w->songfy++;
+						p->w->trackerfy = p->s->songr;
 					p->dirty = 1;
-
-					p->s->songp++;
 				}
-			} else
-			{
-				if (p->w->songfy == p->s->songp && w->popup == 0 && w->mode == 0)
-					p->w->trackerfy = p->s->songr;
-				p->dirty = 1;
 			}
 		}
 	}
@@ -740,11 +743,11 @@ int process(jack_nframes_t nfptr, void *arg)
 				{
 					case 0:
 						int c;
-						c = (float)pb.inl[fptr] * (float)SHRT_MAX;
+						c = (float)pb.in.l[fptr] * (float)SHRT_MAX;
 						if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
 						else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
 						else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
-						c = (float)pb.inr[fptr] * (float)SHRT_MAX;
+						c = (float)pb.in.r[fptr] * (float)SHRT_MAX;
 						if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
 						else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
 						else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
@@ -764,11 +767,11 @@ int process(jack_nframes_t nfptr, void *arg)
 						} else
 						{
 							int c;
-							c = (float)pb.outl[fptr] * (float)SHRT_MAX;
+							c = (float)pb.out.l[fptr] * (float)SHRT_MAX;
 							if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
 							else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
 							else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
-							c = (float)pb.outr[fptr] * (float)SHRT_MAX;
+							c = (float)pb.out.r[fptr] * (float)SHRT_MAX;
 							if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
 							else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
 							else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;

@@ -70,7 +70,7 @@ void drawCommand(command_t *command, unsigned char mode)
 {
 	if (mode == 255) /* command mode */
 	{
-		printf("\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, command->prompt, command->historyv[command->historyc], ws.ws_row, (command->commandptr + (unsigned short)strlen(command->prompt) + 1) % ws.ws_col);
+		printf("\033[?25h\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, command->prompt, command->historyv[command->historyc], ws.ws_row, (command->commandptr + (unsigned short)strlen(command->prompt) + 1) % ws.ws_col);
 		command->error[0] = '\0';
 	} else if (strlen(command->error) > 0)
 	{
@@ -111,8 +111,8 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 						command->commandptr = 0;
 						break;
 					case '4': /* end */
-						getchar();
-						command->commandptr = strlen(command->historyv[command->historyc]);
+						if (getchar() == '~')
+							command->commandptr = strlen(command->historyv[command->historyc]);
 						break;
 					case 'M': /* mouse */
 						getchar();

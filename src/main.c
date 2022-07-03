@@ -17,6 +17,9 @@
 typedef jack_default_audio_sample_t sample_t;
 #include <sndfile.h>
 
+/* libdrawille */
+#include "lib/libdrawille/src/Canvas.h"
+
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 
@@ -32,34 +35,28 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 80;
+const unsigned char MINOR = 82;
 
 
 jack_nframes_t samplerate;
 jack_nframes_t rampmax, stretchrampmax;
 jack_nframes_t buffersize;
+jack_client_t *client;
 struct winsize ws;
 struct termios term, origterm;
-int fl;
 
 #define LINENO_COLS 5
 #define SONG_COLS 5
 
-/* main ramp buffer */
 
 #define INSTRUMENT_TYPE_COUNT 2
-#define MIN_EFFECT_INDEX 0
-
-#define INSTRUMENT_BODY_COLS 70
-#define INSTRUMENT_BODY_ROWS 20
-#define INSTRUMENT_TYPE_ROWS 14
 
 #define CHANNEL_ROW 4
 #define BORDER 2
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
 
-#define M_12_ROOT_2 1.0594630943592953
+#define C5 61 /* note value that represents C-5 */
 
 /* n=0 is the least significant digit */
 char hexDigit32(uint32_t a, uint32_t n)
@@ -74,29 +71,29 @@ void resize(int);
 void startPlayback(void);
 void stopPlayback(void);
 
+void resizeWaveform(void);
+void changeMacro(int, char *);
+
 #include "config.h"
 
 #include "command.c"
 #include "dsp.c"
 #include "structures.c"
 
-// int ifMacro(row, char, void (*)(int));
-
 #include "input.c"
 #include "instrument.c"
 #include "filebrowser.c"
+#include "waveform.c"
 #include "tracker.c"
 #include "song.c"
 #include "process.c"
-
-jack_client_t *client;
 
 
 void drawRuler(void)
 {
 	/* top ruler */
 	printf("\033[0;0H\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
-			ws.ws_col - 19, MAJOR, MINOR, DEBUG);
+			ws.ws_col - 14, MAJOR, MINOR, DEBUG);
 	/* bottom ruler */
 	if (w->mode < 255)
 	{
@@ -109,21 +106,26 @@ void drawRuler(void)
 		}
 		if (w->chord)
 			printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 23, w->chord);
-		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 17);
+		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 20);
 		if (s->playing == PLAYING_STOP)
 			printf("STOP  ");
 		else
 			printf("PLAY  ");
-		printf("&%d +%x  B%02x", w->octave, w->step, s->songbpm);
+		printf("&%d +%x  ", w->octave, w->step);
+		if (w->keyboardmacro) printf("%cxx  ", w->keyboardmacro);
+		else                  printf("     ");
+		printf("B%02x", s->songbpm);
 	}
 }
 void redraw(void)
 {
-	printf("\033[2J");
+	fcntl(0, F_SETFL, 0); /* blocking */
+	printf("\033[2J\033[?25h");
 
-	if (ws.ws_row < 24 || ws.ws_col < 80)
+	if (ws.ws_row < 24 || ws.ws_col < 68)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
+		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		return;
 	}
 
@@ -134,10 +136,12 @@ void redraw(void)
 		case 1: drawInstrument(); break;
 		case 2: drawFilebrowser(); break;
 		case 3: drawSong(); break;
+		case 4: drawWaveform(); break;
 	}
 	drawCommand(&w->command, w->mode);
 
 	fflush(stdout);
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 }
 
 void filebrowserEditCallback(char *path)
@@ -270,6 +274,7 @@ int input(void)
 			case 1: instrumentInput(input); break;
 			case 2: filebrowserInput(input); break;
 			case 3: songInput(input); break;
+			case 4: waveformInput(input); break;
 		}
 	}
 	return 0;
@@ -297,7 +302,7 @@ int changeDirectory(void)
 
 	struct dirent *dirent = readdir(w->dir);
 	w->dirc = 0;
-	w->dirmaxwidth = 0;
+	w->dirmaxwidth = 1;
 	while (dirent != NULL)
 	{
 		if (
@@ -320,10 +325,18 @@ int changeDirectory(void)
 void resize(int)
 {
 	ioctl(1, TIOCGWINSZ, &ws);
-	// w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 7;
-	w->instrumentcelloffset =     (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
-	w->instrumentrowoffset =      (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
-	w->centre =                    ws.ws_row / 2;
+	w->instrumentcelloffset = (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
+	w->instrumentrowoffset =  (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
+	w->centre =                ws.ws_row / 2;
+
+	w->waveformw = ws.ws_col * 2;
+	w->waveformh = (ws.ws_row - 2) * 4;
+	if (w->waveformcanvas) free_canvas(w->waveformcanvas);
+	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
+	w->waveformcanvas = new_canvas(w->waveformw, w->waveformh);
+	w->waveformbuffer = new_buffer(w->waveformcanvas);
+	if (w->popup == 4)
+		resizeWaveform();
 
 	redraw();
 	signal(SIGWINCH, &resize); /* not sure why this needs to be redefined every time sometimes */
@@ -331,7 +344,7 @@ void resize(int)
 
 void common_cleanup(int ret)
 {
-	fcntl(0, F_SETFL, fl & ~O_NONBLOCK); /* reset to blocking stdin reads */
+	fcntl(0, F_SETFL, 0); /* reset to blocking stdin reads */
 	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
 	printf("\033[?1002l"); /* disable mouse */
 	printf("\033[?1049l"); /* reset to the front buffer */
@@ -343,7 +356,6 @@ void cleanup(int ret)
 {
 	if (w->dir) closedir(w->dir);
 	jack_deactivate(client);
-	jack_client_close(client);
 
 	free(w->previewinstrument.state[0]);
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
@@ -352,12 +364,15 @@ void cleanup(int ret)
 
 	if (w->recbuffer) free(w->recbuffer);
 	if (w->recchannelbuffer) free(w->recchannelbuffer);
+	if (w->waveformcanvas) free_canvas(w->waveformcanvas);
+	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
 
 
 	free(w);
 	delSong(s);
 	free(p);
 	free(t);
+	jack_client_close(client);
 
 	common_cleanup(ret);
 }
@@ -372,7 +387,7 @@ int main(int argc, char **argv)
 	term.c_lflag &= (~ECHO & ~ICANON);
 	tcsetattr(1, TCSANOW, &term); /* disable ECHO and ICANON */
 
-	fl = fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking stdin reads */
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking reads */
 
 	/* ignore sigint to prevent habitual <C-c> breaking stuff */
 	signal(SIGINT, SIG_IGN);
@@ -396,11 +411,10 @@ int main(int argc, char **argv)
 		common_cleanup(1);
 	}
 
-	p->inl = jack_port_register(client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-	p->inr = jack_port_register(client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-
-	p->outl = jack_port_register(client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
-	p->outr = jack_port_register(client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+	p->in.l = jack_port_register(client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+	p->in.r = jack_port_register(client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+	p->out.l = jack_port_register(client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+	p->out.r = jack_port_register(client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
 
 	samplerate = jack_get_sample_rate(client);
 	rampmax = samplerate / 1000 * RAMP_MS;
@@ -465,7 +479,7 @@ int main(int argc, char **argv)
 
 
 	t = calloc(1, sizeof(typetable));
-	if (t == NULL)
+	if (!t)
 	{
 		printf("out of memory");
 
@@ -513,10 +527,7 @@ int main(int argc, char **argv)
 		running = input();
 
 		if (p->dirty)
-		{
-			p->dirty = 0;
-			redraw();
-		}
+		{ p->dirty = 0; redraw(); }
 
 		/* if (w->previewsamplestatus == 3)
 		{
@@ -534,13 +545,13 @@ int main(int argc, char **argv)
 			free(w->recbuffer); w->recbuffer = NULL;
 			free(w->recchannelbuffer); w->recchannelbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
-			redraw();
+			p->dirty = 1;
 		} else if (w->instrumentrecv == INST_REC_LOCK_END)
 		{
 			if (w->recptr > 0)
 			{
 				instrument *iv = s->instrumentv[w->instrumentreci];
-				sampler_state *ss = iv->state[0]; /* assume 0 is the sampler type, and that it is loaded TODO: bad idea */
+				sampler_state *ss = iv->state[0]; /* assume 0 is the sampler type, and that it is loaded TODO: bad idea? */
 				if (ss->sampledata)
 				{ free(ss->sampledata); ss->sampledata = NULL; }
 				ss->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
@@ -564,7 +575,7 @@ int main(int argc, char **argv)
 			free(w->recbuffer); w->recbuffer = NULL;
 			free(w->recchannelbuffer); w->recchannelbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
-			redraw();
+			p->dirty = 1;
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */

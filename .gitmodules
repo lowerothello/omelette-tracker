@@ -1,0 +1,3 @@
+[submodule "src/lib/libdrawille"]
+	path = src/lib/libdrawille
+	url = https://github.com/huulivoide/libdrawille

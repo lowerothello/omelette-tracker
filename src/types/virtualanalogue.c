@@ -509,7 +509,7 @@ void analogueMouseToIndex(int y, int x, int button, short *index)
 float analogueInstance(analogue_state *as, analogue_channel *ac, channel *cv, uint8_t index, float detune)
 {
 	float pps = 1.0 / ((float)samplerate
-		/ (C5_FREQ * powf(M_12_ROOT_2, (short)cv->r.note - 61 + detune)));
+		/ (C5_FREQ * powf(M_12_ROOT_2, (short)cv->r.note - C5 + detune)));
 
 	ac->unison[index].lfophase += 1.0 / ((float)samplerate * LFO_MAX
 		+ (float)samplerate * (LFO_MIN - LFO_MAX)
@@ -627,7 +627,7 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 
 		/* filter */
 		float cutoff = fgain * as->filter.cutoff*DIV256
-				* powf(M_12_ROOT_2, ((short)cv->r.note - 61 + cv->finetune) * as->filter.track*DIV256);
+				* powf(M_12_ROOT_2, ((short)cv->r.note - C5 + cv->finetune) * as->filter.track*DIV256);
 		if (as->filter.flags & 0b1) /* high resonance */
 			calcFilter(&ac->fl, cutoff * -1, 1.0 - as->filter.resonance*DIV256);
 		else

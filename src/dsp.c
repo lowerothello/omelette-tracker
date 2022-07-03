@@ -17,11 +17,22 @@
 #define LFO_MAX 0.001
 /* </seconds> */
 
+/* the slowest the gate will move in a second */
+#define MIN_GATE_SPEED_SEC 10.0
 
+
+/* multiply instead of dividing for powers of 2 */
 #define DIV256 0.00390625
 #define DIV128 0.0078125
 #define DIV64  0.015625
+#define DIV32  0.03125
+#define DIV16  0.0625
+#define DIV8   0.125
+const double DIVSHRT = 1.0 / SHRT_MAX;
+const double DIVCHAR = 1.0 / SCHAR_MAX;
 
+
+#define M_12_ROOT_2 1.0594630943592953
 
 
 /* https://www.musicdsp.org/en/latest/Synthesis/216-fast-whitenoise-generator.html */
@@ -41,7 +52,6 @@ float getWnoise(wnoise *w)
 }
 
 
-
 typedef struct
 {
 	uint8_t a;
@@ -49,7 +59,6 @@ typedef struct
 	uint8_t s;
 	uint8_t r;
 } adsr;
-
 
 
 /* https://www.musicdsp.org/en/latest/Filters/38-lp-and-hp-filter.html */
@@ -152,51 +161,51 @@ void drawWave(uint8_t wave, unsigned short y, unsigned short x, char adjust)
 		case 0:
 			if (adjust)
 			{
-				printf("\033[%d;%dH [  tri] ", y+0, x);
-				printf("\033[%d;%dH    saw  ", y+1, x);
-				printf("\033[%d;%dH   ramp  ", y+2, x);
-				printf("\033[%d;%dH  pulse  ", y+3, x);
-				printf("\033[%d;%dH   sine  ", y+4, x);
+				printf(   "\033[%d;%dH [  tri] ", y+0, x);
+				printf(   "\033[%d;%dH    saw  ", y+1, x);
+				printf(   "\033[%d;%dH   ramp  ", y+2, x);
+				printf(   "\033[%d;%dH  pulse  ", y+3, x);
+				printf(   "\033[%d;%dH   sine  ", y+4, x);
 			} else printf("\033[%d;%dH [  tri] ", y+0, x);
 			break;
 		case 1:
 			if (adjust)
 			{
-				printf("\033[%d;%dH    tri  ", y-1, x);
-				printf("\033[%d;%dH [  saw] ", y+0, x);
-				printf("\033[%d;%dH   ramp  ", y+1, x);
-				printf("\033[%d;%dH  pulse  ", y+2, x);
-				printf("\033[%d;%dH   sine  ", y+3, x);
+				printf(   "\033[%d;%dH    tri  ", y-1, x);
+				printf(   "\033[%d;%dH [  saw] ", y+0, x);
+				printf(   "\033[%d;%dH   ramp  ", y+1, x);
+				printf(   "\033[%d;%dH  pulse  ", y+2, x);
+				printf(   "\033[%d;%dH   sine  ", y+3, x);
 			} else printf("\033[%d;%dH [  saw] ", y+0, x);
 			break;
 		case 2:
 			if (adjust)
 			{
-				printf("\033[%d;%dH    tri  ", y-2, x);
-				printf("\033[%d;%dH    saw  ", y-1, x);
-				printf("\033[%d;%dH [ ramp] ", y+0, x);
-				printf("\033[%d;%dH  pulse  ", y+1, x);
-				printf("\033[%d;%dH   sine  ", y+2, x);
+				printf(   "\033[%d;%dH    tri  ", y-2, x);
+				printf(   "\033[%d;%dH    saw  ", y-1, x);
+				printf(   "\033[%d;%dH [ ramp] ", y+0, x);
+				printf(   "\033[%d;%dH  pulse  ", y+1, x);
+				printf(   "\033[%d;%dH   sine  ", y+2, x);
 			} else printf("\033[%d;%dH [ ramp] ", y+0, x);
 			break;
 		case 3:
 			if (adjust)
 			{
-				printf("\033[%d;%dH    tri  ", y-3, x);
-				printf("\033[%d;%dH    saw  ", y-2, x);
-				printf("\033[%d;%dH   ramp  ", y-1, x);
-				printf("\033[%d;%dH [pulse] ", y+0, x);
-				printf("\033[%d;%dH   sine  ", y+1, x);
+				printf(   "\033[%d;%dH    tri  ", y-3, x);
+				printf(   "\033[%d;%dH    saw  ", y-2, x);
+				printf(   "\033[%d;%dH   ramp  ", y-1, x);
+				printf(   "\033[%d;%dH [pulse] ", y+0, x);
+				printf(   "\033[%d;%dH   sine  ", y+1, x);
 			} else printf("\033[%d;%dH [pulse] ", y+0, x);
 			break;
 		case 4:
 			if (adjust)
 			{
-				printf("\033[%d;%dH    tri  ", y-4, x);
-				printf("\033[%d;%dH    saw  ", y-3, x);
-				printf("\033[%d;%dH   ramp  ", y-2, x);
-				printf("\033[%d;%dH  pulse  ", y-1, x);
-				printf("\033[%d;%dH [ sine] ", y+0, x);
+				printf(   "\033[%d;%dH    tri  ", y-4, x);
+				printf(   "\033[%d;%dH    saw  ", y-3, x);
+				printf(   "\033[%d;%dH   ramp  ", y-2, x);
+				printf(   "\033[%d;%dH  pulse  ", y-1, x);
+				printf(   "\033[%d;%dH [ sine] ", y+0, x);
 			} else printf("\033[%d;%dH [ sine] ", y+0, x);
 			break;
 	}
@@ -208,45 +217,45 @@ void drawFilterType(uint8_t type, unsigned short y, unsigned short x, char adjus
 		case 0:
 			if (adjust)
 			{
-				printf("\033[%d;%dH[low]", y+0, x);
-				printf("\033[%d;%dH  hi ", y+1, x);
-				printf("\033[%d;%dH bnd ", y+2, x);
-				printf("\033[%d;%dH rej ", y+3, x);
+				printf(   "\033[%d;%dH[low]", y+0, x);
+				printf(   "\033[%d;%dH  hi ", y+1, x);
+				printf(   "\033[%d;%dH bnd ", y+2, x);
+				printf(   "\033[%d;%dH rej ", y+3, x);
 			} else printf("\033[%d;%dH[low]", y+0, x);
 			break;
 		case 1:
 			if (adjust)
 			{
-				printf("\033[%d;%dH low ", y-1, x);
-				printf("\033[%d;%dH[ hi]", y+0, x);
-				printf("\033[%d;%dH bnd ", y+1, x);
-				printf("\033[%d;%dH rej ", y+2, x);
+				printf(   "\033[%d;%dH low ", y-1, x);
+				printf(   "\033[%d;%dH[ hi]", y+0, x);
+				printf(   "\033[%d;%dH bnd ", y+1, x);
+				printf(   "\033[%d;%dH rej ", y+2, x);
 			} else printf("\033[%d;%dH[ hi]", y+0, x);
 			break;
 		case 2:
 			if (adjust)
 			{
-				printf("\033[%d;%dH low ", y-2, x);
-				printf("\033[%d;%dH  hi ", y-1, x);
-				printf("\033[%d;%dH[bnd]", y+0, x);
-				printf("\033[%d;%dH rej ", y+1, x);
+				printf(   "\033[%d;%dH low ", y-2, x);
+				printf(   "\033[%d;%dH  hi ", y-1, x);
+				printf(   "\033[%d;%dH[bnd]", y+0, x);
+				printf(   "\033[%d;%dH rej ", y+1, x);
 			} else printf("\033[%d;%dH[bnd]", y+0, x);
 			break;
 		case 3:
 			if (adjust)
 			{
-				printf("\033[%d;%dH low ", y-3, x);
-				printf("\033[%d;%dH  hi ", y-2, x);
-				printf("\033[%d;%dH bnd ", y-1, x);
-				printf("\033[%d;%dH[rej]", y+0, x);
+				printf(   "\033[%d;%dH low ", y-3, x);
+				printf(   "\033[%d;%dH  hi ", y-2, x);
+				printf(   "\033[%d;%dH bnd ", y-1, x);
+				printf(   "\033[%d;%dH[rej]", y+0, x);
 			} else printf("\033[%d;%dH[rej]", y+0, x);
 			break;
 	}
 }
-void drawBit(char true)
+void drawBit(char a)
 {
-	if (true) printf("[X]");
-	else      printf("[ ]");
+	if (a) printf("[X]");
+	else   printf("[ ]");
 }
 
 
@@ -286,18 +295,11 @@ float oscillator(char wave, float phase, float pw)
 	float output = 0.0;
 	switch (wave)
 	{
-		case 0: /* triangle */
-			output = fabsf(fmodf(phase + 0.75, 1.0) - 0.5) * 4 - 1.0;
-			break;
+		case 0: /* triangle */ output = fabsf(fmodf(phase + 0.75, 1.0) - 0.5) * 4 - 1.0; break;
 		case 1: /* saw      */ output = +1.0 - fmodf(phase, 1.0) * 2; break;
 		case 2: /* ramp     */ output = -1.0 + fmodf(phase + 0.5, 1.0) * 2; break;
-		case 3: /* square   */
-			if (fmodf(phase, 1.0) > pw) output = -1.0;
-			else                        output = +1.0;
-			break;
-		case 4: /* sine     */ /* TODO: really slow (not surprising) */
-			output = xSin(fmodf(phase, 1.0) * 4096);
-			break;
+		case 3: /* square   */ if (fmodf(phase, 1.0) > pw) output = -1.0; else output = +1.0; break;
+		case 4: /* sine     */ output = xSin(fmodf(phase, 1.0) * 4096); break;
 	}
 	return output;
 }
@@ -322,7 +324,7 @@ float wavewrapper(float input)
 }
 float signedunsigned(float input)
 {
-	if (input == 0.0) /* fix dc, might be some audible diracs */
+	if (input == 0.0) /* fix dc */
 		return 0.0;
 	else
 	{
@@ -338,21 +340,15 @@ float rectify(char type, float input) /* TODO: clicky */
 	{
 		switch (type)
 		{
-			case 0: /* full-wave */
-				return MIN(wst, MAX(-wst, fabsf(input) * 2 - wst));
-			case 1: /* full-wave x2 */
-				return MIN(wst, MAX(-wst, fabsf(fabsf(input) * 2 - wst) * 2 - wst));
-			// case 2: /* half-wave */
-				// return MIN(wst, MAX(-wst, MAX(input, 0.0) * 2 - wst));
+			case 0: /* full-wave    */ return MIN(wst, MAX(-wst, fabsf(input) * 2 - wst));
+			case 1: /* full-wave x2 */ return MIN(wst, MAX(-wst, fabsf(fabsf(input) * 2 - wst) * 2 - wst));
 		}
 	}
 	return input;
 }
+
 float hardclip(float input)
-{
-	return MIN(wst, MAX(-wst, input));
-}
+{ return MIN(wst, MAX(-wst, input)); }
+
 float thirddegreepolynomial(float input)
-{
-	return hardclip(1.5*input - 0.5*input*input*input);
-}
+{ return hardclip(1.5*input - 0.5*input*input*input); }

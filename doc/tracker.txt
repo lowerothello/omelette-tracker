@@ -1,0 +1,51 @@
+.--------------.
+| TRACKER VIEW |
+'--------------'
+
+This is the default view of the tracker. It's the screen that greets you when
+the program starts. One pattern is displayed, which one can be set in the song
+view.
+
+
+KEYBINDS
+--------
+navigation:
+	ARROWS             - navigate the pattern cell-wise
+	CTRL+LEFT/[        - move one channel to the left
+	CTRL+RIGHT/]       - move one channel to the right
+	HOME/END           - go to the top/bottom of the pattern
+	PGUP/PGDN          - go up/down by the row highlight (the stars between channels)
+	LEFT CLICK         - go to cell
+	RIGHT CLICK        - extend the visual selection to cell
+	SHIFT+NAVIGATION   - navigate, drag a volatile visual selection
+
+CTRL+UP/CTRL+DOWN      - shift the current channel up/down
+CLICK on channel text  - toggle channel mute
+ENTER                  - toggle current channel mute
+ALT+[0-9]              - set the edit step (shown in the ruler as "+step")
+CTRL+a/CTRL+x          - increment/decrement
+
+ESCAPE                 - return to normal mode
+
+normal mode:
+	v                  - enter visual mode
+	V                  - enter visual line mode (like visual mode but always line-wise)
+	i                  - enter insert mode
+	p                  - put from the yank buffer
+	yy                 - yank the current row
+	dd                 - delete the current row
+	ca                 - add a channel after the current one
+	cA                 - add a channel before the current one
+	cd                 - delete the current channel
+	cD                 - delete channels from the current one to the end
+	cy                 - yank the current channel
+	cp                 - put from the channel yank buffer
+	ma                 - add a macro column at the end
+	md                 - delete a macro column from the end
+	x/BACKSPACE        - delete the current cell
+	s                  - delete the current cell, then enter insert mode
+
+visual mode:
+	NAVIGATION         - navigate, drag a stable visual selection
+	y                  - yank the selection
+	d                  - delete the selection
