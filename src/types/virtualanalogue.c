@@ -291,8 +291,10 @@ void analogueAdjustRight(instrument *iv, short index, char mouse)
 	}
 }
 
-void analogueEndFieldPointer(short)
-{ w->fieldpointer = 0; }
+void analogueEndFieldPointer(short _)
+{
+	w->fieldpointer = 0;
+}
 
 void analogueIncFieldPointer(short index)
 {

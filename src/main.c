@@ -35,7 +35,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 82;
+const unsigned char MINOR = 83;
 
 
 jack_nframes_t samplerate;
@@ -70,6 +70,7 @@ void redraw(void);
 void resize(int);
 void startPlayback(void);
 void stopPlayback(void);
+void handleFKeys(int);
 
 void resizeWaveform(void);
 void changeMacro(int, char *);
@@ -86,13 +87,14 @@ void changeMacro(int, char *);
 #include "waveform.c"
 #include "tracker.c"
 #include "song.c"
+#include "background.c"
 #include "process.c"
 
 
 void drawRuler(void)
 {
 	/* top ruler */
-	printf("\033[0;0H\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
+	printf("\033[0;0H\033[2K\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
 			ws.ws_col - 14, MAJOR, MINOR, DEBUG);
 	/* bottom ruler */
 	if (w->mode < 255)
@@ -120,7 +122,7 @@ void drawRuler(void)
 void redraw(void)
 {
 	fcntl(0, F_SETFL, 0); /* blocking */
-	printf("\033[2J\033[?25h");
+	puts("\033[2J\033[?25h");
 
 	if (ws.ws_row < 24 || ws.ws_col < 68)
 	{
@@ -129,6 +131,7 @@ void redraw(void)
 		return;
 	}
 
+	drawBackground();
 	drawRuler();
 	switch (w->popup)
 	{
@@ -243,6 +246,36 @@ void stopPlayback(void)
 	redraw();
 }
 
+/* should be called after recieving \033O */
+void handleFKeys(int input)
+{
+	switch (input)
+	{
+		case 'P': /* tracker */
+			if (w->popup == 1)
+				switch (w->mode)
+				{
+					case 1: case 3: case 5: w->mode = T_MODE_INSERT; break;
+					default:                w->mode = 0; break;
+				}
+			w->popup = 0;
+			break;
+		case 'Q': /* instrument */
+			w->instrumentindex = MIN_INSTRUMENT_INDEX;
+			if (w->popup == 0 && w->mode == T_MODE_INSERT)
+				w->mode = 1;
+			else
+				w->mode = 0;
+			w->popup = 1;
+			break;
+		case 'R': /* song */
+			w->popup = 3;
+			w->mode = 0;
+			w->songfx = 0;
+			break;
+	}
+}
+
 int input(void)
 {
 	int input;
@@ -256,26 +289,31 @@ int input(void)
 		{
 			if (commandInput(&w->command, input, &w->mode)) return 1;
 			redraw();
-		} else if (input == ':') /* enter command mode */
-		{
-			setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
-			w->mode = 255;
-			redraw();
-		} else if (input == 7) /* ^G, show file info */
-		{
-			if (strlen(w->filepath))
-				sprintf(w->command.error, "\"%.*s\"", COMMAND_LENGTH - 2, w->filepath);
-			else
-				strcpy(w->command.error, "No file loaded");
-			redraw();
-		} else switch (w->popup)
-		{
-			case 0: trackerInput(input); break;
-			case 1: instrumentInput(input); break;
-			case 2: filebrowserInput(input); break;
-			case 3: songInput(input); break;
-			case 4: waveformInput(input); break;
-		}
+		} else switch (input)
+			{
+				case ':': /* enter command mode */
+					setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
+					w->mode = 255;
+					redraw();
+					break;
+				case 7: /* ^G, show file info */
+					if (strlen(w->filepath))
+						sprintf(w->command.error, "\"%.*s\"", COMMAND_LENGTH - 2, w->filepath);
+					else
+						strcpy(w->command.error, "No file loaded");
+					redraw();
+					break;
+				default:
+					switch (w->popup)
+					{
+						case 0: trackerInput(input); break;
+						case 1: instrumentInput(input); break;
+						case 2: filebrowserInput(input); break;
+						case 3: songInput(input); break;
+						case 4: waveformInput(input); break;
+					}
+					break;
+			}
 	}
 	return 0;
 }
@@ -322,7 +360,7 @@ int changeDirectory(void)
 	return 0;
 }
 
-void resize(int)
+void resize(int _)
 {
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->instrumentcelloffset = (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
@@ -346,9 +384,9 @@ void common_cleanup(int ret)
 {
 	fcntl(0, F_SETFL, 0); /* reset to blocking stdin reads */
 	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
-	printf("\033[?1002l"); /* disable mouse */
-	printf("\033[?1049l"); /* reset to the front buffer */
-	printf("\033[0 q"); /* reset the cursor shape */
+	puts("\033[?1002l"); /* disable mouse */
+	puts("\033[?1049l"); /* reset to the front buffer */
+	puts("\033[0 q"); /* reset the cursor shape */
 
 	exit(ret);
 }
@@ -357,7 +395,6 @@ void cleanup(int ret)
 	if (w->dir) closedir(w->dir);
 	jack_deactivate(client);
 
-	free(w->previewinstrument.state[0]);
 	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
 		if (w->instrumentbuffer.state[i])
 			t->f[i].delType(&w->instrumentbuffer.state[i]);
@@ -372,6 +409,7 @@ void cleanup(int ret)
 	delSong(s);
 	free(p);
 	free(t);
+	freeBackground();
 	jack_client_close(client);
 
 	common_cleanup(ret);
@@ -379,8 +417,8 @@ void cleanup(int ret)
 
 int main(int argc, char **argv)
 {
-	printf("\033[?1049h"); /* switch to the back buffer */
-	printf("\033[?1002h"); /* enable mouse events */
+	puts("\033[?1049h"); /* switch to the back buffer */
+	puts("\033[?1002h"); /* enable mouse events */
 
 	tcgetattr(1, &term);
 	origterm = term;
@@ -399,14 +437,14 @@ int main(int argc, char **argv)
 	p = malloc(sizeof(playbackinfo));
 	if (!p)
 	{
-		printf("out of memory");
+		puts("out of memory");
 		common_cleanup(1);
 	}
 	memset(p, 0, sizeof(playbackinfo));
 	client = jack_client_open("omutrack", JackNullOption, NULL);
 	if (client == NULL)
 	{
-		printf("failed to init the jack client");
+		puts("failed to init the jack client");
 		free(p);
 		common_cleanup(1);
 	}
@@ -424,7 +462,7 @@ int main(int argc, char **argv)
 	w = calloc(1, sizeof(window));
 	if (w == NULL)
 	{
-		printf("out of memory");
+		puts("out of memory");
 		free(p);
 		common_cleanup(1);
 	}
@@ -434,7 +472,7 @@ int main(int argc, char **argv)
 	s = addSong();
 	if (s == NULL)
 	{
-		printf("out of memory");
+		puts("out of memory");
 		free(w);
 		free(p);
 		common_cleanup(1);
@@ -446,24 +484,6 @@ int main(int argc, char **argv)
 
 	jack_set_process_callback(client, process, p);
 	jack_activate(client);
-
-
-	w->previewinstrument.type = 0;
-	w->previewinstrument.state[0] = malloc(sizeof(sampler_state));
-	if (!w->previewinstrument.state)
-	{
-		printf("out of memory");
-		jack_deactivate(client);
-		jack_client_close(client);
-
-		free(w);
-		delSong(s);
-		free(p);
-
-		common_cleanup(1);
-	}
-	sampler_state *ss = w->previewinstrument.state[0];
-	ss->volume.s = 255;
 
 
 	addPattern(0, 0);
@@ -481,13 +501,11 @@ int main(int argc, char **argv)
 	t = calloc(1, sizeof(typetable));
 	if (!t)
 	{
-		printf("out of memory");
+		puts("out of memory");
 
 		if (w->dir != NULL) closedir(w->dir);
 		jack_deactivate(client);
 		jack_client_close(client);
-
-		free(w->previewinstrument.state[0]);
 
 		free(w);
 		delSong(s);
@@ -503,6 +521,8 @@ int main(int argc, char **argv)
 		strcpy(w->newfilename, argv[1]);
 		p->lock = PLAY_LOCK_START;
 	}
+
+	initBackground();
 
 	resize(0);
 
@@ -528,13 +548,6 @@ int main(int argc, char **argv)
 
 		if (p->dirty)
 		{ p->dirty = 0; redraw(); }
-
-		/* if (w->previewsamplestatus == 3)
-		{
-			free(w->previewinstrument.sampledata);
-			w->previewinstrument.sampledata = NULL;
-			w->previewsamplestatus = 0;
-		} */
 
 		/* perform any pending instrument actions */
 		changeInstrumentType(s, 0);

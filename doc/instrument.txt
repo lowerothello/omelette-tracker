@@ -1,0 +1,29 @@
+.-------------.
+| INSTRUMENTS |
+'-------------'
+omelette's sound sources
+
+Instruments revolve around "types", which are the name for different sound
+generators.
+
+TYPES
+-----
+0: Sampler
+	A basic digital-sounding workhorse sampler.
+
+	FEATURES:
+		- loads most file formats thanks to libsndfile
+		- either record from the JACK inputs, or loopback record
+		- timestretch and pitch/formant shift samples similarly to an old Akai
+		- option to lock tempo when playing different notes
+		- non-destructive pseudo-rate reduction
+		- full ADSR to sculpt envelopes
+		- sample looping, forwards or ping-pong algorithms
+
+
+1: Virtual Analogue
+	A questionable subtractive synth designed by someone who hasn't designed any
+	synths before.
+
+	FEATURES:
+		- pwm, synth snobs love pwm

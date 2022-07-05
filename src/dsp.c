@@ -1,7 +1,7 @@
 #define WAVE_COUNT 4
 #define FILTERTYPE_COUNT 1
 
-#define C5_FREQ 261.63
+#define C5_FREQ 261.63 /* set this to the resonant frequency of your favourite mineral for best results */
 #define MIN_RESONANCE 0.6 /* higher numbers are softer, M_SQRT2 (~1.4) is the highest */
 #define MAX_RESONANCE 0.0 /* lower numbers are harsher */
 #define MAX_CUTOFF 12000
@@ -10,9 +10,12 @@
 #define FM_DEPTH 0.005
 
 /* <seconds> */
-#define ENVELOPE_ATTACK  0.005
-#define ENVELOPE_DECAY   0.020
+#define ENVELOPE_ATTACK 0.005
+#define ENVELOPE_ATTACK_MIN 3
+#define ENVELOPE_DECAY 0.020
+#define ENVELOPE_DECAY_MIN 1
 #define ENVELOPE_RELEASE 0.020
+#define ENVELOPE_RELEASE_MIN 1
 #define LFO_MIN 2.00
 #define LFO_MAX 0.001
 /* </seconds> */
@@ -21,8 +24,9 @@
 #define MIN_GATE_SPEED_SEC 10.0
 
 
-/* multiply instead of dividing for powers of 2 */
+/* multiply instead of dividing for float powers of 2 */
 #define DIV256 0.00390625
+#define DIV255 0.00392156862745098
 #define DIV128 0.0078125
 #define DIV64  0.015625
 #define DIV32  0.03125
@@ -268,12 +272,12 @@ float adsrEnvelope(adsr env, float curve,
 	float linear;
 	if (releasepointer && releasepointer < pointer)
 	{ /* release */
-		uint32_t releaselength = env.r * ENVELOPE_RELEASE * samplerate;
+		uint32_t releaselength = (env.r+ENVELOPE_RELEASE_MIN) * ENVELOPE_RELEASE * samplerate;
 		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * (env.s*DIV256);
 	} else
 	{
-		uint32_t attacklength = env.a * ENVELOPE_ATTACK * samplerate;
-		uint32_t decaylength = env.d * ENVELOPE_DECAY * samplerate;
+		uint32_t attacklength = (env.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate;
+		uint32_t decaylength = (env.d+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate;
 		if (pointer < attacklength)
 		{ /* attack */
 			linear = (float)pointer / (float)attacklength;

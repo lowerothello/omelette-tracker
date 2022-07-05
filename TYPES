@@ -8,18 +8,48 @@ STAGING DESIGNS
 │                                                                  │
 │          [     NO SAMPLE     ] │    TRIM        LOOP             │
 │          C-5 rate   [00000000] │ [00000000]  [00000000]          │
-│          mono/rate     [ ][ff] │ [00000000]  [00000000]          │
+│          samplerate       [ff] │ [00000000]  [00000000]          │
 │          invert/8-bit   [ ][ ] │   00->ff      00->00            │
-│          gain             [80] │ reverse playback   [ ]          │
+│          channels     [normal] │ reverse playback   [ ]          │
 │          ──────────────────────┤ loop crossfade    [00]          │
-│                 AMPLIFIER      │ ping-pong loop     [ ]          │
+│                AMPLIFIER       │ ping-pong loop     [ ]          │
 │          attack           [00] ├───────────────────────          │
 │          decay            [00] │      TIMESTRETCH                │
-│          sustain          [ff] │ match tempo  [06ff][ ]          │
-│          release          [00] │ pitch shift [06ff][80]          │
-│                                │                                 │
+│          sustain          [ff] │ match tempo        [ ]          │
+│          release          [00] │ cycle length    [07ff]          │
+│          gain             [40] │ pitch shift       [80]          │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
+────── [sampler] ──────
+                       
+[      NO SAMPLE      ]
+C-5 rate     [00000000]
+samplerate         [ff]
+invert/8-bit     [ ][ ]
+channels       [normal]
+
+
+   TRIM         LOOP   
+[00000000]   [00000000]
+[00000000]   [00000000]
+  00->ff       00->00  
+reverse playback    [ ]
+loop crossfade     [00]
+ping-pong loop      [ ]
+
+
+       AMPLIFIER       
+attack             [00]
+decay              [00]
+sustain            [ff]
+release            [00]
+gain               [40]
+
+
+      TIMESTRETCH      
+match tempo         [ ]
+cycle length     [07ff]
+pitch shift        [80]
 
 
 
@@ -37,53 +67,75 @@ STAGING DESIGNS
 │  ──────────────────   track   [00]  release [00] │ release [00]  │
 │  OSCILLATOR2   [80]   high resonance (loud)  [ ] │ gain    [80]< │
 │  waveform   [  tri]   ───────────────────┬───────┴─────────────  │
-│  detune [+0][0][7f]          LFO         │ NOISE           [00]< │
+│  detune    [+0][80]          LFO         │ NOISE           [00]< │
 │  track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]< │
 │  ──────────────────   rate          [80] ├─────────────────────  │
-│  SUB OSC   [-0][00]   pulse width   [00] │ UNISON           [0]  │
+│  SUB OSC   [-0][7f]   pulse width   [00] │ UNISON           [0]  │
 │  waveform   [pulse]                      │ detune/width [00][0]  │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 
 
 
-00 * ... .. ... ... * ... .. ... ... *
+       CHANNEL 00       CHANNEL 01       CHANNEL 02
+00 * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+01   ... .. ... ...   ... .. ... ...   ... .. ... ...
+02   ... .. ... ...   ... .. ... ...   ... .. ... ...
+03   ... .. ... ...   ... .. ... ...   ... .. ... ...
+04 * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+05   ... .. ... ...   ... .. ... ...   ... .. ... ...
+06   ... .. ... ...   ... .. ... ...   ... .. ... ...
+07   ... .. ... ...   ... .. ... ...   ... .. ... ...
+08 * ... .. ... ... * ... .. ... ... * ... .. ... ... *
+09   ... .. ... ...   ... .. ... ...   ... .. ... ...
+0a   ... .. ... ...   ... .. ... ...   ... .. ... ...
+0b   ... .. ... ...   ... .. ... ...   ... .. ... ...
+0c * ... .. ... ... * ... .. ... ... * ... .. ... ... *
 
 
-// collapse channels
-       CHANNEL 00     C01     CHANNEL 02       CHANNEL 03
-00 * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
-01   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-02   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-03   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-04 * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
-05   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-06   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-07   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-08 * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
-09   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-0a   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-0b   ... .. ... ...   ...   ... .. ... ...   ... .. ... ...
-0c * ... .. ... ... * ... * ... .. ... ... * ... .. ... ... *
+PER CHANNEL DEFINED EFFECTS
+* prev channel fm/ringmod
+* versatile delay
+	- stereo time
+		* quantised to rows/subrows
+		* pseudo-logarithmic
+		* 0 for off
+	- time lfo rate+depth, Vxy style
+	- feedback
+	* feedback saturation/filtering
+* waveshapers
+	* port of Wxy
+* gate
+* compressor
+* phaser
+* reverb send
 
 
-// wide instrument view
-                             ┌─────────────────────────── [sampler] ────────────────────────────┐
-    <- INSTRUMENT (00) ->    │                                                                  │
-                             │          [     NO SAMPLE     ] │    TRIM        LOOP             │
-                             │          C-5 rate   [00000000] │ [00000000]  [00000000]          │
-    type             [00]    │          mono/rate     [ ][ff] │ [00000000]  [00000000]          │
-    fader            [88]    │          invert/8-bit   [ ][ ] │   00->ff      00->00            │
-                             │          gain             [80] │ reverse playback   [ ]          │
-                             │          ──────────────────────┤ loop crossfade    [00]          │
-                             │                 AMPLIFIER      │ ping-pong loop     [ ]          │
-                             │          attack           [00] ├───────────────────────          │
-                             │          decay            [00] │      TIMESTRETCH                │
-          RECORDING          │          sustain          [ff] │ match tempo  [06ff][ ]          │
-  record source  [ line in]  │          release          [00] │ pitch shift [06ff][80]          │
-  only loop back cursor [ ]  │                                │                                 │
-  gate the next pattern [ ]  │                                                                  │
-                             └──────────────────────────────────────────────────────────────────┘
+│       DISTORTION       │
+│ hard clipper      [00] │
+│ soft clipper      [00] │
+│ rectifiers    [00][00] │
+│ wavefolder        [00] │
+│ wavewrapper       [00] │
+│ sign conversion   [00] │
+│                        │
+│          GATE          │
+│ threshold         [00] │
+│ speed             [00] │
+│ max reduction     [00] │
+│                        │
+│       COMPRESSOR       │
+│ threshold         [00] │
+│ ratio             [00] │
+│ speed             [00] │
+│                        │
+│         DELAY          │
+│ time            [0000] │     < one byte per stereo channel, might reduce precision
+│ lfo rate/depth  [0][0] │
+│ feedback          [00] │
+│                        │
+│ gain              [88] │
+│ reverb send       [00] │
 
 
 

@@ -1,0 +1,21 @@
+OMELETTE TRACKER
+----------------
+omelette tracker is a musical instrument and compositional tool designed
+primarily for making techno and similar electronic music. It was written
+because no other tool I could find could do all the things I wanted to do.
+
+
+VIEWS
+-----
+There are 3 main views:
+* PATTERN - F1
+	Where patterns are written and edited
+
+* INSTRUMENT - F2
+	Where instruments are edited
+
+* SONG - F3
+	Where patterns are arranged into a full song
+
+
+vim: sidescrolloff=0

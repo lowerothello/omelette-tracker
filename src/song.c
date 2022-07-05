@@ -1,5 +1,4 @@
-#define SONGLIST_ROWS 20
-#define SONGLIST_COLS 15
+#define SONGLIST_COLS 2
 
 
 void inputSongHex(char value)
@@ -14,20 +13,26 @@ void inputSongHex(char value)
 
 void drawSong(void)
 {
-	printf("\033[%d;%dH\033[1mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col - 4) / 2);
+	// printf("\033[%d;%dH\033[1mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col - 4) / 2);
+	printf("\033[%d;%dH\033[2mPATTERN INSTRUMENT\033[m \033[1mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col-22) / 2);
 
-	unsigned char visiblechannels = MIN((ws.ws_col - 16) / 9, s->channelc);
-	unsigned short x = (ws.ws_col - MIN(ws.ws_col, 13 + 9*visiblechannels)) / 2;
+	unsigned char visiblechannels = MIN((ws.ws_col - LINENO_COLS - 11) / 9, s->channelc);
+	unsigned short x = (ws.ws_col - MIN(ws.ws_col, LINENO_COLS + 8 + 9*visiblechannels)) / 2;
 
+	printf("\033[%d;%dH\033[%dX",
+			CHANNEL_ROW-1, x+LINENO_COLS+11, visiblechannels*9 - 4);
 	printf("\033[1m\033[%d;%dH┌\033[%d;%dH┐\033[m",
-			CHANNEL_ROW-1, x+16,
-			CHANNEL_ROW-1, x+16 + visiblechannels*9 - 4);
+			CHANNEL_ROW-1, x+LINENO_COLS + 11,
+			CHANNEL_ROW-1, x+LINENO_COLS + 11 + visiblechannels*9 - 4);
 
-	printf("\033[%d;%dH\033[1mINDICES\033[m", CHANNEL_ROW, x+4);
-	printf("\033[%d;%dH", CHANNEL_ROW, x+16);
-	for (unsigned short j = 0; j < visiblechannels; j++)
-		if (s->channelv[j].mute) printf("\033[2mCHNL%02x\033[m   ", j);
-		else                     printf("\033[1mCHNL%02x\033[m   ", j);
+	printf("\033[%d;%dH\033[1mINDICES\033[m", CHANNEL_ROW, x+LINENO_COLS-1);
+	printf("\033[%d;%dH", CHANNEL_ROW, x+LINENO_COLS+11);
+
+	if (s->channelv[0].mute) printf("\033[2mCHNL%02x\033[m", 0);
+	else                     printf("\033[1mCHNL%02x\033[m", 0);
+	for (unsigned short j = 1; j < visiblechannels; j++)
+		if (s->channelv[j].mute) printf("   \033[2mCHNL%02x\033[m", j);
+		else                     printf("   \033[1mCHNL%02x\033[m", j);
 
 	for (int i = 0; i < 256; i++)
 	{
@@ -48,48 +53,44 @@ void drawSong(void)
 			else if (s->rowhighlight && !(i % s->rowhighlight))   printf(" * ");
 			else                                                  printf("   ");
 
-			printf("   ");
 			for (unsigned short j = 0; j < visiblechannels; j++)
 				if (s->channelv[j].mute) printf("\033[2m.. ...\033[m   ");
-				else printf(".. ...   ");
+				else printf("   .. ...");
 		}
 	}
 	switch (w->songfx)
 	{
 		case 0: printf("\033[%d;%dH", w->centre + w->fyoffset, x+LINENO_COLS+1); break;
 		case 1: printf("\033[%d;%dH", w->centre + w->fyoffset, x+LINENO_COLS+4); break;
+		default:
+			if ((w->songfx - SONGLIST_COLS)%2 == 0)
+				printf("\033[%d;%dH", w->centre + w->fyoffset, x+LINENO_COLS+12 + 9*(w->songfx - SONGLIST_COLS)/2);
+			else
+				printf("\033[%d;%dH", w->centre + w->fyoffset, x+LINENO_COLS+12 + 9*(w->songfx - SONGLIST_COLS)/2);
+			break;
 	}
 }
 
 void songInput(int input)
 {
+	int button, x, y;
 	switch (input)
 	{
 		case '\033':
 			switch (getchar())
 			{
 				case 'O':
-					switch (getchar())
-					{
-						case 'P':
-							w->instrumentindex = MIN_INSTRUMENT_INDEX;
-							w->popup = 1;
-							w->mode = 0;
-							break;
-						case 'Q':
-							w->popup = 0;
-							w->mode = 0;
-							break;
-					}
+					if (w->songfx >= SONGLIST_COLS) w->channel = (w->songfx-2) / 2;
+					handleFKeys(getchar());
 					redraw();
 					break;
 				case '[':
 					switch (getchar())
 					{
-						case 'A': /* up arrow    */ if (w->songfy > 0) w->songfy--; redraw(); break;
-						case 'B': /* down arrow  */ if (w->songfy < 255) w->songfy++; redraw(); break;
-						case 'D': /* left arrow  */ break;
-						case 'C': /* right arrow */ break;
+						case 'A': /* up    */ if (w->songfy > 0) w->songfy--; redraw(); break;
+						case 'B': /* down  */ if (w->songfy < 255) w->songfy++; redraw(); break;
+						case 'D': /* left  */ if (w->songfx > 0) w->songfx--; redraw(); break;
+						case 'C': /* right */ if (w->songfx < (s->channelc*2) + SONGLIST_COLS-1) w->songfx++; redraw(); break;
 						case 'H': /* home */
 							w->songfy = 0;
 							redraw();
@@ -113,15 +114,25 @@ void songInput(int input)
 									stopPlayback();
 									break;
 								case ';': /* mod+arrow */
-									getchar();
-									getchar();
+									switch (getchar())
+									{
+										case '5': /* ctrl+arrow */
+											switch (getchar())
+											{
+												case 'D': /* left  */ if (w->songfx > 1) w->songfx-=2; redraw(); break;
+												case 'C': /* right */ if (w->songfx < (s->channelc*2) + SONGLIST_COLS-2) w->songfx+=2; redraw(); break;
+											} break;
+										default:
+											getchar();
+											break;
+									}
 									break;
 							}
 							break;
 						case 'M': /* mouse */
-							int button = getchar();
-							int x = getchar() - 32;
-							int y = getchar() - 32;
+							button = getchar();
+							x = getchar() - 32;
+							y = getchar() - 32;
 							switch (button)
 							{
 								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up */
@@ -139,26 +150,32 @@ void songInput(int input)
 								case BUTTON1: case BUTTON1_CTRL:
 								case BUTTON3: case BUTTON3_CTRL:
 									if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
+									unsigned char visiblechannels = MIN((ws.ws_col - LINENO_COLS - 11) / 9, s->channelc);
+									short vx = (ws.ws_col - MIN(ws.ws_col, LINENO_COLS + 8 + 9*visiblechannels)) / 2;
+									uint8_t channel = MIN((x - vx - 15) / 9, visiblechannels);
+
+									/* ypos */
 									if (y <= CHANNEL_ROW)
-									{
-										unsigned char visiblechannels = MIN((ws.ws_col - 16) / 9, s->channelc);
-										unsigned short vx = (ws.ws_col - MIN(ws.ws_col, 13 + 9*visiblechannels)) / 2;
-										uint8_t channel = MIN((x - vx - 15) / 9, visiblechannels);
 										s->channelv[channel].mute = !s->channelv[channel].mute;
-									} else
-									{
+									else
 										w->fyoffset = y - w->centre;
+
+									/* xpos */
+									if      (x - vx < LINENO_COLS+3) w->songfx = 0;
+									else if (x - vx < LINENO_COLS+9) w->songfx = 1;
+									else if (x - vx > LINENO_COLS + 8 + 9*visiblechannels) w->songfx = s->channelc*2 + SONGLIST_COLS-1;
+									else
+									{ /* channels */
+										unsigned char channel = (x - vx - LINENO_COLS - 5) / 9;
+										unsigned char voffset = (x - vx - LINENO_COLS - 5) % 9;
+										if (voffset > 4) w->songfx = channel*2 + SONGLIST_COLS-1 + 1;
+										else             w->songfx = channel*2 + SONGLIST_COLS-1 + 0;
 									}
 									break;
 							}
 							redraw();
 							break;
 					}
-					break;
-				default:
-					w->popup = 0;
-					w->mode = 0;
-					redraw();
 					break;
 			}
 			break;

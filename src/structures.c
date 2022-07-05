@@ -34,6 +34,7 @@ typedef struct
 	char      mute;                         /* saved to disk */
 	char      macroc;                       /* macro count */
 
+	char      reverse;                      /* decrement pointer instead of incrementing it */
 	uint32_t  pointer;                      /* progress through the sound */
 	uint32_t  pointeroffset;                /* where to base pointer off of */
 	uint32_t  releasepointer;               /* 0 for no release, where releasing started */
@@ -41,7 +42,8 @@ typedef struct
 	short     targetgain;                   /* smooth gain target */
 	row       r;
 	float     finetune;                     /* calculated fine tune, should be between -0.5 and +0.5 */
-	float     portamentofinetune;           /* used for portamento, should be between -0.5 and +0.5 */
+	float     portamentofinetune;           /* used by portamento, should be between -0.5 and +0.5 */
+	float     microtonalfinetune;           /* used by the local microtonal macro */
 	uint8_t   portamento;                   /* portamento target, 255 for off */
 	uint8_t   portamentospeed;              /* portamento m */
 	uint16_t  rtrigsamples;                 /* samples per retrigger */
@@ -195,7 +197,6 @@ typedef struct
 	uint8_t        previewnote, previewinst;
 	macro          previewmacro;
 	uint8_t        previewchannel;
-	instrument     previewinstrument;            /* used by the file browser */
 	char           previewtrigger;               /* 0:cut
 	                                                1:start inst
 	                                                2:still inst
@@ -983,6 +984,7 @@ uint8_t newInstrument(uint8_t minindex)
 	for (uint8_t i = minindex; i < 256; i++) // is 256 right? idfk
 		if (s->instrumenti[i] == 0)
 			return i;
+	return 255; /* fail */
 }
 int yankInstrument(uint8_t index)
 {

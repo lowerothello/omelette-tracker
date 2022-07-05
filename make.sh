@@ -5,21 +5,19 @@ run() {
 	time $@
 }
 
-echo "if this fails to link, run 'cd src/lib/libdrawille; cmake .; make; cd ../../..'"
-
 [ "$1" ] && {
-	echo "optimised build"
-	run ${CC:-gcc} $CFLAGS \
+	echo "optimised build (-O$1)"
+	run ${CC:-tcc} -o omelette -O$1 \
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
-		-lm -Wall -pg \
-		src/main.c -o omelette src/lib/libdrawille/src/liblibdrawille.a
+		-lm -Wall -g \
+		src/main.c src/lib/libdrawille/src/liblibdrawille.a
 } || {
-	run ${CC:-gcc} \
+	run ${CC:-tcc} -o omelette -O0 \
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
-		-lm -Wall -g -pg \
-		src/main.c -o omelette src/lib/libdrawille/src/liblibdrawille.a
+		-lm -Wall -g \
+		src/main.c src/lib/libdrawille/src/liblibdrawille.a
 }

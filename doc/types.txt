@@ -1,0 +1,8 @@
+.-------.
+| TYPES |
+'-------'
+
+
+TECHNICAL INFO
+process(instrument *iv, channel *cv, uint32_t pointer, float l, float r):
+	- cv->reverse is set if the pointer is counting down

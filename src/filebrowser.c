@@ -2,30 +2,31 @@ void drawFilebrowser(void)
 {
 	printf("\033[%d;%dH\033[1mFILEBROWSER\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
 
-	unsigned short x = w->instrumentcelloffset - 5;
 	unsigned short y = w->instrumentrowoffset;
-	/* printf(    "\033[%d;%dH┌──────────────────────────────────────────────────────────────────────────────┐", y+0, x);
-	for (int i = 1; i < INSTRUMENT_BODY_ROWS; i++)
-		printf("\033[%d;%dH│                                                                              │", y+i, x);
-	printf(    "\033[%d;%dH└──────────────────────────────────────────────────────────────────────────────┘", y+INSTRUMENT_BODY_ROWS, x); */
+
+	struct dirent *dirent = readdir(w->dir);
+	unsigned int dirc = 0;
+	unsigned short yo, xo, xw;
+	char testdirpath[NAME_MAX + 1];
+	DIR *testdir;
+	xw = (w->dirmaxwidth + 2)*w->dircols;
+	xo = (ws.ws_col-xw) / 2 + 1;
+	yo = y+11 - w->instrumentindex / w->dircols;
+
+	for (unsigned short cy = y; cy < y+7+INSTRUMENT_TYPE_ROWS; cy++)
+		printf("\033[%d;%dH\033[%dX", cy, w->instrumentcelloffset, INSTRUMENT_BODY_COLS);
+
 
 	if (strlen(w->dirpath) > INSTRUMENT_BODY_COLS - 4)
 	{
 		char buffer[INSTRUMENT_BODY_COLS + 1];
 		memcpy(buffer, w->dirpath + ((unsigned short)strlen(w->dirpath - INSTRUMENT_BODY_COLS - 4)), INSTRUMENT_BODY_COLS - 4);
-		printf("\033[%d;%dH%.*s", y+1, x+3, INSTRUMENT_BODY_COLS - 4, buffer);
+		printf("\033[%d;%dH%.*s", y+1, xo, xw, buffer);
 	} else
 	{
-		printf("\033[%d;%dH%.*s", y+1, x-1 + (INSTRUMENT_BODY_COLS - (unsigned short)strlen(w->dirpath) + 1) / 2, INSTRUMENT_BODY_COLS - 4, w->dirpath);
+		printf("\033[%d;%dH%.*s", y+1, xo + (xw - (unsigned short)strlen(w->dirpath) + 1) / 2, INSTRUMENT_BODY_COLS - 4, w->dirpath);
 	}
 
-	struct dirent *dirent = readdir(w->dir);
-	unsigned int dirc = 0;
-	short yo, xo;
-	char testdirpath[NAME_MAX + 1];
-	DIR *testdir;
-	xo = x + (INSTRUMENT_BODY_COLS - (w->dirmaxwidth + 2) * w->dircols) / 2;
-	yo = y+11 - w->instrumentindex / w->dircols;
 	while (dirent)
 	{
 		for (unsigned char wcol = 0; wcol < w->dircols; wcol++)
@@ -61,9 +62,8 @@ void drawFilebrowser(void)
 
 	if (dirc == 0)
 	{
-		w->dirmaxwidth = INSTRUMENT_BODY_COLS - 4;
-		printf("\033[%d;%dH%.*s", y+11, x + (INSTRUMENT_BODY_COLS - (unsigned short)strlen("(empty directory)") + 1) / 2, INSTRUMENT_BODY_COLS - 4, "(empty directory)");
-		printf("\033[%d;%dH", y+11, x + (INSTRUMENT_BODY_COLS - (unsigned short)strlen("(empty directory)") + 1) / 2 + 1);
+		printf("\033[%d;%dH%.*s", y+11, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2, INSTRUMENT_BODY_COLS - 4, "(empty directory)");
+		printf("\033[%d;%dH", y+11, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2 + 1);
 	} else printf("\033[%d;%dH", y+11 + w->fyoffset, xo + (w->dirmaxwidth + 2) * (w->instrumentindex % w->dircols));
 }
 
@@ -106,11 +106,13 @@ int getSubdir(char *newpath)
 
 void filebrowserInput(int input)
 {
+	char newpath[NAME_MAX + 1], oldpath[NAME_MAX + 1];
+	int button, x, y;
 	switch (input)
 	{
 		case 10: case 13: /* return */
-			char newpath[NAME_MAX + 1];
-			char oldpath[NAME_MAX + 1]; strcpy(oldpath, w->dirpath);
+			newpath[NAME_MAX + 1];
+			oldpath[NAME_MAX + 1]; strcpy(oldpath, w->dirpath);
 			switch (getSubdir(newpath))
 			{
 				case 1: /* file */
@@ -140,18 +142,7 @@ void filebrowserInput(int input)
 			switch (getchar())
 			{
 				case 'O':
-					switch (getchar())
-					{
-						case 'P':
-							w->instrumentindex = 0;
-							w->popup = 0;
-							w->mode = 0;
-							break;
-						case 'Q':
-							w->popup = 3;
-							w->mode = 0;
-							break;
-					}
+					handleFKeys(getchar());
 					redraw();
 					break;
 				case '[':
@@ -225,9 +216,9 @@ void filebrowserInput(int input)
 							} break;
 						case 'M': /* mouse */
 							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-							int button = getchar();
-							int x = getchar() - 32;
-							int y = getchar() - 32;
+							button = getchar();
+							x = getchar() - 32;
+							y = getchar() - 32;
 							switch (button)
 							{
 								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up */

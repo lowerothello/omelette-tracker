@@ -43,7 +43,8 @@ void drawRecordSource(uint8_t source, unsigned short y, unsigned short x, char a
 
 void drawInstrument(void)
 {
-	printf("\033[%d;%dH\033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
+	// printf("\033[%d;%dH\033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
+	printf("\033[%d;%dH\033[2mPATTERN \033[1mINSTRUMENT\033[m \033[2mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col-22) / 2);
 
 	switch (w->mode)
 	{
@@ -74,6 +75,9 @@ void drawInstrument(void)
 
 	unsigned short x = w->instrumentcelloffset;
 	unsigned short y = w->instrumentrowoffset;
+
+	for (unsigned short cy = y; cy < y+7+INSTRUMENT_TYPE_ROWS; cy++)
+		printf("\033[%d;%dH\033[%dX", cy, x, INSTRUMENT_BODY_COLS);
 
 	printf("\033[%d;%dH  <- INSTRUMENT (%02x) ->  ", y+0, x+(INSTRUMENT_BODY_COLS-26) / 2, w->instrument);
 	printf("\033[%d;%dH┌\033[%d;%dH┐", y+5,x+1, y+5,x+INSTRUMENT_BODY_COLS-2);
@@ -258,6 +262,8 @@ void instrumentAdjustRight(instrument *iv, short index, char mouse)
 
 void instrumentInput(int input)
 {
+	instrument *iv;
+	int button, x, y;
 	if (!s->instrumenti[w->instrument])
 		w->instrumentindex = MIN_INSTRUMENT_INDEX;
 	switch (input)
@@ -266,29 +272,12 @@ void instrumentInput(int input)
 			switch (getchar())
 			{
 				case 'O':
-					// previewNote(0, 255, w->channel);
-					switch (getchar())
-					{
-						case 'P':
-							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
-							w->popup = 0;
-
-							switch (w->mode)
-							{
-								case 1: case 3: case 5: w->mode = 3; break; /* 3 = T_MODE_INSERT */
-								default:                w->mode = 0; break;
-							}
-							break;
-						case 'Q':
-							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
-							w->popup = 3;
-							w->mode = 0;
-							break;
-					}
+					pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
+					handleFKeys(getchar());
 					redraw();
 					break;
 				case '[':
-					instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
+					iv = s->instrumentv[s->instrumenti[w->instrument]];
 					switch (getchar())
 					{
 						case 'A': /* up arrow */
@@ -425,6 +414,9 @@ void instrumentInput(int input)
 													break;
 											}
 											break;
+										default:
+											getchar();
+											break;
 									}
 									break;
 							}
@@ -467,9 +459,9 @@ void instrumentInput(int input)
 							redraw();
 							break;
 						case 'M': /* mouse */
-							int button = getchar();
-							int x = getchar() - 32;
-							int y = getchar() - 32;
+							button = getchar();
+							x = getchar() - 32;
+							y = getchar() - 32;
 							switch (button)
 							{
 								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up   */
@@ -562,7 +554,6 @@ void instrumentInput(int input)
 				case '8': if (w->mode == 1 || w->mode == 3 || w->mode == 5) w->step = 8; redraw(); break;
 				case '9': if (w->mode == 1 || w->mode == 3 || w->mode == 5) w->step = 9; redraw(); break;
 				default:
-					// previewNote(0, 255, w->channel);
 					switch (w->mode)
 					{
 						case 1: case 3: case 5: /* leave preview */
@@ -571,223 +562,219 @@ void instrumentInput(int input)
 						case 2: case 4: /* leave adjust */
 							w->mode-=2;
 							break;
-						default: /* leave the popup */
-							pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
-							w->fieldpointer = 0;
-							w->popup = 0;
-							w->instrumentindex = 0;
-							break;
 					}
 					redraw();
 					break;
 			}
 			break;
 		default:
-			switch (w->mode)
-			{
-				case 0: case 2: case 4:
-					if (w->chord)
-						switch (w->chord)
+			if (input == '=') /* panic note off preview */
+				previewNote(255, 255, w->channel);
+			else switch (w->mode)
+				{
+					case 0: case 2: case 4:
+						if (w->chord)
+							switch (w->chord)
+							{
+								case 'r':
+									switch (input)
+									{
+										case 's': /* start/stop */
+											toggleRecording(w->instrument);
+											break;
+										case 'c': /* cancel */
+											if (w->instrumentrecv != INST_REC_LOCK_OK)
+												w->instrumentrecv = INST_REC_LOCK_PREP_CANCEL;
+											break;
+									}
+								case 'k': /* keyboard macro */
+									w->keyboardmacro = '\0';
+									if (input != 'k') // kk just resets
+										changeMacro(input, &w->keyboardmacro);
+									redraw();
+									break;
+							}
+						else
 						{
-							case 'r':
-								switch (input)
-								{
-									case 's': /* start/stop */
-										toggleRecording(w->instrument);
-										break;
-									case 'c': /* cancel */
-										if (w->instrumentrecv != INST_REC_LOCK_OK)
-											w->instrumentrecv = INST_REC_LOCK_PREP_CANCEL;
-										break;
-								}
-							case 'k': /* keyboard macro */
-								w->keyboardmacro = '\0';
-								if (input != 'k') // kk just resets
-									changeMacro(input, &w->keyboardmacro);
-								redraw();
-								break;
-						}
-					else
-					{
-						instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-						switch (input)
-						{
-							case 'i': /* enter preview */
-								w->mode++;
-								redraw();
-								break;
-							case 'u': /* undo */
-								popInstrumentHistory(s->instrumenti[w->instrument]);
-								redraw();
-								break;
-							case 18: /* ^R, redo */
-								unpopInstrumentHistory(s->instrumenti[w->instrument]);
-								redraw();
-								break;
-							case 'r': /* record */
-								w->chord = 'r';
-								redraw();
-								goto i_afterchordunset;
-							case 'k': /* keyboard macro */
-								w->chord = 'k';
-								redraw();
-								goto i_afterchordunset;
-							case 127: case 8: /* backspace */
-								/* TODO: REALLY slow branch */
-								if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
-										&& t->f[iv->type].decFieldPointer)
-									t->f[iv->type].decFieldPointer(w->instrumentindex);
-								redraw();
-								break;
-							case ' ': /* space */
-								/* TODO: REALLY slow branch */
-								if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
-										&& t->f[iv->type].incFieldPointer)
-									t->f[iv->type].incFieldPointer(w->instrumentindex);
-								redraw();
-								break;
-							default:
-								instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
+							instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
+							switch (input)
+							{
+								case 'i': /* enter preview */
+									w->mode++;
+									redraw();
+									break;
+								case 'u': /* undo */
+									popInstrumentHistory(s->instrumenti[w->instrument]);
+									redraw();
+									break;
+								case 18: /* ^R, redo */
+									unpopInstrumentHistory(s->instrumenti[w->instrument]);
+									redraw();
+									break;
+								case 'r': /* record */
+									w->chord = 'r';
+									redraw();
+									goto i_afterchordunset;
+								case 'k': /* keyboard macro */
+									w->chord = 'k';
+									redraw();
+									goto i_afterchordunset;
+								case 127: case 8: /* backspace */
+									/* TODO: REALLY slow branch */
+									if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
+											&& t->f[iv->type].decFieldPointer)
+										t->f[iv->type].decFieldPointer(w->instrumentindex);
+									redraw();
+									break;
+								case ' ': /* space */
+									/* TODO: REALLY slow branch */
+									if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
+											&& t->f[iv->type].incFieldPointer)
+										t->f[iv->type].incFieldPointer(w->instrumentindex);
+									redraw();
+									break;
+								default:
+									iv = s->instrumentv[s->instrumenti[w->instrument]];
 
-								switch (w->instrumentindex)
-								{
-									case MIN_INSTRUMENT_INDEX:
-										switch (input)
-										{
-											case 'a': /* add */
-												if (!s->instrumenti[w->instrument])
-													addInstrument(w->instrument);
-												redraw();
-												break;
-											case 'd': /* delete */
-												if (w->instrumentrecv == INST_REC_LOCK_OK && s->instrumenti[w->instrument])
-												{
-													yankInstrument(w->instrument);
-													delInstrument(w->instrument);
-												}
-												redraw();
-												break;
-											case 'y': /* yank */
-												yankInstrument(w->instrument);
-												redraw();
-												break;
-											case 'p': /* put */
-												if (w->instrumentrecv == INST_REC_LOCK_OK)
-												{
+									switch (w->instrumentindex)
+									{
+										case MIN_INSTRUMENT_INDEX:
+											switch (input)
+											{
+												case 'a': /* add */
 													if (!s->instrumenti[w->instrument])
 														addInstrument(w->instrument);
-													w->instrumentlocki = s->instrumenti[w->instrument];
-													w->instrumentlockv = INST_GLOBAL_LOCK_PREP_PUT;
-												} else
-												{
-													strcpy(w->command.error, "failed to put instrument, try again");
 													redraw();
-												}
-												break;
-											case 'e': /* empty */
-												if (w->instrumentrecv == INST_REC_LOCK_OK)
-													w->instrument = newInstrument(0);
-												redraw();
-												break;
-										}
-										break;
-									case MIN_INSTRUMENT_INDEX + 1:
-										if (w->instrumentlockv > INST_REC_LOCK_OK) break;
-										if (!s->instrumenti[w->instrument]) break;
-										iv = s->instrumentv[s->instrumenti[w->instrument]];
-										switch (input)
-										{
-											case 1: /* ^a */
-												iv->type++;
-												w->instrumentlocki = s->instrumenti[w->instrument];
-												w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
-												break;
-											case 24: /* ^x */
-												iv->type--;
-												w->instrumentlocki = s->instrumenti[w->instrument];
-												w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
-												break;
-											case '0':           updateFieldPush(&iv->type, 0);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '1':           updateFieldPush(&iv->type, 1);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '2':           updateFieldPush(&iv->type, 2);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '3':           updateFieldPush(&iv->type, 3);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '4':           updateFieldPush(&iv->type, 4);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '5':           updateFieldPush(&iv->type, 5);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '6':           updateFieldPush(&iv->type, 6);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '7':           updateFieldPush(&iv->type, 7);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '8':           updateFieldPush(&iv->type, 8);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '9':           updateFieldPush(&iv->type, 9);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'A': case 'a': updateFieldPush(&iv->type, 10); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'B': case 'b': updateFieldPush(&iv->type, 11); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'C': case 'c': updateFieldPush(&iv->type, 12); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'D': case 'd': updateFieldPush(&iv->type, 13); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'E': case 'e': updateFieldPush(&iv->type, 14); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'F': case 'f': updateFieldPush(&iv->type, 15); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-										}
-										redraw();
-										break;
-									case MIN_INSTRUMENT_INDEX + 2:
-										switch (input)
-										{
-											case 1: /* ^a */
-												iv->defgain++;
-												break;
-											case 24: /* ^x */
-												iv->defgain--;
-												break;
-											case '0':           updateFieldPush(&iv->defgain, 0);  break;
-											case '1':           updateFieldPush(&iv->defgain, 1);  break;
-											case '2':           updateFieldPush(&iv->defgain, 2);  break;
-											case '3':           updateFieldPush(&iv->defgain, 3);  break;
-											case '4':           updateFieldPush(&iv->defgain, 4);  break;
-											case '5':           updateFieldPush(&iv->defgain, 5);  break;
-											case '6':           updateFieldPush(&iv->defgain, 6);  break;
-											case '7':           updateFieldPush(&iv->defgain, 7);  break;
-											case '8':           updateFieldPush(&iv->defgain, 8);  break;
-											case '9':           updateFieldPush(&iv->defgain, 9);  break;
-											case 'A': case 'a': updateFieldPush(&iv->defgain, 10); break;
-											case 'B': case 'b': updateFieldPush(&iv->defgain, 11); break;
-											case 'C': case 'c': updateFieldPush(&iv->defgain, 12); break;
-											case 'D': case 'd': updateFieldPush(&iv->defgain, 13); break;
-											case 'E': case 'e': updateFieldPush(&iv->defgain, 14); break;
-											case 'F': case 'f': updateFieldPush(&iv->defgain, 15); break;
-										}
-										redraw();
-										break;
-									case MIN_INSTRUMENT_INDEX + 3:
-									case MIN_INSTRUMENT_INDEX + 4:
-									case MIN_INSTRUMENT_INDEX + 5:
-										break;
-									default:
-										if (!s->instrumenti[w->instrument]) break;
-										iv = s->instrumentv[s->instrumenti[w->instrument]];
-										if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].input)
-											t->f[iv->type].input(&input);
-										break;
-								}
+													break;
+												case 'd': /* delete */
+													if (w->instrumentrecv == INST_REC_LOCK_OK && s->instrumenti[w->instrument])
+													{
+														yankInstrument(w->instrument);
+														delInstrument(w->instrument);
+													}
+													redraw();
+													break;
+												case 'y': /* yank */
+													yankInstrument(w->instrument);
+													redraw();
+													break;
+												case 'p': /* put */
+													if (w->instrumentrecv == INST_REC_LOCK_OK)
+													{
+														if (!s->instrumenti[w->instrument])
+															addInstrument(w->instrument);
+														w->instrumentlocki = s->instrumenti[w->instrument];
+														w->instrumentlockv = INST_GLOBAL_LOCK_PREP_PUT;
+													} else
+													{
+														strcpy(w->command.error, "failed to put instrument, try again");
+														redraw();
+													}
+													break;
+												case 'e': /* empty */
+													if (w->instrumentrecv == INST_REC_LOCK_OK)
+														w->instrument = newInstrument(0);
+													redraw();
+													break;
+											}
+											break;
+										case MIN_INSTRUMENT_INDEX + 1:
+											if (w->instrumentlockv > INST_REC_LOCK_OK) break;
+											if (!s->instrumenti[w->instrument]) break;
+											iv = s->instrumentv[s->instrumenti[w->instrument]];
+											switch (input)
+											{
+												case 1: /* ^a */
+													iv->type++;
+													w->instrumentlocki = s->instrumenti[w->instrument];
+													w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
+													break;
+												case 24: /* ^x */
+													iv->type--;
+													w->instrumentlocki = s->instrumenti[w->instrument];
+													w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
+													break;
+												case '0':           updateFieldPush(&iv->type, 0);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '1':           updateFieldPush(&iv->type, 1);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '2':           updateFieldPush(&iv->type, 2);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '3':           updateFieldPush(&iv->type, 3);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '4':           updateFieldPush(&iv->type, 4);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '5':           updateFieldPush(&iv->type, 5);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '6':           updateFieldPush(&iv->type, 6);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '7':           updateFieldPush(&iv->type, 7);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '8':           updateFieldPush(&iv->type, 8);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case '9':           updateFieldPush(&iv->type, 9);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case 'A': case 'a': updateFieldPush(&iv->type, 10); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case 'B': case 'b': updateFieldPush(&iv->type, 11); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case 'C': case 'c': updateFieldPush(&iv->type, 12); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case 'D': case 'd': updateFieldPush(&iv->type, 13); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case 'E': case 'e': updateFieldPush(&iv->type, 14); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+												case 'F': case 'f': updateFieldPush(&iv->type, 15); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
+											}
+											redraw();
+											break;
+										case MIN_INSTRUMENT_INDEX + 2:
+											switch (input)
+											{
+												case 1: /* ^a */
+													iv->defgain++;
+													break;
+												case 24: /* ^x */
+													iv->defgain--;
+													break;
+												case '0':           updateFieldPush(&iv->defgain, 0);  break;
+												case '1':           updateFieldPush(&iv->defgain, 1);  break;
+												case '2':           updateFieldPush(&iv->defgain, 2);  break;
+												case '3':           updateFieldPush(&iv->defgain, 3);  break;
+												case '4':           updateFieldPush(&iv->defgain, 4);  break;
+												case '5':           updateFieldPush(&iv->defgain, 5);  break;
+												case '6':           updateFieldPush(&iv->defgain, 6);  break;
+												case '7':           updateFieldPush(&iv->defgain, 7);  break;
+												case '8':           updateFieldPush(&iv->defgain, 8);  break;
+												case '9':           updateFieldPush(&iv->defgain, 9);  break;
+												case 'A': case 'a': updateFieldPush(&iv->defgain, 10); break;
+												case 'B': case 'b': updateFieldPush(&iv->defgain, 11); break;
+												case 'C': case 'c': updateFieldPush(&iv->defgain, 12); break;
+												case 'D': case 'd': updateFieldPush(&iv->defgain, 13); break;
+												case 'E': case 'e': updateFieldPush(&iv->defgain, 14); break;
+												case 'F': case 'f': updateFieldPush(&iv->defgain, 15); break;
+											}
+											redraw();
+											break;
+										case MIN_INSTRUMENT_INDEX + 3:
+										case MIN_INSTRUMENT_INDEX + 4:
+										case MIN_INSTRUMENT_INDEX + 5:
+											break;
+										default:
+											if (!s->instrumenti[w->instrument]) break;
+											iv = s->instrumentv[s->instrumenti[w->instrument]];
+											if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].input)
+												t->f[iv->type].input(&input);
+											break;
+									}
+									break;
+							}
+						}
+						break;
+					case 1: case 3: case 5: /* preview */
+						switch (input)
+						{
+							case '0': w->octave = 0; redraw(); break;
+							case '1': w->octave = 1; redraw(); break;
+							case '2': w->octave = 2; redraw(); break;
+							case '3': w->octave = 3; redraw(); break;
+							case '4': w->octave = 4; redraw(); break;
+							case '5': w->octave = 5; redraw(); break;
+							case '6': w->octave = 6; redraw(); break;
+							case '7': w->octave = 7; redraw(); break;
+							case '8': w->octave = 8; redraw(); break;
+							case '9': w->octave = 9; redraw(); break;
+							default:
+								previewNote(charToNote(input), w->instrument, w->channel);
 								break;
 						}
-					}
-					break;
-				case 1: case 3: case 5: /* preview */
-					switch (input)
-					{
-						case '0': w->octave = 0; redraw(); break;
-						case '1': w->octave = 1; redraw(); break;
-						case '2': w->octave = 2; redraw(); break;
-						case '3': w->octave = 3; redraw(); break;
-						case '4': w->octave = 4; redraw(); break;
-						case '5': w->octave = 5; redraw(); break;
-						case '6': w->octave = 6; redraw(); break;
-						case '7': w->octave = 7; redraw(); break;
-						case '8': w->octave = 8; redraw(); break;
-						case '9': w->octave = 9; redraw(); break;
-						default:
-							previewNote(charToNote(input), w->instrument, w->channel);
-							break;
-					}
-					break;
-			}
+						break;
+				}
 			break;
 	}
 	switch (input) /* post type */

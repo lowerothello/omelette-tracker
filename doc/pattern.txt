@@ -1,5 +1,5 @@
 .--------------.
-| TRACKER VIEW |
+| PATTERN VIEW |
 '--------------'
 
 This is the default view of the tracker. It's the screen that greets you when
