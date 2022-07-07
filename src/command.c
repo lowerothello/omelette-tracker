@@ -72,10 +72,8 @@ void drawCommand(command_t *command, unsigned char mode)
 	{
 		printf("\033[?25h\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, command->prompt, command->historyv[command->historyc], ws.ws_row, (command->commandptr + (unsigned short)strlen(command->prompt) + 1) % ws.ws_col);
 		command->error[0] = '\0';
-	} else if (strlen(command->error) > 0)
-	{
+	} else if (strlen(command->error))
 		printf("\033[s\033[%d;0H%s\033[u", ws.ws_row, command->error);
-	}
 }
 
 char buffer[COMMAND_LENGTH];

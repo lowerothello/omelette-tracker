@@ -1,23 +1,24 @@
-.-----------------.
-| MACRO REFERENCE |
-'-----------------'
-
+MACRO REFERENCE
+---------------
 All the macros that are supported by omelette, and their semantics. Some macros
 are heavily inspired by other trackers, some are wholly original.
-	- All arguments are in hexadecimal (base 16).
-	- Case is inverted, to input a lowercase macro hold shift.
+- All arguments are in hexadecimal (base 16).
+- Case is inverted, to input a lowercase macro hold shift.
 
 
 (alphabetical order, default case priority)
-Bxx - BPM
-	set the bpm of the song to xx, values between 32 and 255 are allowed
+%xx - NOTE CHANCE
+	chance the note will be read
+	only affects the note column, doesn't affect other macro columns
 
-bxx - BACKWARDS NOTE OFFSET
-	depends on the type for support (mainly for the sampler)
-	(xx == 0)
-		just toggles the reverse bit
-	(xx > 0)
-		sets the playhead to xx/256 through the sample and toggles the reverse bit
+Bxy - BAND-PASS FILTER
+	only one filter is active at a time
+	x is the resonance
+	y is the centre frequency
+
+bxx - BPM
+	set the bpm of the song to xx, values are clamped between 32 and 255
+	(xx == 0) sets the bpm to the song bpm
 
 Cxy - NOTE CUT
 	send a note off x/y through the row
@@ -36,13 +37,35 @@ gxy - SMOOTH STEREO GAIN
 	slide the gain of the right channel to y/15 over the row
 	reset back to the instrument gain on each new note
 
+Hxy - HIGH-PASS FILTER
+	only one filter is active at a time
+	x is the resonance
+	y is the cutoff frequency
+	(y == 0) is a true bypass
+
+Lxy - LOW-PASS FILTER
+	only one filter is active at a time
+	x is the resonance
+	y is the cutoff frequency
+	(y == f) is a true bypass
+
 Mxx - LOCAL MICROTONAL OFFSET
 	set the microtonal offset to xx/1 semitones
 	volatile, overwritten by notes
 
+Nxy - NOTCH FILTER
+	only one filter is active at a time
+	x is the resonance
+	y is the centre frequency
+
 Oxx - NOTE OFFSET
 	depends on the type for support (mainly for the sampler)
-	set the playhead to xx/256 through the sample
+	set the playhead to xx/256 through the sound
+
+oxx - BACKWARDS NOTE OFFSET
+	depends on the type for support (mainly for the sampler)
+	toggles the reverse bit (walks the pointer backwards)
+	(xx > 0) sets the playhead to xx/256 through the sound
 
 Pxx - PITCH SLIDE
 	portamento to the note specified at speed xx
@@ -67,6 +90,7 @@ Vxy - VIBRATO
 		will only read another Vxy macro only if the lfo has ended
 
 WAVESHAPERS (Wxy)
+	only one waveshaper can be active at a time
 W0x - HARD CLIPPER
 	clips off the tips of the signal
 	x is the input gain
@@ -91,3 +115,6 @@ W6x - SIGN CONVERSION
 	simulates reading an unsigned number as a signed number
 	adds a nasty DC offset, be careful!
 	x is the mix
+
+
+vim: sidescrolloff=0

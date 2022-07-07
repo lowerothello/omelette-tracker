@@ -13,7 +13,6 @@ void inputSongHex(char value)
 
 void drawSong(void)
 {
-	// printf("\033[%d;%dH\033[1mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col - 4) / 2);
 	printf("\033[%d;%dH\033[2mPATTERN INSTRUMENT\033[m \033[1mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col-22) / 2);
 
 	unsigned char visiblechannels = MIN((ws.ws_col - LINENO_COLS - 11) / 9, s->channelc);

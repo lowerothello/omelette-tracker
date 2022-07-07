@@ -1,23 +1,22 @@
 omelette tracker
-================
+----------------
+
 
 src/lib/libdrawille: https://github.com/huulivoide/libdrawille
-
 
 DEPENDS:
 - JACK2                                 - audio input/output
 - libsndfile                            - file loading
 - libdrawille (included as a submodule) - waveform drawing
 
-INSTALL:
+BUILD:
 $ git submodule init
 $ git submodule update
 $ cd src/lib/libdrawille; cmake .; make; cd ../../..
-$ ./make 3
-$ ./omelette
+$ CC=gcc ./make 3 # use your preferred compiler
 
-
-
+INSTALL: (no proper install script yet)
+su -c "cp ./omelette /usr/bin/omelette"
 
 
 vim: wrap

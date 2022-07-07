@@ -11,11 +11,14 @@
 #define LOOP_RAMP_MS 80 /* loop crossfade time, will auto-lower to half the loop range */
 #define TIMESTRETCH_RAMP_MS 8 /* timestretch ramp time */
 
-/* how many lines the wheel should scroll */
+/* how many lines the mouse wheel should scroll */
 #define WHEEL_SPEED 3
 
-/* loop used when (loop[1] && (loop[0] == loop[1])) */
-#define MIN_LOOP_MS 1
+/* loop used when loopstart == loopend */
+#define MIN_LOOP_MS 0
 
 /* screenwidth * screenheight * WAVEFORM_OVERSAMPLING */
 #define WAVEFORM_OVERSAMPLING 20
+
+/* size of the oscillator lookup tables */
+#define OSCILLATOR_TABLE_LEN 2048

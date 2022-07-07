@@ -1,7 +1,5 @@
-.--------------.
-| PATTERN VIEW |
-'--------------'
-
+PATTERN VIEW
+------------
 This is the default view of the tracker. It's the screen that greets you when
 the program starts. One pattern is displayed, which one can be set in the song
 view.
@@ -49,3 +47,6 @@ visual mode:
 	NAVIGATION         - navigate, drag a stable visual selection
 	y                  - yank the selection
 	d                  - delete the selection
+
+
+vim: sidescrolloff=0

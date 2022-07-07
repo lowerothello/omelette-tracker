@@ -59,14 +59,15 @@ typedef struct
 	uint8_t   gate;                         /* gain m */
 	float     gateopen;
 
-	/* waveshapers */
-	char      softclip;
-	char      hardclip;
-	char      wavefolder;
-	char      wavewrapper;
-	char      signedunsigned;
-	char      rectifiertype;                /* 0: full-wave, 1: full-wave x2 */
-	char      rectifier;                    /* shared rectifier memory */
+	/* waveshaper */
+	char      waveshaper;                   /* which waveshaper to use */
+	char      waveshaperstrength;           /* mix / input gain */
+
+	/* filter */
+	SVFilter  fl, fr;
+	char      filtertype;
+	float     filtercut;
+	float     filterres;
 
 	/* ramping */
 	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
@@ -199,10 +200,7 @@ typedef struct
 	uint8_t        previewchannel;
 	char           previewtrigger;               /* 0:cut
 	                                                1:start inst
-	                                                2:still inst
-	                                                3:start sample
-	                                                4:still sample
-	                                                5:prep volatile */
+	                                                2:still inst */
 
 	char           previewsamplestatus;
 
@@ -299,6 +297,7 @@ void _addChannel(song *cs, channel *cv)
 	snprintf(buffer, 16, "channel%02d_outl", cs->channelc); p->cout[cs->channelc].l = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
 	snprintf(buffer, 16, "channel%02d_outr", cs->channelc); p->cout[cs->channelc].r = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0); */
 	// jack_activate(client);
+	cv->filtercut = 1.0f;
 }
 int addChannel(song *cs, uint8_t index)
 {
@@ -1225,6 +1224,8 @@ int writeSong(char *path)
 			strcpy(w->command.error, "no file name");
 			return 1;
 		}
+		free(pathext);
+		pathext = malloc(sizeof(w->filepath) + 1);
 		strcpy(pathext, w->filepath);
 	} else strcpy(w->filepath, pathext);
 

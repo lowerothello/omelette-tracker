@@ -36,8 +36,8 @@ void drawWaveform(void)
 		printf("\033[%d;%dH[NO SAMPLE]\033[10D", w->centre, (ws.ws_col - 11) / 2);
 	} else
 	{
-		printf("\033[2;0H");
 		draw(w->waveformcanvas, w->waveformbuffer);
+		printf("\033[2;0H");
 		for (size_t i = 0; w->waveformbuffer[i] != NULL; i++)
 			printf("%s\n", w->waveformbuffer[i]);
 	}

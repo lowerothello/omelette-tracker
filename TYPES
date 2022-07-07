@@ -1,9 +1,4 @@
 STAGING DESIGNS
-                       <- INSTRUMENT (00) ->                        
-                                                   RECORD           
-   type   [00]                           record source   [ line in] 
-   fader  [88]                           only loop back cursor  [ ] 
-                                         gate the next pattern  [ ] 
 ┌─────────────────────────── [sampler] ────────────────────────────┐
 │                                                                  │
 │          [     NO SAMPLE     ] │    TRIM        LOOP             │
@@ -20,122 +15,38 @@ STAGING DESIGNS
 │          gain             [40] │ pitch shift       [80]          │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
-────── [sampler] ──────
-                       
-[      NO SAMPLE      ]
-C-5 rate     [00000000]
-samplerate         [ff]
-invert/8-bit     [ ][ ]
-channels       [normal]
-
-
-   TRIM         LOOP   
-[00000000]   [00000000]
-[00000000]   [00000000]
-  00->ff       00->00  
-reverse playback    [ ]
-loop crossfade     [00]
-ping-pong loop      [ ]
-
-
-       AMPLIFIER       
-attack             [00]
-decay              [00]
-sustain            [ff]
-release            [00]
-gain               [40]
-
-
-      TIMESTRETCH      
-match tempo         [ ]
-cycle length     [07ff]
-pitch shift        [80]
-
-
-
-                       <- INSTRUMENT (00) ->                        
-                                                   RECORD           
-   type   [01]                           record source   [ line in] 
-   fader  [88]                           only loop back cursor  [ ] 
-                                         gate the next pattern  [ ] 
 ┌─────────────────────── [virtual analogue] ───────────────────────┐
 │                                                                  │
 │  OSCILLATOR1   [80]             FILTER           │  AMPLIFIER    │
 │  waveform   [  tri]   cutoff  [ff]  attack  [00] │ attack  [00]  │
 │  fm/ringmod [00][ ]   reso    [00]  decay   [00] │ decay   [00]  │
-│  sync/lfo   [ ][00]  >lfo     [00]  sustain [ff] │ sustain [ff]  │
+│  sync/lfo   [ ][00]   lfo     [00]  sustain [ff] │ sustain [ff]  │
 │  ──────────────────   track   [00]  release [00] │ release [00]  │
-│  OSCILLATOR2   [80]   high resonance (loud)  [ ] │ gain    [80]< │
+│  OSCILLATOR2   [80]                              │ gain    [80]< │
 │  waveform   [  tri]   ───────────────────┬───────┴─────────────  │
 │  detune    [+0][80]          LFO         │ NOISE           [00]< │
-│  track/lfo  [ ][00]   waveform   [  tri] │ FEEDBACK        [00]< │
-│  ──────────────────   rate          [80] ├─────────────────────  │
-│  SUB OSC   [-0][7f]   pulse width   [00] │ UNISON           [0]  │
-│  waveform   [pulse]                      │ detune/width [00][0]  │
+│  track/lfo  [ ][00]   waveform   [  tri] ├─────────────────────  │
+│  ──────────────────   rate          [80] │ OSC UNISON       [0]  │
+│  SUB OSC   [-0][7f]   pulse width   [00] │ unison detune   [00]  │
+│  waveform   [pulse]                      │ stereo width     [0]  │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
-
-
-
-       CHANNEL 00       CHANNEL 01       CHANNEL 02
-00 * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-01   ... .. ... ...   ... .. ... ...   ... .. ... ...
-02   ... .. ... ...   ... .. ... ...   ... .. ... ...
-03   ... .. ... ...   ... .. ... ...   ... .. ... ...
-04 * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-05   ... .. ... ...   ... .. ... ...   ... .. ... ...
-06   ... .. ... ...   ... .. ... ...   ... .. ... ...
-07   ... .. ... ...   ... .. ... ...   ... .. ... ...
-08 * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-09   ... .. ... ...   ... .. ... ...   ... .. ... ...
-0a   ... .. ... ...   ... .. ... ...   ... .. ... ...
-0b   ... .. ... ...   ... .. ... ...   ... .. ... ...
-0c * ... .. ... ... * ... .. ... ... * ... .. ... ... *
-
-
-PER CHANNEL DEFINED EFFECTS
-* prev channel fm/ringmod
-* versatile delay
-	- stereo time
-		* quantised to rows/subrows
-		* pseudo-logarithmic
-		* 0 for off
-	- time lfo rate+depth, Vxy style
-	- feedback
-	* feedback saturation/filtering
-* waveshapers
-	* port of Wxy
-* gate
-* compressor
-* phaser
-* reverb send
-
-
-│       DISTORTION       │
-│ hard clipper      [00] │
-│ soft clipper      [00] │
-│ rectifiers    [00][00] │
-│ wavefolder        [00] │
-│ wavewrapper       [00] │
-│ sign conversion   [00] │
-│                        │
-│          GATE          │
-│ threshold         [00] │
-│ speed             [00] │
-│ max reduction     [00] │
-│                        │
-│       COMPRESSOR       │
-│ threshold         [00] │
-│ ratio             [00] │
-│ speed             [00] │
-│                        │
-│         DELAY          │
-│ time            [0000] │     < one byte per stereo channel, might reduce precision
-│ lfo rate/depth  [0][0] │
-│ feedback          [00] │
-│                        │
-│ gain              [88] │
-│ reverb send       [00] │
+┌─────────────────────── [computer cowbell] ───────────────────────┐
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 
 
 

@@ -1,0 +1,16 @@
+FILEBROWSER
+-----------
+The filebrowser view is used for loading samples into the sampler.
+
+KEYBINDS
+--------
+ARROWS    - navigate the file grid
+ENTER     - load file / enter directory
+ALT+ENTER - load file without closing the filebrowser / enter directory
+BACKSPACE - go up a dir
+
+LEFT CLICK on a file  - move the cursor to the clicked file
+RIGHT CLICK on a file - load the file / enter the directory under the cursor
+
+
+vim: sidescrolloff=0

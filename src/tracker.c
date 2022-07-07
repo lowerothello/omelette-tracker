@@ -53,38 +53,48 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
-		case 'b': *dest = 'B'; break; /* bpm               */
-		case 'B': *dest = 'b'; break; /* backwards offset  */
+		case '%': *dest = '%'; break; /* note chance       */
+		case 'b': *dest = 'B'; break; /* band pass filter  */
+		case 'B': *dest = 'b'; break; /* bpm               */
 		case 'c': *dest = 'C'; break; /* note cut          */
 		case 'd': *dest = 'D'; break; /* note delay        */
 		case 'g': *dest = 'G'; break; /* gain              */
 		case 'G': *dest = 'g'; break; /* smooth gain       */
+		case 'h': *dest = 'H'; break; /* high pass filter  */
+		case 'l': *dest = 'L'; break; /* low pass filter   */
 		case 'm': *dest = 'M'; break; /* microtonal offset */
+		case 'n': *dest = 'N'; break; /* notch filter      */
 		case 'o': *dest = 'O'; break; /* offset            */
+		case 'O': *dest = 'o'; break; /* backwards offset  */
 		case 'p': *dest = 'P'; break; /* pitch slide       */
 		case 'r': *dest = 'R'; break; /* retrigger         */
+		case 'T': *dest = 't'; break; /* gate              */
 		case 'v': *dest = 'V'; break; /* vibrato           */
 		case 'w': *dest = 'W'; break; /* waveshaper        */
-		case 'T': *dest = 't'; break; /* gate              */
 	}
 }
 void descMacro(char c, uint8_t v)
 {
 	switch (c)
 	{
-		case 'B': /* bpm              */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
-		case 'b': /* backwards offset */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BACKWARDS NOTE OFFSET")) / 2, "BACKWARDS NOTE OFFSET"); break;
-		case 'C': /* cut              */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
-		case 'D': /* delay            */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2, "NOTE DELAY"); break;
-		case 'G': /* gain             */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2, "STEREO GAIN"); break;
-		case 'g': /* smooth gain      */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH STEREO GAIN")) / 2, "SMOOTH STEREO GAIN"); break;
-		case 'P': /* portamento       */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("PITCH SLIDE")) / 2, "PITCH SLIDE"); break;
-		case 'R': /* retrigger        */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BLOCK RETRIGGER")) / 2, "BLOCK RETRIGGER"); break;
-		case 'V': /* vibrato          */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("VIBRATO")) / 2, "VIBRATO"); break;
-		case 't': /* gate             */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("GATE")) / 2, "GATE"); break;
-		case 'O': /* offset           */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE OFFSET")) / 2, "NOTE OFFSET"); break;
-		case 'M': /* microtonal       */ printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;
-		case 'W': /* waveshaper       */
+		case '%': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CHANCE")) / 2, "NOTE CHANCE"); break;
+		case 'B': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BAND-PASS FILTER")) / 2, "BAND-PASS FILTER"); break;
+		case 'b': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
+		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
+		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2, "NOTE DELAY"); break;
+		case 'G': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2, "STEREO GAIN"); break;
+		case 'g': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH STEREO GAIN")) / 2, "SMOOTH STEREO GAIN"); break;
+		case 'H': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("HIGH-PASS FILTER")) / 2, "HIGH-PASS FILTER"); break;
+		case 'L': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOW-PASS FILTER")) / 2, "LOW-PASS FILTER"); break;
+		case 'M': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;
+		case 'N': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTCH FILTER")) / 2, "NOTCH FILTER"); break;
+		case 'O': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE OFFSET")) / 2, "NOTE OFFSET"); break;
+		case 'o': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BACKWARDS NOTE OFFSET")) / 2, "BACKWARDS NOTE OFFSET"); break;
+		case 'P': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("PITCH SLIDE")) / 2, "PITCH SLIDE"); break;
+		case 'R': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BLOCK RETRIGGER")) / 2, "BLOCK RETRIGGER"); break;
+		case 't': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("GATE")) / 2, "GATE"); break;
+		case 'V': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("VIBRATO")) / 2, "VIBRATO"); break;
+		case 'W': /* waveshapers */
 			switch (v>>4)
 			{
 				case 0: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("HARD CLIPPER")) / 2, "HARD CLIPPER"); break;
@@ -343,14 +353,17 @@ void drawChannel(uint8_t channel, unsigned short x)
 				startVisual(channel, i, 2+j);
 				if (r.macro[j].c)
 				{
+					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[22m");
 					if (isdigit(r.macro[j].c)) /* different colour for instrument macros */
-						snprintf(buffer, 16, "\033[31m%c%02x\033[37m", r.macro[j].c, r.macro[j].v);
-					else
-						snprintf(buffer, 16, "\033[3%dm%c%02x\033[37m", 6, r.macro[j].c, r.macro[j].v);
-
-					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute)
-					{ printf("\033[22m%s\033[2m", buffer); }
-					else printf(buffer);
+					{
+						printf("\033[35m%c",   r.macro[j].c);
+						printf("%02x\033[37m", r.macro[j].v);
+					} else
+					{
+						printf("\033[36m%c",   r.macro[j].c);
+						printf("%02x\033[37m", r.macro[j].v);
+					}
+					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[2m");
 				} else printf("...");
 				stopVisual(channel, i, 2+j);
 			}
@@ -381,9 +394,11 @@ void drawChannel(uint8_t channel, unsigned short x)
 			snprintf(buffer, 16, "%02x", r.inst);      if (r.inst < 255) printf(buffer); else printf("..");
 			for (int j = 0; j < s->channelv[channel].macroc; j++)
 			{
-				printf(" ");
-				snprintf(buffer, 16, "%c", r.macro[j].c); if (r.macro[j].c)  printf(buffer); else printf(".");
-				snprintf(buffer, 16, "%02x", r.macro[j].v); if (r.macro[j].c)  printf(buffer); else printf("..");
+				if (r.macro[j].c)
+				{
+					printf(" %c",  r.macro[j].c);
+					printf("%02x", r.macro[j].v);
+				} else printf(" ...");
 			}
 
 			if (s->playing == PLAYING_CONT && s->songp == w->songfy - 1
@@ -412,9 +427,11 @@ void drawChannel(uint8_t channel, unsigned short x)
 			snprintf(buffer, 16, "%02x", r.inst);      if (r.inst < 255) printf(buffer); else printf("..");
 			for (int j = 0; j < s->channelv[channel].macroc; j++)
 			{
-				printf(" ");
-				snprintf(buffer, 16, "%c", r.macro[j].c); if (r.macro[j].c)  printf(buffer); else printf(".");
-				snprintf(buffer, 16, "%02x", r.macro[j].v); if (r.macro[j].c)  printf(buffer); else printf("..");
+				if (r.macro[j].c)
+				{
+					printf(" %c",  r.macro[j].c);
+					printf("%02x", r.macro[j].v);
+				} else printf(" ...");
 			}
 
 			if (s->playing == PLAYING_CONT && s->songp == w->songfy + 1
@@ -487,7 +504,7 @@ void drawTracker(void)
 
 	y = w->centre + w->fyoffset;
 
-	if (w->trackerfx > 1)
+	if (w->trackerfx > 1 && w->mode == T_MODE_INSERT)
 	{
 		row *r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][w->trackerfy];
 		short macro = (w->trackerfx - 2) / 2;

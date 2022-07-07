@@ -35,7 +35,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 83;
+const unsigned char MINOR = 84;
 
 
 jack_nframes_t samplerate;
@@ -376,6 +376,8 @@ void resize(int _)
 	if (w->popup == 4)
 		resizeWaveform();
 
+	resizeBackground();
+
 	redraw();
 	signal(SIGWINCH, &resize); /* not sure why this needs to be redefined every time sometimes */
 }
@@ -410,6 +412,7 @@ void cleanup(int ret)
 	free(p);
 	free(t);
 	freeBackground();
+	freeOscillator();
 	jack_client_close(client);
 
 	common_cleanup(ret);
@@ -417,6 +420,8 @@ void cleanup(int ret)
 
 int main(int argc, char **argv)
 {
+	/* seed rand */
+	srand(time(NULL));
 	puts("\033[?1049h"); /* switch to the back buffer */
 	puts("\033[?1002h"); /* enable mouse events */
 
@@ -483,8 +488,11 @@ int main(int argc, char **argv)
 
 
 	jack_set_process_callback(client, process, p);
-	jack_activate(client);
 
+	initBackground(); /* needs to be before jack_activate */
+	genOscillator();
+
+	jack_activate(client);
 
 	addPattern(0, 0);
 	s->songi[0] = 0;
@@ -510,6 +518,8 @@ int main(int argc, char **argv)
 		free(w);
 		delSong(s);
 		free(p);
+		freeBackground();
+		freeOscillator();
 
 		common_cleanup(1);
 	}
@@ -521,8 +531,6 @@ int main(int argc, char **argv)
 		strcpy(w->newfilename, argv[1]);
 		p->lock = PLAY_LOCK_START;
 	}
-
-	initBackground();
 
 	resize(0);
 
@@ -546,7 +554,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		if (p->dirty)
+		// if (p->dirty)
 		{ p->dirty = 0; redraw(); }
 
 		/* perform any pending instrument actions */

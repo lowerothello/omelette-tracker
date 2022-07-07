@@ -16,7 +16,6 @@ void drawFilebrowser(void)
 	for (unsigned short cy = y; cy < y+7+INSTRUMENT_TYPE_ROWS; cy++)
 		printf("\033[%d;%dH\033[%dX", cy, w->instrumentcelloffset, INSTRUMENT_BODY_COLS);
 
-
 	if (strlen(w->dirpath) > INSTRUMENT_BODY_COLS - 4)
 	{
 		char buffer[INSTRUMENT_BODY_COLS + 1];
@@ -111,8 +110,7 @@ void filebrowserInput(int input)
 	switch (input)
 	{
 		case 10: case 13: /* return */
-			newpath[NAME_MAX + 1];
-			oldpath[NAME_MAX + 1]; strcpy(oldpath, w->dirpath);
+			strcpy(oldpath, w->dirpath);
 			switch (getSubdir(newpath))
 			{
 				case 1: /* file */
@@ -141,6 +139,24 @@ void filebrowserInput(int input)
 		case '\033':
 			switch (getchar())
 			{
+				case 10: case 13: /* alt+return */
+					strcpy(oldpath, w->dirpath);
+					switch (getSubdir(newpath))
+					{
+						case 1: /* file */
+							w->filebrowserCallback(newpath);
+							break;
+						case 2: /* directory */
+							strcpy(w->dirpath, newpath);
+							if (changeDirectory())
+							{
+								strcpy(w->dirpath, oldpath);
+								changeDirectory();
+							} else w->instrumentindex = 0;
+							break;
+					}
+					redraw();
+					break;
 				case 'O':
 					handleFKeys(getchar());
 					redraw();
@@ -306,61 +322,6 @@ void filebrowserInput(int input)
 					}
 					redraw();
 					break;
-			} break;
-		default:
-			switch (w->mode)
-			{
-				case 0:
-					switch (input)
-					{
-						case 'i': /* enter preview */
-							w->mode = 1;
-							redraw();
-							break;
-					}
-					break;
-				case 1: /* preview */
-					switch (input)
-					{
-						case '0': w->octave = 0; break;
-						case '1': w->octave = 1; break;
-						case '2': w->octave = 2; break;
-						case '3': w->octave = 3; break;
-						case '4': w->octave = 4; break;
-						case '5': w->octave = 5; break;
-						case '6': w->octave = 6; break;
-						case '7': w->octave = 7; break;
-						case '8': w->octave = 8; break;
-						case '9': w->octave = 9; break;
-						default:
-							if (w->previewsamplestatus == 0)
-							/* {
-								SF_INFO sfinfo;
-								char newpath[NAME_MAX + 1];
-								if (getSubdir(newpath) == 1)
-								{
-									w->previewinstrument.sampledata = _loadSample(newpath, &sfinfo);
-									if (w->previewinstrument.sampledata)
-									{
-										sampler_state *ss = w->previewinstrument.state[w->previewinstrument.type];
-										ss->length = sfinfo.frames;
-										ss->channels = sfinfo.channels;
-										ss->c5rate = sfinfo.samplerate;
-										ss->trim[1] = sfinfo.frames;
-
-										w->previewsamplestatus = 1;
-									}
-								}
-							}
-							if (w->previewsamplestatus == 1)
-							{
-								w->previewnote = charToNote(input);
-								w->previewchannel = w->channel;
-								w->previewinst = 255;
-								w->previewtrigger = 3; // trigger the preview sample
-							} */
-							break;
-					} break;
 			} break;
 	}
 }

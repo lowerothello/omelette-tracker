@@ -1,11 +1,7 @@
 #define WAVE_COUNT 4
 #define FILTERTYPE_COUNT 1
 
-#define C5_FREQ 261.63 /* set this to the resonant frequency of your favourite mineral for best results */
-#define MIN_RESONANCE 0.6 /* higher numbers are softer, M_SQRT2 (~1.4) is the highest */
-#define MAX_RESONANCE 0.0 /* lower numbers are harsher */
-#define MAX_CUTOFF 12000
-#define MIN_CUTOFF 100
+#define C5_FREQ 261.63 /* set this to the resonant frequency of your favourite rock for best results */
 
 #define FM_DEPTH 0.005
 
@@ -24,6 +20,11 @@
 #define MIN_GATE_SPEED_SEC 10.0
 
 
+/* not related to the gate macro */
+/* the threshold where processing is no longer necessary */
+#define NOISE_GATE 0.000001
+
+
 /* multiply instead of dividing for float powers of 2 */
 #define DIV256 0.00390625
 #define DIV255 0.00392156862745098
@@ -31,6 +32,7 @@
 #define DIV64  0.015625
 #define DIV32  0.03125
 #define DIV16  0.0625
+#define DIV15  0.06666666666666667
 #define DIV8   0.125
 const double DIVSHRT = 1.0 / SHRT_MAX;
 const double DIVCHAR = 1.0 / SCHAR_MAX;
@@ -65,98 +67,22 @@ typedef struct
 } adsr;
 
 
-/* https://www.musicdsp.org/en/latest/Filters/38-lp-and-hp-filter.html */
-typedef struct
-{ double a1, a2, b1, b2, n1, n2; } filter;
-
-void calcFilter(filter *s, float cut, float res)
-{
-	double r = MAX_RESONANCE + (MIN_RESONANCE - MAX_RESONANCE) * (1.0 - res);
-	double c = MIN(tan((0.5 - (MAX_CUTOFF * cut) * 1.0 / samplerate) * M_PI), MIN_CUTOFF);
-
-	s->a1 = 1.0 / (1.0 + r*c + c*c);
-	s->a2 = 2.0 * s->a1;
-	s->b1 = 2.0 * (1.0 - c*c) * s->a1;
-	s->b2 = (1.0 - r*c + c*c) * s->a1;
-}
-float runFilter(filter *s, float input)
-{
-	return s->a1*input + s->a2*s->n1 + s->a1*s->n2 - s->b1*s->n1 - s->b2*s->n2;
-}
-
-
-/* http://www.tinygod.com/code/BLorenzOsc.zip */
+/* state variable filter */
+#define MAX_RESONANCE 0.04 /* how far off of infinity to go */
+#define MIN_RESONANCE 0.9
 typedef struct
 {
-	float mDX;
-	float mDY;
-	float mDZ;
-	float mDT;
-	float mFreq;
-	float mX;
-	float mY;
-	float mZ;
-
-	float mA;
-	float mB;
-	float mC;
-} lorenz;
-
-void lorenzInit(lorenz *l)
+	double l, h, b, n;
+} SVFilter;
+void runSVFilter(SVFilter *s, double input, double cutoff, double q)
 {
-	l->mA = 10.0;
-	l->mB = 28.0;
-	l->mC = 2.666;
-	l->mDX = l->mDY = l->mDZ = 0.0;
-	l->mX = l->mY = l->mZ = 1.0;
-	l->mFreq = 440.0;
-	l->mDT = l->mFreq / samplerate;
+	double F1 = 2 * M_PI * cutoff * 0.2;
+	s->l = s->l + F1 * s->b;
+	s->h = input - s->l - (q * (-MIN_RESONANCE + MAX_RESONANCE) + MIN_RESONANCE) * s->b;
+	s->b = F1 * s->h + s->b;
+	s->n = s->h + s->l;
 }
 
-void lorenzIterate(lorenz *l)
-{
-	l->mDX = l->mA * (l->mY - l->mX);
-	l->mDY = l->mX * (l->mB - l->mZ) - l->mY;
-	l->mDZ = l->mX * l->mY - l->mC * l->mZ;
-
-	l->mX += l->mDX * l->mDT;
-	l->mY += l->mDY * l->mDT;
-	l->mZ += l->mDZ * l->mDT;
-}
-
-float lorenzCurrent(lorenz *l)
-{ return l->mX * 0.05107; }
-
-float lorenzAlternative(lorenz *l)
-{ return l->mY * 0.03679; }
-
-
-
-/* https://www.musicdsp.org/en/latest/Synthesis/241-quick-dirty-sine.html */
-/* 0 <= x < 4096 */
-float xSin(float x)
-{
-	const float A = -0.015959964859;
-	const float B =  217.68468676;
-	const float C =  0.000028716332164;
-	const float D = -0.0030591066066;
-	const float E = -7.3316892871734489e-005;
-	float y;
-
-	char negate = 0;
-	if (x > 2048)
-	{
-		negate = 1;
-		x -= 2048;
-	}
-	if (x > 1024)
-		x = 2048 - x;
-	if (negate)
-		y = -((A+x)/(B+C*x*x)+D*x-E);
-	else
-		y=(A+x)/(B+C*x*x)+D*x-E;
-	return y;
-}
 
 void drawWave(uint8_t wave, unsigned short y, unsigned short x, char adjust)
 {
@@ -273,7 +199,7 @@ float adsrEnvelope(adsr env, float curve,
 	if (releasepointer && releasepointer < pointer)
 	{ /* release */
 		uint32_t releaselength = (env.r+ENVELOPE_RELEASE_MIN) * ENVELOPE_RELEASE * samplerate;
-		linear = (1.0 - MIN(1.0, (float)(pointer - releasepointer) / (float)releaselength)) * (env.s*DIV256);
+		linear = (1.0f - MIN(1.0f, (float)(pointer - releasepointer) / (float)releaselength)) * (env.s*DIV256);
 	} else
 	{
 		uint32_t attacklength = (env.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate;
@@ -284,75 +210,107 @@ float adsrEnvelope(adsr env, float curve,
 			if (!env.d) linear *= env.s*DIV256; /* ramp to sustain if there's no decay stage */
 		} else if (env.s < 255 && pointer < attacklength + decaylength)
 		{ /* decay */
-			linear = 1.0 - (float)(pointer - attacklength) / (float)decaylength * (1.0 - env.s*DIV256);
+			linear = 1.0f - (float)(pointer - attacklength) / (float)decaylength * (1.0f - env.s*DIV256);
 		} else /* sustain */
 			linear = env.s*DIV256;
 	}
 	/* lerp between linear and exponential */
-	return linear * (1.0 - curve) + powf(linear, 2.0) * curve;
+	return linear * (1.0f - curve) + powf(linear, 2.0f) * curve;
+}
+
+typedef struct
+{
+	float *triangle;
+	float *saw;
+	float *ramp;
+	float *sine;
+} oscillatortable;
+oscillatortable o;
+
+void freeOscillator(void)
+{
+	free(o.triangle);
+	free(o.saw);
+	free(o.ramp);
+	free(o.sine);
+}
+
+#define OSCILLATOR_TABLE_LEN 2048
+void genOscillator(void)
+{
+	o.triangle = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
+	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
+		o.triangle[i] = fabsf(fmodf(((float)i / (OSCILLATOR_TABLE_LEN - 1)) + 0.75f, 1.0f) - 0.5f) * 4.0f - 1.0f;
+
+	o.saw = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
+	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
+		o.saw[i] = 1.0f - (float)i / (OSCILLATOR_TABLE_LEN - 1) * 2.0f;
+
+	o.ramp = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
+	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
+		o.ramp[i] = -1.0f + fmodf((float)i / (OSCILLATOR_TABLE_LEN - 1) + 0.5f, 1.0f) * 2.0f;
+
+	o.sine = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
+	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
+		o.sine[i] = sinf((float)i / (OSCILLATOR_TABLE_LEN - 1) * M_PI * 2);
 }
 
 /* phase is modulo'd to 0-1 */
 /* pw should be 0-1         */
 float oscillator(char wave, float phase, float pw)
 {
-	float output = 0.0;
 	switch (wave)
 	{
-		case 0: /* triangle */ output = fabsf(fmodf(phase + 0.75, 1.0) - 0.5) * 4 - 1.0; break;
-		case 1: /* saw      */ output = +1.0 - fmodf(phase, 1.0) * 2; break;
-		case 2: /* ramp     */ output = -1.0 + fmodf(phase + 0.5, 1.0) * 2; break;
-		case 3: /* square   */ if (fmodf(phase, 1.0) > pw) output = -1.0; else output = +1.0; break;
-		case 4: /* sine     */ output = xSin(fmodf(phase, 1.0) * 4096); break;
+		case 0: /* triangle */ return o.triangle[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
+		case 1: /* saw      */ return o.saw[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
+		case 2: /* ramp     */ return o.ramp[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
+		case 3: /* square   */ return (phase > pw) ? -1.0f : +1.0f;
+		case 4: /* sine     */ return o.sine[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
+		default: return 0.0f;
 	}
-	return output;
 }
 
-
 /* waveshaper threshold */
-const float wst = 1.0;
 float wavefolder(float input)
 {
-	while (input < -wst || input > wst)
+	while (input < -1.0f || input > 1.0f)
 	{
-		if (input >  wst) input =  wst - input +  wst;
-		if (input < -wst) input = -wst - input + -wst;
+		if (input >  1.0f) input =  1.0f - input +  1.0f;
+		if (input < -1.0f) input = -1.0f - input + -1.0f;
 	}
 	return input;
 }
 float wavewrapper(float input)
 {
-	while (input >  wst) input -= wst;
-	while (input < -wst) input += wst;
+	while (input >  1.0f) input -= 1.0f;
+	while (input < -1.0f) input += 1.0f;
 	return input;
 }
 float signedunsigned(float input)
 {
-	if (input == 0.0) /* fix dc */
-		return 0.0;
+	if (fabsf(input) < NOISE_GATE) /* fix dc */
+		return 0.0f;
 	else
 	{
-		if (input > 0.0) return input - wst;
-		else             return input + wst;
+		if (input > 0.0f) return input - 1.0f;
+		else              return input + 1.0f;
 	}
 }
+float hardclip(float input)
+{ return MIN(1.0f, MAX(-1.0f, input)); }
 float rectify(char type, float input) /* TODO: clicky */
 {
-	if (input == 0.0) /* fix dc, might be some audible diracs */
-		return 0.0;
+	if (fabsf(input) < NOISE_GATE) /* TODO: fix dc properly, high pass it */
+		return 0.0f;
 	else
 	{
 		switch (type)
 		{
-			case 0: /* full-wave    */ return MIN(wst, MAX(-wst, fabsf(input) * 2 - wst));
-			case 1: /* full-wave x2 */ return MIN(wst, MAX(-wst, fabsf(fabsf(input) * 2 - wst) * 2 - wst));
+			case 0: /* full-wave    */ return hardclip(fabsf(input) * 2 - 1.0f);
+			case 1: /* full-wave x2 */ return hardclip(fabsf(fabsf(input) * 2 - 1.0f) * 2 - 1.0f);
 		}
 	}
 	return input;
 }
-
-float hardclip(float input)
-{ return MIN(wst, MAX(-wst, input)); }
-
 float thirddegreepolynomial(float input)
-{ return hardclip(1.5*input - 0.5*input*input*input); }
+{ return hardclip(1.5f*input - 0.5f*input*input*input); }
