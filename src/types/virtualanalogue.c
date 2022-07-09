@@ -198,17 +198,17 @@ void analogueAdjustDown(instrument *iv, short index, char mouse)
 	switch (index)
 	{
 		case 0:  if (w->fieldpointer) { if (as->osc1.mix > 16) as->osc1.mix-=16; else as->osc1.mix = 0; } else if (as->osc1.mix) as->osc1.mix--; break;
-		case 1:  if (as->osc1.waveform > 0) as->osc1.waveform--; break;
+		case 1:  if (as->osc1.waveform) as->osc1.waveform--; break;
 		case 2:  if (w->fieldpointer) { if (as->osc1.fm > 16) as->osc1.fm-=16; else as->osc1.fm = 0; } else if (as->osc1.fm) as->osc1.fm--; break;
 		case 5:  if (w->fieldpointer) { if (as->osc1.lfo > 16) as->osc1.lfo-=16; else as->osc1.lfo = 0; } else if (as->osc1.lfo) as->osc1.lfo--; break;
 		case 6:  if (w->fieldpointer) { if (as->osc2.mix > 16) as->osc2.mix-=16; else as->osc2.mix = 0; } else if (as->osc2.mix) as->osc2.mix--; break;
-		case 7:  if (as->osc2.waveform > 0) as->osc2.waveform--; break;
+		case 7:  if (as->osc2.waveform) as->osc2.waveform--; break;
 		case 8:  if (as->osc2.oct > -9) as->osc2.oct--; break;
 		case 9:  if (w->fieldpointer) { if (as->osc2.detune > 16) as->osc2.detune-=16; else as->osc2.detune = 0; } else if (as->osc2.detune) as->osc2.detune--; break;
 		case 11: if (w->fieldpointer) { if (as->osc2.lfo > 16) as->osc2.lfo-=16; else as->osc2.lfo = 0; } else if (as->osc2.lfo) as->osc2.lfo--; break;
 		case 12: if (as->sub.oct > -9) as->sub.oct--; break;
 		case 13: if (w->fieldpointer) { if (as->sub.mix > 16) as->sub.mix-=16; else as->sub.mix = 0; } else if (as->sub.mix) as->sub.mix--; break;
-		case 14: if (as->sub.waveform > 0) as->sub.waveform--; break;
+		case 14: if (as->sub.waveform) as->sub.waveform--; break;
 		case 15: if (w->fieldpointer) { if (as->filter.cutoff > 16) as->filter.cutoff-=16; else as->filter.cutoff = 0; } else if (as->filter.cutoff) as->filter.cutoff--; break;
 		case 16: if (w->fieldpointer) { if (as->filter.resonance > 16) as->filter.resonance-=16; else as->filter.resonance = 0; } else if (as->filter.resonance) as->filter.resonance--; break;
 		case 17: if (w->fieldpointer) { if (as->filter.lfo > 16) as->filter.lfo-=16; else as->filter.lfo = 0; } else if (as->filter.lfo) as->filter.lfo--; break;
@@ -217,7 +217,7 @@ void analogueAdjustDown(instrument *iv, short index, char mouse)
 		case 20: if (w->fieldpointer) { if (as->filter.env.d > 16) as->filter.env.d-=16; else as->filter.env.d = 0; } else if (as->filter.env.d) as->filter.env.d--; break;
 		case 21: if (w->fieldpointer) { if (as->filter.env.s > 16) as->filter.env.s-=16; else as->filter.env.s = 0; } else if (as->filter.env.s) as->filter.env.s--; break;
 		case 22: if (w->fieldpointer) { if (as->filter.env.r > 16) as->filter.env.r-=16; else as->filter.env.r = 0; } else if (as->filter.env.r) as->filter.env.r--; break;
-		case 23: if (as->lfo.waveform > 0) as->lfo.waveform--; break;
+		case 23: if (as->lfo.waveform) as->lfo.waveform--; break;
 		case 24: if (w->fieldpointer) { if (as->lfo.rate > 16) as->lfo.rate-=16; else as->lfo.rate = 0; } else if (as->lfo.rate) as->lfo.rate--; break;
 		case 25: if (w->fieldpointer) { if (as->lfo.pwm > 16) as->lfo.pwm-=16; else as->lfo.pwm = 0; } else if (as->lfo.pwm) as->lfo.pwm--; break;
 		case 26: if (w->fieldpointer) { if (as->amp.a > 16) as->amp.a-=16; else as->amp.a = 0; } else if (as->amp.a) as->amp.a--; break;
@@ -226,9 +226,9 @@ void analogueAdjustDown(instrument *iv, short index, char mouse)
 		case 29: if (w->fieldpointer) { if (as->amp.r > 16) as->amp.r-=16; else as->amp.r = 0; } else if (as->amp.r) as->amp.r--; break;
 		case 30: if (w->fieldpointer) { if (as->gain > 16) as->gain-=16; else as->gain = 0; } else if (as->gain) as->gain--; break;
 		case 31: if (w->fieldpointer) { if (as->noise > 16) as->noise-=16; else as->noise = 0; } else if (as->noise) as->noise--; break;
-		case 32: if (as->unison > 0) as->unison--; break;
+		case 32: if (as->unison) as->unison--; break;
 		case 33: if (w->fieldpointer) { if (as->detune > 16) as->detune-=16; else as->detune = 0; } else if (as->detune) as->detune--; break;
-		case 34: if (as->stereo > 0) as->stereo--; break;
+		case 34: if (as->stereo) as->stereo--; break;
 	}
 }
 void analogueAdjustLeft(instrument *iv, short index, char mouse)
@@ -256,10 +256,8 @@ void analogueAdjustRight(instrument *iv, short index, char mouse)
 	}
 }
 
-void analogueEndFieldPointer(short _)
-{
-	w->fieldpointer = 0;
-}
+void analogueEndFieldPointer(short index)
+{ w->fieldpointer = 0; }
 
 void analogueIncFieldPointer(short index)
 {
@@ -502,9 +500,8 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 	float fgain = adsrEnvelope(as->filter.env, 0.0f, pointer, cv->releasepointer);
 	if (pointer > MAX(as->amp.a, as->filter.env.a) * ENVELOPE_ATTACK * samplerate
 			&& again < NOISE_GATE && fgain < NOISE_GATE) /* sound has fully finished */
-	{
 		cv->r.note = 0;
-	} else
+	else
 	{
 		/* centre */
 		*l = *r = analogueInstance(as, ac, cv, 2, cv->finetune) * again;
@@ -513,8 +510,8 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 		for (char i = 1; i <= as->unison; i++)
 		{
 			gain = i / as->unison;
-			width = (1.0f - gain) * as->stereo*DIV16;
-			detune = gain * as->detune*DIV256 + cv->finetune;
+			width = (1.0f - gain) * as->stereo*DIV15;
+			detune = gain * as->detune*DIV255 + cv->finetune;
 			if (i % 2)
 			{
 				c = analogueInstance(as, ac, cv, i*2 + 0,  detune);
@@ -545,19 +542,19 @@ void analogueProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, fl
 		/* filter */
 		ac->filterlfophase += 1.0f / ((float)samplerate * LFO_MAX
 			+ (float)samplerate * (LFO_MIN - LFO_MAX)
-			* (1.0f - as->lfo.rate*DIV256));
+			* (1.0f - as->lfo.rate*DIV255));
 		ac->filterlfophase = fmodf(ac->filterlfophase, 1.0f);
 		float lfo = (oscillator(as->lfo.waveform, ac->filterlfophase, 0.5f) + 1.0f) * 0.5f;
 
-		float cutoff = MIN(1.0f, MAX(0.0f, fgain * as->filter.cutoff/255.0
-				* powf(M_12_ROOT_2, ((short)cv->r.note - C5 + cv->finetune) * as->filter.track/255.0)
-				+ lfo * as->filter.lfo/255.0));
+		float cutoff = MIN(1.0f, MAX(0.0f, fgain * as->filter.cutoff*DIV255
+				* powf(M_12_ROOT_2, ((short)cv->r.note - C5 + cv->finetune) * as->filter.track*DIV255)
+				+ lfo * as->filter.lfo*DIV255));
 
-		float resonance = as->filter.resonance/255.0;
-		runSVFilter(&ac->fl, *l, cutoff, resonance);
-		runSVFilter(&ac->fr, *r, cutoff, resonance);
-		*l = thirddegreepolynomial(ac->fl.l);
-		*r = thirddegreepolynomial(ac->fr.l);
+		float resonance = as->filter.resonance*DIV255;
+		runSVFilter(&ac->fl, thirddegreepolynomial(*l), cutoff, resonance);
+		runSVFilter(&ac->fr, thirddegreepolynomial(*r), cutoff, resonance);
+		*l = hardclip(ac->fl.l);
+		*r = hardclip(ac->fr.l);
 
 
 		*l *= again;
@@ -586,8 +583,7 @@ void analogueAddType(void **state)
 void analogueCopyType(void **dest, void **src)
 { memcpy(*dest, *src, sizeof(analogue_state)); }
 void analogueDelType(void **state)
-{ free(*state); }
-
+{ free(*state); *state = NULL; }
 void analogueAddChannel(void **state)
 {
 	*state = calloc(1, sizeof(analogue_channel));
@@ -601,7 +597,6 @@ void analogueDelChannel(void **state)
 void analogueWrite(void **state, FILE *fp)
 {
 	analogue_state *as = *state;
-
 	fwrite(&as->osc1.waveform, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc1.lfo, sizeof(uint8_t), 1, fp);
 	fwrite(&as->osc1.mix, sizeof(uint8_t), 1, fp);
@@ -632,11 +627,9 @@ void analogueWrite(void **state, FILE *fp)
 	fwrite(&as->detune, sizeof(uint8_t), 1, fp);
 	fwrite(&as->stereo, sizeof(uint8_t), 1, fp);
 }
-
 void analogueRead(void **state, unsigned char major, unsigned char minor, FILE *fp)
 {
 	analogue_state *as = *state;
-
 	fread(&as->osc1.waveform, sizeof(uint8_t), 1, fp);
 	fread(&as->osc1.lfo, sizeof(uint8_t), 1, fp);
 	fread(&as->osc1.mix, sizeof(uint8_t), 1, fp);

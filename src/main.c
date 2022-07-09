@@ -46,7 +46,7 @@ struct winsize ws;
 struct termios term, origterm;
 
 #define LINENO_COLS 5
-#define SONG_COLS 5
+#define SONGLIST_COLS 6
 
 
 #define INSTRUMENT_TYPE_COUNT 2
@@ -86,7 +86,6 @@ void changeMacro(int, char *);
 #include "filebrowser.c"
 #include "waveform.c"
 #include "tracker.c"
-#include "song.c"
 #include "background.c"
 #include "process.c"
 
@@ -107,16 +106,16 @@ void drawRuler(void)
 				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
 		}
 		if (w->chord)
-			printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 23, w->chord);
-		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 20);
-		if (s->playing == PLAYING_STOP)
-			printf("STOP  ");
-		else
-			printf("PLAY  ");
-		printf("&%d +%x  ", w->octave, w->step);
+			printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
+		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 24);
+		if (w->flags & 0b1) printf(">"); else printf(" ");
+		if (s->playing == PLAYING_STOP) printf("STOP");
+		else                            printf("PLAY");
+		if (w->flags & 0b1) printf(">"); else printf(" ");
+		printf(" &%d +%x  ", w->octave, w->step);
 		if (w->keyboardmacro) printf("%cxx  ", w->keyboardmacro);
 		else                  printf("     ");
-		printf("B%02x", s->songbpm);
+		printf("\033[1m%3dBPM\033[m", s->songbpm);
 	}
 }
 void redraw(void)
@@ -138,7 +137,6 @@ void redraw(void)
 		case 0: drawTracker(); break;
 		case 1: drawInstrument(); break;
 		case 2: drawFilebrowser(); break;
-		case 3: drawSong(); break;
 		case 4: drawWaveform(); break;
 	}
 	drawCommand(&w->command, w->mode);
@@ -229,7 +227,7 @@ void startPlayback(void)
 	{
 		s->songp = w->songfy;
 		s->songr = 0;
-		if (!(w->popup == 0 && w->mode != 0))
+		if (w->flags & 0b1)
 			w->trackerfy = 0;
 		s->playing = PLAYING_START;
 	} else strcpy(w->command.error, "failed to start playback, invalid pattern selected");
@@ -268,11 +266,6 @@ void handleFKeys(int input)
 				w->mode = 0;
 			w->popup = 1;
 			break;
-		case 'R': /* song */
-			w->popup = 3;
-			w->mode = 0;
-			w->songfx = 0;
-			break;
 	}
 }
 
@@ -309,7 +302,6 @@ int input(void)
 						case 0: trackerInput(input); break;
 						case 1: instrumentInput(input); break;
 						case 2: filebrowserInput(input); break;
-						case 3: songInput(input); break;
 						case 4: waveformInput(input); break;
 					}
 					break;
@@ -365,7 +357,7 @@ void resize(int _)
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->instrumentcelloffset = (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
 	w->instrumentrowoffset =  (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
-	w->centre =                ws.ws_row / 2;
+	w->centre =                ws.ws_row / 2 + 1;
 
 	w->waveformw = ws.ws_col * 2;
 	w->waveformh = (ws.ws_row - 2) * 4;
@@ -486,11 +478,11 @@ int main(int argc, char **argv)
 	p->s = s;
 	p->w = w;
 
-
-	jack_set_process_callback(client, process, p);
-
 	initBackground(); /* needs to be before jack_activate */
 	genOscillator();
+
+
+	jack_set_process_callback(client, process, p);
 
 	jack_activate(client);
 

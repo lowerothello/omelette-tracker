@@ -7,7 +7,7 @@
 
 /* <seconds> */
 #define ENVELOPE_ATTACK 0.005
-#define ENVELOPE_ATTACK_MIN 3
+#define ENVELOPE_ATTACK_MIN 1
 #define ENVELOPE_DECAY 0.020
 #define ENVELOPE_DECAY_MIN 1
 #define ENVELOPE_RELEASE 0.020
@@ -22,7 +22,7 @@
 
 /* not related to the gate macro */
 /* the threshold where processing is no longer necessary */
-#define NOISE_GATE 0.000001
+#define NOISE_GATE 0.00001
 
 
 /* multiply instead of dividing for float powers of 2 */
@@ -68,15 +68,15 @@ typedef struct
 
 
 /* state variable filter */
-#define MAX_RESONANCE 0.04 /* how far off of infinity to go */
-#define MIN_RESONANCE 0.9
+#define MAX_RESONANCE 0.02 /* how far off of infinity to go */
+#define MIN_RESONANCE 0.95
 typedef struct
 {
 	double l, h, b, n;
 } SVFilter;
 void runSVFilter(SVFilter *s, double input, double cutoff, double q)
 {
-	double F1 = 2 * M_PI * cutoff * 0.2;
+	double F1 = 2 * M_PI * cutoff * 0.15;
 	s->l = s->l + F1 * s->b;
 	s->h = input - s->l - (q * (-MIN_RESONANCE + MAX_RESONANCE) + MIN_RESONANCE) * s->b;
 	s->b = F1 * s->h + s->b;
@@ -235,7 +235,6 @@ void freeOscillator(void)
 	free(o.sine);
 }
 
-#define OSCILLATOR_TABLE_LEN 2048
 void genOscillator(void)
 {
 	o.triangle = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
@@ -255,8 +254,8 @@ void genOscillator(void)
 		o.sine[i] = sinf((float)i / (OSCILLATOR_TABLE_LEN - 1) * M_PI * 2);
 }
 
-/* phase is modulo'd to 0-1 */
-/* pw should be 0-1         */
+/* phase should be 0-1 */
+/* pw should be 0-1    */
 float oscillator(char wave, float phase, float pw)
 {
 	switch (wave)
@@ -297,7 +296,9 @@ float signedunsigned(float input)
 	}
 }
 float hardclip(float input)
-{ return MIN(1.0f, MAX(-1.0f, input)); }
+{
+	return MIN(1.0f, MAX(-1.0f, input));
+}
 float rectify(char type, float input) /* TODO: clicky */
 {
 	if (fabsf(input) < NOISE_GATE) /* TODO: fix dc properly, high pass it */
@@ -313,4 +314,6 @@ float rectify(char type, float input) /* TODO: clicky */
 	return input;
 }
 float thirddegreepolynomial(float input)
-{ return hardclip(1.5f*input - 0.5f*input*input*input); }
+{
+	return hardclip(1.5f*input - 0.5f*input*input*input);
+}

@@ -579,16 +579,19 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 {
 	uint32_t p = pitchedpointer + ss->trim[0] + cv->pointeroffset;
 
-	if (ss->loop[1] && ss->loop[0] == ss->loop[1] && p > ss->loop[1])
-	{ /* avoid looping a dc offset and nothing else */
-		p = ss->loop[1] + p%(uint32_t)(samplerate/1000 * MIN_LOOP_MS);
-		getSample(p, ss, l, r);
-	} else if (ss->loop[1])
+	if (ss->loop[1])
 	{ /* if there is a loop range */
+		if (ss->loop[0] == ss->loop[1] && p >= ss->loop[1])
+		{
+			*l = *r = 0.0f;
+			cv->r.note = 0;
+			return;
+		}
+
 		if (ss->flags & S_FLAG_PPLOOP)
 		{ /* ping-pong loop */
 			uint32_t looplength = ss->loop[1] - ss->loop[0];
-			if (p > ss->loop[1])
+			if (p >= ss->loop[1])
 			{
 				uint32_t i = (p - ss->loop[1])/looplength;
 				if (i % 2 == 0) /* backwards */ p = ss->loop[1] - (p - ss->loop[1])%looplength;
@@ -627,16 +630,13 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 			&& !cv->releasepointer)
 		cv->releasepointer = pointer;
 
-	/* cut if the pointer is ever past trim[1] */
-	if (p > ss->trim[1]) cv->r.note = 0;
-
 	if (!(ss->loop[0] || ss->loop[1]))
 	{
 		/* always point to the left channel */
 		if (ss->flags & S_FLAG_RPLAY) p -= (ss->trim[1]*2 - p) % ss->channels;
 		else                          p -= p % ss->channels;
 
-		if (p <= ss->length) getSample(p, ss, l, r);
+		if (p < ss->length) getSample(p, ss, l, r);
 	}
 
 	/* sample gain */
@@ -644,12 +644,13 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 	*r *= ss->gain*DIV64;
 }
 
-uint32_t calcDecimate(sampler_state *ss, float decimate, uint32_t pointer)
+uint32_t calcDecimate(sampler_state *ss, uint8_t decimate, uint32_t pointer)
 {
+	float d = 1.0f + (1.0f - decimate*DIV255) * 20;
 	if (ss->samplerate == 255)
 		return pointer;
 	else
-		return (uint32_t)(pointer / decimate) * decimate;
+		return (uint32_t)(pointer / d) * d;
 }
 
 /* must be realtime safe                     */
@@ -661,10 +662,9 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 	sampler_state *ss = iv->state[iv->type];
 	sampler_channel *sc = cv->state[iv->type];
 
-	float decimate = 1.0 + (1.0 - ss->samplerate*DIV255) * 20;
 	float gain = adsrEnvelope(ss->volume, 0.0, pointer, cv->releasepointer);
 	if (pointer > (ss->volume.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate
-			&& gain == 0.0) /* sound has fully finished */
+			&& gain == 0.0f) /* sound has fully finished */
 		cv->r.note = 0;
 	else if (ss->length > 0)
 	{
@@ -683,7 +683,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 		if (ss->flags & S_FLAG_TTEMPO)
 		{ /* time stretch */
 			/* trim/loop */
-			trimloop(calcDecimate(ss, decimate,
+			trimloop(calcDecimate(ss, ss->samplerate,
 					pointer - pointersnap + (pointersnap
 						* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune))
 						* ((float)ss->c5rate / (float)samplerate)),
@@ -691,22 +691,22 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 			if (sc->stretchrampindex < sc->localstretchrampmax)
 			{
-				float rl = 0.0, rr = 0.0;
-				trimloop(calcDecimate(ss, decimate,
+				float rl = 0.0f; float rr = 0.0f;
+				trimloop(calcDecimate(ss, ss->samplerate,
 						pointer - pointersnap - cyclelength + ((cyclelength + sc->stretchrampindex)
 							* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune)
 							* ((float)ss->c5rate / (float)samplerate))),
 						pointer, cv, iv, ss, sc, &rl, &rr);
 
 				float gain = (float)sc->stretchrampindex / (float)sc->localstretchrampmax;
-				*l = *l * gain + rl * (1.0 - gain);
-				*r = *r * gain + rr * (1.0 - gain);
+				*l = *l * gain + rl * (1.0f - gain);
+				*r = *r * gain + rr * (1.0f - gain);
 				sc->stretchrampindex++;
 			}
 		} else
 		{ /* pitch shift */
 			/* trim/loop */
-			trimloop(calcDecimate(ss, decimate,
+			trimloop(calcDecimate(ss, ss->samplerate,
 					(float)(pointer - pointersnap + (pointersnap * (float)(ss->pitchshift*DIV128)))
 						* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune)
 						* ((float)ss->c5rate / (float)samplerate)),
@@ -714,23 +714,23 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 			if (sc->stretchrampindex < sc->localstretchrampmax)
 			{
-				float rl = 0.0, rr = 0.0;
-				trimloop(calcDecimate(ss, decimate,
+				float rl = 0.0f; float rr = 0.0f;
+				trimloop(calcDecimate(ss, ss->samplerate,
 						(float)(pointer - pointersnap - cyclelength + ((cyclelength + sc->stretchrampindex) * (float)(ss->pitchshift*DIV128)))
 							* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune)
 							* ((float)ss->c5rate / (float)samplerate)),
 						pointer, cv, iv, ss, sc, &rl, &rr);
 
 				float gain = (float)sc->stretchrampindex / (float)sc->localstretchrampmax;
-				*l = *l * gain + rl * (1.0 - gain);
-				*r = *r * gain + rr * (1.0 - gain);
+				*l = *l * gain + rl * (1.0f - gain);
+				*r = *r * gain + rr * (1.0f - gain);
 				sc->stretchrampindex++;
 			}
 		}
 	} else cv->r.note = 0;
 
 	if (ss->flags & S_FLAG_MONO)
-	{ *l = (*l + *r) / 2.0; *r = *l; }
+	{ *l = (*l + *r) / 2.0f; *r = *l; }
 	if (ss->flags & S_FLAG_PHASE)
 	{ *l *= -1; *r *= -1; }
 

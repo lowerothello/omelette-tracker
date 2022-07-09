@@ -16,7 +16,7 @@ $ cd src/lib/libdrawille; cmake .; make; cd ../../..
 $ CC=gcc ./make 3 # use your preferred compiler
 
 INSTALL: (no proper install script yet)
-su -c "cp ./omelette /usr/bin/omelette"
+$ su -c "cp ./omelette /usr/bin/omelette"
 
 
 vim: wrap

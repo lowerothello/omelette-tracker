@@ -1,5 +1,5 @@
-MACRO REFERENCE
----------------
+EFFECT REFERENCE
+----------------
 All the macros that are supported by omelette, and their semantics. Some macros
 are heavily inspired by other trackers, some are wholly original.
 - All arguments are in hexadecimal (base 16).
@@ -30,12 +30,14 @@ Dxy - NOTE DELAY
 Gxy - STEREO GAIN
 	set the gain of the left channel to x/15
 	set the gain of the right channel to y/15
-	reset back to the instrument gain on each new note
+	local to the note, each note resets the gain to the instrument gain
+	applies at the end of the channel
 
 gxy - SMOOTH STEREO GAIN
 	slide the gain of the left channel to x/15 over the row
 	slide the gain of the right channel to y/15 over the row
-	reset back to the instrument gain on each new note
+	local to the note, each note resets the gain to the instrument gain
+	applies at the end of the channel
 
 Hxy - HIGH-PASS FILTER
 	only one filter is active at a time

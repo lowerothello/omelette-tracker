@@ -69,45 +69,45 @@ uint8_t charToNote(int key)
 
 void previewNote(uint8_t note, uint8_t inst, uint8_t channel)
 {
-	w->previewmacro.c = '\0';
-	w->previewinst = inst;
+	w->previewrow.macro[0].c = '\0';
+	w->previewrow.inst = inst;
 
 	if (note == 255)
-		w->previewnote = 255;
+		w->previewrow.note = 255;
 	else switch (w->keyboardmacro)
 	{
-		case 0: w->previewnote = note; break;
+		case 0: w->previewrow.note = note; break;
 		case 'G': /* m.x and m.y are note */
-			w->previewnote = C5;
+			w->previewrow.note = C5;
 			note -= w->octave*12;
 			if (note>=13 && note<=20)
 			{
-				w->previewmacro.c = w->keyboardmacro;
-				w->previewmacro.v = (note - 13) * 16 + (note - 13);
+				w->previewrow.macro[0].c = w->keyboardmacro;
+				w->previewrow.macro[0].v = (note - 13) * 16 + (note - 13);
 			}
 			if (note>=25 && note<=32)
 			{
-				w->previewmacro.c = w->keyboardmacro;
-				w->previewmacro.v = (note - 17) * 16 + (note - 17);
+				w->previewrow.macro[0].c = w->keyboardmacro;
+				w->previewrow.macro[0].v = (note - 17) * 16 + (note - 17);
 			}
 			break;
 		default: /* m.x is note */
-			w->previewnote = C5;
+			w->previewrow.note = C5;
 			note -= w->octave*12;
 			if (note>=13 && note<=20)
 			{
-				w->previewmacro.c = w->keyboardmacro;
-				w->previewmacro.v = (note - 13) * 16;
+				w->previewrow.macro[0].c = w->keyboardmacro;
+				w->previewrow.macro[0].v = (note - 13) * 16;
 			}
 			if (note>=25 && note<=32)
 			{
-				w->previewmacro.c = w->keyboardmacro;
-				w->previewmacro.v = (note - 17) * 16;
+				w->previewrow.macro[0].c = w->keyboardmacro;
+				w->previewrow.macro[0].v = (note - 17) * 16;
 			}
 			break;
 	}
 
-	w->previewchannel = channel;
+	w->previewchannelsrc = channel;
 	w->previewtrigger = 1;
 }
 

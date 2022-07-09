@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-./make.sh # ensure the latest build
+./make.sh pg # ensure the latest gcc build
 
 valgrind \
 	--log-file=valgrind.log \

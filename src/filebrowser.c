@@ -130,7 +130,6 @@ void filebrowserInput(int input)
 			redraw();
 			break;
 		case 127: case 8: /* backspace */
-			if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 			dirname(w->dirpath);
 			changeDirectory();
 			w->instrumentindex = 0;
@@ -165,52 +164,44 @@ void filebrowserInput(int input)
 					switch (getchar())
 					{
 						case 'A': /* up arrow */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex -= w->dircols;
 							if (w->instrumentindex < 0) w->instrumentindex = 0;
 							redraw();
 							break;
 						case 'B': /* down arrow */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex += w->dircols;
 							if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
 							redraw();
 							break;
 						case 'D': /* left arrow */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex--;
 							if (w->instrumentindex < 0) w->instrumentindex = 0;
 							redraw();
 							break;
 						case 'C': /* right arrow */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex++;
 							if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
 							redraw();
 							break;
 						case 'H': /* home */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex = 0;
 							redraw();
 							break;
 						case '4': /* end */
 							if (getchar() == '~')
 							{
-								if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 								w->instrumentindex = w->dirc - 1;
 								redraw();
 							}
 							break;
 						case '5': /* page up */
 							getchar();
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex -= w->dircols * (INSTRUMENT_BODY_ROWS - 2);
 							if (w->instrumentindex < 0) w->instrumentindex = 0;
 							redraw();
 							break;
 						case '6': /* page down */
 							getchar();
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							w->instrumentindex += w->dircols * (INSTRUMENT_BODY_ROWS - 2);
 							if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
 							redraw();
@@ -231,7 +222,6 @@ void filebrowserInput(int input)
 									break;
 							} break;
 						case 'M': /* mouse */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
 							button = getchar();
 							x = getchar() - 32;
 							y = getchar() - 32;
@@ -311,13 +301,8 @@ void filebrowserInput(int input)
 					switch (w->mode)
 					{
 						case 0: /* leave the popup */
-							if (w->previewsamplestatus == 1) w->previewsamplestatus = 2;
-							// pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 							w->popup = 1;
 							w->instrumentindex = 0;
-							break;
-						case 1: /* leave preview */
-							w->mode = 0;
 							break;
 					}
 					redraw();

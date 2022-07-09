@@ -39,32 +39,32 @@ void freeBackground(void)
 
 void updateBackground(jack_nframes_t nfptr, portbufferpair out)
 {
-	for (jack_nframes_t i = 0; i < nfptr; i++)
-	{
-		b->samples[b->pointer] = out.l[i];
-		b->pointer++;
-		if (b->pointer >= b->width) b->pointer = 0;
-	}
+	if (b->samples) /* protect against freak segfault */
+		for (jack_nframes_t i = 0; i < nfptr; i++)
+		{
+			b->samples[b->pointer] = out.l[i];
+			b->pointer++;
+			b->pointer = b->pointer%b->width;
+		}
 }
 
 void drawBackground(void)
 {
-	fill(b->canvas, 0);
-	size_t halfheight = b->height / 2;
-	for (size_t i = 0; i < b->width; i++)
+	if (b->buffer)
 	{
-		if (i+b->pointer >= b->width)
-			set_pixel_unsafe(b->canvas, 1, b->width - i,
-					b->samples[i+b->pointer - b->width] * halfheight + halfheight);
-		else
-			set_pixel_unsafe(b->canvas, 1, b->width - i,
-					b->samples[i+b->pointer] * halfheight + halfheight);
-	}
+		fill(b->canvas, 0);
+		size_t halfheight = b->height / 2;
+		for (size_t i = 0; i < b->width; i++)
+		{
+			set_pixel(b->canvas, 1, i,
+					b->samples[(i+b->pointer) % b->width] * halfheight + halfheight);
+		}
 
-	draw(b->canvas, b->buffer);
-	printf("\033[2;0H");
-	for (size_t i = 0; b->buffer[i] != NULL; i++)
-		printf("%s\n", b->buffer[i]);
+		draw(b->canvas, b->buffer);
+		printf("\033[2;0H");
+		for (size_t i = 0; b->buffer[i] != NULL; i++)
+			if (b->buffer[i]) printf("%s\n", b->buffer[i]);
+	}
 
 	/* puts("\033[7m");
 	for (unsigned short y = 1; y <= ws.ws_row; y++)

@@ -7,6 +7,8 @@ view.
 
 KEYBINDS
 --------
+COLON                  - enter command mode
+
 navigation:
 	ARROWS             - navigate the pattern cell-wise
 	CTRL+LEFT/[        - move one channel to the left
@@ -38,10 +40,12 @@ normal mode:
 	cD                 - delete channels from the current one to the end
 	cy                 - yank the current channel
 	cp                 - put from the channel yank buffer
-	ma                 - add a macro column at the end
-	md                 - delete a macro column from the end
+	ma                 - add a macro column at the end, between 1 and 8 are allowed
+	md                 - delete a macro column from the end, between 1 and 8 are allowed
 	x/BACKSPACE        - delete the current cell
 	s                  - delete the current cell, then enter insert mode
+	k?                 - preview macro ? on the note column, kk to revert to normal
+	f                  - toggle song follow
 
 visual mode:
 	NAVIGATION         - navigate, drag a stable visual selection

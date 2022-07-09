@@ -154,7 +154,6 @@ typedef struct
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
 	command_t      command;
-	char           chord;                        /* key chord buffer, vi-style multi-letter commands eg. dd, di", cap, 4j, etc. */
 	unsigned char  popup;
 	unsigned char  mode, oldmode;
 	unsigned short centre;
@@ -189,20 +188,20 @@ typedef struct
 
 	short          songfy, songfx;
 
+	char           chord;                        /* key chord buffer, vi-style multi-letter commands eg. dd, di", cap, 4j, etc. */
 	char           octave;
 	uint8_t        step;
 	char           keyboardmacro;
+	uint8_t        flags;                        /* %1:follow */
 
 	uint8_t        songnext;
 
-	uint8_t        previewnote, previewinst;
-	macro          previewmacro;
-	uint8_t        previewchannel;
+	row            previewrow;
+	uint8_t        previewchannelsrc;
+	channel        previewchannel;
 	char           previewtrigger;               /* 0:cut
 	                                                1:start inst
 	                                                2:still inst */
-
-	char           previewsamplestatus;
 
 	uint8_t        instrumentlocki;              /* realindex */
 	uint8_t        instrumentlockv;              /* value, set to an INST_GLOBAL_LOCK constant */

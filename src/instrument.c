@@ -43,8 +43,7 @@ void drawRecordSource(uint8_t source, unsigned short y, unsigned short x, char a
 
 void drawInstrument(void)
 {
-	// printf("\033[%d;%dH\033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
-	printf("\033[%d;%dH\033[2mPATTERN \033[1mINSTRUMENT\033[m \033[2mSONG\033[m", CHANNEL_ROW-2, (ws.ws_col-22) / 2);
+	printf("\033[%d;%dH\033[2mPATTERN\033[m \033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col-17) / 2);
 
 	switch (w->mode)
 	{
@@ -472,7 +471,27 @@ void instrumentInput(int input)
 									if (w->mode > 3) w->mode -= 4;
 									if (w->mode > 1) w->mode -= 2;
 									break;
+								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
+									if (w->mode > 3) /* mouse adjust */
+									{
+										if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex, 1);
+										else if (x < w->mousex) instrumentAdjustLeft(iv, w->instrumentindex, 1);
+
+										if      (y > w->mousey) instrumentAdjustDown(iv, w->instrumentindex, 1);
+										else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex, 1);
+
+										w->mousey = y;
+										w->mousex = x;
+									}
+									break;
 								case BUTTON1: case BUTTON3: case BUTTON1_CTRL: case BUTTON3_CTRL:
+									if (y == CHANNEL_ROW-2)
+									{
+										if (x < (ws.ws_col-17) / 2 + 7) handleFKeys('P');
+										else                            handleFKeys('Q');
+										break;
+									}
+
 									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									switch (MAX(0, y - w->instrumentrowoffset))
 									{
@@ -523,19 +542,6 @@ void instrumentInput(int input)
 									if (w->mode < 4) w->mode = w->mode + 2;
 									w->mousey = y;
 									w->mousex = x;
-									break;
-								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
-									if (w->mode > 3) /* mouse adjust */
-									{
-										if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex, 1);
-										else if (x < w->mousex) instrumentAdjustLeft(iv, w->instrumentindex, 1);
-
-										if      (y > w->mousey) instrumentAdjustDown(iv, w->instrumentindex, 1);
-										else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex, 1);
-
-										w->mousey = y;
-										w->mousex = x;
-									}
 									break;
 							}
 							redraw();
