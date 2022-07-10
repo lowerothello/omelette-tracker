@@ -284,7 +284,7 @@ void inputSongHex(char value)
 
 void trackerInput(int input)
 {
-	int button, x, y, i;
+	int button, x, y, i, j;
 	short macro;
 	row *r;
 	pattern *p;
@@ -643,15 +643,13 @@ dxandwchannelset:
 										0, 1+s->channelv[w->channel].macroc,
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-								redraw();
-								break;
+								redraw(); break;
 							case 24: /* ^x */
 								addPartPattern(-1,
 										0, 1+s->channelv[w->channel].macroc,
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-								redraw();
-								break;
+								redraw(); break;
 							case 'x': case 'd': /* pattern cut */
 								if (s->songi[w->songfy] == 255) break;
 								yankPartPattern(
@@ -666,8 +664,7 @@ dxandwchannelset:
 								w->trackerfy = MIN(w->trackerfy, w->visualfy);
 								w->channel = MIN(w->channel, w->visualchannel);
 								w->mode = T_MODE_NORMAL;
-								redraw();
-								break;
+								redraw(); break;
 							case 'y': /* pattern copy */
 								if (s->songi[w->songfy] == 255) break;
 								yankPartPattern(
@@ -678,8 +675,7 @@ dxandwchannelset:
 								w->trackerfy = MIN(w->trackerfy, w->visualfy);
 								w->channel = MIN(w->channel, w->visualchannel);
 								w->mode = T_MODE_NORMAL;
-								redraw();
-								break;
+								redraw(); break;
 						} break;
 					case T_MODE_VISUAL: case T_MODE_ARROWVISUAL:
 						switch (input)
@@ -691,15 +687,13 @@ dxandwchannelset:
 										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-								redraw();
-								break;
+								redraw(); break;
 							case 24: /* ^x */
 								addPartPattern(-1,
 										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-								redraw();
-								break;
+								redraw(); break;
 							case 'x': case 'd': /* pattern cut */
 								if (s->songi[w->songfy] == 255) break;
 								yankPartPattern(
@@ -714,8 +708,7 @@ dxandwchannelset:
 								w->trackerfy = MIN(w->trackerfy, w->visualfy);
 								w->channel = MIN(w->channel, w->visualchannel);
 								w->mode = T_MODE_NORMAL;
-								redraw();
-								break;
+								redraw(); break;
 							case 'y': /* pattern copy */
 								if (s->songi[w->songfy] == 255) break;
 								yankPartPattern(
@@ -726,8 +719,7 @@ dxandwchannelset:
 								w->trackerfy = MIN(w->trackerfy, w->visualfy);
 								w->channel = MIN(w->channel, w->visualchannel);
 								w->mode = T_MODE_NORMAL;
-								redraw();
-								break;
+								redraw(); break;
 						} break;
 					case T_MODE_SONG:
 						switch (input)
@@ -745,8 +737,7 @@ dxandwchannelset:
 									s->songi[w->songfy]++;
 									addPattern(s->songi[w->songfy], 0);
 								}
-								redraw();
-								break;
+								redraw(); break;
 							case 24: /* ^x */
 								if (s->songi[w->songfy] == 0)
 								{
@@ -761,37 +752,30 @@ dxandwchannelset:
 									s->songi[w->songfy]--;
 									addPattern(s->songi[w->songfy], 0);
 								}
-								redraw();
-								break;
+								redraw(); break;
 							case 'l': /* loop */
 								if (s->songi[w->songfy] != 255)
 									s->songf[w->songfy] = !s->songf[w->songfy];
-								DEBUG=94;
-								redraw();
-								break;
+								redraw(); break;
 							case 'n':
 								if (s->songi[w->songfy] != 255)
 								{
 									if (w->songnext == w->songfy + 1) w->songnext = 0;
 									else                              w->songnext = w->songfy + 1;
 								}
-								redraw();
-								break;
+								redraw(); break;
 							case 'p':
 								if (s->songi[w->songfy] != 255)
 									s->songi[w->songfy] = duplicatePattern(s->songi[w->songfy]);
-								redraw();
-								break;
-							case 's':
-								w->mode = T_MODE_SONG_INSERT;
+								redraw(); break;
+							case 's': w->mode = T_MODE_SONG_INSERT;
 							case 127: case 8: case 'x': /* backspace */
 								if (w->songnext == w->songfy + 1)
 									w->songnext = 0;
 								s->songi[w->songfy] = 255;
 								s->songf[w->songfy] = 0;
 								prunePattern(s->songi[w->songfy], w->songfy);
-								redraw();
-								break;
+								redraw(); break;
 						}
 						break;
 					case T_MODE_NORMAL:
@@ -829,42 +813,35 @@ dxandwchannelset:
 											if (w->channeloffset + w->visiblechannels < s->channelc
 													&& w->channel > w->visiblechannels / 2)
 												w->channeloffset++;
-											resize(0);
-											break;
+											resize(0); break;
 										case 'A': /* add before */
 											if (s->channelc >= MAX_CHANNELS-1) break;
 											addChannel(s, w->channel);
-											resize(0);
-											break;
+											resize(0); break;
 										case 'd': /* delete */
 											delChannel(w->channel);
 											if (w->channel > s->channelc - 1)
 												w->channel--;
-											resize(0);
-											break;
+											resize(0); break;
 										case 'D': /* delete to end */
 											if (w->channel == 0)
 												w->channel++;
 											for (uint8_t i = s->channelc; i > w->channel; i--)
 												delChannel(i - 1);
 											w->channel--;
-											resize(0);
-											break;
+											resize(0); break;
 										case 'y': /* yank */
 											yankChannel(w->channel);
-											redraw();
-											break;
+											redraw(); break;
 										case 'p': /* put */
 											w->channel++;
 											addChannel(s, w->channel);
 											putChannel(w->channel);
-											resize(0);
-											break;
+											resize(0); break;
 										case 'P': /* put before */
 											addChannel(s, w->channel);
 											putChannel(w->channel);
-											resize(0);
-											break;
+											resize(0); break;
 									} break;
 								case 'm': /* macro */
 									switch (input)
@@ -872,41 +849,78 @@ dxandwchannelset:
 										case 'a': /* add */
 											if (s->channelv[w->channel].macroc < 8)
 												s->channelv[w->channel].macroc++;
-											resize(0);
-											break;
+											resize(0); break;
 										case 'd': /* delete */
 											if (s->channelv[w->channel].macroc > 1)
 												s->channelv[w->channel].macroc--;
 											if (w->trackerfx > 1 + s->channelv[w->channel].macroc * 2)
 												w->trackerfx = s->channelv[w->channel].macroc * 2;
-											resize(0);
-											break;
+											resize(0); break;
 									} break;
 								case 'k': /* keyboard macro */
 									w->keyboardmacro = '\0';
 									if (input != 'k') // kk just resets
 										changeMacro(input, &w->keyboardmacro);
-									redraw();
-									break;
+									redraw(); break;
 								case 'r': /* row */
 									p = s->patternv[s->patterni[s->songi[w->songfy]]];
 									switch (input)
 									{
 										case 'r': p->rowcc[w->channel] = p->rowc; redraw(); break;
-										case 'd': if (p->rowcc[w->channel])       p->rowcc[w->channel]--; redraw(); break;
-										case 'a': if (p->rowcc[w->channel] < 255) p->rowcc[w->channel]++; redraw(); break;
-										case '/':
+										case 'd': if (p->rowcc[w->channel]) p->rowcc[w->channel]--; redraw(); break;
+										case 'a':
+											if (p->rowcc[w->channel] < 255)
+											{
+												p->rowcc[w->channel]++;
+												memset(&p->rowv[w->channel][p->rowcc[w->channel]], 0, sizeof(row));
+												p->rowv[w->channel][p->rowcc[w->channel]].inst = 255;
+											} redraw(); break;
+										case '-':
 											if (p->rowcc[w->channel] == 255)
 												p->rowcc[w->channel] = 127;
 											else if (p->rowcc[w->channel])
 												p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) / 2 - 1;
 											redraw(); break;
+										case '+': case '=':
+											if (p->rowcc[w->channel] < 127)
+											{
+												memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
+														sizeof(row) * (p->rowcc[w->channel] + 1));
+												p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
+											} else p->rowcc[w->channel] = 255;
+											redraw(); break;
+										case '/':
+											if (p->rowcc[w->channel] == 255)
+											{
+												for (j = 0; j < 127; j++)
+													p->rowv[w->channel][j] = p->rowv[w->channel][j*2];
+												p->rowcc[w->channel] = 127;
+											} else if (p->rowcc[w->channel])
+											{
+												for (j = 0; j < p->rowcc[w->channel] + 1; j++)
+													p->rowv[w->channel][j] = p->rowv[w->channel][j*2];
+												p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) / 2 - 1;
+											} redraw(); break;
 										case '*':
 											if (p->rowcc[w->channel] < 127)
+											{
+												for (j = p->rowcc[w->channel] + 1; j > 0; j--)
+												{
+													p->rowv[w->channel][j*2] = p->rowv[w->channel][j];
+													memset(&p->rowv[w->channel][j*2-1], 0, sizeof(row));
+													p->rowv[w->channel][j*2-1].inst = 255;
+												}
 												p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
-											else
+											} else if (p->rowcc[w->channel] < 255)
+											{
+												for (j = p->rowcc[w->channel] + 1; j > 0; j--)
+												{
+													p->rowv[w->channel][j*2] = p->rowv[w->channel][j];
+													memset(&p->rowv[w->channel][j*2-1], 0, sizeof(row));
+													p->rowv[w->channel][j*2-1].inst = 255;
+												}
 												p->rowcc[w->channel] = 255;
-											redraw(); break;
+											} redraw(); break;
 									}
 									p->rowc = 0;
 									for (i = 0; i < MAX_CHANNELS; i++)
@@ -926,9 +940,14 @@ dxandwchannelset:
 											redraw(); break;
 										case 'a':
 											for (i = 0; i < MAX_CHANNELS; i++)
-												if (p->rowcc[i] < 255) p->rowcc[i]++;
+												if (p->rowcc[i] < 255)
+												{
+													p->rowcc[i]++;
+													memset(&p->rowv[i][p->rowcc[i]], 0, sizeof(row));
+													p->rowv[i][p->rowcc[i]].inst = 255;
+												}
 											redraw(); break;
-										case '/':
+										case '-':
 											for (i = 0; i < MAX_CHANNELS; i++)
 											{
 												if (p->rowcc[i] == 255)
@@ -937,15 +956,55 @@ dxandwchannelset:
 													p->rowcc[i] = (p->rowcc[i] + 1) / 2 - 1;
 											}
 											redraw(); break;
+										case '+': case '=':
+											for (i = 0; i < MAX_CHANNELS; i++)
+											{
+												if (p->rowcc[i] < 127)
+												{
+													memcpy(&p->rowv[i][p->rowcc[i] + 1], p->rowv[i],
+															sizeof(row) * (p->rowcc[i] + 1));
+													p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
+												} else p->rowcc[i] = 255;
+											}
+											redraw(); break;
+										case '/':
+											for (i = 0; i < MAX_CHANNELS; i++)
+											{
+												if (p->rowcc[i] == 255)
+												{
+													for (j = 0; j < 127; j++)
+														p->rowv[i][j] = p->rowv[i][j*2];
+													p->rowcc[i] = 127;
+												} else if (p->rowcc[i])
+												{
+													for (j = 0; j < p->rowcc[i] + 1; j++)
+														p->rowv[i][j] = p->rowv[i][j*2];
+													p->rowcc[i] = (p->rowcc[i] + 1) / 2 - 1;
+												}
+											} redraw(); break;
 										case '*':
 											for (i = 0; i < MAX_CHANNELS; i++)
 											{
 												if (p->rowcc[i] < 127)
+												{
+													for (j = p->rowcc[i] + 1; j > 0; j--)
+													{
+														p->rowv[i][j*2] = p->rowv[i][j];
+														memset(&p->rowv[i][j*2-1], 0, sizeof(row));
+														p->rowv[i][j*2-1].inst = 255;
+													}
 													p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
-												else
+												} else if (p->rowcc[i] < 255)
+												{
+													for (j = p->rowcc[i] + 1; j > 0; j--)
+													{
+														p->rowv[i][j*2] = p->rowv[i][j];
+														memset(&p->rowv[i][j*2-1], 0, sizeof(row));
+														p->rowv[i][j*2-1].inst = 255;
+													}
 													p->rowcc[i] = 255;
-											}
-											redraw(); break;
+												}
+											} redraw(); break;
 									}
 									p->rowc = 0;
 									for (i = 0; i < MAX_CHANNELS; i++)

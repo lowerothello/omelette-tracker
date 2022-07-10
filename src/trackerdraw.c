@@ -296,69 +296,66 @@ void drawChannel(uint8_t channel, unsigned short x)
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
 			unsigned short rowcc = s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[channel]+1;
 			uint8_t polycut = w->trackerfy - w->trackerfy % rowcc;
-			if (i < polycut || i > polycut + rowcc - 1)
-			{ /* out of range of the polyrhythm */
+			/* if (i < polycut || i > polycut + rowcc - 1)
+			{ // out of range of the polyrhythm
 				printf("\033[%dX\033[%dC",
 						6 + 4*s->channelv[channel].macroc,
-						6 + 4*s->channelv[channel].macroc);
-			} else
+						6 + 4*s->channelv[channel].macroc); */
+
+			r = s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[channel][i%rowcc];
+
+			if (s->channelv[channel].mute || i < polycut || i > polycut + rowcc - 1) printf("\033[2m");
+			if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_ARROWVISUAL || w->mode == T_MODE_VISUALLINE)
+					&& channel > MIN(w->visualchannel, w->channel) && channel <= MAX(w->visualchannel, w->channel)
+					&& i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy))
+				printf("\033[2;7m");
+
+			startVisual(channel, i, 0);
+
+			if (r.note)
 			{
-				r = s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[channel][i%rowcc];
+				noteToString(r.note, altbuffer);
+				if (r.note == 255) snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
+				else               snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
+				if (ifVisual(channel, i, 0) && !s->channelv[channel].mute)
+				{ printf("\033[22m%s\033[2m", buffer); }
+				else printf(buffer);
+			} else printf("...");
+			stopVisual(channel, i, 0);
 
-				if (s->channelv[channel].mute) printf("\033[2m");
-				if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_ARROWVISUAL || w->mode == T_MODE_VISUALLINE)
-						&& channel > MIN(w->visualchannel, w->channel) && channel <= MAX(w->visualchannel, w->channel)
-						&& i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy))
-					printf("\033[2;7m");
+			printf(" ");
 
-				startVisual(channel, i, 0);
+			startVisual(channel, i, 1);
+			if (r.inst < 255)
+			{
+				snprintf(buffer, 16, "\033[33m%02x\033[37m", r.inst);
+				if (ifVisual(channel, i, 1) && !s->channelv[channel].mute)
+				{ printf("\033[22m%s\033[2m", buffer); }
+				else printf(buffer);
+			} else printf("..");
+			stopVisual(channel, i, 1);
 
-				if (r.note)
-				{
-					noteToString(r.note, altbuffer);
-					if (r.note == 255) snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
-					else               snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
-					if (ifVisual(channel, i, 0) && !s->channelv[channel].mute)
-					{ printf("\033[22m%s\033[2m", buffer); }
-					else printf(buffer);
-				} else printf("...");
-				stopVisual(channel, i, 0);
-
+			for (int j = 0; j < s->channelv[channel].macroc; j++)
+			{
 				printf(" ");
-
-				startVisual(channel, i, 1);
-				if (r.inst < 255)
+				startVisual(channel, i, 2+j);
+				if (r.macro[j].c)
 				{
-					snprintf(buffer, 16, "\033[33m%02x\033[37m", r.inst);
-					if (ifVisual(channel, i, 1) && !s->channelv[channel].mute)
-					{ printf("\033[22m%s\033[2m", buffer); }
-					else printf(buffer);
-				} else printf("..");
-				stopVisual(channel, i, 1);
-
-				for (int j = 0; j < s->channelv[channel].macroc; j++)
-				{
-					printf(" ");
-					startVisual(channel, i, 2+j);
-					if (r.macro[j].c)
+					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[22m");
+					if (isdigit(r.macro[j].c)) /* different colour for instrument macros */
 					{
-						if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[22m");
-						if (isdigit(r.macro[j].c)) /* different colour for instrument macros */
-						{
-							printf("\033[35m%c",   r.macro[j].c);
-							printf("%02x\033[37m", r.macro[j].v);
-						} else
-						{
-							printf("\033[36m%c",   r.macro[j].c);
-							printf("%02x\033[37m", r.macro[j].v);
-						}
-						if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[2m");
-					} else printf("...");
-					stopVisual(channel, i, 2+j);
-				}
-
-				printf("\033[m"); /* always clear all attributes */
+						printf("\033[35m%c",   r.macro[j].c);
+						printf("%02x\033[37m", r.macro[j].v);
+					} else
+					{
+						printf("\033[36m%c",   r.macro[j].c);
+						printf("%02x\033[37m", r.macro[j].v);
+					}
+					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[2m");
+				} else printf("...");
+				stopVisual(channel, i, 2+j);
 			}
+			printf("\033[m"); /* always clear all attributes */
 
 			if (s->playing == PLAYING_CONT && s->songp == w->songfy && s->songr == i) printf(" - ");
 			else if (s->rowhighlight && !(i % s->rowhighlight))                       printf(" * ");
