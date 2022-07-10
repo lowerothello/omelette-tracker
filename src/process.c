@@ -645,8 +645,7 @@ int process(jack_nframes_t nfptr, void *arg)
 				for (uint8_t c = 0; c < p->s->channelc; c++)
 				{
 					cv = &p->s->channelv[c];
-					preprocessRow(cv, pt->rowv[c][r]);
-
+					preprocessRow(cv, pt->rowv[c][r%pt->rowcc[c]+1]);
 					if (cv->cutsamples && cv->delaysamples)
 					{
 						if (cv->cutsamples > cv->delaysamples)
@@ -751,7 +750,8 @@ int process(jack_nframes_t nfptr, void *arg)
 		if (p->s->playing == PLAYING_CONT && p->s->sprp == 0)
 			for (uint8_t c = 0; c < p->s->channelc; c++)
 				preprocessRow(&p->s->channelv[c],
-						p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c][p->s->songr]);
+						p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c]
+						[p->s->songr%p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowcc[c]+1]);
 
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{

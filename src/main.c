@@ -35,7 +35,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 84;
+const unsigned char MINOR = 85;
 
 
 jack_nframes_t samplerate;
@@ -105,8 +105,7 @@ void drawRuler(void)
 			else
 				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
 		}
-		if (w->chord)
-			printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
+		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
 		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 24);
 		if (w->flags & 0b1) printf(">"); else printf(" ");
 		if (s->playing == PLAYING_STOP) printf("STOP");
@@ -126,6 +125,7 @@ void redraw(void)
 	if (ws.ws_row < 24 || ws.ws_col < 68)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
+		fflush(stdout);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		return;
 	}
@@ -156,7 +156,6 @@ void commandTabCallback(char *text)
 	char *buffer = malloc(strlen(text) + 1);
 	wordSplit(buffer, text, 0);
 	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
-	else if (!strcmp(buffer, "rows")) snprintf(text, COMMAND_LENGTH + 1, "rows 0x%02x", s->patternv[s->patterni[s->songi[w->songfy]]]->rowc);
 	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight 0x%02x", s->rowhighlight);
 	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step 0x%x", w->step);
 	else if (!strcmp(buffer, "octave")) snprintf(text, COMMAND_LENGTH + 1, "octave %d", w->octave);
@@ -194,14 +193,6 @@ int commandCallback(char *command, unsigned char *mode)
 		if (s->songbpm == s->bpm) update = 1;
 		s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
 		if (update) w->request = REQ_BPM;
-	} else if (!strcmp(buffer, "rows")) /* pattern length */
-	{
-		wordSplit(buffer, command, 1);
-		pattern *pattern = s->patternv[s->patterni[s->songi[w->songfy]]];
-		pattern->rowc = strtol(buffer, NULL, 16);
-		w->defpatternlength = pattern->rowc;
-		if (w->trackerfy > pattern->rowc)
-			w->trackerfy = pattern->rowc;
 	} else if (!strcmp(buffer, "highlight")) /* row highlight */
 	{
 		wordSplit(buffer, command, 1);

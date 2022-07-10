@@ -572,9 +572,10 @@ void analogueAddType(void **state)
 	as->osc2.flags = 0b00000001; /* pitch tracking on */
 	as->sub.oct = -1;
 	as->sub.waveform = 4; /* sine */
-	as->filter.cutoff = 255;
-	as->filter.env.s = 255;
-	as->amp.s = 255;
+	as->filter.cutoff = 0xff;
+	as->filter.env.s = 0xff;
+	as->filter.env.r = 0xff;
+	as->amp.s = 0xff;
 	as->gain = 0x80;
 	as->lfo.rate = 0x80;
 	as->sub.mix = 0;
