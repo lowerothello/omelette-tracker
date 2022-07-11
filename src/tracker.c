@@ -1136,10 +1136,19 @@ dxandwchannelset:
 											redraw(); break;
 										case 's': w->mode = T_MODE_INSERT;
 										case 'x': case 127: case 8: /* backspace */
-											yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx),
-													w->trackerfy, w->trackerfy, w->channel, w->channel);
-											delPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx),
-													w->trackerfy, w->trackerfy, w->channel, w->channel);
+											if (w->trackerfx == 0)
+											{
+												yankPartPattern(0, 1,
+														w->trackerfy, w->trackerfy, w->channel, w->channel);
+												delPartPattern(0, 1,
+														w->trackerfy, w->trackerfy, w->channel, w->channel);
+											} else
+											{
+												yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx),
+														w->trackerfy, w->trackerfy, w->channel, w->channel);
+												delPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx),
+														w->trackerfy, w->trackerfy, w->channel, w->channel);
+											}
 											redraw(); break;
 										default: /* column specific */
 											modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
