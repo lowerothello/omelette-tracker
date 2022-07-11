@@ -1121,6 +1121,8 @@ dxandwchannelset:
 										case 'k': /* keyboard macro */ w->chord = 'k'; redraw(); goto t_afterchordunset;
 										case 'r': /* row            */ w->chord = 'r'; redraw(); goto t_afterchordunset;
 										case 'R': /* global row     */ w->chord = 'R'; redraw(); goto t_afterchordunset;
+										case 'b': /* bpm            */ if (w->count) s->songbpm = MIN(255, MAX(32, w->count)); break;
+										case 'h': /* row highlight  */ if (w->count) s->rowhighlight = MIN(16, w->count); break;
 										case 'p': /* pattern put */ /* TODO: count */
 											if (s->songi[w->songfy] == 255) break;
 											putPartPattern();
@@ -1386,11 +1388,8 @@ dxandwchannelset:
 										changeMacro(input, &r->macro[macro].c);
 									}
 								} break;
-						}
-						redraw();
-						break;
-				}
-			break;
+						} redraw(); break;
+				} break;
 	}
 	w->count = 0;
 	if (w->chord) { w->chord = '\0'; redraw(); }

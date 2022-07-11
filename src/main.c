@@ -158,10 +158,7 @@ void commandTabCallback(char *text)
 {
 	char *buffer = malloc(strlen(text) + 1);
 	wordSplit(buffer, text, 0);
-	if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
-	else if (!strcmp(buffer, "highlight")) snprintf(text, COMMAND_LENGTH + 1, "highlight 0x%02x", s->rowhighlight);
-	else if (!strcmp(buffer, "step")) snprintf(text, COMMAND_LENGTH + 1, "step 0x%x", w->step);
-	else if (!strcmp(buffer, "octave")) snprintf(text, COMMAND_LENGTH + 1, "octave %d", w->octave);
+	// if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
 	free(buffer);
 }
 int commandCallback(char *command, unsigned char *mode)
@@ -189,25 +186,6 @@ int commandCallback(char *command, unsigned char *mode)
 			p->lock = PLAY_LOCK_START;
 			w->songfy = 0;
 		}
-	} else if (!strcmp(buffer, "bpm"))
-	{
-		wordSplit(buffer, command, 1);
-		char update = 0;
-		if (s->songbpm == s->bpm) update = 1;
-		s->songbpm = MIN(MAX(strtol(buffer, NULL, 0), 32), 255);
-		if (update) w->request = REQ_BPM;
-	} else if (!strcmp(buffer, "highlight")) /* row highlight */
-	{
-		wordSplit(buffer, command, 1);
-		s->rowhighlight = strtol(buffer, NULL, 16);
-	} else if (!strcmp(buffer, "step"))
-	{
-		wordSplit(buffer, command, 1);
-		w->step = MIN(strtol(buffer, NULL, 16), 15);
-	} else if (!strcmp(buffer, "octave"))
-	{
-		wordSplit(buffer, command, 1);
-		w->octave = MIN(MAX(strtol(buffer, NULL, 0), 0), 9);
 	}
 
 	free(buffer); buffer = NULL;
@@ -279,7 +257,8 @@ int input(void)
 		} else switch (input)
 			{
 				case ':': /* enter command mode */
-					setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
+					setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
+					// setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
 					w->mode = 255;
 					redraw();
 					break;
