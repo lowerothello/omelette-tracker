@@ -190,6 +190,7 @@ typedef struct
 	short          songfy;
 
 	char           chord;                        /* key chord buffer, vi-style multi-letter commands eg. dd, di4", cap, 4j, etc. */
+	uint16_t       count;                        /* action repeat count, follows similar rules to w->chord */
 	char           octave;
 	uint8_t        step;
 	char           keyboardmacro;
@@ -354,6 +355,7 @@ int delChannel(uint8_t index)
 		}
 		s->channelv[s->channelc].mute = 0;
 		s->channelv[s->channelc].macroc = 2;
+		return 1;
 	} else
 	{
 		_delChannel(s, index);
@@ -379,8 +381,8 @@ int delChannel(uint8_t index)
 
 		if (w->channeloffset)
 			w->channeloffset--;
+		return 0;
 	}
-	return 0;
 }
 int yankChannel(uint8_t index)
 {

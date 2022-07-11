@@ -105,7 +105,10 @@ void drawRuler(void)
 			else
 				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
 		}
+
+		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
 		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
+
 		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 24);
 		if (w->flags & 0b1) printf(">"); else printf(" ");
 		if (s->playing == PLAYING_STOP) printf("STOP");
