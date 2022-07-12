@@ -11,10 +11,10 @@ void drawFilebrowser(void)
 	DIR *testdir;
 	xw = (w->dirmaxwidth + 2)*w->dircols;
 	xo = (ws.ws_col-xw) / 2 + 1;
-	yo = y+11 - w->instrumentindex / w->dircols;
+	yo = y+11 - w->filebrowserindex / w->dircols;
 
-	for (unsigned short cy = y; cy < y+7+INSTRUMENT_TYPE_ROWS; cy++)
-		printf("\033[%d;%dH\033[%dX", cy, w->instrumentcelloffset, INSTRUMENT_BODY_COLS);
+	/* for (unsigned short cy = y; cy < y+7+INSTRUMENT_TYPE_ROWS; cy++)
+		printf("\033[%d;%dH\033[%dX", cy, w->instrumentcelloffset, INSTRUMENT_BODY_COLS); */
 
 	if (strlen(w->dirpath) > INSTRUMENT_BODY_COLS - 4)
 	{
@@ -63,7 +63,7 @@ void drawFilebrowser(void)
 	{
 		printf("\033[%d;%dH%.*s", y+11, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2, INSTRUMENT_BODY_COLS - 4, "(empty directory)");
 		printf("\033[%d;%dH", y+11, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2 + 1);
-	} else printf("\033[%d;%dH", y+11 + w->fyoffset, xo + (w->dirmaxwidth + 2) * (w->instrumentindex % w->dircols));
+	} else printf("\033[%d;%dH", y+11 + w->fyoffset, xo + (w->dirmaxwidth + 2) * (w->filebrowserindex % w->dircols));
 }
 
 int getSubdir(char *newpath)
@@ -78,7 +78,7 @@ int getSubdir(char *newpath)
 				&& strcmp(dirent->d_name, "..")
 				&& strcmp(dirent->d_name, "lost+found"))
 		{
-			if (dirc == w->instrumentindex)
+			if (dirc == w->filebrowserindex)
 			{
 				strcpy(newpath, w->dirpath);
 				strcat(newpath, "/");
@@ -115,7 +115,6 @@ void filebrowserInput(int input)
 			{
 				case 1: /* file */
 					w->popup = 0;
-					w->instrumentindex = 0;
 					w->filebrowserCallback(newpath);
 					break;
 				case 2: /* directory */
@@ -124,7 +123,7 @@ void filebrowserInput(int input)
 					{
 						strcpy(w->dirpath, oldpath);
 						changeDirectory();
-					} else w->instrumentindex = 0;
+					} else w->filebrowserindex = 0;
 					break;
 			}
 			redraw();
@@ -132,7 +131,7 @@ void filebrowserInput(int input)
 		case 127: case 8: /* backspace */
 			dirname(w->dirpath);
 			changeDirectory();
-			w->instrumentindex = 0;
+			w->filebrowserindex = 0;
 			redraw();
 			break;
 		case '\033':
@@ -151,7 +150,7 @@ void filebrowserInput(int input)
 							{
 								strcpy(w->dirpath, oldpath);
 								changeDirectory();
-							} else w->instrumentindex = 0;
+							} else w->filebrowserindex = 0;
 							break;
 					}
 					redraw();
@@ -164,46 +163,46 @@ void filebrowserInput(int input)
 					switch (getchar())
 					{
 						case 'A': /* up arrow */
-							w->instrumentindex -= w->dircols;
-							if (w->instrumentindex < 0) w->instrumentindex = 0;
+							w->filebrowserindex -= w->dircols;
+							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
 							redraw();
 							break;
 						case 'B': /* down arrow */
-							w->instrumentindex += w->dircols;
-							if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
+							w->filebrowserindex += w->dircols;
+							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
 							redraw();
 							break;
 						case 'D': /* left arrow */
-							w->instrumentindex--;
-							if (w->instrumentindex < 0) w->instrumentindex = 0;
+							w->filebrowserindex--;
+							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
 							redraw();
 							break;
 						case 'C': /* right arrow */
-							w->instrumentindex++;
-							if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
+							w->filebrowserindex++;
+							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
 							redraw();
 							break;
 						case 'H': /* home */
-							w->instrumentindex = 0;
+							w->filebrowserindex = 0;
 							redraw();
 							break;
 						case '4': /* end */
 							if (getchar() == '~')
 							{
-								w->instrumentindex = w->dirc - 1;
+								w->filebrowserindex = w->dirc - 1;
 								redraw();
 							}
 							break;
 						case '5': /* page up */
 							getchar();
-							w->instrumentindex -= w->dircols * (INSTRUMENT_BODY_ROWS - 2);
-							if (w->instrumentindex < 0) w->instrumentindex = 0;
+							w->filebrowserindex -= w->dircols * (INSTRUMENT_BODY_ROWS - 2);
+							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
 							redraw();
 							break;
 						case '6': /* page down */
 							getchar();
-							w->instrumentindex += w->dircols * (INSTRUMENT_BODY_ROWS - 2);
-							if (w->instrumentindex > w->dirc - 1) w->instrumentindex = w->dirc - 1;
+							w->filebrowserindex += w->dircols * (INSTRUMENT_BODY_ROWS - 2);
+							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
 							redraw();
 							break;
 						case '1': /* mod+arrow / f5 - f8 */
@@ -228,51 +227,44 @@ void filebrowserInput(int input)
 							switch (button)
 							{
 								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up */
-									w->instrumentindex -= WHEEL_SPEED * w->dircols;
-									if (w->instrumentindex < 0)
-										w->instrumentindex = 0;
+									w->filebrowserindex -= WHEEL_SPEED * w->dircols;
+									if (w->filebrowserindex < 0)
+										w->filebrowserindex = 0;
 									break;
 								case WHEEL_DOWN: case WHEEL_DOWN_CTRL: /* scroll down */
-									w->instrumentindex += WHEEL_SPEED * w->dircols;
-									if (w->instrumentindex > w->dirc - 1)
-										w->instrumentindex = w->dirc - 1;
+									w->filebrowserindex += WHEEL_SPEED * w->dircols;
+									if (w->filebrowserindex > w->dirc - 1)
+										w->filebrowserindex = w->dirc - 1;
 									break;
 								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL: /* release click */
-									w->instrumentindex += w->fyoffset * w->dircols;
+									w->filebrowserindex += w->fyoffset * w->dircols;
 									w->fyoffset = 0;
 									break;
-								case BUTTON1: case BUTTON3: case BUTTON1_CTRL: case BUTTON3_CTRL:
-									if (x < w->instrumentcelloffset
-											|| x > w->instrumentcelloffset + INSTRUMENT_BODY_COLS - 1
-											|| y < w->instrumentrowoffset
-											|| y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS)
-									{
-										w->popup = 0;
-										break;
-									}
+								case BUTTON1: case BUTTON3:
+								case BUTTON1_CTRL: case BUTTON3_CTRL:
 								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
 									if (y < w->instrumentrowoffset + 2 || y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS - 1)
 										break; /* ignore clicking out of range */
 
 									short xo = w->instrumentcelloffset + (INSTRUMENT_BODY_COLS - (w->dirmaxwidth + 2) * w->dircols) / 2;
-									w->instrumentindex -= w->instrumentindex % w->dircols; /* pull to the first column */
+									w->filebrowserindex -= w->filebrowserindex % w->dircols; /* pull to the first column */
 
 									if (x >= xo + (w->dirmaxwidth + 2) * w->dircols)
-										w->instrumentindex += w->dircols - 1;
+										w->filebrowserindex += w->dircols - 1;
 									else if (x >= xo)
-										w->instrumentindex += (x - xo) / (w->dirmaxwidth + 2);
+										w->filebrowserindex += (x - xo) / (w->dirmaxwidth + 2);
 
 									w->fyoffset = y - (w->instrumentrowoffset + 11); /* magic number, visual centre */
-									if (w->fyoffset + w->instrumentindex / w->dircols < 0)
-										w->fyoffset -= w->instrumentindex / w->dircols + w->fyoffset;
-									if (w->fyoffset + w->instrumentindex / w->dircols > (w->dirc - 1) / w->dircols)
-										w->fyoffset -= w->instrumentindex / w->dircols + w->fyoffset - (w->dirc - 1) / w->dircols;
-									if (w->fyoffset * w->dircols + w->instrumentindex > w->dirc - 1)
+									if (w->fyoffset + w->filebrowserindex / w->dircols < 0)
+										w->fyoffset -= w->filebrowserindex / w->dircols + w->fyoffset;
+									if (w->fyoffset + w->filebrowserindex / w->dircols > (w->dirc - 1) / w->dircols)
+										w->fyoffset -= w->filebrowserindex / w->dircols + w->fyoffset - (w->dirc - 1) / w->dircols;
+									if (w->fyoffset * w->dircols + w->filebrowserindex > w->dirc - 1)
 										w->fyoffset--;
 
 									if (button == BUTTON3 || button == BUTTON3_CTRL)
 									{
-										w->instrumentindex += w->fyoffset * w->dircols;
+										w->filebrowserindex += w->fyoffset * w->dircols;
 										w->fyoffset = 0;
 										char newpath[NAME_MAX + 1]; /* TODO: functionize, do on release */
 										char oldpath[NAME_MAX + 1]; strcpy(oldpath, w->dirpath);
@@ -280,7 +272,7 @@ void filebrowserInput(int input)
 										{
 											case 1: /* file */
 												w->popup = 0;
-												w->instrumentindex = 0;
+												w->filebrowserindex = 0;
 												w->filebrowserCallback(newpath);
 												break;
 											case 2: /* directory */
@@ -289,7 +281,7 @@ void filebrowserInput(int input)
 												{
 													strcpy(w->dirpath, oldpath);
 													changeDirectory();
-												} else w->instrumentindex = 0;
+												} else w->filebrowserindex = 0;
 												break;
 										}
 									} break;
@@ -302,7 +294,6 @@ void filebrowserInput(int input)
 					{
 						case 0: /* leave the popup */
 							w->popup = 1;
-							w->instrumentindex = 0;
 							break;
 					}
 					redraw();

@@ -86,32 +86,39 @@ void drawSongList(unsigned short x)
 				&& w->centre - w->songfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->songfy + i, x);
-			if (w->songnext - 1 == i) printf(" >");
-			else if (s->songf[i])     printf(" v");
-			else                      printf("  ");
+			if (w->songnext - 1 == i) printf(">");
+			else if (s->songf[i])     printf("v");
+			else                      printf(" ");
 
-			if (w->mode == T_MODE_SONG || w->mode == T_MODE_SONG_INSERT)
+			switch (w->mode)
 			{
-				if (s->playing && s->songp == i)
-					printf("\033[1m%02x\033[m", s->songi[i]);
-				else if (s->songi[i] == 255)
-					printf("..");
-				else
-					printf("%02x", s->songi[i]);
-			} else
-			{
-				if (w->centre - w->songfy + i == w->centre && s->songi[i] == 255)
-					printf("\033[7m..\033[m");
-				else if (s->playing && s->songp == i && w->centre - w->songfy + i == w->centre)
-					printf("\033[1;7m%02x\033[m", s->songi[i]);
-				else if (w->centre - w->songfy + i == w->centre)
-					printf("\033[7m%02x\033[m", s->songi[i]);
-				else if (s->playing && s->songp == i)
-					printf("\033[1m%02x\033[m", s->songi[i]);
-				else if (s->songi[i] == 255)
-					printf("..");
-				else
-					printf("%02x", s->songi[i]);
+				case T_MODE_SONG: case T_MODE_SONG_INSERT:
+					if (s->playing && s->songp == i) printf("\033[1m%02x\033[m", s->songi[i]);
+					else if (s->songi[i] == 255)     printf("..");
+					else                             printf("%02x", s->songi[i]);
+					break;
+				case T_MODE_SONG_VISUAL:
+					if (
+							i >= MIN(w->visualfy, w->songfy) &&
+							i <= MAX(w->visualfy, w->songfy))
+					{
+						if (s->playing && s->songp == i) printf("\033[2;7m%02x\033[m", s->songi[i]);
+						else if (s->songi[i] == 255)     printf("\033[2;7m..\033[m");
+						else                             printf("\033[2;7m%02x\033[m", s->songi[i]);
+					} else
+					{
+						if (s->playing && s->songp == i) printf("\033[1m%02x\033[m", s->songi[i]);
+						else if (s->songi[i] == 255)     printf("..");
+						else                             printf("%02x", s->songi[i]);
+					} break;
+				default:
+					if (w->centre - w->songfy + i == w->centre && s->songi[i] == 255)               printf("\033[7m..\033[m");
+					else if (s->playing && s->songp == i && w->centre - w->songfy + i == w->centre) printf("\033[1;7m%02x\033[m", s->songi[i]);
+					else if (w->centre - w->songfy + i == w->centre)                                printf("\033[7m%02x\033[m", s->songi[i]);
+					else if (s->playing && s->songp == i)                                           printf("\033[1m%02x\033[m", s->songi[i]);
+					else if (s->songi[i] == 255)                                                    printf("..");
+					else                                                                            printf("%02x", s->songi[i]);
+					break;
 			}
 
 			if (w->songnext - 1 == i) printf(">");
@@ -140,12 +147,9 @@ void drawPatternLineNumbers(uint8_t pattern, unsigned short x)
 		{
 			if (c > s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc) break;
 			printf("\033[%d;%dH\033[2m", i, x+2);
-			if (s->playing == PLAYING_CONT && s->songp == w->songfy - 1 && s->songr == s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc - c)
-				printf(" - ");
-			else if (s->rowhighlight && !((s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc - c) % s->rowhighlight))
-				printf(" * ");
-			else
-				printf("   ");
+			if (s->playing == PLAYING_CONT && s->songp == w->songfy-1 && s->songr == s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) printf(" - ");
+			else if (s->rowhighlight && !((s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) % s->rowhighlight))                       printf(" * ");
+			else                                                                                                                                printf("   ");
 			printf("\033[m");
 			c++;
 		}
@@ -158,12 +162,9 @@ void drawPatternLineNumbers(uint8_t pattern, unsigned short x)
 		{
 			if (c > s->patternv[s->patterni[s->songi[w->songfy + 1]]]->rowc) break;
 			printf("\033[%d;%dH\033[2m", i, x+2);
-			if (s->playing == PLAYING_CONT && s->songp == w->songfy + 1 && s->songr == c)
-				printf(" - ");
-			else if (s->rowhighlight && !(c % s->rowhighlight))
-				printf(" * ");
-			else
-				printf("   ");
+			if (s->playing == PLAYING_CONT && s->songp == w->songfy + 1 && s->songr == c) printf(" - ");
+			else if (s->rowhighlight && !(c % s->rowhighlight))                           printf(" * ");
+			else                                                                          printf("   ");
 			printf("\033[m");
 			c++;
 		}
@@ -172,12 +173,12 @@ void drawPatternLineNumbers(uint8_t pattern, unsigned short x)
 
 void startVisual(uint8_t channel, int i, signed char fieldpointer)
 {
-	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_ARROWVISUAL || w->mode == T_MODE_VISUALLINE)
+	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
 			&& channel == MIN(w->visualchannel, w->channel))
 	{
 		switch (w->mode)
 		{
-			case T_MODE_VISUAL: case T_MODE_ARROWVISUAL:
+			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
 					if (i >= MIN(w->visualfy, w->trackerfy)
@@ -200,12 +201,12 @@ void startVisual(uint8_t channel, int i, signed char fieldpointer)
 }
 void stopVisual(uint8_t channel, int i, signed char fieldpointer)
 {
-	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_ARROWVISUAL || w->mode == T_MODE_VISUALLINE)
+	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
 			&& channel == MAX(w->visualchannel, w->channel))
 	{
 		switch (w->mode)
 		{
-			case T_MODE_VISUAL: case T_MODE_ARROWVISUAL:
+			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
 					if (i >= MIN(w->visualfy, w->trackerfy)
@@ -235,13 +236,13 @@ void stopVisual(uint8_t channel, int i, signed char fieldpointer)
 }
 int ifVisual(uint8_t channel, int i, signed char fieldpointer)
 {
-	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_ARROWVISUAL || w->mode == T_MODE_VISUALLINE)
+	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
 			&& channel >= MIN(w->visualchannel, w->channel)
 			&& channel <= MAX(w->visualchannel, w->channel))
 	{
 		switch (w->mode)
 		{
-			case T_MODE_VISUAL: case T_MODE_ARROWVISUAL:
+			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
 					if (i >= MIN(w->visualfy, w->trackerfy)
@@ -290,22 +291,17 @@ void drawChannel(uint8_t channel, unsigned short x)
 
 	row r; int c;
 	char buffer[16], altbuffer[6];
+	unsigned short rowcc = s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[channel]+1;
 	for (int i = 0; i <= s->patternv[s->patterni[s->songi[w->songfy]]]->rowc; i++)
 		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
-			unsigned short rowcc = s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[channel]+1;
 			uint8_t polycut = w->trackerfy - w->trackerfy % rowcc;
-			/* if (i < polycut || i > polycut + rowcc - 1)
-			{ // out of range of the polyrhythm
-				printf("\033[%dX\033[%dC",
-						6 + 4*s->channelv[channel].macroc,
-						6 + 4*s->channelv[channel].macroc); */
 
 			r = s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[channel][i%rowcc];
 
 			if (s->channelv[channel].mute || i < polycut || i > polycut + rowcc - 1) printf("\033[2m");
-			if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_ARROWVISUAL || w->mode == T_MODE_VISUALLINE)
+			if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
 					&& channel > MIN(w->visualchannel, w->channel) && channel <= MAX(w->visualchannel, w->channel)
 					&& i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy))
 				printf("\033[2;7m");
@@ -315,11 +311,14 @@ void drawChannel(uint8_t channel, unsigned short x)
 			if (r.note)
 			{
 				noteToString(r.note, altbuffer);
-				if (r.note == 255) snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
-				else               snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
-				if (ifVisual(channel, i, 0) && !s->channelv[channel].mute)
-				{ printf("\033[22m%s\033[2m", buffer); }
-				else printf(buffer);
+				if (s->channelv[channel].mute) printf("%s", altbuffer);
+				else
+				{
+					if (r.note == 255) snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
+					else               snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
+					if (ifVisual(channel, i, 0)) printf("\033[22m%s\033[2m", buffer);
+					else                         printf("%s", buffer);
+				}
 			} else printf("...");
 			stopVisual(channel, i, 0);
 
@@ -328,10 +327,13 @@ void drawChannel(uint8_t channel, unsigned short x)
 			startVisual(channel, i, 1);
 			if (r.inst < 255)
 			{
-				snprintf(buffer, 16, "\033[33m%02x\033[37m", r.inst);
-				if (ifVisual(channel, i, 1) && !s->channelv[channel].mute)
-				{ printf("\033[22m%s\033[2m", buffer); }
-				else printf(buffer);
+				if (s->channelv[channel].mute) printf("%02x", r.inst);
+				else
+				{
+					snprintf(buffer, 16, "\033[33m%02x\033[37m", r.inst);
+					if (ifVisual(channel, i, 1)) printf("\033[22m%s\033[2m", buffer);
+					else                         printf("%s", buffer);
+				}
 			} else printf("..");
 			stopVisual(channel, i, 1);
 
@@ -341,17 +343,24 @@ void drawChannel(uint8_t channel, unsigned short x)
 				startVisual(channel, i, 2+j);
 				if (r.macro[j].c)
 				{
-					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[22m");
-					if (isdigit(r.macro[j].c)) /* different colour for instrument macros */
+					if (s->channelv[channel].mute)
 					{
-						printf("\033[35m%c",   r.macro[j].c);
-						printf("%02x\033[37m", r.macro[j].v);
+						printf("%c",   r.macro[j].c);
+						printf("%02x", r.macro[j].v);
 					} else
 					{
-						printf("\033[36m%c",   r.macro[j].c);
-						printf("%02x\033[37m", r.macro[j].v);
+						if (ifVisual(channel, i, 2+j)) printf("\033[22m");
+						if (isdigit(r.macro[j].c)) /* different colour for instrument macros */
+						{
+							printf("\033[35m%c",   r.macro[j].c);
+							printf("%02x\033[37m", r.macro[j].v);
+						} else
+						{
+							printf("\033[36m%c",   r.macro[j].c);
+							printf("%02x\033[37m", r.macro[j].v);
+						}
+						if (ifVisual(channel, i, 2+j)) printf("\033[2m");
 					}
-					if (ifVisual(channel, i, 2+j) && !s->channelv[channel].mute) printf("\033[2m");
 				} else printf("...");
 				stopVisual(channel, i, 2+j);
 			}
@@ -371,7 +380,7 @@ void drawChannel(uint8_t channel, unsigned short x)
 			if (c > s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc) break;
 			printf("\033[%d;%dH", i, x);
 			r = s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowv[channel]
-				[s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc - c];
+				[(s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc - c)%rowcc];
 
 			noteToString(r.note, buffer); if (r.note) printf(buffer); else printf("...");
 			printf(" ");
@@ -402,7 +411,7 @@ void drawChannel(uint8_t channel, unsigned short x)
 		{
 			if (c > s->patternv[s->patterni[s->songi[w->songfy + 1]]]->rowc) break;
 			printf("\033[%d;%dH", i, x);
-			r = s->patternv[s->patterni[s->songi[w->songfy + 1]]]->rowv[channel][c];
+			r = s->patternv[s->patterni[s->songi[w->songfy + 1]]]->rowv[channel][c%rowcc];
 
 			noteToString(r.note, buffer); if (r.note) printf(buffer); else printf("...");
 			printf(" ");
@@ -474,10 +483,7 @@ void drawTracker(void)
 			drawChannel(i+w->channeloffset, x);
 			x += 9 + 4*s->channelv[i+w->channeloffset].macroc;
 		}
-	} else
-	{
-		printf("\033[%d;%dH%s", w->centre, x + (maxwidth - (unsigned short)strlen(" (invalid pattern) ")) / 2, " (invalid pattern) ");
-	}
+	} else printf("\033[%d;%dH%s", w->centre, x + (maxwidth - (unsigned short)strlen(" (invalid pattern) ")) / 2, " (invalid pattern) ");
 
 	y = w->centre + w->fyoffset;
 
@@ -488,31 +494,17 @@ void drawTracker(void)
 		descMacro(r->macro[macro].c, r->macro[macro].v);
 	}
 
-	if (w->mode == T_MODE_VISUAL)
+	switch (w->mode)
 	{
-		printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row);
-		printf("\033[0 q"); w->command.error[0] = '\0';
-	} else if (w->mode == T_MODE_ARROWVISUAL)
-	{
-		printf("\033[%d;0H\033[1m-- ARROW VISUAL --\033[m", ws.ws_row);
-		printf("\033[0 q"); w->command.error[0] = '\0';
-	} else if (w->mode == T_MODE_VISUALLINE)
-	{
-		printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m", ws.ws_row);
-		printf("\033[0 q"); w->command.error[0] = '\0';
-	} else if (w->mode == T_MODE_MOUSEADJUST)
-	{
-		printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m", ws.ws_row);
-		printf("\033[0 q"); w->command.error[0] = '\0';
-	} else if (w->mode == T_MODE_INSERT || w->mode == T_MODE_SONG_INSERT)
-	{
-		printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
-		printf("\033[3 q"); w->command.error[0] = '\0';
-	} else
-		printf("\033[0 q");
+		case T_MODE_VISUAL: case T_MODE_SONG_VISUAL: printf("\033[%d;0H\033[1m-- VISUAL --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_VISUALLINE:                      printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_MOUSEADJUST:                     printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_INSERT: case T_MODE_SONG_INSERT: printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[3 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		default: printf("\033[0 q"); break;
+	}
 
-	if (w->mode == T_MODE_SONG || w->mode == T_MODE_SONG_INSERT)
-		printf("\033[%d;%dH", w->centre + w->fyoffset, (ws.ws_col - maxwidth) / 2 + 4);
+	if (w->mode == T_MODE_SONG || w->mode == T_MODE_SONG_INSERT || w->mode == T_MODE_SONG_VISUAL)
+		printf("\033[%d;%dH", w->centre + w->fyoffset, (ws.ws_col - maxwidth) / 2 + 3);
 	else if (s->songi[w->songfy] == 255)
 		printf("\033[%d;%dH", w->centre, x + (maxwidth - (unsigned short)strlen(" (invalid pattern) ")) / 2 + 2);
 	else

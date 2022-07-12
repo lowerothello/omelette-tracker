@@ -151,6 +151,10 @@ typedef struct
 	instrument     instrumentbuffer;             /* instrument paste buffer */
 	uint8_t        defpatternlength;
 
+	uint8_t        songibuffer[256];             /* song list paste buffer */
+	uint8_t        songfbuffer[256];             /* song list flags paste buffer */
+	uint8_t        songbufferlen;                /* how much of song[i,f]buffer has meaningful data */
+
 	char           filepath[COMMAND_LENGTH];
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
@@ -169,6 +173,8 @@ typedef struct
 	uint8_t        instrument;                   /* focused instrument */
 	unsigned short instrumentcelloffset;
 	unsigned short instrumentrowoffset;
+
+	short          filebrowserindex;
 
 	unsigned short mousey, mousex;
 

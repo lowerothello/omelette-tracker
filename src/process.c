@@ -751,7 +751,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			for (uint8_t c = 0; c < p->s->channelc; c++)
 				preprocessRow(&p->s->channelv[c],
 						p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowv[c]
-						[p->s->songr%p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowcc[c]+1]);
+						[p->s->songr % (p->s->patternv[p->s->patterni[p->s->songi[p->s->songp]]]->rowcc[c]+1)]);
 
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{

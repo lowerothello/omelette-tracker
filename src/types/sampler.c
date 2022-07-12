@@ -331,7 +331,6 @@ void samplerInput(int *input)
 			{
 				case 10: case 13: /* return */
 					w->popup = 2;
-					w->instrumentindex = 0;
 					w->fyoffset = 0; /* this can still be set on edge cases */
 					w->filebrowserCallback = &samplerLoadCallback;
 					redraw();
@@ -348,7 +347,6 @@ void samplerInput(int *input)
 					break;
 				case 'w': /* waveform */
 					w->popup = 4;
-					w->instrumentindex = 0;
 					w->fyoffset = 0; /* this can still be set on edge cases */
 					w->waveformoffset = 0;
 					w->waveformwidth = ss->length;

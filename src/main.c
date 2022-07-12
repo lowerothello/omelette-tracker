@@ -46,7 +46,7 @@ struct winsize ws;
 struct termios term, origterm;
 
 #define LINENO_COLS 5
-#define SONGLIST_COLS 6
+#define SONGLIST_COLS 5
 
 
 #define INSTRUMENT_TYPE_COUNT 2
@@ -154,13 +154,13 @@ void filebrowserEditCallback(char *path)
 	p->lock = PLAY_LOCK_START;
 	w->songfy = 0;
 }
-void commandTabCallback(char *text)
+/* void commandTabCallback(char *text)
 {
 	char *buffer = malloc(strlen(text) + 1);
 	wordSplit(buffer, text, 0);
 	// if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
 	free(buffer);
-}
+} */
 int commandCallback(char *command, unsigned char *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
