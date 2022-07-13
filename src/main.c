@@ -48,9 +48,6 @@ struct termios term, origterm;
 #define LINENO_COLS 5
 #define SONGLIST_COLS 5
 
-
-#define INSTRUMENT_TYPE_COUNT 2
-
 #define CHANNEL_ROW 4
 #define BORDER 2
 
@@ -363,9 +360,7 @@ void cleanup(int ret)
 	if (w->dir) closedir(w->dir);
 	jack_deactivate(client);
 
-	for (int i = 0; i < INSTRUMENT_TYPE_COUNT; i++)
-		if (w->instrumentbuffer.state[i])
-			t->f[i].delType(&w->instrumentbuffer.state[i]);
+	_delInstrument(&w->instrumentbuffer);
 
 	if (w->recbuffer) free(w->recbuffer);
 	if (w->recchannelbuffer) free(w->recchannelbuffer);
@@ -376,7 +371,6 @@ void cleanup(int ret)
 	free(w);
 	delSong(s);
 	free(p);
-	free(t);
 	freeBackground();
 	freeOscillator();
 	jack_client_close(client);
@@ -470,27 +464,6 @@ int main(int argc, char **argv)
 #endif
 	changeDirectory();
 
-
-	t = calloc(1, sizeof(typetable));
-	if (!t)
-	{
-		puts("out of memory");
-
-		if (w->dir != NULL) closedir(w->dir);
-		jack_deactivate(client);
-		jack_client_close(client);
-
-		free(w);
-		delSong(s);
-		free(p);
-		freeBackground();
-		freeOscillator();
-
-		common_cleanup(1);
-	}
-	initInstrumentTypes();
-
-
 	if (argc > 1)
 	{
 		strcpy(w->newfilename, argv[1]);
@@ -519,7 +492,7 @@ int main(int argc, char **argv)
 		{ p->dirty = 0; redraw(); }
 
 		/* perform any pending instrument actions */
-		changeInstrumentType(s, 0);
+		asyncInstrumentUpdate(s);
 
 		/* finish freeing the record buffer */
 		if (w->instrumentrecv == INST_REC_LOCK_CANCEL)
@@ -533,24 +506,23 @@ int main(int argc, char **argv)
 			if (w->recptr > 0)
 			{
 				instrument *iv = s->instrumentv[w->instrumentreci];
-				sampler_state *ss = iv->state[0]; /* assume 0 is the sampler type, and that it is loaded TODO: bad idea? */
-				if (ss->sampledata)
-				{ free(ss->sampledata); ss->sampledata = NULL; }
-				ss->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
-				if (ss->sampledata == NULL)
+				if (iv->sampledata)
+				{ free(iv->sampledata); iv->sampledata = NULL; }
+				iv->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
+				if (iv->sampledata == NULL)
 				{
 					strcpy(w->command.error, "saving recording failed, out of memory");
 				} else
 				{
-					memcpy(ss->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
-					ss->samplelength = w->recptr * 2;
-					ss->channels = 2;
-					ss->length = w->recptr;
-					ss->c5rate = samplerate;
-					ss->trim[0] = 0;
-					ss->trim[1] = w->recptr;
-					ss->loop[0] = 0;
-					ss->loop[1] = 0;
+					memcpy(iv->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
+					iv->samplelength = w->recptr * 2;
+					iv->channels = 2;
+					iv->length = w->recptr;
+					iv->c5rate = samplerate;
+					iv->trim[0] = 0;
+					iv->trim[1] = w->recptr;
+					iv->loop[0] = 0;
+					iv->loop[1] = 0;
 				}
 			}
 

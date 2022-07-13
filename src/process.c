@@ -42,14 +42,14 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 			for (uint16_t i = 0; i < localrampmax; i++)
 			{
 				if (!cv->r.note) break;
-				t->f[iv->type].process(iv, cv, pointeroffset-i,
+				samplerProcess(iv, cv, pointeroffset-i,
 						&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 			}
 		} else
 			for (uint16_t i = 0; i < rampmax; i++)
 			{
 				if (!cv->r.note) break;
-				t->f[iv->type].process(iv, cv, pointeroffset+i,
+				samplerProcess(iv, cv, pointeroffset+i,
 						&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
 			}
 	}
@@ -80,10 +80,9 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
 	if (cv->r.note && note != 255 && p->s->instrumenti[cv->r.inst]) /* old note, ramp it out */
 	{
-		instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 		if (cv->rampbuffer && !(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-					&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-				&& cv->r.note && iv->type < INSTRUMENT_TYPE_COUNT)
+				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+				&& cv->r.note)
 			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 		cv->rampindex = 0; /* set this even if it's not populated */
 	}
@@ -198,7 +197,24 @@ char tc(int m, channel *cv, row r)
 char Oc(int m, channel *cv, row r)
 {
 	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-	t->f[iv->type].macro(iv, cv, r, 'O', m);
+	if (cv->r.note) /* if playing a note */
+	{
+		if (!r.note) /* if not changing note: ramping needed */
+		{
+			/* clear the rampbuffer so cruft isn't played in edge cases */
+			memset(cv->rampbuffer, 0, sizeof(sample_t) * rampmax * 2);
+			for (uint16_t i = 0; i < rampmax; i++)
+			{
+				if (!cv->r.note) break;
+				samplerProcess(iv, cv, cv->pointer + i,
+						&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+			}
+			cv->rampindex = 0;
+		}
+		cv->pointeroffset = (m*DIV255) * (iv->trim[1] - iv->trim[0]);
+		cv->pointer = 0;
+	}
+
 	return 0;
 }
 char oc(int m, channel *cv, row r)
@@ -284,8 +300,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 	if (iv && cv->r.note)
 	{
 		if (!(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-					&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
-				&& cv->r.note != 255 && iv->type < INSTRUMENT_TYPE_COUNT)
+				&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst])
+				&& cv->r.note != 255)
 		{
 			if (cv->rtrigsamples)
 			{
@@ -299,7 +315,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 						cv->rampindex = 0;
 						cv->r.note = oldnote;
 					}
-					t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &lo, &ro);
+					samplerProcess(iv, cv, cv->rtrigpointer + rtrigoffset, &lo, &ro);
 				} else
 				{
 					if (cv->rampbuffer && !rtrigoffset && cv->pointer > cv->rtrigpointer)
@@ -309,9 +325,9 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, portbuffers pb, channel *
 						cv->rampindex = 0;
 						cv->r.note = oldnote;
 					}
-					t->f[iv->type].process(iv, cv, cv->rtrigpointer + rtrigoffset, &lo, &ro);
+					samplerProcess(iv, cv, cv->rtrigpointer + rtrigoffset, &lo, &ro);
 				}
-			} else t->f[iv->type].process(iv, cv, cv->pointer, &lo, &ro);
+			} else samplerProcess(iv, cv, cv->pointer, &lo, &ro);
 
 			if (cv->reverse)
 			{
@@ -534,10 +550,10 @@ void preprocessRow(channel *cv, row r)
 	ifMacro(cv, r, 'V', &Vc); /* vibrato   */
 
 	/* type macros */
-	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+	/* instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 	for (int i = 0; i < cv->macroc; i++)
 		if (isdigit(r.macro[i].c))
-			t->f[iv->type].macro(iv, cv, r, r.macro[i].c - 48, r.macro[i].v);
+			samplerMacro(iv, cv, r, r.macro[i].c - 48, r.macro[i].v); */
 
 	ifMacro(cv, r, 'L', &Lc); /* low-pass   */
 	ifMacro(cv, r, 'H', &Hc); /* high-pass  */

@@ -1,24 +1,13 @@
 #include "types/sampler.c"
-#include "types/virtualanalogue.c"
 
 /* mode makes more sense as raw numbers than as declares in this file, imo */
 
-#define MIN_INSTRUMENT_INDEX -6
+#define MIN_INSTRUMENT_INDEX -5
 
 #define INSTRUMENT_BODY_COLS 70
 #define INSTRUMENT_BODY_ROWS 20
 #define INSTRUMENT_TYPE_ROWS 14
 
-
-/* index 0 is special: */
-/* - it is always loaded */
-/* - recording always writes to it */
-/* - it should always be bound to the sampler */
-void initInstrumentTypes(void)
-{
-	samplerInit(0);
-	analogueInit(1);
-}
 
 void drawRecordSource(uint8_t source, unsigned short y, unsigned short x, char adjust)
 {
@@ -72,7 +61,6 @@ void drawInstrument(void)
 	} else
 	{
 		instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
-		printf("\033[%d;%dHtype   [%02x]", y+2, x+2, iv->type);
 		printf("\033[%d;%dHvolume [%02x]", y+3, x+2, iv->defgain);
 		printf("\033[%d;%dH\033[1mRECORD\033[m", y+1, x+INSTRUMENT_BODY_COLS-18);
 		printf("\033[%d;%dHrecord source   ", y+2, x+INSTRUMENT_BODY_COLS-28);
@@ -80,22 +68,18 @@ void drawInstrument(void)
 		drawBit(w->recordflags & 0b1);
 		printf("\033[%d;%dHgate the next pattern  ", y+4, x+INSTRUMENT_BODY_COLS-28);
 		drawBit(w->recordflags & 0b10);
-		drawRecordSource(w->recordsource, y+2, x+INSTRUMENT_BODY_COLS-13, w->instrumentindex == MIN_INSTRUMENT_INDEX + 3 && w->mode > 1 && w->mode < 255);
+		drawRecordSource(w->recordsource, y+2, x+INSTRUMENT_BODY_COLS-13, w->instrumentindex == MIN_INSTRUMENT_INDEX + 2 && w->mode > 1 && w->mode < 255);
 
-		if (iv->typefollow == iv->type && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].draw)
-		{
-			if (w->mode > 1 && w->mode < 6) t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+6, &w->instrumentindex, 1);
-			else                            t->f[iv->type].draw(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2, y+6, &w->instrumentindex, 0);
-		}
+		if (w->mode > 1 && w->mode < 6) drawSampler(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - samplercellwidth) / 2, y+6, &w->instrumentindex, 1);
+		else                            drawSampler(iv, w->instrument, x+(INSTRUMENT_BODY_COLS - samplercellwidth) / 2, y+6, &w->instrumentindex, 0);
 
 		switch (w->instrumentindex)
 		{
 			case MIN_INSTRUMENT_INDEX + 0: printf("\033[%d;%dH", y+0, x+(INSTRUMENT_BODY_COLS-16) / 2); break;
-			case MIN_INSTRUMENT_INDEX + 1: printf("\033[%d;%dH", y+2, x+11); break;
-			case MIN_INSTRUMENT_INDEX + 2: printf("\033[%d;%dH", y+3, x+11); break;
-			case MIN_INSTRUMENT_INDEX + 3: printf("\033[%d;%dH", y+2, x+INSTRUMENT_BODY_COLS-4); break;
-			case MIN_INSTRUMENT_INDEX + 4: printf("\033[%d;%dH", y+3, x+INSTRUMENT_BODY_COLS-4); break;
-			case MIN_INSTRUMENT_INDEX + 5: printf("\033[%d;%dH", y+4, x+INSTRUMENT_BODY_COLS-4); break;
+			case MIN_INSTRUMENT_INDEX + 1: printf("\033[%d;%dH", y+3, x+11); break;
+			case MIN_INSTRUMENT_INDEX + 2: printf("\033[%d;%dH", y+2, x+INSTRUMENT_BODY_COLS-4); break;
+			case MIN_INSTRUMENT_INDEX + 3: printf("\033[%d;%dH", y+3, x+INSTRUMENT_BODY_COLS-4); break;
+			case MIN_INSTRUMENT_INDEX + 4: printf("\033[%d;%dH", y+4, x+INSTRUMENT_BODY_COLS-4); break;
 		}
 	}
 }
@@ -109,29 +93,19 @@ void instrumentAdjustUp(instrument *iv, short index, char mouse)
 		case MIN_INSTRUMENT_INDEX + 1:
 			if (iv)
 			{
-				if (w->instrumentlockv > INST_REC_LOCK_OK) break;
-
-				iv->type++;
-				w->instrumentlocki = s->instrumenti[w->instrument];
-				w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
-			} break;
-		case MIN_INSTRUMENT_INDEX + 2:
-			if (iv)
-			{
 				if (iv->defgain%16 < 15)
 					iv->defgain++;
 				if (iv->defgain>>4 < 15)
 					iv->defgain+=16;
 			} break;
-		case MIN_INSTRUMENT_INDEX + 3:
+		case MIN_INSTRUMENT_INDEX + 2:
 			if (w->recordsource < 1) w->recordsource++;
 			break;
+		case MIN_INSTRUMENT_INDEX + 3:
 		case MIN_INSTRUMENT_INDEX + 4:
-		case MIN_INSTRUMENT_INDEX + 5:
 			break;
 		default:
-			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustUp)
-				t->f[iv->type].adjustUp(iv, index, mouse);
+			samplerAdjustUp(iv, index, mouse);
 			break;
 	}
 }
@@ -144,28 +118,19 @@ void instrumentAdjustDown(instrument *iv, short index, char mouse)
 		case MIN_INSTRUMENT_INDEX + 1:
 			if (iv)
 			{
-				if (w->instrumentlockv > INST_REC_LOCK_OK) break;
-				iv->type--;
-				w->instrumentlocki = s->instrumenti[w->instrument];
-				w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
-			} break;
-		case MIN_INSTRUMENT_INDEX + 2:
-			if (iv)
-			{
 				if (iv->defgain%16 > 0)
 					iv->defgain--;
 				if (iv->defgain>>4 > 0)
 					iv->defgain-=16;
 			} break;
-		case MIN_INSTRUMENT_INDEX + 3:
+		case MIN_INSTRUMENT_INDEX + 2:
 			if (w->recordsource > 0) w->recordsource--;
 			break;
+		case MIN_INSTRUMENT_INDEX + 3:
 		case MIN_INSTRUMENT_INDEX + 4:
-		case MIN_INSTRUMENT_INDEX + 5:
 			break;
 		default:
-			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustDown)
-				t->f[iv->type].adjustDown(iv, index, mouse);
+			samplerAdjustDown(iv, index, mouse);
 			break;
 	}
 }
@@ -179,8 +144,6 @@ void instrumentAdjustLeft(instrument *iv, short index, char mouse)
 					w->instrument--;
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
-			break;
-		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv)
 			{
 				if (iv->defgain%16 > iv->defgain>>4)
@@ -188,13 +151,12 @@ void instrumentAdjustLeft(instrument *iv, short index, char mouse)
 				else if (iv->defgain%16 > 0)
 					iv->defgain--;
 			} break;
+		case MIN_INSTRUMENT_INDEX + 2:
 		case MIN_INSTRUMENT_INDEX + 3:
 		case MIN_INSTRUMENT_INDEX + 4:
-		case MIN_INSTRUMENT_INDEX + 5:
 			break;
 		default:
-			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustLeft)
-				t->f[iv->type].adjustLeft(iv, index, mouse);
+			samplerAdjustLeft(iv, index, mouse);
 			break;
 	}
 }
@@ -208,8 +170,6 @@ void instrumentAdjustRight(instrument *iv, short index, char mouse)
 					w->instrument++;
 			break;
 		case MIN_INSTRUMENT_INDEX + 1:
-			break;
-		case MIN_INSTRUMENT_INDEX + 2:
 			if (iv)
 			{
 				if (iv->defgain>>4 > iv->defgain%16)
@@ -217,13 +177,12 @@ void instrumentAdjustRight(instrument *iv, short index, char mouse)
 				else if (iv->defgain>>4 > 0)
 					iv->defgain-=16;
 			} break;
+		case MIN_INSTRUMENT_INDEX + 2:
 		case MIN_INSTRUMENT_INDEX + 3:
 		case MIN_INSTRUMENT_INDEX + 4:
-		case MIN_INSTRUMENT_INDEX + 5:
 			break;
 		default:
-			if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].adjustRight)
-					t->f[iv->type].adjustRight(iv, index, mouse);
+			samplerAdjustRight(iv, index, mouse);
 			break;
 	}
 }
@@ -262,21 +221,16 @@ void instrumentInput(int input)
 								{
 									case MIN_INSTRUMENT_INDEX: break;
 									case MIN_INSTRUMENT_INDEX + 1:
-										w->fieldpointer = 0;
-										break;
-									case MIN_INSTRUMENT_INDEX + 2:
 										if (w->fieldpointer > 3)
 											w->fieldpointer = 3;
 										break;
+									case MIN_INSTRUMENT_INDEX + 2:
 									case MIN_INSTRUMENT_INDEX + 3:
 									case MIN_INSTRUMENT_INDEX + 4:
-									case MIN_INSTRUMENT_INDEX + 5:
 										break;
 									default:
-										if (w->instrumentindex >= 0
-												&& iv && iv->type < INSTRUMENT_TYPE_COUNT
-												&& t->f[iv->type].endFieldPointer)
-											t->f[iv->type].endFieldPointer(w->instrumentindex);
+										if (w->instrumentindex >= 0 && iv)
+											samplerEndFieldPointer(w->instrumentindex);
 										break;
 								}
 							} redraw(); break;
@@ -289,8 +243,7 @@ void instrumentInput(int input)
 									w->instrumentindex++;
 								unsigned short tic = 0; /* type index count */
 								iv = s->instrumentv[s->instrumenti[w->instrument]];
-								if (iv && iv->type < INSTRUMENT_TYPE_COUNT)
-									tic = t->f[iv->type].indexc;
+								if (iv) tic = samplerindexc;
 								if (w->instrumentindex > tic)
 									w->instrumentindex = tic;
 								/* ensure fieldpointer is still in range */
@@ -298,26 +251,21 @@ void instrumentInput(int input)
 								{
 									case MIN_INSTRUMENT_INDEX: break;
 									case MIN_INSTRUMENT_INDEX + 1:
-										w->fieldpointer = 0;
-										break;
-									case MIN_INSTRUMENT_INDEX + 2:
 										if (w->fieldpointer > 3)
 											w->fieldpointer = 3;
 										break;
+									case MIN_INSTRUMENT_INDEX + 2:
 									case MIN_INSTRUMENT_INDEX + 3:
 									case MIN_INSTRUMENT_INDEX + 4:
-									case MIN_INSTRUMENT_INDEX + 5:
 										break;
 									default:
-										if (w->instrumentindex >= 0
-												&& iv && iv->type < INSTRUMENT_TYPE_COUNT
-												&& t->f[iv->type].endFieldPointer)
-											t->f[iv->type].endFieldPointer(w->instrumentindex);
+										if (w->instrumentindex >= 0 && iv)
+											samplerEndFieldPointer(w->instrumentindex);
 										break;
 								}
 							} redraw(); break;
 						case 'D': /* left arrow */
-							if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 2)
+							if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 1)
 							{
 								if (w->fieldpointer == 0)
 									w->fieldpointer = 3;
@@ -326,12 +274,11 @@ void instrumentInput(int input)
 								instrumentAdjustLeft(iv, w->instrumentindex, 0);
 							else
 							{
-								if (iv && iv->type < INSTRUMENT_TYPE_COUNT
-										&& t->f[iv->type].decFieldPointer)
-									t->f[iv->type].decFieldPointer(w->instrumentindex);
+								if (iv)
+									samplerDecFieldPointer(w->instrumentindex);
 							} redraw(); break;
 						case 'C': /* right arrow */
-							if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 2)
+							if (w->instrumentindex == MIN_INSTRUMENT_INDEX + 1)
 							{
 								w->fieldpointer++;
 								if (w->fieldpointer > 3)
@@ -340,9 +287,8 @@ void instrumentInput(int input)
 								instrumentAdjustRight(iv, w->instrumentindex, 0);
 							else
 							{
-								if (iv && iv->type < INSTRUMENT_TYPE_COUNT
-										&& t->f[iv->type].incFieldPointer)
-									t->f[iv->type].incFieldPointer(w->instrumentindex);
+								if (iv)
+									samplerIncFieldPointer(w->instrumentindex);
 							} redraw(); break;
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
@@ -384,16 +330,14 @@ void instrumentInput(int input)
 								switch (w->instrumentindex)
 								{
 									case MIN_INSTRUMENT_INDEX:
+									case MIN_INSTRUMENT_INDEX + 2:
 									case MIN_INSTRUMENT_INDEX + 3:
 									case MIN_INSTRUMENT_INDEX + 4:
-									case MIN_INSTRUMENT_INDEX + 5:
 										w->fieldpointer = 0; break;
-									case MIN_INSTRUMENT_INDEX + 1: w->fieldpointer = 1; break;
-									case MIN_INSTRUMENT_INDEX + 2: w->fieldpointer = 3; break;
+									case MIN_INSTRUMENT_INDEX + 1: w->fieldpointer = 3; break;
 									default:
-										if (iv && iv->type < INSTRUMENT_TYPE_COUNT
-												&& t->f[iv->type].endFieldPointer)
-											t->f[iv->type].endFieldPointer(w->instrumentindex);
+										if (iv)
+											samplerEndFieldPointer(w->instrumentindex);
 										break;
 								} redraw();
 							} break;
@@ -442,41 +386,33 @@ void instrumentInput(int input)
 											w->fieldpointer = 0;
 											w->instrumentindex = MIN_INSTRUMENT_INDEX;
 											break;
-										case 1: case 2: /* type */
+										case 1: case 2: case 3:
 											if (x - w->instrumentcelloffset < INSTRUMENT_BODY_COLS / 2)
 												w->instrumentindex = MIN_INSTRUMENT_INDEX + 1;
 											else
-												w->instrumentindex = MIN_INSTRUMENT_INDEX + 3;
-											w->fieldpointer = 0;
-											break;
-										case 3:
-											if (x - w->instrumentcelloffset < INSTRUMENT_BODY_COLS / 2)
-												w->instrumentindex = MIN_INSTRUMENT_INDEX + 2;
-											else
 											{
-												w->instrumentindex = MIN_INSTRUMENT_INDEX + 4;
+												w->instrumentindex = MIN_INSTRUMENT_INDEX + 3;
 												w->recordflags ^= 0b1;  break;
 											}
 											w->fieldpointer = 0;
 											break;
 										case 4:
 											if (x - w->instrumentcelloffset < INSTRUMENT_BODY_COLS / 2)
-												w->instrumentindex = MIN_INSTRUMENT_INDEX + 2;
+												w->instrumentindex = MIN_INSTRUMENT_INDEX + 1;
 											else
 											{
-												w->instrumentindex = MIN_INSTRUMENT_INDEX + 5;
+												w->instrumentindex = MIN_INSTRUMENT_INDEX + 4;
 												w->recordflags ^= 0b10; break;
 											}
 											w->fieldpointer = 0;
 											break;
 										default:
 											if (!s->instrumenti[w->instrument]) break;
-											if (iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].mouseToIndex)
-												t->f[iv->type].mouseToIndex(
-														y - w->instrumentrowoffset - 5,
-														x - w->instrumentcelloffset - (INSTRUMENT_BODY_COLS - t->f[iv->type].cellwidth) / 2,
-														button,
-														&w->instrumentindex);
+											samplerMouseToIndex(
+													y - w->instrumentrowoffset - 5,
+													x - w->instrumentcelloffset - (INSTRUMENT_BODY_COLS - samplercellwidth) / 2,
+													button,
+													&w->instrumentindex);
 											break;
 									}
 									/* enter mouse adjust mode */
@@ -540,15 +476,13 @@ void instrumentInput(int input)
 							case 18: /* ^R, redo */ unpopInstrumentHistory(s->instrumenti[w->instrument]); redraw(); break;
 							case 127: case 8: /* backspace */
 								/* TODO: REALLY slow branch */
-								if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
-										&& t->f[iv->type].decFieldPointer)
-									t->f[iv->type].decFieldPointer(w->instrumentindex);
+								if (w->instrumentindex >= 0 && iv)
+									samplerDecFieldPointer(w->instrumentindex);
 								redraw(); break;
 							case ' ': /* space */
 								/* TODO: REALLY slow branch */
-								if (w->instrumentindex >= 0 && iv && iv->type < INSTRUMENT_TYPE_COUNT
-										&& t->f[iv->type].incFieldPointer)
-									t->f[iv->type].incFieldPointer(w->instrumentindex);
+								if (w->instrumentindex >= 0 && iv)
+									samplerIncFieldPointer(w->instrumentindex);
 								redraw(); break;
 							default:
 								iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -589,39 +523,6 @@ void instrumentInput(int input)
 												break;
 										} break;
 									case MIN_INSTRUMENT_INDEX + 1:
-										if (w->instrumentlockv > INST_REC_LOCK_OK) break;
-										if (!s->instrumenti[w->instrument]) break;
-										iv = s->instrumentv[s->instrumenti[w->instrument]];
-										switch (input)
-										{
-											case 1: /* ^a */
-												iv->type++;
-												w->instrumentlocki = s->instrumenti[w->instrument];
-												w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
-												break;
-											case 24: /* ^x */
-												iv->type--;
-												w->instrumentlocki = s->instrumenti[w->instrument];
-												w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE;
-												break;
-											case '0':           updateFieldPush(&iv->type, 0);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '1':           updateFieldPush(&iv->type, 1);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '2':           updateFieldPush(&iv->type, 2);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '3':           updateFieldPush(&iv->type, 3);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '4':           updateFieldPush(&iv->type, 4);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '5':           updateFieldPush(&iv->type, 5);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '6':           updateFieldPush(&iv->type, 6);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '7':           updateFieldPush(&iv->type, 7);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '8':           updateFieldPush(&iv->type, 8);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case '9':           updateFieldPush(&iv->type, 9);  w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'A': case 'a': updateFieldPush(&iv->type, 10); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'B': case 'b': updateFieldPush(&iv->type, 11); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'C': case 'c': updateFieldPush(&iv->type, 12); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'D': case 'd': updateFieldPush(&iv->type, 13); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'E': case 'e': updateFieldPush(&iv->type, 14); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-											case 'F': case 'f': updateFieldPush(&iv->type, 15); w->instrumentlocki = s->instrumenti[w->instrument]; w->instrumentlockv = INST_GLOBAL_LOCK_PREP_FREE; break;
-										} redraw(); break;
-									case MIN_INSTRUMENT_INDEX + 2:
 										switch (input)
 										{
 											case 1:  /* ^a */ iv->defgain++; break;
@@ -643,16 +544,11 @@ void instrumentInput(int input)
 											case 'E': case 'e': updateFieldPush(&iv->defgain, 14); break;
 											case 'F': case 'f': updateFieldPush(&iv->defgain, 15); break;
 										} redraw(); break;
+									case MIN_INSTRUMENT_INDEX + 2:
 									case MIN_INSTRUMENT_INDEX + 3:
 									case MIN_INSTRUMENT_INDEX + 4:
-									case MIN_INSTRUMENT_INDEX + 5:
 										break;
-									default:
-										if (!s->instrumenti[w->instrument]) break;
-										iv = s->instrumentv[s->instrumenti[w->instrument]];
-										if (iv && iv->type < INSTRUMENT_TYPE_COUNT && t->f[iv->type].input)
-											t->f[iv->type].input(&input);
-										break;
+									default: samplerInput(&input); break;
 								} break;
 						}
 					} break;
@@ -682,8 +578,8 @@ void instrumentInput(int input)
 			switch (w->instrumentindex)
 			{
 				case MIN_INSTRUMENT_INDEX: break;
-				case MIN_INSTRUMENT_INDEX + 4: w->recordflags ^= 0b1;  break;
-				case MIN_INSTRUMENT_INDEX + 5: w->recordflags ^= 0b10; break;
+				case MIN_INSTRUMENT_INDEX + 3: w->recordflags ^= 0b1;  break;
+				case MIN_INSTRUMENT_INDEX + 4: w->recordflags ^= 0b10; break;
 				default:
 					switch (w->mode)
 					{
