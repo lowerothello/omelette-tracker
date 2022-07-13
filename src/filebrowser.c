@@ -1,31 +1,22 @@
 void drawFilebrowser(void)
 {
-	printf("\033[%d;%dH\033[1mFILEBROWSER\033[m", CHANNEL_ROW-2, (ws.ws_col - 10) / 2);
-
-	unsigned short y = w->instrumentrowoffset;
+	printf("\033[%d;%dH\033[1mFILEBROWSER\033[m", CHANNEL_ROW-2, (ws.ws_col-11) / 2);
 
 	struct dirent *dirent = readdir(w->dir);
-	unsigned int dirc = 0;
-	unsigned short yo, xo, xw;
+	unsigned int dirc, yo;
+	unsigned short xo, xw;
 	char testdirpath[NAME_MAX + 1];
 	DIR *testdir;
-	xw = (w->dirmaxwidth + 2)*w->dircols;
+	xw = w->dirmaxwidth * w->dircols;
 	xo = (ws.ws_col-xw) / 2 + 1;
-	yo = y+11 - w->filebrowserindex / w->dircols;
+	yo = ws.ws_row/2 - w->filebrowserindex / w->dircols;
 
-	/* for (unsigned short cy = y; cy < y+7+INSTRUMENT_TYPE_ROWS; cy++)
-		printf("\033[%d;%dH\033[%dX", cy, w->instrumentcelloffset, INSTRUMENT_BODY_COLS); */
+	if (strlen(w->dirpath) > ws.ws_col-4)
+		printf("\033[%d;%dH%.*s", CHANNEL_ROW, 2, ws.ws_col-4, w->dirpath + ((unsigned short)strlen(w->dirpath - ws.ws_col-4)));
+	else
+		printf("\033[%d;%dH%.*s", CHANNEL_ROW, (ws.ws_col - (unsigned short)strlen(w->dirpath)) / 2, ws.ws_col-4, w->dirpath);
 
-	if (strlen(w->dirpath) > INSTRUMENT_BODY_COLS - 4)
-	{
-		char buffer[INSTRUMENT_BODY_COLS + 1];
-		memcpy(buffer, w->dirpath + ((unsigned short)strlen(w->dirpath - INSTRUMENT_BODY_COLS - 4)), INSTRUMENT_BODY_COLS - 4);
-		printf("\033[%d;%dH%.*s", y+1, xo, xw, buffer);
-	} else
-	{
-		printf("\033[%d;%dH%.*s", y+1, xo + (xw - (unsigned short)strlen(w->dirpath) + 1) / 2, INSTRUMENT_BODY_COLS - 4, w->dirpath);
-	}
-
+	dirc = 0; /* gcc makes this var static, even with -O0. thanks stallman very cool (tcc does not do this) */
 	while (dirent)
 	{
 		for (unsigned char wcol = 0; wcol < w->dircols; wcol++)
@@ -38,7 +29,7 @@ void drawFilebrowser(void)
 				dirent = readdir(w->dir);
 			if (!dirent) break;
 
-			if (yo > y+1 && yo < y + INSTRUMENT_BODY_ROWS)
+			if (yo > CHANNEL_ROW && yo < ws.ws_row)
 			{
 				strcpy(testdirpath, w->dirpath);
 				strcat(testdirpath, "/");
@@ -46,24 +37,24 @@ void drawFilebrowser(void)
 
 				testdir = opendir(testdirpath);
 				if (testdir) /* add a trailing slash if the file is a directory */
-				{ closedir(testdir);
-					printf(   "\033[%d;%dH%.*s/", yo, xo + (w->dirmaxwidth + 2) * wcol, INSTRUMENT_BODY_COLS - 4, dirent->d_name);
-				} else printf("\033[%d;%dH%.*s",  yo, xo + (w->dirmaxwidth + 2) * wcol, INSTRUMENT_BODY_COLS - 4, dirent->d_name);
+				{
+					closedir(testdir);
+					printf("\033[%d;%dH\033[%dX%.*s/", yo, xo + w->dirmaxwidth * wcol, w->dirmaxwidth, w->dirmaxwidth-1, dirent->d_name);
+				} else printf("\033[%d;%dH\033[%dX%.*s", yo, xo + w->dirmaxwidth * wcol, w->dirmaxwidth, w->dirmaxwidth, dirent->d_name);
 			}
+			dirc++;
 			dirent = readdir(w->dir);
 		}
 		yo++;
-		dirc += w->dircols;
 	}
 
 	rewinddir(w->dir);
 	if (dirc != w->dirc) changeDirectory(); /* recount the entries if a file gets added or removed */
-
-	if (dirc == 0)
+	if (!dirc)
 	{
-		printf("\033[%d;%dH%.*s", y+11, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2, INSTRUMENT_BODY_COLS - 4, "(empty directory)");
-		printf("\033[%d;%dH", y+11, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2 + 1);
-	} else printf("\033[%d;%dH", y+11 + w->fyoffset, xo + (w->dirmaxwidth + 2) * (w->filebrowserindex % w->dircols));
+		printf("\033[%d;%dH%.*s", ws.ws_row/2, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2, ws.ws_col - 4, "(empty directory)");
+		printf("\033[%d;%dH",     ws.ws_row/2, xo + (xw - (unsigned short)strlen("(empty directory)") + 1) / 2 + 1);
+	} else printf("\033[%d;%dH",  ws.ws_row/2 + w->fyoffset, xo + w->dirmaxwidth * (w->filebrowserindex % w->dircols));
 }
 
 int getSubdir(char *newpath)
@@ -85,19 +76,11 @@ int getSubdir(char *newpath)
 				strcat(newpath, dirent->d_name);
 				testdir = opendir(newpath);
 				rewinddir(w->dir);
-				if (testdir == NULL)
-					return 1; /* file */
-				else
-				{
-					closedir(testdir);
-					return 2; /* directory */
-				}
-				redraw();
-				break;
-			}
-			dirc++;
-		}
-		dirent = readdir(w->dir);
+				if (testdir == NULL) return 1; /* file */
+				else { closedir(testdir); return 2; /* directory */ }
+				redraw(); break;
+			} dirc++;
+		} dirent = readdir(w->dir);
 	}
 	rewinddir(w->dir);
 	return 0; /* fail case, reachable only for empty dirs i think? idk */
@@ -107,6 +90,7 @@ void filebrowserInput(int input)
 {
 	char newpath[NAME_MAX + 1], oldpath[NAME_MAX + 1];
 	int button, x, y;
+	unsigned short xo;
 	switch (input)
 	{
 		case 10: case 13: /* return */
@@ -132,8 +116,7 @@ void filebrowserInput(int input)
 			dirname(w->dirpath);
 			changeDirectory();
 			w->filebrowserindex = 0;
-			redraw();
-			break;
+			redraw(); break;
 		case '\033':
 			switch (getchar())
 			{
@@ -152,73 +135,54 @@ void filebrowserInput(int input)
 								changeDirectory();
 							} else w->filebrowserindex = 0;
 							break;
-					}
-					redraw();
-					break;
+					} redraw(); break;
 				case 'O':
 					handleFKeys(getchar());
-					redraw();
-					break;
+					redraw(); break;
 				case '[':
 					switch (getchar())
 					{
 						case 'A': /* up arrow */
 							w->filebrowserindex -= w->dircols;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
-							redraw();
-							break;
+							redraw(); break;
 						case 'B': /* down arrow */
 							w->filebrowserindex += w->dircols;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
-							redraw();
-							break;
+							redraw(); break;
 						case 'D': /* left arrow */
 							w->filebrowserindex--;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
-							redraw();
-							break;
+							redraw(); break;
 						case 'C': /* right arrow */
 							w->filebrowserindex++;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
-							redraw();
-							break;
+							redraw(); break;
 						case 'H': /* home */
 							w->filebrowserindex = 0;
-							redraw();
-							break;
+							redraw(); break;
 						case '4': /* end */
 							if (getchar() == '~')
 							{
 								w->filebrowserindex = w->dirc - 1;
 								redraw();
-							}
-							break;
+							} break;
 						case '5': /* page up */
 							getchar();
 							w->filebrowserindex -= w->dircols * (INSTRUMENT_BODY_ROWS - 2);
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
-							redraw();
-							break;
+							redraw(); break;
 						case '6': /* page down */
 							getchar();
 							w->filebrowserindex += w->dircols * (INSTRUMENT_BODY_ROWS - 2);
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
-							redraw();
-							break;
+							redraw(); break;
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
-								case '5': /* f5, play */
-									getchar(); /* extraneous tilde */
-									startPlayback();
-									break;
-								case '7': /* f6 (yes, f6 is '7'), stop */
-									getchar(); /* extraneous tilde */
-									stopPlayback();
-									break;
-								case ';': /* mod+arrow */
-									getchar();
-									break;
+								case '5': /* f5, play  */ getchar(); startPlayback(); break;
+								case '7': /* f6, stop  */ getchar(); stopPlayback(); break;
+								case ';': /* mod+arrow */ getchar(); break;
 							} break;
 						case 'M': /* mouse */
 							button = getchar();
@@ -243,18 +207,18 @@ void filebrowserInput(int input)
 								case BUTTON1: case BUTTON3:
 								case BUTTON1_CTRL: case BUTTON3_CTRL:
 								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
-									if (y < w->instrumentrowoffset + 2 || y > w->instrumentrowoffset + INSTRUMENT_BODY_ROWS - 1)
-										break; /* ignore clicking out of range */
+									if (y <= CHANNEL_ROW || y == ws.ws_row) break; /* ignore clicking out of range */
 
-									short xo = w->instrumentcelloffset + (INSTRUMENT_BODY_COLS - (w->dirmaxwidth + 2) * w->dircols) / 2;
+									// xw = w->dirmaxwidth * w->dircols;
+									xo = (ws.ws_col - w->dirmaxwidth*w->dircols) / 2 + 1;
 									w->filebrowserindex -= w->filebrowserindex % w->dircols; /* pull to the first column */
 
-									if (x >= xo + (w->dirmaxwidth + 2) * w->dircols)
+									if (x >= xo + w->dirmaxwidth * w->dircols)
 										w->filebrowserindex += w->dircols - 1;
 									else if (x >= xo)
-										w->filebrowserindex += (x - xo) / (w->dirmaxwidth + 2);
+										w->filebrowserindex += (x - xo) / w->dirmaxwidth;
 
-									w->fyoffset = y - (w->instrumentrowoffset + 11); /* magic number, visual centre */
+									w->fyoffset = y - ws.ws_row/2;
 									if (w->fyoffset + w->filebrowserindex / w->dircols < 0)
 										w->fyoffset -= w->filebrowserindex / w->dircols + w->fyoffset;
 									if (w->fyoffset + w->filebrowserindex / w->dircols > (w->dirc - 1) / w->dircols)
@@ -285,9 +249,7 @@ void filebrowserInput(int input)
 												break;
 										}
 									} break;
-							}
-							redraw();
-							break;
+							} redraw(); break;
 					} break;
 				default:
 					switch (w->mode)
@@ -295,9 +257,7 @@ void filebrowserInput(int input)
 						case 0: /* leave the popup */
 							w->popup = 1;
 							break;
-					}
-					redraw();
-					break;
+					} redraw(); break;
 			} break;
 	}
 }

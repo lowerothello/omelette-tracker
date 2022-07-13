@@ -313,15 +313,15 @@ int changeDirectory(void)
 				&& strcmp(dirent->d_name, "..")
 				&& strcmp(dirent->d_name, "lost+found"))
 		{
-			if (strlen(dirent->d_name) > w->dirmaxwidth)
-				w->dirmaxwidth = strlen(dirent->d_name);
+			if (strlen(dirent->d_name)+2 > w->dirmaxwidth)
+				w->dirmaxwidth = strlen(dirent->d_name)+2;
 			w->dirc++;
 		}
 		dirent = readdir(w->dir);
 	}
 	rewinddir(w->dir);
-	w->dirmaxwidth = MIN(w->dirmaxwidth, INSTRUMENT_BODY_COLS - 4);
-	w->dircols = MAX(MIN((INSTRUMENT_BODY_COLS - 8) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
+	w->dirmaxwidth = MIN(w->dirmaxwidth, ws.ws_col - 4);
+	w->dircols = MAX(MIN((ws.ws_col - 8) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
 	return 0;
 }
 
@@ -342,6 +342,7 @@ void resize(int _)
 		resizeWaveform();
 
 	resizeBackground();
+	changeDirectory(); /* recalc the maxwidth/cols */
 
 	redraw();
 	signal(SIGWINCH, &resize); /* not sure why this needs to be redefined every time sometimes */
@@ -456,7 +457,6 @@ int main(int argc, char **argv)
 
 
 	jack_set_process_callback(client, process, p);
-
 	jack_activate(client);
 
 	addPattern(0, 0);
@@ -507,11 +507,7 @@ int main(int argc, char **argv)
 		if (p->lock == PLAY_LOCK_CONT)
 		{
 			song *cs = readSong(w->newfilename);
-			if (cs)
-			{
-				delSong(s);
-				s = cs;
-			}
+			if (cs) { delSong(s); s = cs; }
 			p->s = s;
 			p->dirty = 1;
 			p->lock = PLAY_LOCK_OK;

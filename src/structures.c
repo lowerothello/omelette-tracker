@@ -174,7 +174,7 @@ typedef struct
 	unsigned short instrumentcelloffset;
 	unsigned short instrumentrowoffset;
 
-	short          filebrowserindex;
+	int            filebrowserindex;
 
 	unsigned short mousey, mousex;
 

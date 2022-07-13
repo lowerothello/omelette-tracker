@@ -454,7 +454,7 @@ void drawTracker(void)
 	unsigned short x, y;
 	unsigned short maxwidth, prevwidth;
 
-	printf("\033[%d;%dH\033[1mPATTERN\033[m \033[2mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col-17) / 2);
+	printf("\033[%d;%dH\033[1mPATTERN\033[m \033[2mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col-18) / 2);
 
 	unsigned short sx = 0;
 	uint8_t oldvisiblechannels = w->visiblechannels;

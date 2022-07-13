@@ -966,8 +966,22 @@ dxandwchannelset:
 											switch (input)
 											{
 												case 'r':
+													j = p->rowcc[w->channel];
 													if (w->count) p->rowcc[w->channel] = w->count - 1;
-													else p->rowcc[w->channel] = p->rowc;
+													else          p->rowcc[w->channel] = p->rowc;
+													while (j < p->rowcc[w->channel])
+														if (j < 127)
+														{
+															memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+																	sizeof(row) * (j + 1));
+															j = (j + 1) * 2 - 1;
+														} else
+														{
+															memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+																	sizeof(row) * (255 - j));
+															j = 255;
+															break;
+														}
 													redraw(); break;
 												case 'd':
 													for (i = 0; i < MAX(1, w->count); i++)
@@ -997,7 +1011,13 @@ dxandwchannelset:
 															memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
 																	sizeof(row) * (p->rowcc[w->channel] + 1));
 															p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
-														} else { p->rowcc[w->channel] = 255; break; }
+														} else
+														{
+															memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
+																	sizeof(row) * (255 - p->rowcc[w->channel]));
+															p->rowcc[w->channel] = 255;
+															break;
+														}
 													redraw(); break;
 												case '/':
 													for (i = 0; i < MAX(1, w->count); i++)
@@ -1044,8 +1064,26 @@ dxandwchannelset:
 											switch (input)
 											{
 												case 'r':
+													k = p->rowcc[w->channel];
 													if (w->count) for (i = 0; i < MAX_CHANNELS; i++) p->rowcc[i] = w->count - 1;
 													else          for (i = 0; i < MAX_CHANNELS; i++) p->rowcc[i] = p->rowc;
+													for (i = 0; i < MAX_CHANNELS; i++)
+													{
+														j = k;
+														while (j < p->rowcc[i])
+															if (j < 127)
+															{
+																memcpy(&p->rowv[i][j + 1], p->rowv[i],
+																		sizeof(row) * (j + 1));
+																i = (j + 1) * 2 - 1;
+															} else
+															{
+																memcpy(&p->rowv[i][j + 1], p->rowv[i],
+																		sizeof(row) * (255 - j));
+																j = 255;
+																break;
+															}
+													}
 													redraw(); break;
 												case 'd':
 													for (i = 0; i < MAX_CHANNELS; i++)
@@ -1080,7 +1118,13 @@ dxandwchannelset:
 																memcpy(&p->rowv[i][p->rowcc[i] + 1], p->rowv[i],
 																		sizeof(row) * (p->rowcc[i] + 1));
 																p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
-															} else { p->rowcc[i] = 255; break; }
+															} else
+															{
+																memcpy(&p->rowv[w->channel][p->rowcc[i] + 1], p->rowv[w->channel],
+																		sizeof(row) * (255 - p->rowcc[i]));
+																p->rowcc[i] = 255;
+																break;
+															}
 													redraw(); break;
 												case '/':
 													for (i = 0; i < MAX_CHANNELS; i++)
