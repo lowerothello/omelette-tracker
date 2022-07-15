@@ -139,21 +139,21 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 			else cv->stretchrampindex = 0;
 		}
 
+		float calcpitch;
+		float calcrate = (float)iv->c5rate / (float)samplerate;
 		if (iv->flags & S_FLAG_TTEMPO)
 		{ /* time stretch */
+			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune) * (float)(iv->pitchshift*DIV128);
+
 			trimloop(calcDecimate(iv, iv->samplerate,
-					((pointer - pointersnap) * (float)iv->c5rate / (float)samplerate) + (pointersnap
-						* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune))
-						* ((float)iv->c5rate / (float)samplerate)),
+					((pointer - pointersnap) * calcrate) + (pointersnap * calcpitch) * calcrate),
 					pointer, cv, iv, l, r);
 
 			if (cv->stretchrampindex < cv->localstretchrampmax)
 			{
 				float rl = 0.0f; float rr = 0.0f;
 				trimloop(calcDecimate(iv, iv->samplerate,
-						((pointer - pointersnap - cyclelength) * (float)iv->c5rate / (float)samplerate) + ((cyclelength + cv->stretchrampindex)
-							* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune)
-							* ((float)iv->c5rate / (float)samplerate))),
+						((pointer - pointersnap - cyclelength) * calcrate) + ((cyclelength + cv->stretchrampindex) * calcpitch * calcrate)),
 						pointer, cv, iv, &rl, &rr);
 
 				float gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
@@ -162,19 +162,17 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 			}
 		} else
 		{ /* pitch shift */
+			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune);
+
 			trimloop(calcDecimate(iv, iv->samplerate,
-					(float)(pointer - pointersnap + (pointersnap * (float)(iv->pitchshift*DIV128)))
-						* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune)
-						* ((float)iv->c5rate / (float)samplerate)),
+					(float)(pointer - pointersnap + (pointersnap * (float)(iv->pitchshift*DIV128))) * calcpitch * calcrate),
 					pointer, cv, iv, l, r);
 
 			if (cv->stretchrampindex < cv->localstretchrampmax)
 			{
 				float rl = 0.0f; float rr = 0.0f;
 				trimloop(calcDecimate(iv, iv->samplerate,
-						(float)(pointer - pointersnap - cyclelength + ((cyclelength + cv->stretchrampindex) * (float)(iv->pitchshift*DIV128)))
-							* powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune)
-							* ((float)iv->c5rate / (float)samplerate)),
+						(float)(pointer - pointersnap - cyclelength + ((cyclelength + cv->stretchrampindex) * (float)(iv->pitchshift*DIV128))) * calcpitch * calcrate),
 						pointer, cv, iv, &rl, &rr);
 
 				float gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;

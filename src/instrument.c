@@ -484,7 +484,7 @@ void instrumentInput(int input)
 														w->instrumentindex = 7;
 														if (x - xo < 36) w->fieldpointer = 1;
 														else             w->fieldpointer = 0;
-													} else if (x - xo < 55) { w->fieldpointer = 9; iv->flags ^= S_FLAG_TTEMPO; }
+													} else if (x - xo < 55) { w->instrumentindex = 9; iv->flags ^= S_FLAG_TTEMPO; }
 													else
 													{
 														w->instrumentindex = 10;
