@@ -76,7 +76,7 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 	return note;
 }
 
-void trackerAdjustUp(void) /* mouse adjust only */
+void trackerAdjustRight(void) /* mouse adjust only */
 {
 	uint8_t modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
 	row *r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
@@ -100,7 +100,7 @@ void trackerAdjustUp(void) /* mouse adjust only */
 			} break;
 	}
 }
-void trackerAdjustDown(void) /* mouse adjust only */
+void trackerAdjustLeft(void) /* mouse adjust only */
 {
 	short macro;
 	uint8_t modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
@@ -355,9 +355,8 @@ void trackerInput(int input)
 										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
 										default:                 w->mode = T_MODE_NORMAL; break;
 									}
-									getchar();
 									startPlayback();
-									break;
+									getchar(); break;
 								case '7': /* f6, stop */
 									switch (w->mode)
 									{
@@ -365,9 +364,8 @@ void trackerInput(int input)
 										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
 										default:                 w->mode = T_MODE_NORMAL; break;
 									}
-									getchar();
 									stopPlayback();
-									break;
+									getchar(); break;
 								case ';': /* mod+arrow */
 									switch (getchar())
 									{
@@ -389,9 +387,7 @@ void trackerInput(int input)
 													cycleDown(w->trackerfy%(s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1));
 													redraw(); break;
 											} break;
-										default:
-											getchar();
-											break;
+										default: getchar(); break;
 									} break;
 							} break;
 						case 'H': /* home */
@@ -410,7 +406,7 @@ void trackerInput(int input)
 								switch (w->mode)
 								{
 									case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
-										w->songfy = 255;
+										w->songfy = 254;
 										break;
 									default:
 										w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
@@ -418,18 +414,13 @@ void trackerInput(int input)
 								} redraw();
 							} break;
 						case '5': /* page up */
-							getchar();
 							switch (w->mode)
 							{
 								case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
 									for (int i = 0; i < MAX(1, w->count); i++)
 									{
 										w->songfy -= s->rowhighlight;
-										if (w->songfy < 0)
-										{
-											w->songfy = 0;
-											break;
-										}
+										if (w->songfy < 0) { w->songfy = 0; break; }
 									} break;
 								default:
 									for (int i = 0; i < MAX(1, w->count); i++)
@@ -445,9 +436,8 @@ void trackerInput(int input)
 											} else w->trackerfy = 0;
 										}
 									} break;
-							} redraw(); break;
+							} getchar(); redraw(); break;
 						case '6': /* page down */
-							getchar();
 							switch (w->mode)
 							{
 								case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
@@ -474,7 +464,7 @@ void trackerInput(int input)
 											} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
 										}
 									} break;
-							} redraw(); break;
+							} getchar(); redraw(); break;
 						case 'M': /* mouse */
 							button = getchar();
 							x = getchar() - 32;
@@ -542,9 +532,9 @@ void trackerInput(int input)
 								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
 									if (w->mode == T_MODE_MOUSEADJUST)
 									{
-										if      (y > w->mousey) trackerAdjustDown();
-										else if (y < w->mousey) trackerAdjustUp();
-										w->mousey = y;
+										if      (x > w->mousex) trackerAdjustRight();
+										else if (x < w->mousex) trackerAdjustLeft();
+										w->mousex = x;
 									} break;
 								default: /* click / click+drag */
 									if (y == CHANNEL_ROW-2)
@@ -650,7 +640,7 @@ dxandwchannelset:
 											{
 												w->oldmode = w->mode;
 												w->mode = T_MODE_MOUSEADJUST;
-												w->mousey = y;
+												w->mousex = x;
 												w->fieldpointer = 0;
 												switch (w->trackerfx)
 												{
@@ -785,8 +775,8 @@ dxandwchannelset:
 					case T_MODE_SONG:
 						switch (input)
 						{
-							case '\t': /* leave song mode   */ w->mode = T_MODE_NORMAL; break;
-							case 'i':  /* enter insert mode */ w->mode = T_MODE_SONG_INSERT; break;
+							case '\t': /* leave song mode   */ w->mode = T_MODE_NORMAL; redraw(); break;
+							case 'i':  /* enter insert mode */ w->mode = T_MODE_SONG_INSERT; redraw(); break;
 							case 'v':  /* enter visual mode */
 								w->visualfy = w->songfy;
 								w->oldmode = T_MODE_SONG;
@@ -1191,7 +1181,7 @@ dxandwchannelset:
 											w->oldmode = T_MODE_NORMAL;
 											w->mode = T_MODE_VISUALLINE;
 											redraw(); break;
-										case '\t': /* enter song mode */ w->mode = T_MODE_SONG; break;
+										case '\t': /* enter song mode */ w->mode = T_MODE_SONG; redraw(); break;
 										case 'y': /* pattern copy   */ w->chord = 'y'; redraw(); goto t_afterchordunset;
 										case 'd': /* pattern cut    */ w->chord = 'd'; redraw(); goto t_afterchordunset;
 										case 'c': /* channel        */ w->chord = 'c'; redraw(); goto t_afterchordunset;

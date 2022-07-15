@@ -73,6 +73,7 @@ typedef struct
 	/* ramping */
 	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
 	sample_t *rampbuffer;                   /* samples to ramp out */
+	uint8_t   rampgain;                     /* raw gain m for the ramp buffer */
 
 	uint16_t  stretchrampindex;             /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
 	uint16_t  localstretchrampmax;          /* actual stretchrampmax used, to allow for tiny buffer sizes */
@@ -88,6 +89,7 @@ typedef struct Instrument
 	uint8_t             channels;
 	uint32_t            c5rate;
 	uint8_t             samplerate;                   /* percent of c5rate to actually use */
+	uint8_t             bitdepth;
 	uint16_t            cyclelength;
 	uint8_t             pitchshift;
 	uint32_t            trim[2];
@@ -97,9 +99,6 @@ typedef struct Instrument
 	uint8_t             flags;
 	uint8_t             loopramp;
 
-	// uint8_t             type;
-	// uint8_t             typefollow;                   /* follows the type, set once state is guaranteed to be mallocced */
-	// void               *state[INSTRUMENT_TYPE_COUNT]; /* type working memory */
 	uint8_t             defgain;
 	struct Instrument  *history[128];                 /* instrument snapshots */
 	short               historyindex[128];            /* cursor positions for instrument snapshots */
@@ -734,6 +733,7 @@ void copyInstrument(instrument *dest, instrument *src)
 	dest->channels = src->channels;
 	dest->c5rate = src->c5rate;
 	dest->samplerate = src->samplerate;
+	dest->bitdepth = src->bitdepth;
 	dest->cyclelength = src->cyclelength;
 	dest->pitchshift = src->pitchshift;
 	dest->trim[0] = src->trim[0]; dest->trim[1] = src->trim[1];
@@ -783,12 +783,13 @@ void asyncInstrumentUpdate(song *cs)
 
 void _delInstrument(instrument *iv)
 {
-	if (iv->sampledata) free(iv->sampledata);
+	if (iv->sampledata) { free(iv->sampledata); iv->sampledata = NULL; }
 	for (int i = 0; i < 128; i++)
 	{
 		if (!iv->history[i]) continue;
-		if (iv->history[i]->sampledata) free(iv->history[i]->sampledata);
-		free(iv->history[i]);
+		if (iv->history[i]->sampledata)
+		{ free(iv->history[i]->sampledata); iv->history[i]->sampledata = NULL; }
+		free(iv->history[i]); iv->history[i] = NULL;
 	}
 }
 void pushInstrumentHistory(instrument *iv)
@@ -823,6 +824,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 			|| ivh->channels != iv->channels
 			|| ivh->c5rate != iv->c5rate
 			|| ivh->samplerate != iv->samplerate
+			|| ivh->bitdepth != iv->bitdepth
 			|| ivh->cyclelength != iv->cyclelength
 			|| ivh->pitchshift != iv->pitchshift
 			|| ivh->trim[0] != iv->trim[0] || ivh->trim[1] != iv->trim[1]
@@ -889,6 +891,7 @@ int addInstrument(uint8_t index)
 	s->instrumentv[s->instrumentc]->volume.s = 0xff;
 	s->instrumentv[s->instrumentc]->gain = 0xff;
 	s->instrumentv[s->instrumentc]->samplerate = 0xff;
+	s->instrumentv[s->instrumentc]->bitdepth = 0xf;
 	s->instrumentv[s->instrumentc]->loopramp = 0xff;
 	s->instrumentv[s->instrumentc]->cyclelength = 0x06ff;
 	s->instrumentv[s->instrumentc]->pitchshift = 0x80;
@@ -897,14 +900,6 @@ int addInstrument(uint8_t index)
 	pushInstrumentHistory(s->instrumentv[s->instrumentc]);
 	s->instrumentc++;
 	return 0;
-}
-/* return a fresh slot */
-uint8_t newInstrument(uint8_t minindex)
-{
-	for (uint8_t i = minindex; i < 256; i++) // is 256 right? idfk
-		if (s->instrumenti[i] == 0)
-			return i;
-	return 255; /* fail */
 }
 int yankInstrument(uint8_t index)
 {
@@ -973,16 +968,15 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 	memset(sfinfo, 0, sizeof(SF_INFO));
 
 	SNDFILE *sndfile = sf_open(path, SFM_READ, sfinfo);
-
 	short *ptr;
 
-	if (sndfile == NULL)
+	if (!sndfile)
 	{ /* raw file */
 		struct stat buf;
 		stat(path, &buf);
 
 		ptr = malloc(buf.st_size - buf.st_size % sizeof(short));
-		if (ptr == NULL) // malloc failed
+		if (!ptr) // malloc failed
 		{
 			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 			return NULL;
@@ -1007,7 +1001,7 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 		}
 
 		ptr = malloc(sizeof(short) * sfinfo->frames * sfinfo->channels);
-		if (ptr == NULL) // malloc failed
+		if (!ptr) // malloc failed
 		{
 			sf_close(sndfile);
 			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
@@ -1016,14 +1010,37 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 
 		/* read the whole file into memory */
 		sf_readf_short(sndfile, ptr, sfinfo->frames);
-
 		sf_close(sndfile);
 	}
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 	return ptr;
 }
+void loadSample(uint8_t index, char *path)
+{
+	instrument *iv = s->instrumentv[s->instrumenti[index]];
+	SF_INFO sfinfo;
+	short *sampledata = _loadSample(path, &sfinfo);
+	if (!sampledata)
+	{
+		strcpy(w->command.error, "failed to load sample, out of memory");
+		return;
+	}
 
-
+	/* unload any present sample data */
+	if (iv->samplelength > 0)
+		free(iv->sampledata);
+	iv->sampledata = sampledata;
+	iv->samplelength = sfinfo.frames * sfinfo.channels;
+	iv->channels = sfinfo.channels;
+	iv->length = sfinfo.frames;
+	iv->c5rate = sfinfo.samplerate;
+	iv->trim[0] = 0;
+	iv->trim[1] = sfinfo.frames;
+	iv->loop[0] = 0;
+	iv->loop[1] = 0;
+	iv->samplerate = 0xff;
+	iv->bitdepth = 0xf;
+}
 
 song *_addSong(void)
 {
@@ -1193,6 +1210,7 @@ int writeSong(char *path)
 		fwrite(&iv->channels, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->c5rate, sizeof(uint32_t), 1, fp);
 		fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
+		fwrite(&iv->bitdepth, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->cyclelength, sizeof(uint16_t), 1, fp);
 		fwrite(&iv->pitchshift, sizeof(uint8_t), 1, fp);
 		fwrite(iv->trim, sizeof(uint32_t), 2, fp);
@@ -1219,13 +1237,17 @@ song *readSong(char *path)
 	if (!fp) // file doesn't exist, or fopen otherwise failed
 	{
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' doesn't exist", path);
+		redraw();
 		return NULL;
 	}
 	DIR *dp = opendir(path);
 	if (dp) // file is a directory
 	{
 		closedir(dp);
+		fclose(fp);
+		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' is a directory", path);
+		redraw();
 		return NULL;
 	}
 
@@ -1235,7 +1257,10 @@ song *readSong(char *path)
 	/* the most important check */
 	if (!(fgetc(fp) == 'e' && fgetc(fp) == 'g' && fgetc(fp) == 'g'))
 	{
+		fclose(fp);
+		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' isn't valid", path);
+		redraw();
 		return NULL;
 	}
 
@@ -1244,14 +1269,20 @@ song *readSong(char *path)
 	unsigned char fileminor = fgetc(fp);
 	if (filemajor == 0 && fileminor < 86)
 	{
+		fclose(fp);
+		fcntl(0, F_SETFL, O_NONBLOCK);
 		strcpy(w->command.error, "failed to read song, file uses removed features");
+		redraw();
 		return NULL;
 	}
 
 	song *cs = _addSong();
 	if (!cs)
 	{
+		fclose(fp);
+		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		strcpy(w->command.error, "failed to read song, out of memory");
+		redraw();
 		return NULL;
 	}
 
@@ -1336,6 +1367,8 @@ song *readSong(char *path)
 		fread(&iv->channels, sizeof(uint8_t), 1, fp);
 		fread(&iv->c5rate, sizeof(uint32_t), 1, fp);
 		fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
+		if (filemajor == 0 && fileminor < 87) iv->bitdepth = 0xe;
+		else fread(&iv->bitdepth, sizeof(uint8_t), 1, fp);
 		fread(&iv->cyclelength, sizeof(uint16_t), 1, fp);
 		fread(&iv->pitchshift, sizeof(uint8_t), 1, fp);
 		if (filemajor == 0 && fileminor < 83) fseek(fp, sizeof(uint16_t), SEEK_CUR);
@@ -1358,5 +1391,6 @@ song *readSong(char *path)
 
 	fclose(fp);
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
+	redraw();
 	return cs;
 }

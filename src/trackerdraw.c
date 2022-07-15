@@ -112,12 +112,12 @@ void drawSongList(unsigned short x)
 						else                             printf("%02x", s->songi[i]);
 					} break;
 				default:
-					if (w->centre - w->songfy + i == w->centre && s->songi[i] == 255)               printf("\033[7m..\033[m");
-					else if (s->playing && s->songp == i && w->centre - w->songfy + i == w->centre) printf("\033[1;7m%02x\033[m", s->songi[i]);
-					else if (w->centre - w->songfy + i == w->centre)                                printf("\033[7m%02x\033[m", s->songi[i]);
-					else if (s->playing && s->songp == i)                                           printf("\033[1m%02x\033[m", s->songi[i]);
-					else if (s->songi[i] == 255)                                                    printf("..");
-					else                                                                            printf("%02x", s->songi[i]);
+					if (w->songfy == i && s->songi[i] == 255)               printf("\033[7m..\033[m");
+					else if (s->playing && s->songp == i && w->songfy == i) printf("\033[1;7m%02x\033[m", s->songi[i]);
+					else if (w->songfy == i)                                printf("\033[7m%02x\033[m", s->songi[i]);
+					else if (s->playing && s->songp == i)                   printf("\033[1m%02x\033[m", s->songi[i]);
+					else if (s->songi[i] == 255)                            printf("..");
+					else                                                    printf("%02x", s->songi[i]);
 					break;
 			}
 
@@ -483,7 +483,7 @@ void drawTracker(void)
 			drawChannel(i+w->channeloffset, x);
 			x += 9 + 4*s->channelv[i+w->channeloffset].macroc;
 		}
-	} else printf("\033[%d;%dH%s", w->centre, x + (maxwidth - (unsigned short)strlen(" (invalid pattern) ")) / 2, " (invalid pattern) ");
+	} else printf("\033[%d;%dH%s", w->centre, x + (maxwidth - 19) / 2, " [INVALID PATTERN] ");
 
 	y = w->centre + w->fyoffset;
 
@@ -506,7 +506,7 @@ void drawTracker(void)
 	if (w->mode == T_MODE_SONG || w->mode == T_MODE_SONG_INSERT || w->mode == T_MODE_SONG_VISUAL)
 		printf("\033[%d;%dH", w->centre + w->fyoffset, (ws.ws_col - maxwidth) / 2 + 3);
 	else if (s->songi[w->songfy] == 255)
-		printf("\033[%d;%dH", w->centre, x + (maxwidth - (unsigned short)strlen(" (invalid pattern) ")) / 2 + 2);
+		printf("\033[%d;%dH", w->centre, x + (maxwidth - 19) / 2 + 2);
 	else
 	{
 		short macro;

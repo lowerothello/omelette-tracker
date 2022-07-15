@@ -35,7 +35,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 85;
+const unsigned char MINOR = 87;
 
 
 jack_nframes_t samplerate;
@@ -48,8 +48,11 @@ struct termios term, origterm;
 #define LINENO_COLS 5
 #define SONGLIST_COLS 5
 
-#define CHANNEL_ROW 4
-#define BORDER 2
+#define CHANNEL_ROW 4      /* rows above the channel headers */
+#define BORDER 1
+
+#define INSTRUMENT_INDEX_COLS 17
+#define INSTRUMENT_CONTROL_ROW 4
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
 
@@ -122,22 +125,22 @@ void redraw(void)
 	fcntl(0, F_SETFL, 0); /* blocking */
 	puts("\033[2J\033[?25h");
 
-	if (ws.ws_row < 24 || ws.ws_col < 68)
+	if (ws.ws_row < 20 || ws.ws_col < 74)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 		fflush(stdout);
-		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
+		fcntl(0, F_SETFL, O_NONBLOCK);
 		return;
 	}
 
-	drawBackground();
+	if (ENABLE_BACKGROUND) drawBackground();
+
 	drawRuler();
 	switch (w->popup)
 	{
 		case 0: drawTracker(); break;
 		case 1: drawInstrument(); break;
 		case 2: drawFilebrowser(); break;
-		case 4: drawWaveform(); break;
 	}
 	drawCommand(&w->command, w->mode);
 
@@ -228,7 +231,7 @@ void handleFKeys(int input)
 			w->popup = 0;
 			break;
 		case 'Q': /* instrument */
-			w->instrumentindex = MIN_INSTRUMENT_INDEX;
+			w->instrumentindex = 0;
 			if (w->popup == 0 && w->mode == T_MODE_INSERT)
 				w->mode = 1;
 			else
@@ -272,7 +275,6 @@ int input(void)
 						case 0: trackerInput(input); break;
 						case 1: instrumentInput(input); break;
 						case 2: filebrowserInput(input); break;
-						case 4: waveformInput(input); break;
 					}
 					break;
 			}
@@ -283,7 +285,7 @@ int input(void)
 /* window->dirpath should be set to the path */
 int changeDirectory(void)
 {
-	if (w->dir != NULL) closedir(w->dir);
+	if (w->dir != NULL) { closedir(w->dir); w->dir = NULL; }
 
 	/* avoid paths that start with "//" */
 	if (w->dirpath[1] == '/')
@@ -324,16 +326,19 @@ int changeDirectory(void)
 
 void resize(int _)
 {
+	signal(SIGWINCH, SIG_IGN); /* ignore the signal until it's finished */
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->instrumentcelloffset = (ws.ws_col - INSTRUMENT_BODY_COLS) / 2 + 1;
 	w->instrumentrowoffset =  (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
 	w->centre =                ws.ws_row / 2 + 1;
 
-	w->waveformw = ws.ws_col * 2;
-	w->waveformh = (ws.ws_row - 2) * 4;
+	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS + 1) * 2;
+	w->waveformh = (ws.ws_row - CHANNEL_ROW - INSTRUMENT_CONTROL_ROW) * 4;
 	if (w->waveformcanvas) free_canvas(w->waveformcanvas);
-	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
+	w->waveformcanvas = NULL;
 	w->waveformcanvas = new_canvas(w->waveformw, w->waveformh);
+	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
+	w->waveformbuffer = NULL;
 	w->waveformbuffer = new_buffer(w->waveformcanvas);
 	if (w->popup == 4)
 		resizeWaveform();
@@ -342,7 +347,7 @@ void resize(int _)
 	changeDirectory(); /* recalc the maxwidth/cols */
 
 	redraw();
-	signal(SIGWINCH, &resize); /* not sure why this needs to be redefined every time sometimes */
+	signal(SIGWINCH, &resize);
 }
 
 void common_cleanup(int ret)
@@ -488,7 +493,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		// if (p->dirty)
+		if (ENABLE_BACKGROUND || p->dirty)
 		{ p->dirty = 0; redraw(); }
 
 		/* perform any pending instrument actions */
