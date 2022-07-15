@@ -7,63 +7,33 @@
 
 void getSample(uint32_t p, instrument *iv, float *l, float *r)
 {
-	if (iv->flags & S_FLAG_8BIT)
+	uint8_t shift = 15 - iv->bitdepth;
+	if (iv->flags & S_FLAG_RPLAY)
 	{
-		if (iv->flags & S_FLAG_RPLAY)
-		{
-			/* listchars */       *l += (signed char)(iv->sampledata[iv->trim[1]*2 - p * iv->channels+0]>>8)*DIVCHAR;
-			if (iv->channels > 1) *r += (signed char)(iv->sampledata[iv->trim[1]*2 - p * iv->channels+1]>>8)*DIVCHAR;
-			else                  *r += (signed char)(iv->sampledata[iv->trim[1]*2 - p * iv->channels+0]>>8)*DIVCHAR;
-		} else
-		{
-			/* listchars */       *l += (signed char)(iv->sampledata[p * iv->channels+0]>>8)*DIVCHAR;
-			if (iv->channels > 1) *r += (signed char)(iv->sampledata[p * iv->channels+1]>>8)*DIVCHAR;
-			else                  *r += (signed char)(iv->sampledata[p * iv->channels+0]>>8)*DIVCHAR;
-		}
+		/* listchars */       *l += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
+		if (iv->channels > 1) *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+1]>>shift)<<shift)*DIVSHRT;
+		else                  *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
 	} else
 	{
-		if (iv->flags & S_FLAG_RPLAY)
-		{
-			/* listchars */       *l += iv->sampledata[iv->trim[1]*2 - p * iv->channels+0] * DIVSHRT;
-			if (iv->channels > 1) *r += iv->sampledata[iv->trim[1]*2 - p * iv->channels+1] * DIVSHRT;
-			else                  *r += iv->sampledata[iv->trim[1]*2 - p * iv->channels+0] * DIVSHRT;
-		} else
-		{
-			/* listchars */       *l += iv->sampledata[p * iv->channels+0] * DIVSHRT;
-			if (iv->channels > 1) *r += iv->sampledata[p * iv->channels+1] * DIVSHRT;
-			else                  *r += iv->sampledata[p * iv->channels+0] * DIVSHRT;
-		}
+		/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
+		if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT;
+		else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
 	}
 }
 
 void getSampleLoopRamp(uint32_t p, uint32_t q, float lerp, instrument *iv, float *l, float *r)
 {
-	if (iv->flags & S_FLAG_8BIT)
+	uint8_t shift = 15 - iv->bitdepth;
+	if (iv->flags & S_FLAG_RPLAY)
 	{
-		if (iv->flags & S_FLAG_RPLAY)
-		{
-			/* listchars */       *l += (signed char)(iv->sampledata[iv->trim[1]*2 - p * iv->channels+0]>>8)*DIVCHAR * (1.0 - lerp) + (signed char)(iv->sampledata[iv->trim[1]*2 - q * iv->channels+0]>>8)*DIVCHAR * lerp;
-			if (iv->channels > 1) *r += (signed char)(iv->sampledata[iv->trim[1]*2 - p * iv->channels+1]>>8)*DIVCHAR * (1.0 - lerp) + (signed char)(iv->sampledata[iv->trim[1]*2 - q * iv->channels+1]>>8)*DIVCHAR * lerp;
-			else                  *r += (signed char)(iv->sampledata[iv->trim[1]*2 - p * iv->channels+0]>>8)*DIVCHAR * (1.0 - lerp) + (signed char)(iv->sampledata[iv->trim[1]*2 - q * iv->channels+0]>>8)*DIVCHAR * lerp;
-		} else
-		{
-			/* listchars */       *l += (signed char)(iv->sampledata[p * iv->channels+0]>>8)*DIVCHAR * (1.0 - lerp) + (signed char)(iv->sampledata[q * iv->channels+0]>>8)*DIVCHAR * lerp;
-			if (iv->channels > 1) *r += (signed char)(iv->sampledata[p * iv->channels+1]>>8)*DIVCHAR * (1.0 - lerp) + (signed char)(iv->sampledata[q * iv->channels+1]>>8)*DIVCHAR * lerp;
-			else                  *r += (signed char)(iv->sampledata[p * iv->channels+0]>>8)*DIVCHAR * (1.0 - lerp) + (signed char)(iv->sampledata[q * iv->channels+0]>>8)*DIVCHAR * lerp;
-		}
+		/* listchars */       *l += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[iv->trim[1]*2 - q*iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
+		if (iv->channels > 1) *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+1]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[iv->trim[1]*2 - q*iv->channels+1]>>shift)<<shift)*DIVSHRT * lerp;
+		else                  *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[iv->trim[1]*2 - q*iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
 	} else
 	{
-		if (iv->flags & S_FLAG_RPLAY)
-		{
-			/* listchars */       *l += iv->sampledata[iv->trim[1]*2 - p * iv->channels+0] * DIVSHRT * (1.0 - lerp) + iv->sampledata[iv->trim[1]*2 - q * iv->channels+0] * DIVSHRT * lerp;
-			if (iv->channels > 1) *r += iv->sampledata[iv->trim[1]*2 - p * iv->channels+1] * DIVSHRT * (1.0 - lerp) + iv->sampledata[iv->trim[1]*2 - q * iv->channels+1] * DIVSHRT * lerp;
-			else                  *r += iv->sampledata[iv->trim[1]*2 - p * iv->channels+0] * DIVSHRT * (1.0 - lerp) + iv->sampledata[iv->trim[1]*2 - q * iv->channels+0] * DIVSHRT * lerp;
-		} else
-		{
-			/* listchars */       *l += iv->sampledata[p * iv->channels+0] * DIVSHRT * (1.0 - lerp) + iv->sampledata[q * iv->channels+0] * DIVSHRT * lerp;
-			if (iv->channels > 1) *r += iv->sampledata[p * iv->channels+1] * DIVSHRT * (1.0 - lerp) + iv->sampledata[q * iv->channels+1] * DIVSHRT * lerp;
-			else                  *r += iv->sampledata[p * iv->channels+0] * DIVSHRT * (1.0 - lerp) + iv->sampledata[q * iv->channels+0] * DIVSHRT * lerp;
-		}
+		/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
+		if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+1]>>shift)<<shift)*DIVSHRT * lerp;
+		else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
 	}
 }
 

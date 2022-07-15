@@ -400,7 +400,14 @@ void instrumentInput(int input)
 											else                                               w->instrument += w->fyoffset;
 											w->fyoffset = 0;
 											break;
-										case I_MODE_MOUSEADJUST: w->mode = w->oldmode; break;
+										case I_MODE_MOUSEADJUST:
+											w->mode = w->oldmode;
+											switch (w->instrumentindex)
+											{
+												case 0: case 8: break;
+												default: w->fieldpointer = 0; break;
+											}
+											break;
 									} break;
 								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
 									if (w->mode == I_MODE_MOUSEADJUST)
