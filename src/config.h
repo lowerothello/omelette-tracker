@@ -17,8 +17,12 @@
 /* how many lines the mouse wheel should scroll */
 #define WHEEL_SPEED 3
 
-/* screenwidth * screenheight * WAVEFORM_OVERSAMPLING */
-#define WAVEFORM_OVERSAMPLING 1
+/* screenwidth*screenheight*WAVEFORM_OVERSAMPLING samples are drawn */
+#define WAVEFORM_OVERSAMPLING 4
+/* how many slices to divide the screen into for left/right */
+#define WAVEFORM_COARSE_SLICES 16
+/* how many slices to divide the screen into for ctrl+left/right */
+#define WAVEFORM_FINE_SLICES 128
 
 /* size of the oscillator lookup tables */
 #define OSCILLATOR_TABLE_LEN 512

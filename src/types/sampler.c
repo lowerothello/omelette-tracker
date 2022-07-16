@@ -45,7 +45,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 
 	if (iv->loop[1])
 	{ /* if there is a loop range */
-		if (iv->loop[0] == iv->loop[1] && p >= iv->loop[1])
+		if (iv->loop[0] == iv->loop[1] && p > iv->loop[1])
 		{
 			*l = *r = 0.0f;
 			cv->r.note = 0;
@@ -55,7 +55,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 		if (iv->flags & S_FLAG_PPLOOP)
 		{ /* ping-pong loop */
 			uint32_t looplength = iv->loop[1] - iv->loop[0];
-			if (p >= iv->loop[1])
+			if (p > iv->loop[1])
 			{
 				uint32_t i = (p - iv->loop[1])/looplength;
 				if (i % 2 == 0) /* backwards */ p = iv->loop[1] - (p - iv->loop[1])%looplength;
@@ -68,7 +68,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 			getSample(p, iv, l, r);
 		} else
 		{ /* crossfaded forwards loop */
-			uint32_t looprampmax = MIN(samplerate/1000 * LOOP_RAMP_MS, (iv->loop[1] - iv->loop[0]) * 0.5) * (iv->loopramp*DIV255);
+			uint32_t looprampmax = MIN(samplerate/1000 * LOOP_RAMP_MS, (iv->loop[1] - iv->loop[0])*0.5) * (iv->loopramp*DIV255);
 			uint32_t looplength = iv->loop[1] - iv->loop[0] - looprampmax;
 			if (p > iv->loop[1]) p = iv->loop[0] + looprampmax + (p - iv->loop[1])%looplength;
 

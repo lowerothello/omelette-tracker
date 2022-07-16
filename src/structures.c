@@ -207,8 +207,9 @@ typedef struct
 	Canvas        *waveformcanvas;
 	char         **waveformbuffer;
 	size_t         waveformw, waveformh;
-	uint32_t       waveformoffset;
 	uint32_t       waveformwidth;
+	uint32_t       waveformcursor;
+	uint32_t       waveformvisual;
 
 	short          songfy;
 
@@ -1035,7 +1036,7 @@ void loadSample(uint8_t index, char *path)
 	iv->length = sfinfo.frames;
 	iv->c5rate = sfinfo.samplerate;
 	iv->trim[0] = 0;
-	iv->trim[1] = sfinfo.frames;
+	iv->trim[1] = sfinfo.frames - 1;
 	iv->loop[0] = 0;
 	iv->loop[1] = 0;
 	iv->samplerate = 0xff;

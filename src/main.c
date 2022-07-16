@@ -72,7 +72,6 @@ void startPlayback(void);
 void stopPlayback(void);
 void handleFKeys(int);
 
-void resizeWaveform(void);
 void changeMacro(int, char *);
 
 #include "config.h"
@@ -93,17 +92,15 @@ void changeMacro(int, char *);
 void drawRuler(void)
 {
 	/* top ruler */
-	printf("\033[0;0H\033[2K\033[1momelette tracker\033[0;%dHv%d.%2d      %d\033[m",
+	printf("\033[0;0H\033[2K\033[1momelette tracker\033[0;%dHv%d.%2d  %d\033[m",
 			ws.ws_col - 14, MAJOR, MINOR, DEBUG);
 	/* bottom ruler */
 	if (w->mode < 255)
 	{
 		if (w->instrumentrecv == INST_REC_LOCK_CONT)
 		{
-			if (w->recptr == 0)
-				printf("\033[%d;%dH\033[3m{REC   0s}\033[m", ws.ws_row, ws.ws_col - 50);
-			else
-				printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
+			if (w->recptr == 0) printf("\033[%d;%dH\033[3m{REC   0s}\033[m", ws.ws_row, ws.ws_col - 50);
+			else                printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
 		}
 
 		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
@@ -237,6 +234,8 @@ void handleFKeys(int input)
 			else
 				w->mode = 0;
 			w->popup = 1;
+			if (s->instrumenti[w->instrument])
+				resetWaveform();
 			break;
 	}
 }
@@ -340,8 +339,8 @@ void resize(int _)
 	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
 	w->waveformbuffer = NULL;
 	w->waveformbuffer = new_buffer(w->waveformcanvas);
-	if (w->popup == 4)
-		resizeWaveform();
+	if (w->popup == 1)
+		resizeWaveform(s->instrumentv[s->instrumenti[w->instrument]]);
 
 	resizeBackground();
 	changeDirectory(); /* recalc the maxwidth/cols */
@@ -529,6 +528,7 @@ int main(int argc, char **argv)
 					iv->loop[0] = 0;
 					iv->loop[1] = 0;
 				}
+				resetWaveform();
 			}
 
 			free(w->recbuffer); w->recbuffer = NULL;

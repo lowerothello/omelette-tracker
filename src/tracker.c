@@ -331,14 +331,14 @@ void trackerInput(int input)
 	row *r;
 	pattern *p;
 	uint8_t note, modulorow;
-	previewNote(255, 255, w->channel);
 	switch (input)
 	{
 		case '\033': /* escape */
 			switch (getchar())
 			{
-				case 'O': handleFKeys(getchar()); redraw(); break;
+				case 'O': handleFKeys(getchar()); previewNote(255, 255, w->channel); redraw(); break;
 				case '[':
+					previewNote(255, 255, w->channel);
 					switch (getchar())
 					{
 						case 'A': /* up arrow    */ upArrow(); redraw(); break;
@@ -668,6 +668,7 @@ dxandwchannelset:
 				case '8': w->step = 8; redraw(); break;
 				case '9': w->step = 9; redraw(); break;
 				default: /* escape */
+					previewNote(255, 255, w->channel);
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL: case T_MODE_VISUALLINE: w->mode = w->oldmode; break;
@@ -833,16 +834,16 @@ dxandwchannelset:
 					case T_MODE_NORMAL:
 						switch (input)
 						{ /* set count first */
-							case '0': w->count *= 10; w->count += 0; redraw(); goto t_afterchordunset; break;
-							case '1': w->count *= 10; w->count += 1; redraw(); goto t_afterchordunset; break;
-							case '2': w->count *= 10; w->count += 2; redraw(); goto t_afterchordunset; break;
-							case '3': w->count *= 10; w->count += 3; redraw(); goto t_afterchordunset; break;
-							case '4': w->count *= 10; w->count += 4; redraw(); goto t_afterchordunset; break;
-							case '5': w->count *= 10; w->count += 5; redraw(); goto t_afterchordunset; break;
-							case '6': w->count *= 10; w->count += 6; redraw(); goto t_afterchordunset; break;
-							case '7': w->count *= 10; w->count += 7; redraw(); goto t_afterchordunset; break;
-							case '8': w->count *= 10; w->count += 8; redraw(); goto t_afterchordunset; break;
-							case '9': w->count *= 10; w->count += 9; redraw(); goto t_afterchordunset; break;
+							case '0': w->count *= 10; w->count += 0; redraw(); return;
+							case '1': w->count *= 10; w->count += 1; redraw(); return;
+							case '2': w->count *= 10; w->count += 2; redraw(); return;
+							case '3': w->count *= 10; w->count += 3; redraw(); return;
+							case '4': w->count *= 10; w->count += 4; redraw(); return;
+							case '5': w->count *= 10; w->count += 5; redraw(); return;
+							case '6': w->count *= 10; w->count += 6; redraw(); return;
+							case '7': w->count *= 10; w->count += 7; redraw(); return;
+							case '8': w->count *= 10; w->count += 8; redraw(); return;
+							case '9': w->count *= 10; w->count += 9; redraw(); return;
 							default:
 								if (w->chord)
 								{
@@ -1160,8 +1161,7 @@ dxandwchannelset:
 												p->rowc = MAX(p->rowc, p->rowcc[i]);
 											w->trackerfy = MIN(p->rowc, w->trackerfy);
 											break;
-									}
-									w->count = 0;
+									} w->count = 0;
 								} else
 									switch (input)
 									{
@@ -1182,13 +1182,13 @@ dxandwchannelset:
 											w->mode = T_MODE_VISUALLINE;
 											redraw(); break;
 										case '\t': /* enter song mode */ w->mode = T_MODE_SONG; redraw(); break;
-										case 'y': /* pattern copy   */ w->chord = 'y'; redraw(); goto t_afterchordunset;
-										case 'd': /* pattern cut    */ w->chord = 'd'; redraw(); goto t_afterchordunset;
-										case 'c': /* channel        */ w->chord = 'c'; redraw(); goto t_afterchordunset;
-										case 'm': /* macro          */ w->chord = 'm'; redraw(); goto t_afterchordunset;
-										case 'k': /* keyboard macro */ w->chord = 'k'; redraw(); goto t_afterchordunset;
-										case 'r': /* row            */ w->chord = 'r'; redraw(); goto t_afterchordunset;
-										case 'R': /* global row     */ w->chord = 'R'; redraw(); goto t_afterchordunset;
+										case 'y': /* pattern copy   */ w->chord = 'y'; redraw(); return;
+										case 'd': /* pattern cut    */ w->chord = 'd'; redraw(); return;
+										case 'c': /* channel        */ w->chord = 'c'; redraw(); return;
+										case 'm': /* macro          */ w->chord = 'm'; redraw(); return;
+										case 'k': /* keyboard macro */ w->chord = 'k'; redraw(); return;
+										case 'r': /* row            */ w->chord = 'r'; redraw(); return;
+										case 'R': /* global row     */ w->chord = 'R'; redraw(); return;
 										case 'b': /* bpm            */ if (w->count) s->songbpm = MIN(255, MAX(32, w->count)); break;
 										case 'h': /* row highlight  */ if (w->count) s->rowhighlight = MIN(16, w->count); break;
 										case 'p': /* pattern put */ /* TODO: count */
@@ -1500,5 +1500,4 @@ dxandwchannelset:
 	}
 	w->count = 0;
 	if (w->chord) { w->chord = '\0'; redraw(); }
-t_afterchordunset:
 }
