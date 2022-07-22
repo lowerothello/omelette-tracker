@@ -1,10 +1,8 @@
 /* will populate buffer, buffer should be at least length 4 */
 void noteToString(uint8_t note, char *buffer)
 {
-	if (note == 0)   { snprintf(buffer, 4, "..."); return; }
-	if (note == 255) { snprintf(buffer, 4, "OFF"); return; }
-
-	note = note - 1;
+	if (note == NOTE_VOID) { snprintf(buffer, 4, "..."); return; }
+	if (note == NOTE_OFF)  { snprintf(buffer, 4, "OFF"); return; }
 
 	char *strnote;
 	char octave;
@@ -80,7 +78,7 @@ void descMacro(char c, uint8_t v)
 
 void drawSongList(unsigned short x)
 {
-	for (int i = 0; i < 255; i++) /* reserve 0xff */
+	for (int i = 0; i < 256; i++) /* reserve 0xff */
 	{
 		if (w->centre - w->songfy + i > CHANNEL_ROW
 				&& w->centre - w->songfy + i < ws.ws_row)
@@ -171,65 +169,55 @@ void drawPatternLineNumbers(uint8_t pattern, unsigned short x)
 	}
 }
 
-void startVisual(uint8_t channel, int i, signed char fieldpointer)
+void startVisual(char *buffer, uint8_t channel, int i, signed char fieldpointer)
 {
-	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
-			&& channel == MIN(w->visualchannel, w->channel))
+	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE) && channel == MIN(w->visualchannel, w->channel))
 	{
 		switch (w->mode)
 		{
 			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
-					if (i >= MIN(w->visualfy, w->trackerfy)
-							&& i <= MAX(w->visualfy, w->trackerfy)
+					if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 							&& MIN(w->visualfx, tfxToVfx(w->trackerfx)) == fieldpointer)
-						printf("\033[2;7m");
-				} else if (i >= MIN(w->visualfy, w->trackerfy)
-						&& i <= MAX(w->visualfy, w->trackerfy)
+						strcat(buffer, "\033[2;7m");
+				} else if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 						&& (w->visualchannel <= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)) == fieldpointer)
-					printf("\033[2;7m");
+					strcat(buffer, "\033[2;7m");
 				break;
 			case T_MODE_VISUALLINE:
-				if (i >= MIN(w->visualfy, w->trackerfy)
-						&& i <= MAX(w->visualfy, w->trackerfy)
-						&& fieldpointer == 0)
-					printf("\033[2;7m");
+				if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy) && fieldpointer == 0)
+					strcat(buffer, "\033[2;7m");
 				break;
 		}
 	}
 }
-void stopVisual(uint8_t channel, int i, signed char fieldpointer)
+void stopVisual(char *buffer, uint8_t channel, int i, signed char fieldpointer)
 {
-	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
-			&& channel == MAX(w->visualchannel, w->channel))
+	if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE) && channel == MAX(w->visualchannel, w->channel))
 	{
 		switch (w->mode)
 		{
 			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
-					if (i >= MIN(w->visualfy, w->trackerfy)
-							&& i <= MAX(w->visualfy, w->trackerfy)
+					if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 							&& MAX(w->visualfx, tfxToVfx(w->trackerfx)) == fieldpointer)
 					{
-						printf("\033[27m");
-						if (!s->channelv[channel].mute) printf("\033[22m");
+						strcat(buffer, "\033[27m");
+						if (!s->channelv[channel].mute) strcat(buffer, "\033[22m");
 					}
-				} else if (i >= MIN(w->visualfy, w->trackerfy)
-						&& i <= MAX(w->visualfy, w->trackerfy)
+				} else if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 						&& (w->visualchannel >= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)) == fieldpointer)
 				{
-					printf("\033[27m");
-					if (!s->channelv[channel].mute) printf("\033[22m");
+					strcat(buffer, "\033[27m");
+					if (!s->channelv[channel].mute) strcat(buffer, "\033[22m");
 				} break;
 			case T_MODE_VISUALLINE:
-				if (i >= MIN(w->visualfy, w->trackerfy)
-						&& i <= MAX(w->visualfy, w->trackerfy)
-						&& fieldpointer == 3)
+				if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy) && fieldpointer == 3)
 				{
-					printf("\033[27m");
-					if (!s->channelv[channel].mute) printf("\033[22m");
+					strcat(buffer, "\033[27m");
+					if (!s->channelv[channel].mute) strcat(buffer, "\033[22m");
 				} break;
 		}
 	}
@@ -245,38 +233,28 @@ int ifVisual(uint8_t channel, int i, signed char fieldpointer)
 			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
-					if (i >= MIN(w->visualfy, w->trackerfy)
-							&& i <= MAX(w->visualfy, w->trackerfy)
+					if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 							&& fieldpointer >= MIN(w->visualfx, tfxToVfx(w->trackerfx))
 							&& fieldpointer <= MAX(w->visualfx, tfxToVfx(w->trackerfx)))
 						return 1;
 				} else
 				{
-					if (channel > MIN(w->visualchannel, w->channel)
-							&& channel < MAX(w->visualchannel, w->channel))
-						return 1;
+					if (channel > MIN(w->visualchannel, w->channel) && channel < MAX(w->visualchannel, w->channel)) return 1;
 					else if (channel == MIN(w->visualchannel, w->channel))
 					{
-						if (i >= MIN(w->visualfy, w->trackerfy)
-								&& i <= MAX(w->visualfy, w->trackerfy)
+						if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 								&& fieldpointer >= (w->visualchannel <= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)))
 							return 1;
 					} else if (channel == MAX(w->visualchannel, w->channel))
 					{
-						if (i >= MIN(w->visualfy, w->trackerfy)
-								&& i <= MAX(w->visualfy, w->trackerfy)
+						if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
 								&& fieldpointer <= (w->visualchannel >= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)))
 							return 1;
 					}
 				} break;
-			case T_MODE_VISUALLINE:
-				if (i >= MIN(w->visualfy, w->trackerfy)
-						&& i <= MAX(w->visualfy, w->trackerfy))
-					return 1;
-				break;
+			case T_MODE_VISUALLINE: if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)) return 1;
 		}
-	}
-	return 0;
+	} return 0;
 }
 
 
@@ -291,84 +269,91 @@ void drawChannel(uint8_t channel, unsigned short x)
 
 	row r; int c;
 	char buffer[16], altbuffer[6];
+	char rowbuffer[256]; /* arbitrary size */
 	unsigned short rowcc = s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[channel]+1;
 	for (int i = 0; i <= s->patternv[s->patterni[s->songi[w->songfy]]]->rowc; i++)
 		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
 		{
-			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
-			uint8_t polycut = w->trackerfy - w->trackerfy % rowcc;
+			rowbuffer[0] = '\0';
+			uint8_t polycutoff = w->trackerfy - w->trackerfy % rowcc;
 
 			r = s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[channel][i%rowcc];
 
-			if (s->channelv[channel].mute || i < polycut || i > polycut + rowcc - 1) printf("\033[2m");
+			if (s->channelv[channel].mute || i < polycutoff || i > polycutoff + rowcc - 1) strcat(rowbuffer, "\033[2m");
 			if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
 					&& channel > MIN(w->visualchannel, w->channel) && channel <= MAX(w->visualchannel, w->channel)
 					&& i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy))
-				printf("\033[2;7m");
+				strcat(rowbuffer, "\033[2;7m");
 
-			startVisual(channel, i, 0);
-
-			if (r.note)
+			startVisual(rowbuffer, channel, i, 0);
+			if (r.note != NOTE_VOID)
 			{
 				noteToString(r.note, altbuffer);
-				if (s->channelv[channel].mute) printf("%s", altbuffer);
+				if (s->channelv[channel].mute) strcat(rowbuffer, altbuffer);
 				else
 				{
-					if (r.note == 255) snprintf(buffer, 16, "\033[31m%s\033[37m", altbuffer);
-					else               snprintf(buffer, 16, "\033[32m%s\033[37m", altbuffer);
-					if (ifVisual(channel, i, 0)) printf("\033[22m%s\033[2m", buffer);
-					else                         printf("%s", buffer);
+					if (ifVisual(channel, i, 0)) strcat(rowbuffer, "\033[22m");
+					if (r.note == NOTE_OFF) strcat(rowbuffer, "\033[31m");
+					else                    strcat(rowbuffer, "\033[32m");
+					strcat(rowbuffer, altbuffer); strcat(rowbuffer, "\033[37m");
+					if (ifVisual(channel, i, 0)) strcat(rowbuffer, "\033[2m");
 				}
-			} else printf("...");
-			stopVisual(channel, i, 0);
+			} else strcat(rowbuffer, "...");
+			stopVisual(rowbuffer, channel, i, 0);
 
-			printf(" ");
+			strcat(rowbuffer, " ");
 
-			startVisual(channel, i, 1);
-			if (r.inst < 255)
+			startVisual(rowbuffer, channel, i, 1);
+			if (r.inst != INST_VOID)
 			{
-				if (s->channelv[channel].mute) printf("%02x", r.inst);
-				else
+				snprintf(buffer, 3, "%02x", r.inst);
+				if (!s->channelv[channel].mute)
 				{
-					snprintf(buffer, 16, "\033[33m%02x\033[37m", r.inst);
-					if (ifVisual(channel, i, 1)) printf("\033[22m%s\033[2m", buffer);
-					else                         printf("%s", buffer);
-				}
-			} else printf("..");
-			stopVisual(channel, i, 1);
+					if (ifVisual(channel, i, 1)) strcat(rowbuffer, "\033[22m");
+					strcat(rowbuffer, "\033[33m"); strcat(rowbuffer, buffer); strcat(rowbuffer, "\033[37m");
+					if (ifVisual(channel, i, 1)) strcat(rowbuffer, "\033[2m");
+				} else strcat(rowbuffer, buffer);
+			} else strcat(rowbuffer, "..");
+			stopVisual(rowbuffer, channel, i, 1);
 
 			for (int j = 0; j < s->channelv[channel].macroc; j++)
 			{
-				printf(" ");
-				startVisual(channel, i, 2+j);
+				strcat(rowbuffer, " "); startVisual(rowbuffer, channel, i, 2+j);
 				if (r.macro[j].c)
 				{
 					if (s->channelv[channel].mute)
 					{
-						printf("%c",   r.macro[j].c);
-						printf("%02x", r.macro[j].v);
+						snprintf(buffer, 2, "%c", r.macro[j].c);   strcat(rowbuffer, buffer);
+						snprintf(buffer, 3, "%02x", r.macro[j].v); strcat(rowbuffer, buffer);
 					} else
 					{
-						if (ifVisual(channel, i, 2+j)) printf("\033[22m");
-						if (isdigit(r.macro[j].c)) /* different colour for instrument macros */
+						if (ifVisual(channel, i, 2+j)) strcat(rowbuffer, "\033[22m");
+						if (isdigit(r.macro[j].c)) /* different colour for numerical macros */ /* TODO: more colour groups */
 						{
-							printf("\033[35m%c",   r.macro[j].c);
-							printf("%02x\033[37m", r.macro[j].v);
+							strcat(rowbuffer, "\033[35m");
+							snprintf(buffer, 2, "%c", r.macro[j].c);   strcat(rowbuffer, buffer);
+							snprintf(buffer, 3, "%02x", r.macro[j].v); strcat(rowbuffer, buffer);
+							strcat(rowbuffer, "\033[37m");
 						} else
 						{
-							printf("\033[36m%c",   r.macro[j].c);
-							printf("%02x\033[37m", r.macro[j].v);
+							strcat(rowbuffer, "\033[36m");
+							snprintf(buffer, 2, "%c", r.macro[j].c);   strcat(rowbuffer, buffer);
+							snprintf(buffer, 3, "%02x", r.macro[j].v); strcat(rowbuffer, buffer);
+							strcat(rowbuffer, "\033[37m");
 						}
-						if (ifVisual(channel, i, 2+j)) printf("\033[2m");
+						if (ifVisual(channel, i, 2+j)) strcat(rowbuffer, "\033[2m");
 					}
-				} else printf("...");
-				stopVisual(channel, i, 2+j);
-			}
-			printf("\033[m"); /* always clear all attributes */
+				} else strcat(rowbuffer, "...");
+				stopVisual(rowbuffer, channel, i, 2+j);
+			} strcat(rowbuffer, "\033[m"); /* clear attributes before row highlighting */
 
-			if (s->playing == PLAYING_CONT && s->songp == w->songfy && s->songr == i) printf(" - ");
-			else if (s->rowhighlight && !(i % s->rowhighlight))                       printf(" * ");
-			else                                                                      printf("   ");
+			if (s->playing == PLAYING_CONT && s->songp == w->songfy && s->songr == i) strcat(rowbuffer, " - ");
+			else if (s->rowhighlight && !(i % s->rowhighlight))                       strcat(rowbuffer, " * ");
+			else                                                                      strcat(rowbuffer, "   ");
+
+			if (x < ws.ws_col)
+				// printf("\033[%d;%dH%.*s\033[m", w->centre - w->trackerfy + i, x, ws.ws_col - x, rowbuffer);
+				printf("\033[%d;%dH%.*s\033[m", w->centre - w->trackerfy + i, x, 256, rowbuffer);
 		}
 
 	printf("\033[2m");
@@ -382,9 +367,9 @@ void drawChannel(uint8_t channel, unsigned short x)
 			r = s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowv[channel]
 				[(s->patternv[s->patterni[s->songi[w->songfy - 1]]]->rowc - c)%rowcc];
 
-			noteToString(r.note, buffer); if (r.note) printf(buffer); else printf("...");
+			noteToString(r.note, buffer); if (r.note != NOTE_VOID) printf(buffer); else printf("...");
 			printf(" ");
-			snprintf(buffer, 16, "%02x", r.inst); if (r.inst < 255) printf(buffer); else printf("..");
+			snprintf(buffer, 16, "%02x", r.inst); if (r.inst < INST_VOID) printf(buffer); else printf("..");
 			for (int j = 0; j < s->channelv[channel].macroc; j++)
 			{
 				if (r.macro[j].c)
@@ -413,9 +398,9 @@ void drawChannel(uint8_t channel, unsigned short x)
 			printf("\033[%d;%dH", i, x);
 			r = s->patternv[s->patterni[s->songi[w->songfy + 1]]]->rowv[channel][c%rowcc];
 
-			noteToString(r.note, buffer); if (r.note) printf(buffer); else printf("...");
+			noteToString(r.note, buffer); if (r.note != NOTE_VOID) printf(buffer); else printf("...");
 			printf(" ");
-			snprintf(buffer, 16, "%02x", r.inst); if (r.inst < 255) printf(buffer); else printf("..");
+			snprintf(buffer, 16, "%02x", r.inst); if (r.inst < INST_VOID) printf(buffer); else printf("..");
 			for (int j = 0; j < s->channelv[channel].macroc; j++)
 			{
 				if (r.macro[j].c)
@@ -441,7 +426,7 @@ void repeat(unsigned short *maxwidth, unsigned short *prevwidth)
 	for (int i = 0; i < s->channelc; i++)
 	{
 		if (i+w->channeloffset > s->channelc - 1) break;
-		if (*maxwidth + 9 + 4*s->channelv[i+w->channeloffset].macroc > ws.ws_col - BORDER*2) break;
+		if (*maxwidth + 9 + 4*s->channelv[i+w->channeloffset].macroc > ws.ws_col) break;
 		*maxwidth += 9 + 4*s->channelv[i+w->channeloffset].macroc;
 		w->visiblechannels++;
 	}
@@ -463,7 +448,7 @@ void drawTracker(void)
 	if (w->visiblechannels != oldvisiblechannels)
 		repeat(&maxwidth, &prevwidth);
 
-	while (w->channeloffset && prevwidth <= ws.ws_col - maxwidth - BORDER*2)
+	while (w->channeloffset && prevwidth <= ws.ws_col - maxwidth)
 	{
 		w->channeloffset--;
 		uint8_t oldchannel = w->channel;

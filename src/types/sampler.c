@@ -1,40 +1,24 @@
-#define S_FLAG_TTEMPO  0b00000001
-#define S_FLAG_MONO    0b00000010
-#define S_FLAG_8BIT    0b00000100 // deprecated
-#define S_FLAG_PHASE   0b00001000
-#define S_FLAG_RPLAY   0b00010000
-#define S_FLAG_PPLOOP  0b00100000
+#define S_FLAG_TTEMPO  0b00000001 /* timestretch     */
+#define S_FLAG_MONO    0b00000010 /*   deprecated    */
+#define S_FLAG_SUSTAIN 0b00000100 /* inverse sustain */
+#define S_FLAG_MIDI    0b00001000 /* midi output     */
+#define S_FLAG_RPLAY   0b00010000 /*   deprecated    */
+#define S_FLAG_PPLOOP  0b00100000 /* ping-pong loop  */
 
 void getSample(uint32_t p, instrument *iv, float *l, float *r)
 {
 	uint8_t shift = 15 - iv->bitdepth;
-	if (iv->flags & S_FLAG_RPLAY)
-	{
-		/* listchars */       *l += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
-		if (iv->channels > 1) *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+1]>>shift)<<shift)*DIVSHRT;
-		else                  *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
-	} else
-	{
-		/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
-		if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT;
-		else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
-	}
+	/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
+	if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT;
+	else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
 }
 
 void getSampleLoopRamp(uint32_t p, uint32_t q, float lerp, instrument *iv, float *l, float *r)
 {
 	uint8_t shift = 15 - iv->bitdepth;
-	if (iv->flags & S_FLAG_RPLAY)
-	{
-		/* listchars */       *l += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[iv->trim[1]*2 - q*iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
-		if (iv->channels > 1) *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+1]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[iv->trim[1]*2 - q*iv->channels+1]>>shift)<<shift)*DIVSHRT * lerp;
-		else                  *r += ((iv->sampledata[iv->trim[1]*2 - p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[iv->trim[1]*2 - q*iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
-	} else
-	{
-		/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
-		if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+1]>>shift)<<shift)*DIVSHRT * lerp;
-		else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
-	}
+	/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
+	if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+1]>>shift)<<shift)*DIVSHRT * lerp;
+	else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
 }
 
 /* clamps within range and loop, returns output samples */
@@ -48,7 +32,6 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 		if (iv->loop[0] == iv->loop[1] && p > iv->loop[1])
 		{
 			*l = *r = 0.0f;
-			cv->r.note = 0;
 			return;
 		}
 
@@ -63,8 +46,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 			}
 
 			/* always point to the left channel */
-			if (iv->flags & S_FLAG_RPLAY) p -= (iv->trim[1]*2 - p) % iv->channels;
-			else                          p -= p % iv->channels;
+			p -= p % iv->channels;
 			getSample(p, iv, l, r);
 		} else
 		{ /* crossfaded forwards loop */
@@ -73,16 +55,14 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 			if (p > iv->loop[1]) p = iv->loop[0] + looprampmax + (p - iv->loop[1])%looplength;
 
 			/* always point to the left channel */
-			if (iv->flags & S_FLAG_RPLAY) p -= (iv->trim[1]*2 - p) % iv->channels;
-			else                          p -= p % iv->channels;
+			p -= p % iv->channels;
 
 			if (p > iv->loop[1] - looprampmax)
 			{
 				float lerp = (p - iv->loop[1] + looprampmax) / (float)looprampmax;
 				uint32_t ramppointer = (p - looplength);
 				/* always point to the left channel */
-				if (iv->flags & S_FLAG_RPLAY) ramppointer -= (iv->trim[1]*2 - ramppointer) % iv->channels;
-				else                          ramppointer -= ramppointer % iv->channels;
+				ramppointer -= ramppointer % iv->channels;
 				getSampleLoopRamp(p, ramppointer, lerp, iv, l, r);
 			} else getSample(p, iv, l, r);
 		}
@@ -97,8 +77,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 	if (!(iv->loop[0] || iv->loop[1]))
 	{
 		/* always point to the left channel */
-		if (iv->flags & S_FLAG_RPLAY) p -= (iv->trim[1]*2 - p) % iv->channels;
-		else                          p -= p % iv->channels;
+		p -= p % iv->channels;
 
 		if (p < iv->length) getSample(p, iv, l, r);
 	}
@@ -121,10 +100,8 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 	uint16_t cyclelength;
 
 	float gain = adsrEnvelope(iv->volume, 0.0, pointer, cv->releasepointer);
-	if (pointer > (iv->volume.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate
-			&& gain == 0.0f) /* sound has fully finished */
-		cv->r.note = 0;
-	else if (iv->length > 0)
+	if (!(pointer > (iv->volume.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate && gain == 0.0f)
+			&& iv->length > 0)
 	{
 		cyclelength = MAX(iv->cyclelength, 1);
 		pointersnap = pointer % cyclelength;
@@ -162,7 +139,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 			}
 		} else
 		{ /* pitch shift */
-			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune);
+			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune); /* really slow */
 
 			trimloop(calcDecimate(iv, iv->samplerate,
 					(float)(pointer - pointersnap + (pointersnap * (float)(iv->pitchshift*DIV128))) * calcpitch * calcrate),
@@ -180,10 +157,8 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 				cv->stretchrampindex++;
 			}
 		}
-	} else cv->r.note = 0;
+	}
 
-	if (iv->flags & S_FLAG_MONO)  { *l = (*l + *r) / 2.0f; *r = *l; }
-	if (iv->flags & S_FLAG_PHASE) { *l *= -1.0f; *r *= -1.0f; }
-
+	if (iv->flags & S_FLAG_MONO)  { *l = (*l + *r) * 0.5f; *r = *l; }
 	*l *= gain; *r *= gain;
 }

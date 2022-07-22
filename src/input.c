@@ -25,46 +25,46 @@ uint8_t charToNote(int key)
 {
 	switch (key)
 	{
-		case ' ': return 255; break;
+		case ' ': return NOTE_OFF; break;
 
-		case 'q': return 1  +w->octave*12; break;
-		case 'w': return 2  +w->octave*12; break;
-		case 'e': return 3  +w->octave*12; break;
-		case 'r': return 4  +w->octave*12; break;
-		case 't': return 5  +w->octave*12; break;
-		case 'y': return 6  +w->octave*12; break;
-		case 'u': return 7  +w->octave*12; break;
-		case 'i': return 8  +w->octave*12; break;
-		case 'o': return 9  +w->octave*12; break;
-		case 'p': return 10 +w->octave*12; break;
-		case '[': return 11 +w->octave*12; break;
-		case ']': return 12 +w->octave*12; break;
+		case 'q': return MIN(A10-1, 0  +w->octave*12); break;
+		case 'w': return MIN(A10-1, 1  +w->octave*12); break;
+		case 'e': return MIN(A10-1, 2  +w->octave*12); break;
+		case 'r': return MIN(A10-1, 3  +w->octave*12); break;
+		case 't': return MIN(A10-1, 4  +w->octave*12); break;
+		case 'y': return MIN(A10-1, 5  +w->octave*12); break;
+		case 'u': return MIN(A10-1, 6  +w->octave*12); break;
+		case 'i': return MIN(A10-1, 7  +w->octave*12); break;
+		case 'o': return MIN(A10-1, 8  +w->octave*12); break;
+		case 'p': return MIN(A10-1, 9  +w->octave*12); break;
+		case '[': return MIN(A10-1, 10 +w->octave*12); break;
+		case ']': return MIN(A10-1, 11 +w->octave*12); break;
 
-		case 'a': return 13 +w->octave*12; break;
-		case 's': return 14 +w->octave*12; break;
-		case 'd': return 15 +w->octave*12; break;
-		case 'f': return 16 +w->octave*12; break;
-		case 'g': return 17 +w->octave*12; break;
-		case 'h': return 18 +w->octave*12; break;
-		case 'j': return 19 +w->octave*12; break;
-		case 'k': return 20 +w->octave*12; break;
-		case 'l': return 21 +w->octave*12; break;
-		case ';': return 22 +w->octave*12; break;
-		case '\'':return 23 +w->octave*12; break;
-		case '\\':return 24 +w->octave*12; break;
+		case 'a': return MIN(A10-1, 12 +w->octave*12); break;
+		case 's': return MIN(A10-1, 13 +w->octave*12); break;
+		case 'd': return MIN(A10-1, 14 +w->octave*12); break;
+		case 'f': return MIN(A10-1, 15 +w->octave*12); break;
+		case 'g': return MIN(A10-1, 16 +w->octave*12); break;
+		case 'h': return MIN(A10-1, 17 +w->octave*12); break;
+		case 'j': return MIN(A10-1, 18 +w->octave*12); break;
+		case 'k': return MIN(A10-1, 19 +w->octave*12); break;
+		case 'l': return MIN(A10-1, 20 +w->octave*12); break;
+		case ';': return MIN(A10-1, 21 +w->octave*12); break;
+		case '\'':return MIN(A10-1, 22 +w->octave*12); break;
+		case '\\':return MIN(A10-1, 23 +w->octave*12); break;
 
-		case 'z': return 25 +w->octave*12; break;
-		case 'x': return 26 +w->octave*12; break;
-		case 'c': return 27 +w->octave*12; break;
-		case 'v': return 28 +w->octave*12; break;
-		case 'b': return 29 +w->octave*12; break;
-		case 'n': return 30 +w->octave*12; break;
-		case 'm': return 31 +w->octave*12; break;
-		case ',': return 32 +w->octave*12; break;
-		case '.': return 33 +w->octave*12; break;
-		case '/': return 34 +w->octave*12; break;
+		case 'z': return MIN(A10-1, 24 +w->octave*12); break;
+		case 'x': return MIN(A10-1, 25 +w->octave*12); break;
+		case 'c': return MIN(A10-1, 26 +w->octave*12); break;
+		case 'v': return MIN(A10-1, 27 +w->octave*12); break;
+		case 'b': return MIN(A10-1, 28 +w->octave*12); break;
+		case 'n': return MIN(A10-1, 29 +w->octave*12); break;
+		case 'm': return MIN(A10-1, 30 +w->octave*12); break;
+		case ',': return MIN(A10-1, 31 +w->octave*12); break;
+		case '.': return MIN(A10-1, 32 +w->octave*12); break;
+		case '/': return MIN(A10-1, 33 +w->octave*12); break;
 	}
-	return 0;
+	return NOTE_VOID;
 }
 
 void previewNote(uint8_t note, uint8_t inst, uint8_t channel)
@@ -72,37 +72,38 @@ void previewNote(uint8_t note, uint8_t inst, uint8_t channel)
 	w->previewrow.macro[0].c = '\0';
 	w->previewrow.inst = inst;
 
-	if (note == 255)
-		w->previewrow.note = 255;
-	else switch (w->keyboardmacro)
+	if (note == NOTE_OFF)
+	{
+		w->previewrow.note = NOTE_OFF;
+	} else switch (w->keyboardmacro)
 	{
 		case 0: w->previewrow.note = note; break;
 		case 'G': /* m.x and m.y are note */
 			w->previewrow.note = C5;
 			note -= w->octave*12;
-			if (note>=13 && note<=20)
+			if (note>=12 && note<=19)
 			{
 				w->previewrow.macro[0].c = w->keyboardmacro;
-				w->previewrow.macro[0].v = (note - 13) * 16 + (note - 13);
+				w->previewrow.macro[0].v = (note - 12) * 16 + (note - 12);
 			}
-			if (note>=25 && note<=32)
+			if (note>=24 && note<=31)
 			{
 				w->previewrow.macro[0].c = w->keyboardmacro;
-				w->previewrow.macro[0].v = (note - 17) * 16 + (note - 17);
+				w->previewrow.macro[0].v = (note - 16) * 16 + (note - 16);
 			}
 			break;
 		default: /* m.x is note */
 			w->previewrow.note = C5;
 			note -= w->octave*12;
-			if (note>=13 && note<=20)
+			if (note>=12 && note<=19)
 			{
 				w->previewrow.macro[0].c = w->keyboardmacro;
-				w->previewrow.macro[0].v = (note - 13) * 16;
+				w->previewrow.macro[0].v = (note - 12) * 16;
 			}
-			if (note>=25 && note<=32)
+			if (note>=24 && note<=31)
 			{
 				w->previewrow.macro[0].c = w->keyboardmacro;
-				w->previewrow.macro[0].v = (note - 17) * 16;
+				w->previewrow.macro[0].v = (note - 16) * 16;
 			}
 			break;
 	}

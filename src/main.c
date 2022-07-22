@@ -14,6 +14,7 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <jack/jack.h>
+#include <jack/midiport.h>
 typedef jack_default_audio_sample_t sample_t;
 #include <sndfile.h>
 
@@ -35,7 +36,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 87;
+const unsigned char MINOR = 88;
 
 
 jack_nframes_t samplerate;
@@ -48,15 +49,12 @@ struct termios term, origterm;
 #define LINENO_COLS 5
 #define SONGLIST_COLS 5
 
-#define CHANNEL_ROW 4      /* rows above the channel headers */
-#define BORDER 1
+#define CHANNEL_ROW 4 /* rows above the channel headers */
 
-#define INSTRUMENT_INDEX_COLS 17
+#define INSTRUMENT_INDEX_COLS 20
 #define INSTRUMENT_CONTROL_ROW 4
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
-
-#define C5 61 /* note value that represents C-5 */
 
 /* n=0 is the least significant digit */
 char hexDigit32(uint32_t a, uint32_t n)
@@ -122,7 +120,7 @@ void redraw(void)
 	fcntl(0, F_SETFL, 0); /* blocking */
 	puts("\033[2J\033[?25h");
 
-	if (ws.ws_row < 20 || ws.ws_col < 74)
+	if (ws.ws_row < 20 || ws.ws_col < 70 + INSTRUMENT_INDEX_COLS)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 		fflush(stdout);
@@ -219,20 +217,12 @@ void handleFKeys(int input)
 	switch (input)
 	{
 		case 'P': /* tracker */
-			if (w->popup == 1)
-				switch (w->mode)
-				{
-					case 1: case 3: case 5: w->mode = T_MODE_INSERT; break;
-					default:                w->mode = 0; break;
-				}
+			w->mode = 0;
 			w->popup = 0;
 			break;
 		case 'Q': /* instrument */
 			w->instrumentindex = 0;
-			if (w->popup == 0 && w->mode == T_MODE_INSERT)
-				w->mode = 1;
-			else
-				w->mode = 0;
+			w->mode = 0;
 			w->popup = 1;
 			if (s->instrumenti[w->instrument])
 				resetWaveform();
@@ -339,7 +329,7 @@ void resize(int _)
 	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
 	w->waveformbuffer = NULL;
 	w->waveformbuffer = new_buffer(w->waveformcanvas);
-	if (w->popup == 1)
+	if (w->popup == 1 && s->instrumenti[w->instrument])
 		resizeWaveform(s->instrumentv[s->instrumenti[w->instrument]]);
 
 	resizeBackground();
@@ -367,7 +357,6 @@ void cleanup(int ret)
 	_delInstrument(&w->instrumentbuffer);
 
 	if (w->recbuffer) free(w->recbuffer);
-	if (w->recchannelbuffer) free(w->recchannelbuffer);
 	if (w->waveformcanvas) free_canvas(w->waveformcanvas);
 	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
 
@@ -384,6 +373,12 @@ void cleanup(int ret)
 
 int main(int argc, char **argv)
 {
+	if (argc > 1 && (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")))
+	{
+		printf("omelette tracker, v%d.%2d\n", MAJOR, MINOR);
+		return 0;
+	}
+
 	/* seed rand */
 	srand(time(NULL));
 	puts("\033[?1049h"); /* switch to the back buffer */
@@ -418,10 +413,11 @@ int main(int argc, char **argv)
 		common_cleanup(1);
 	}
 
-	p->in.l = jack_port_register(client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-	p->in.r = jack_port_register(client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-	p->out.l = jack_port_register(client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
-	p->out.r = jack_port_register(client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+	p->in.l =    jack_port_register(client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput|JackPortIsTerminal, 0);
+	p->in.r =    jack_port_register(client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput|JackPortIsTerminal, 0);
+	p->out.l =   jack_port_register(client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
+	p->out.r =   jack_port_register(client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
+	p->midiout = jack_port_register(client, "out_midi", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
 
 	samplerate = jack_get_sample_rate(client);
 	rampmax = samplerate / 1000 * RAMP_MS;
@@ -502,7 +498,6 @@ int main(int argc, char **argv)
 		if (w->instrumentrecv == INST_REC_LOCK_CANCEL)
 		{
 			free(w->recbuffer); w->recbuffer = NULL;
-			free(w->recchannelbuffer); w->recchannelbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
 			p->dirty = 1;
 		} else if (w->instrumentrecv == INST_REC_LOCK_END)
@@ -513,10 +508,8 @@ int main(int argc, char **argv)
 				if (iv->sampledata)
 				{ free(iv->sampledata); iv->sampledata = NULL; }
 				iv->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
-				if (iv->sampledata == NULL)
-				{
-					strcpy(w->command.error, "saving recording failed, out of memory");
-				} else
+				if (!iv->sampledata) strcpy(w->command.error, "saving recording failed, out of memory");
+				else
 				{
 					memcpy(iv->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
 					iv->samplelength = w->recptr * 2;
@@ -532,7 +525,6 @@ int main(int argc, char **argv)
 			}
 
 			free(w->recbuffer); w->recbuffer = NULL;
-			free(w->recchannelbuffer); w->recchannelbuffer = NULL;
 			w->instrumentrecv = INST_REC_LOCK_OK;
 			p->dirty = 1;
 		}

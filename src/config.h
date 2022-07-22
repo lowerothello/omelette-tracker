@@ -15,7 +15,7 @@
 #define TIMESTRETCH_RAMP_MS 8 /* timestretch ramp time */
 
 /* how many lines the mouse wheel should scroll */
-#define WHEEL_SPEED 3
+#define WHEEL_SPEED 1
 
 /* screenwidth*screenheight*WAVEFORM_OVERSAMPLING samples are drawn */
 #define WAVEFORM_OVERSAMPLING 4
@@ -24,5 +24,9 @@
 /* how many slices to divide the screen into for ctrl+left/right */
 #define WAVEFORM_FINE_SLICES 128
 
-/* size of the oscillator lookup tables */
+/* size of the oscillator lookup tables */ // DEPRECATED
 #define OSCILLATOR_TABLE_LEN 512
+
+/* approximately how many samples to wait between pitch wheel events */
+/* also used for aftertouch */
+#define PITCH_WHEEL_SAMPLES 100

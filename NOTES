@@ -1,3 +1,21 @@
-- preview mode can't open filebrowser
-- apply gain to samples, no way to really use super quiet samples
-- clicks when entering/exiting insert mode
+- waveform amplify/normalize
+
+- pitch slide is fucked
+	- it seems ok sometimes? idk
+- preview mode gets in the way a lot more than it should
+- most waveshapers should probably be more aggressive at their limit
+- tracker undo buffer
+- make it clearer when in visual replace pseudo-mode
+	- make modes clearer in general, it's too easy to get lost
+
+- changing tabs retriggers the pattern
+- navigation fucks with the focused channel's audio
+
+midi:
+	- extraneous midi note offs on the first play after startup
+		- one for each tracker channel, all on midi channel 0(variable?)
+	- orphaned notes on quit because notes aren't properly stopped
+
+lookback:
+	- bpm macros
+	- pitch slides mask(?) the starting note

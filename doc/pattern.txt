@@ -7,50 +7,54 @@ view.
 
 KEYBINDS
 --------
-COLON                  - enter command mode
+COLON - enter command mode
 
 navigation:
-	ARROWS             - navigate the pattern cell-wise
-	CTRL+LEFT/[        - move one channel to the left
-	CTRL+RIGHT/]       - move one channel to the right
-	HOME/END           - go to the top/bottom of the pattern
-	PGUP/PGDN          - go up/down by the row highlight (the stars between channels)
-	LEFT CLICK         - go to cell
-	RIGHT CLICK        - extend the visual selection to cell
-	SHIFT+NAVIGATION   - navigate, drag a volatile visual selection
+	ARROWS           - navigate the pattern cell-wise
+	CTRL+LEFT/[      - move one channel to the left
+	CTRL+RIGHT/]     - move one channel to the right
+	HOME/END         - go to the top/bottom of the pattern
+	PGUP/PGDN        - go up/down by the row highlight (the stars between channels)
+	LEFT CLICK       - go to cell
+	RIGHT CLICK      - extend the visual selection to cell
 
-CTRL+UP/CTRL+DOWN      - shift the current channel up/down
-CLICK on channel text  - toggle channel mute
-ENTER                  - toggle current channel mute
-ALT+[0-9]              - set the edit step (shown in the ruler as "+step")
-CTRL+a/CTRL+x          - increment/decrement
+CTRL+UP/CTRL+DOWN     - shift the current channel up/down
+CLICK on channel text - toggle channel mute
+ENTER                 - toggle current channel mute
+ALT+[0-9]             - set the edit step (shown in the ruler as "+step")
+CTRL+a/CTRL+x         - increment/decrement
 
-ESCAPE                 - return to normal mode
+ESCAPE - return to normal mode
 
 normal mode:
-	v                  - enter visual mode
-	V                  - enter visual line mode (like visual mode but always line-wise)
-	i                  - enter insert mode
-	p                  - put from the yank buffer
-	yy                 - yank the current row
-	dd                 - delete the current row
-	ca                 - add a channel after the current one
-	cA                 - add a channel before the current one
-	cd                 - delete the current channel
-	cD                 - delete channels from the current one to the end
-	cy                 - yank the current channel
-	cp                 - put from the channel yank buffer
-	ma                 - add a macro column at the end, between 1 and 8 are allowed
-	md                 - delete a macro column from the end, between 1 and 8 are allowed
-	x/BACKSPACE        - delete the current cell
-	s                  - delete the current cell, then enter insert mode
-	k?                 - preview macro ? on the note column, kk to revert to normal
-	f                  - toggle song follow
+	v           - enter visual mode
+	V           - enter visual line mode (like visual mode but always line-wise)
+	i           - enter insert mode
+	p           - put from the yank buffer
+	yy          - yank the current row
+	dd          - delete the current row
+	c           - channel chord
+	ma          - add a macro column at the end, between 1 and 8 are allowed
+	md          - delete a macro column from the end, between 1 and 8 are allowed
+	x/BACKSPACE - delete the current cell
+	s           - delete the current cell, then enter insert mode
+	k?          - preview macro ? on the note column, kk to revert to normal
+	f           - toggle song follow
 
 visual mode:
-	NAVIGATION         - navigate, drag a stable visual selection
-	y                  - yank the selection
-	d                  - delete the selection
+	NAVIGATION - navigate, drag the visual selection
+	y          - yank the selection
+	d          - delete the selection
+
+channel: (c)
+	c   - clear the current channel for this pattern
+	a   - add a new channel for all patterns after the cursor
+	A   - add a new channel for all patterns before the cursor
+	d   - delete the current channel for all patterns
+	D   - delete from the cursor to the last channel for all patterns
+	y   - yank the current channel from this pattern
+	p   - put the copied channel into this pattern over the current channel
+	P   - mix the copied channel into this pattern with the current channel
 
 
 vim: sidescrolloff=0
