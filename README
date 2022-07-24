@@ -1,6 +1,8 @@
 omelette tracker
 ----------------
-
+features aren't set in stone, expect mods to be broken on new versions!
+from version 1.0 i'll try not to make as many breaking changes, but until then
+treat this as alpha software!
 
 src/lib/libdrawille: https://github.com/huulivoide/libdrawille
 

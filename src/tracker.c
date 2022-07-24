@@ -15,16 +15,14 @@ void changeMacro(int input, char *dest)
 	else switch (input)
 	{
 		case '%': *dest = '%'; break; /* note chance       */
-		case 'b': *dest = 'B'; break; /* band pass filter  */
 		case 'B': *dest = 'b'; break; /* bpm               */
 		case 'c': *dest = 'C'; break; /* note cut          */
 		case 'd': *dest = 'D'; break; /* note delay        */
+		case 'f': *dest = 'F'; break; /* filter            */
+		case 'F': *dest = 'f'; break; /* smooth filter     */
 		case 'g': *dest = 'G'; break; /* gain              */
 		case 'G': *dest = 'g'; break; /* smooth gain       */
-		case 'h': *dest = 'H'; break; /* high pass filter  */
-		case 'l': *dest = 'L'; break; /* low pass filter   */
 		case 'm': *dest = 'M'; break; /* microtonal offset */
-		case 'n': *dest = 'N'; break; /* notch filter      */
 		case 'o': *dest = 'O'; break; /* offset            */
 		case 'O': *dest = 'o'; break; /* backwards offset  */
 		case 'p': *dest = 'P'; break; /* pitch slide       */
@@ -32,6 +30,7 @@ void changeMacro(int input, char *dest)
 		case 'T': *dest = 't'; break; /* gate              */
 		case 'v': *dest = 'V'; break; /* vibrato           */
 		case 'w': *dest = 'W'; break; /* waveshaper        */
+		case 'z': *dest = 'Z'; break; /* filter resonance  */
 	}
 }
 

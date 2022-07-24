@@ -488,7 +488,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		if (ENABLE_BACKGROUND || p->dirty)
+		// if (ENABLE_BACKGROUND || p->dirty)
 		{ p->dirty = 0; redraw(); }
 
 		/* perform any pending instrument actions */

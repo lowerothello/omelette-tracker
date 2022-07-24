@@ -45,16 +45,14 @@ void descMacro(char c, uint8_t v)
 	switch (c)
 	{
 		case '%': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CHANCE")) / 2, "NOTE CHANCE"); break;
-		case 'B': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BAND-PASS FILTER")) / 2, "BAND-PASS FILTER"); break;
 		case 'b': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
 		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
 		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2, "NOTE DELAY"); break;
+		case 'F': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER CUTOFF")) / 2, "FILTER CUTOFF"); break;
+		case 'f': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH FILTER CUTOFF")) / 2, "SMOOTH FILTER CUTOFF"); break;
 		case 'G': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2, "STEREO GAIN"); break;
 		case 'g': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH STEREO GAIN")) / 2, "SMOOTH STEREO GAIN"); break;
-		case 'H': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("HIGH-PASS FILTER")) / 2, "HIGH-PASS FILTER"); break;
-		case 'L': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOW-PASS FILTER")) / 2, "LOW-PASS FILTER"); break;
 		case 'M': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;
-		case 'N': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTCH FILTER")) / 2, "NOTCH FILTER"); break;
 		case 'O': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE OFFSET")) / 2, "NOTE OFFSET"); break;
 		case 'o': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BACKWARDS NOTE OFFSET")) / 2, "BACKWARDS NOTE OFFSET"); break;
 		case 'P': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("PITCH SLIDE")) / 2, "PITCH SLIDE"); break;
@@ -73,6 +71,7 @@ void descMacro(char c, uint8_t v)
 				case 6: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SIGN CONVERSION")) / 2, "SIGN CONVERSION"); break;
 			}
 			break;
+		case 'Z': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER RESONANCE")) / 2, "FILTER RESONANCE"); break;
 	}
 }
 

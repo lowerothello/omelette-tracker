@@ -4,6 +4,7 @@
 #define S_FLAG_MIDI    0b00001000 /* midi output     */
 #define S_FLAG_RPLAY   0b00010000 /*   deprecated    */
 #define S_FLAG_PPLOOP  0b00100000 /* ping-pong loop  */
+#define S_FLAG_PHASE   0b10000000 /* invert phase    */
 
 void getSample(uint32_t p, instrument *iv, float *l, float *r)
 {

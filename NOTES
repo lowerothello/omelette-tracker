@@ -8,8 +8,14 @@
 - make it clearer when in visual replace pseudo-mode
 	- make modes clearer in general, it's too easy to get lost
 
-- changing tabs retriggers the pattern
-- navigation fucks with the focused channel's audio
+- replace default gain with sample gain, default gain should always be G88
+	- LOT of range, esp. upwards (20x or so)
+	- remove hard clip waveshaper?
+	- stereo gain: +[80][80]
+	- gain/pan: +[80][80]
+	- phase inversion sign bit
+
+- try to ramp only once per preprocessRow() call
 
 midi:
 	- extraneous midi note offs on the first play after startup

@@ -27,52 +27,53 @@ typedef struct
 
 typedef struct
 {
-	char      mute;                         /* saved to disk */
-	uint8_t   macroc;                       /* macro count */
+	char        mute;                         /* saved to disk */
+	uint8_t     macroc;                       /* macro count */
 
-	char      reverse;                      /* decrement pointer instead of incrementing it */
-	uint32_t  pointer;                      /* progress through the sound */
-	uint32_t  pointeroffset;                /* where to base pointer off of */
-	uint32_t  releasepointer;               /* 0 for no release, where releasing started */
-	short     gain;                         /* unsigned nibble per-channel, -1 for unset */
-	short     targetgain;                   /* smooth gain target */
-	row       r;
-	float     finetune;                     /* calculated fine tune, should be between -0.5 and +0.5 */
-	float     portamentofinetune;           /* used by portamento, clamped between -2/+2 for midi */
-	float     microtonalfinetune;           /* used by the local microtonal macro */
-	uint8_t   portamento;                   /* portamento target, 255 for off */
-	uint8_t   portamentospeed;              /* portamento m */
-	uint16_t  rtrigsamples;                 /* samples per retrigger */
-	uint32_t  rtrigpointer;                 /* sample ptr to ratchet back to */
-	uint8_t   rtrigblocksize;               /* number of rows block extends to */
-	uint16_t  cutsamples;                   /* samples into the row to cut, 0 for no cut */
-	uint16_t  delaysamples;                 /* samples into the row to delay, 0 for no delay */
-	uint8_t   delaynote;
-	uint8_t   delayinst;
-	uint8_t   vibrato;                      /* vibrato depth, 0-f */
-	uint32_t  vibratosamples;               /* samples per full phase walk */
-	uint32_t  vibratosamplepointer;         /* distance through cv->vibratosamples */
-	uint8_t   gate;                         /* gain m */
-	float     gateopen;
+	char        reverse;                      /* decrement pointer instead of incrementing it */
+	uint32_t    pointer;                      /* progress through the sound */
+	uint32_t    pointeroffset;                /* where to base pointer off of */
+	uint32_t    releasepointer;               /* 0 for no release, where releasing started */
+	short       gain;                         /* unsigned nibble per-channel, -1 for unset */
+	short       targetgain;                   /* smooth gain target */
+	row         r;
+	float       finetune;                     /* calculated fine tune, should be between -0.5 and +0.5 */
+	float       portamentofinetune;           /* used by portamento, clamped between -2/+2 for midi */
+	float       microtonalfinetune;           /* used by the local microtonal macro */
+	uint8_t     portamento;                   /* portamento target, 255 for off */
+	uint8_t     portamentospeed;              /* portamento m */
+	uint16_t    rtrigsamples;                 /* samples per retrigger */
+	uint32_t    rtrigpointer;                 /* sample ptr to ratchet back to */
+	uint8_t     rtrigblocksize;               /* number of rows block extends to */
+	uint16_t    cutsamples;                   /* samples into the row to cut, 0 for no cut */
+	uint16_t    delaysamples;                 /* samples into the row to delay, 0 for no delay */
+	uint8_t     delaynote;
+	uint8_t     delayinst;
+	uint8_t     vibrato;                      /* vibrato depth, 0-f */
+	uint32_t    vibratosamples;               /* samples per full phase walk */
+	uint32_t    vibratosamplepointer;         /* distance through cv->vibratosamples */
+	uint8_t     gate;                         /* gain m */
+	float       gateopen;
 
 	/* waveshaper */
-	char      waveshaper;                   /* which waveshaper to use */
-	char      waveshaperstrength;           /* mix / input gain */
+	char        waveshaper;                   /* which waveshaper to use */
+	char        waveshaperstrength;           /* mix / input gain */
 
 	/* filter */
-	SVFilter  fl, fr;
-	char      filtertype;
-	float     filtercut;
-	float     filterres;
+	SVFilter    fl, fr;
+	char        filtermode;
+	uint8_t     filtercut;
+	short       targetfiltercut;
+	signed char filterres, targetfilterres;
 
 	/* ramping */
-	uint16_t  rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
-	sample_t *rampbuffer;                   /* samples to ramp out */
-	uint8_t   rampgain;                     /* raw gain m for the ramp buffer */
+	uint16_t    rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
+	sample_t   *rampbuffer;                   /* samples to ramp out */
+	uint8_t     rampgain;                     /* raw gain m for the ramp buffer */
 
-	uint16_t  stretchrampindex;             /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
-	uint16_t  localstretchrampmax;          /* actual stretchrampmax used, to allow for tiny buffer sizes */
-	sample_t *stretchrampbuffer;            /* raw samples to ramp out */
+	uint16_t    stretchrampindex;             /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
+	uint16_t    localstretchrampmax;          /* actual stretchrampmax used, to allow for tiny buffer sizes */
+	sample_t   *stretchrampbuffer;            /* raw samples to ramp out */
 } channel;
 
 typedef struct Instrument

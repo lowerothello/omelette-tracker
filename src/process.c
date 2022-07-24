@@ -32,6 +32,8 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 		if (cv->gain != -1) cv->rampgain = cv->gain;
 		else if (iv)        cv->rampgain = iv->defgain;
 
+		SVFilter oldfl = cv->fl;
+		SVFilter oldfr = cv->fr;
 		if (iv)
 		{
 			if (cv->reverse)
@@ -43,12 +45,14 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 
 				for (uint16_t i = 0; i < localrampmax; i++)
 					samplerProcess(iv, cv, pointeroffset - i,
-							&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]);
 			} else
 				for (uint16_t i = 0; i < rampmax; i++)
 					samplerProcess(iv, cv, pointeroffset + i,
-							&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]);
 		}
+		cv->fl = oldfl;
+		cv->fr = oldfr;
 	}
 }
 jack_midi_data_t midiGain(channel *cv, instrument *iv)
@@ -63,11 +67,10 @@ jack_midi_data_t midiGain(channel *cv, instrument *iv)
 		else if (iv)        return (iv->defgain>>4)<<3;
 	} return 0;
 }
-void applyGain(playbackinfo *p, channel *cv, instrument *iv, float *l, float *r)
+void applyGain(playbackinfo *p, float rowprogress, channel *cv, instrument *iv, float *l, float *r)
 {
 	if (cv->targetgain != -1)
 	{
-		float rowprogress = (float)p->s->sprp / (float)p->s->spr;
 		if (cv->gain != -1)
 		{
 			*l *= (cv->gain>>4)*DIV16 + ((cv->targetgain>>4) - (cv->gain>>4))*DIV16 * rowprogress;
@@ -131,7 +134,7 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 }
 void triggerNote(playbackinfo *p, jack_nframes_t fptr, channel *cv, uint8_t note, uint8_t inst)
 {
-	if (cv->rampbuffer && p->s->instrumenti[cv->r.inst] && !(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
+	if (p->s->instrumenti[cv->r.inst] && !(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 			&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
 		ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 	cv->rampindex = 0; /* set this even if it's not populated so it always ramps out */
@@ -205,13 +208,13 @@ char Dc(jack_nframes_t fptr, int m, channel *cv, row r)
 		return 1;
 	} return 0;
 }
-char Gc(jack_nframes_t fptr, int m, channel *cv, row r)
+char PRERAMP(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	if (cv->pointer)
-	{
-		ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
-		cv->rampindex = 0;
-	}
+	if (cv->pointer) return 1;
+	return 0;
+}
+char GcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
+{
 	cv->gain = m;
 	return 0;
 }
@@ -246,11 +249,7 @@ char Oc(jack_nframes_t fptr, int m, channel *cv, row r)
 	{
 		if (r.note == NOTE_VOID) /* if not changing note, explicit ramping needed */
 		{
-			/* clear the rampbuffer so cruft isn't played in edge cases */
-			memset(cv->rampbuffer, 0, sizeof(sample_t) * rampmax * 2);
-			for (uint16_t i = 0; i < rampmax; i++)
-				samplerProcess(iv, cv, cv->pointer + i,
-						&cv->rampbuffer[i * 2 + 0], &cv->rampbuffer[i * 2 + 1]);
+			ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
 			cv->rampindex = 0;
 		}
 		cv->pointeroffset = (m*DIV255) * (iv->trim[1] - iv->trim[0]);
@@ -270,41 +269,61 @@ char PERCENTc(jack_nframes_t fptr, int m, channel *cv, row r) /* returns true to
 	if (rand()%256 > m) return 1;
 	else                return 0;
 }
-char Lc(jack_nframes_t fptr, int m, channel *cv, row r)
+
+char FcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->filtertype = 0;
+	cv->filtercut = m;
+	return 0;
+}
+char fc(jack_nframes_t fptr, int m, channel *cv, row r)
+{
+	/* only slide if a note is already playing */
+	if (cv->pointer) cv->targetfiltercut = m;
+	else             cv->filtercut = m;
+	return 0;
+}
+char ZcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
+{
+	cv->filterres = (uint8_t)((uint8_t)m<<4)>>4;
+	return 0;
+}
+/* char Lc(jack_nframes_t fptr, int m, channel *cv, row r)
+{
+	cv->filtermode = 0;
 	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = (m%16)*DIV15;
+	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
 	return 0;
 }
 char Hc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->filtertype = 1;
+	cv->filtermode = 1;
 	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = (m%16)*DIV15;
+	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
 	return 0;
 }
 char Bc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->filtertype = 2;
+	cv->filtermode = 2;
 	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = (m%16)*DIV15;
+	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
 	return 0;
 }
 char Nc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->filtertype = 3;
+	cv->filtermode = 3;
 	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = (m%16)*DIV15;
+	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
 	return 0;
-}
+} */
 
 void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 {
 	char ret;
 	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-	float lo = 0.0f;  float ro = 0.0f;  /* non-ramp */
-	float rlo = 0.0f; float rro = 0.0f; /* ramp */
+	float lo = 0.0f;
+	float ro = 0.0f;
+
+	float rowprogress = (float)p->s->sprp / (float)p->s->spr;
 
 	cv->finetune = cv->portamentofinetune + cv->microtonalfinetune;
 	if (cv->vibratosamples)
@@ -361,7 +380,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 		{
 			uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
 
-			if (cv->rampbuffer && !rtrigoffset
+			if (!rtrigoffset
 					&& ((cv->reverse && cv->pointer < cv->rtrigpointer && cv->pointer > cv->rtrigsamples)
 					|| (!cv->reverse && cv->pointer > cv->rtrigpointer)))
 			{ // first sample of any retrigger but the first
@@ -381,118 +400,57 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 		else                                cv->pointer++;
 	}
 
+	applyGain(p, rowprogress, cv, iv, &lo, &ro);
+
 	if (cv->rampbuffer && cv->rampindex < rampmax)
 	{ /* ramping */
-		/* set the ramp cache */
-		rlo = cv->rampbuffer[cv->rampindex * 2 + 0];
-		rro = cv->rampbuffer[cv->rampindex * 2 + 1];
-
-		/* denormals */
-		if (fabsf(lo) < NOISE_GATE && fabsf(ro) < NOISE_GATE
-				&& fabsf(rlo) < NOISE_GATE && fabsf(rro) < NOISE_GATE)
-			return;
-
-		/* waveshapers, intentionally pre-gain */ /* TODO: ramping */
-		float strength;
-		if (cv->waveshaperstrength)
-		{
-			switch (cv->waveshaper)
-			{
-				case 0: /* hard clipper */
-					strength = 1.0f + cv->waveshaperstrength*1.5f;
-					lo = hardclip(lo * strength); ro = hardclip(ro * strength);
-					rlo = hardclip(rlo * strength); rro = hardclip(rro * strength);
-					break;
-				case 1: /* soft clipper */
-					strength = 1.0f + cv->waveshaperstrength*0.4f;
-					lo = thirddegreepolynomial(lo * strength); ro = thirddegreepolynomial(ro * strength);
-					rlo = thirddegreepolynomial(rlo * strength); rro = thirddegreepolynomial(rro * strength);
-					break;
-				case 2: /* rectifier */
-					strength = cv->waveshaperstrength*DIV16;
-					lo = rectify(0, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					ro = rectify(0, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					rlo = rectify(0, rlo) * (MIN(strength, 0.5f) * 2) + rlo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					rro = rectify(0, rro) * (MIN(strength, 0.5f) * 2) + rro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					break;
-				case 3: /* rectifier x2 */
-					strength = cv->waveshaperstrength*DIV16;
-					lo = rectify(1, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					ro = rectify(1, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					rlo = rectify(1, rlo) * (MIN(strength, 0.5f) * 2) + rlo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					rro = rectify(1, rro) * (MIN(strength, 0.5f) * 2) + rro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					break;
-				case 4: /* wavefolder */
-					strength = 1.0f + cv->waveshaperstrength*0.3f;
-					lo = wavefolder(lo * strength); ro = wavefolder(ro * strength);
-					rlo = wavefolder(rlo * strength); rro = wavefolder(rro * strength);
-					break;
-				case 5: /* wavewrapper */
-					strength = 1.0f + cv->waveshaperstrength*0.2f;
-					lo = wavewrapper(lo * strength); ro = wavewrapper(ro * strength);
-					rlo = wavewrapper(rlo * strength); rro = wavewrapper(rro * strength);
-					break;
-				case 6: /* signed unsigned conversion */
-					strength = cv->waveshaperstrength*DIV16;
-					lo = signedunsigned(lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					ro = signedunsigned(ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					rlo = signedunsigned(rlo) * (MIN(strength, 0.5f) * 2) + rlo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					rro = signedunsigned(rro) * (MIN(strength, 0.5f) * 2) + rro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					break;
-			}
-		}
-		applyGain(p, cv, iv, &lo, &ro);
-
-		/* mix in ramp data */
 		float gain = (float)cv->rampindex / (float)rampmax;
-		lo = lo * gain + rlo * (1.0f - gain) * (cv->rampgain>>4)*DIV16;
-		ro = ro * gain + rro * (1.0f - gain) * (cv->rampgain%16)*DIV16;
+		lo = lo * gain + cv->rampbuffer[cv->rampindex*2 + 0] * (1.0f - gain) * (cv->rampgain>>4)*DIV16;
+		ro = ro * gain + cv->rampbuffer[cv->rampindex*2 + 1] * (1.0f - gain) * (cv->rampgain%16)*DIV16;
 		cv->rampindex++;
-	} else
-	{ /* not ramping */
-		/* denormals are scary */
-		if (fabsf(lo) < NOISE_GATE && fabsf(ro) < NOISE_GATE) return;
+	}
 
-		/* waveshapers, intentionally pre-gain */ /* TODO: ramping */
+	/* denormals */
+	if (fabsf(lo) < NOISE_GATE && fabsf(ro) < NOISE_GATE) return;
+
+	/* waveshapers */ /* TODO: ramping */
+	if (cv->waveshaperstrength)
+	{
 		float strength;
-		if (cv->waveshaperstrength)
+		switch (cv->waveshaper)
 		{
-			switch (cv->waveshaper)
-			{
-				case 0: /* hard clipper */
-					strength = 1.0f + cv->waveshaperstrength*1.5f;
-					lo = hardclip(lo * strength); ro = hardclip(ro * strength);
-					break;
-				case 1: /* soft clipper */
-					strength = 1.0f + cv->waveshaperstrength*0.4f;
-					lo = thirddegreepolynomial(lo * strength); ro = thirddegreepolynomial(ro * strength);
-					break;
-				case 2: /* rectifier */
-					strength = cv->waveshaperstrength*DIV16;
-					lo = rectify(0, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					ro = rectify(0, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					break;
-				case 3: /* rectifier x2 */
-					strength = cv->waveshaperstrength*DIV16;
-					lo = rectify(1, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					ro = rectify(1, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					break;
-				case 4: /* wavefolder */
-					strength = 1.0f + cv->waveshaperstrength*0.3f;
-					lo = wavefolder(lo * strength); ro = wavefolder(ro * strength);
-					break;
-				case 5: /* wavewrapper */
-					strength = 1.0f + cv->waveshaperstrength*0.2f;
-					lo = wavewrapper(lo * strength); ro = wavewrapper(ro * strength);
-					break;
-				case 6: /* signed unsigned conversion */
-					strength = cv->waveshaperstrength*DIV16;
-					lo = signedunsigned(lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					ro = signedunsigned(ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-					break;
-			}
+			case 0: /* hard clipper */
+				strength = 1.0f + cv->waveshaperstrength*1.5f;
+				lo = hardclip(lo * strength); ro = hardclip(ro * strength);
+				break;
+			case 1: /* soft clipper */
+				strength = 1.0f + cv->waveshaperstrength*0.4f;
+				lo = thirddegreepolynomial(lo * strength); ro = thirddegreepolynomial(ro * strength);
+				break;
+			case 2: /* rectifier */
+				strength = cv->waveshaperstrength*DIV16;
+				lo = rectify(0, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				ro = rectify(0, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				break;
+			case 3: /* rectifier x2 */
+				strength = cv->waveshaperstrength*DIV16;
+				lo = rectify(1, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				ro = rectify(1, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				break;
+			case 4: /* wavefolder */
+				strength = 1.0f + cv->waveshaperstrength*0.3f;
+				lo = wavefolder(lo * strength); ro = wavefolder(ro * strength);
+				break;
+			case 5: /* wavewrapper */
+				strength = 1.0f + cv->waveshaperstrength*0.2f;
+				lo = wavewrapper(lo * strength); ro = wavewrapper(ro * strength);
+				break;
+			case 6: /* signed unsigned conversion */
+				strength = cv->waveshaperstrength*DIV16;
+				lo = signedunsigned(lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				ro = signedunsigned(ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				break;
 		}
-		applyGain(p, cv, iv, &lo, &ro);
 	}
 
 	/* gate */
@@ -503,36 +461,30 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 	lo *= cv->gateopen; ro *= cv->gateopen;
 
 	/* filter */
-	switch (cv->filtertype)
+	float cutoff;
+	switch (cv->filtermode)
 	{
 		case 0: /* low-pass  */
-			if (cv->filtercut < 1.0f)
-			{
-				runSVFilter(&cv->fl, thirddegreepolynomial(lo), cv->filtercut, cv->filterres);
-				runSVFilter(&cv->fr, thirddegreepolynomial(ro), cv->filtercut, cv->filterres);
-				lo = hardclip(cv->fl.l);
-				ro = hardclip(cv->fr.l);
-			} break;
+			if (cv->targetfiltercut != -1) cutoff = cv->filtercut*DIV255 + (cv->targetfiltercut - (short)cv->filtercut)*DIV255 * rowprogress;
+			else if (cv->filtercut != 255) cutoff = cv->filtercut*DIV255;
+			break;
 		case 1: /* high-pass */
-			if (cv->filtercut > 0.0f)
-			{
-				runSVFilter(&cv->fl, thirddegreepolynomial(lo), cv->filtercut*0.8f, cv->filterres);
-				runSVFilter(&cv->fr, thirddegreepolynomial(ro), cv->filtercut*0.8f, cv->filterres);
-				lo = hardclip(cv->fl.h);
-				ro = hardclip(cv->fr.h);
-			} break;
-		case 2: /* band-pass */
-			runSVFilter(&cv->fl, thirddegreepolynomial(lo), cv->filtercut, cv->filterres);
-			runSVFilter(&cv->fr, thirddegreepolynomial(ro), cv->filtercut, cv->filterres);
-			lo = hardclip(cv->fl.b);
-			ro = hardclip(cv->fr.b);
+			if (cv->targetfiltercut != -1) cutoff = cv->filtercut*DIV255 + (cv->targetfiltercut - (short)cv->filtercut)*DIV255 * rowprogress;
+			else if   (cv->filtercut != 0) cutoff = cv->filtercut*DIV255;
 			break;
-		case 3: /* notch     */
-			runSVFilter(&cv->fl, thirddegreepolynomial(lo), cv->filtercut, cv->filterres);
-			runSVFilter(&cv->fr, thirddegreepolynomial(ro), cv->filtercut, cv->filterres);
-			lo = hardclip(cv->fl.n);
-			ro = hardclip(cv->fr.n);
+		case 2: case 3: /* band-pass / notch */
+			if (cv->targetfiltercut != -1) cutoff = cv->filtercut*DIV255 + (cv->targetfiltercut - (short)cv->filtercut)*DIV255 * rowprogress;
+			else                           cutoff = cv->filtercut*DIV255;
 			break;
+	}
+	runSVFilter(&cv->fl, thirddegreepolynomial(lo), cutoff, cv->filterres);
+	runSVFilter(&cv->fr, thirddegreepolynomial(ro), cutoff, cv->filterres);
+	switch (cv->filtermode)
+	{
+		case 0: /* low-pass  */ lo = hardclip(cv->fl.l); ro = hardclip(cv->fr.l); break;
+		case 1: /* high-pass */ lo = hardclip(cv->fl.h); ro = hardclip(cv->fr.h); break;
+		case 2: /* band-pass */ lo = hardclip(cv->fl.b); ro = hardclip(cv->fr.b); break;
+		case 3: /* notch     */ lo = hardclip(cv->fl.n); ro = hardclip(cv->fr.n); break;
 	}
 
 	if (!cv->mute)
@@ -556,29 +508,8 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	char ret;
 	uint8_t oldnote = NOTE_UNUSED;
 
-	ifMacro(fptr, cv, r, 'b', &bc); /* bpm */
-
-	ret = ifMacro(fptr, cv, r, 'C', &Cc); /* cut */
-	if (!ret && r.note != NOTE_VOID)
-	{
-		ret = ifMacro(fptr, cv, r, '%', &PERCENTc); /* chance */
-		if (!ret)
-		{
-			ret = ifMacro(fptr, cv, r, 'P', &Pc); /* pitch slide */
-			if (!ret)
-			{
-				ret = ifMacro(fptr, cv, r, 'D', &Dc); /* delay */
-				if (!ret)
-				{
-					oldnote = cv->r.note;
-					if (r.inst == INST_VOID) { triggerNote(p, fptr, cv, r.note, cv->r.inst);
-					                           _triggerNote(cv, r.note, cv->r.inst); }
-					else                     { triggerNote(p, fptr, cv, r.note, r.inst);
-					                           _triggerNote(cv, r.note, r.inst); }
-				}
-			}
-		}
-	}
+	for (int i = 0; i < cv->macroc; i++)
+		cv->r.macro[i] = r.macro[i];
 
 	/* gain */
 	if (cv->targetgain != -1)
@@ -586,8 +517,56 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 		cv->gain = cv->targetgain;
 		cv->targetgain = -1;
 	}
-	ret = ifMacro(fptr, cv, r, 'G', &Gc);
-	if (!ret) ifMacro(fptr, cv, r, 'g', &gc);
+	/* filter */
+	if (cv->targetfiltercut != -1)
+	{
+		cv->filtercut = cv->targetfiltercut;
+		cv->targetfiltercut = -1;
+	}
+	/* retrigger */
+	if (cv->rtrigsamples)
+	{
+		if (cv->rtrigblocksize) cv->rtrigblocksize--;
+		else                    cv->rtrigsamples = 0;
+	}
+	/* vibrato */
+	ret = ifMacro(fptr, cv, r, 'V', &Vc);
+	if (!ret) cv->vibratosamples = 0;
+
+	if (ifMacro(fptr, cv, r, '%', &PERCENTc)) return;
+
+	ifMacro(fptr, cv, r, 'b', &bc); /* bpm */
+
+	ret = ifMacro(fptr, cv, r, 'C', &Cc); /* cut */
+	if (!ret && r.note != NOTE_VOID)
+	{
+		ret = ifMacro(fptr, cv, r, 'P', &Pc); /* pitch slide */
+		if (!ret)
+		{
+			ret = ifMacro(fptr, cv, r, 'D', &Dc); /* delay */
+			if (!ret)
+			{
+				oldnote = cv->r.note;
+				if (r.inst == INST_VOID) { triggerNote(p, fptr, cv, r.note, cv->r.inst); _triggerNote(cv, r.note, cv->r.inst); }
+				else                     { triggerNote(p, fptr, cv, r.note, r.inst); _triggerNote(cv, r.note, r.inst);         }
+			}
+		}
+	}
+
+	/* ramping */
+	if (ifMacro(fptr, cv, r, 'G', &PRERAMP)
+			|| ifMacro(fptr, cv, r, 'F', &PRERAMP)
+			|| ifMacro(fptr, cv, r, 'Z', &PRERAMP))
+	{
+		ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
+		cv->rampindex = 0;
+	}
+	ifMacro(fptr, cv, r, 'G', &GcPOSTRAMP);
+	ifMacro(fptr, cv, r, 'F', &FcPOSTRAMP);
+	ifMacro(fptr, cv, r, 'Z', &ZcPOSTRAMP);
+
+	ifMacro(fptr, cv, r, 'g', &gc);
+	ifMacro(fptr, cv, r, 'f', &fc);
 
 	if (oldnote != NOTE_UNUSED && midi) /* trigger midi (needs to be after gain calculation) */
 	{
@@ -600,23 +579,15 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	ifMacro(fptr, cv, r, 'M', &Mc); /* microtonal offset */
 	ifMacro(fptr, cv, r, 'O', &Oc); /* offset            */
 	ifMacro(fptr, cv, r, 'o', &oc); /* bw offset         */
-	if (cv->rtrigsamples)
-	{
-		if (cv->rtrigblocksize) cv->rtrigblocksize--;
-		else                    cv->rtrigsamples = 0;
-	}
 	ifMacro(fptr, cv, r, 'R', &Rc); /* retrigger         */
-	ret = ifMacro(fptr, cv, r, 'V', &Vc); /* vibrato           */
-	if (!ret) cv->vibratosamples = 0;
-	ifMacro(fptr, cv, r, 'L', &Lc); /* low-pass          */
-	ifMacro(fptr, cv, r, 'H', &Hc); /* high-pass         */
-	ifMacro(fptr, cv, r, 'B', &Bc); /* band-pass         */
-	ifMacro(fptr, cv, r, 'N', &Nc); /* notch             */
+
+	// ifMacro(fptr, cv, r, 'L', &Lc); /* low-pass          */
+	// ifMacro(fptr, cv, r, 'H', &Hc); /* high-pass         */
+	// ifMacro(fptr, cv, r, 'B', &Bc); /* band-pass         */
+	// ifMacro(fptr, cv, r, 'N', &Nc); /* notch             */
+
 	ifMacro(fptr, cv, r, 'W', &Wc); /* waveshaper        */
 	ifMacro(fptr, cv, r, 't', &tc); /* gate              */
-
-	for (int i = 0; i < cv->macroc; i++)
-		cv->r.macro[i] = r.macro[i];
 }
 
 int process(jack_nframes_t nfptr, void *arg)
@@ -712,9 +683,9 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv->waveshaperstrength = 0;
 			cv->gate = 0;
 			cv->gateopen = 1.0f;
-			cv->filtertype = 0.0f;
-			cv->filtercut = 1.0f;
-			cv->filterres = 0.0f;
+			cv->filtermode = 0;
+			cv->filtercut = 255; cv->targetfiltercut = -1;
+			cv->filterres = 0; cv->targetfilterres = -1;
 		}
 
 		/* non-volatile state */

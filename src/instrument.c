@@ -377,7 +377,7 @@ void instrumentInput(int input)
 			{
 				case 'O':
 					pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
-					previewNote(255, 255, w->channel);
+					previewNote(NOTE_OFF, INST_VOID, w->channel);
 					handleFKeys(getchar());
 					redraw(); break;
 				case '[':
@@ -650,7 +650,7 @@ void instrumentInput(int input)
 											w->mode = 0;
 											w->filebrowserCallback = &sampleLoadCallback;
 										}
-										previewNote(255, 255, w->channel);
+										previewNote(NOTE_OFF, INST_VOID, w->channel);
 									} else if (iv)
 									{
 										if (w->mode == I_MODE_INDICES) w->mode = I_MODE_NORMAL;
@@ -747,7 +747,7 @@ void instrumentInput(int input)
 							} redraw(); break;
 					} break;
 				default:
-					previewNote(255, 255, w->channel);
+					previewNote(NOTE_OFF, INST_VOID, w->channel);
 					switch (w->mode)
 					{
 						case I_MODE_VISUAL:                      w->mode = I_MODE_NORMAL; w->fieldpointer = 0; resizeWaveform(iv); break;
