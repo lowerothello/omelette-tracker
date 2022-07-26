@@ -103,12 +103,15 @@ void drawInstrument(void)
 				double divmaxj = 1.0 / (float)w->waveformwidth;
 				float o = (float)w->waveformh * 0.5;
 				float sample;
-				uint32_t samplesperpixel = w->waveformwidth / w->waveformw;
+				double samplesperpixel = (double)w->waveformwidth / (double)w->waveformw;
 				if (w->waveformdrawpointer < w->waveformwidth)
 				{
 					for (uint32_t j = 0; j < WAVEFORM_LAZY_BLOCK_SIZE; j++)
 					{
-						l = (w->waveformdrawpointer%w->waveformw)*samplesperpixel + w->waveformdrawpointer/w->waveformw;
+						/* switch to left-right rendering if zoomed in far enough */
+						if (w->waveformw > w->waveformwidth) l = w->waveformdrawpointer;
+						else l = (w->waveformdrawpointer%w->waveformw)*samplesperpixel + w->waveformdrawpointer/w->waveformw;
+
 						k = (float)l * divmaxj * (float)w->waveformwidth;
 						x = (float)l * divmaxj * (float)w->waveformw;
 
