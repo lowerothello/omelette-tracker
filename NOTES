@@ -1,7 +1,5 @@
 - pitch slide is fucked
 	- it seems ok sometimes? not sure
-- preview mode needs to be better thought out
-	- especially on the instrument page
 - tracker undo buffer
 - make it clearer when in visual replace pseudo-mode
 	- make modes clearer in general, it's too easy to get lost
@@ -9,12 +7,7 @@
 - fix envelope properly (properly de-click, remove retrigger artifacts, probably need state)
 	- use hold time to normalize notes a bit instead of emulating analogue timing intricacies
 - consider re-adding instrument index preview mode
-- instrument should be updated before previewing in the tracker
-	- done fully?
-- dd does nothing on the last row of the pattern
 - gain slide doesn't seem to work
-- clicking on the instrument controls orphans the preview
-- delays ring out after stopping playback
 
 - sample gain
 	- LOT of range, esp. upwards (20x or so, otherwise quiet samples are unusable)
@@ -23,7 +16,7 @@
 	- phase inversion sign bit
 
 midi:
-	- extraneous midi note offs on the first play after startup
+	- extra midi note offs on the first play after startup
 		- one for each tracker channel, all on midi channel 0(variable?)
 	- orphaned notes on quit because notes aren't properly stopped
 

@@ -343,6 +343,86 @@ void channelRight(void)
 			} break;
 	}
 }
+void trackerHome(void)
+{
+	switch (w->mode)
+	{
+		case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
+			w->songfy = 0;
+			break;
+		default:
+			w->trackerfy = 0;
+			break;
+	}
+}
+void trackerEnd(void)
+{
+	switch (w->mode)
+	{
+		case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
+			w->songfy = 255;
+			break;
+		default:
+			w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
+			break;
+	}
+}
+void trackerPageUp(void)
+{
+	switch (w->mode)
+	{
+		case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
+			for (int i = 0; i < MAX(1, w->count); i++)
+			{
+				w->songfy -= s->rowhighlight;
+				if (w->songfy < 0) { w->songfy = 0; break; }
+			} break;
+		default:
+			for (int i = 0; i < MAX(1, w->count); i++)
+			{
+				if (s->songi[w->songfy] == 255) break;
+				w->trackerfy -= s->rowhighlight;
+				if (w->trackerfy < 0)
+				{
+					if (w->songfy > 0 && s->songi[w->songfy - 1] != 255)
+					{
+						w->songfy--;
+						w->trackerfy += s->patternv[s->patterni[s->songi[w->songfy]]]->rowc + 1;
+					} else w->trackerfy = 0;
+				}
+			} break;
+	}
+}
+void trackerPageDown(void)
+{
+	switch (w->mode)
+	{
+		case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
+			for (int i = 0; i < MAX(1, w->count); i++)
+			{
+				w->songfy += s->rowhighlight;
+				if (w->songfy >= 255)
+				{
+					w->songfy = 255;
+					break;
+				}
+			} break;
+		default:
+			for (int i = 0; i < MAX(1, w->count); i++)
+			{
+				if (s->songi[w->songfy] == 255) break;
+				w->trackerfy += s->rowhighlight;
+				if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfy]]]->rowc)
+				{
+					if (w->songfy < 255 && s->songi[w->songfy + 1] != 255)
+					{
+						w->songfy++;
+						w->trackerfy -= s->patternv[s->patterni[s->songi[w->songfy]]]->rowc + 1;
+					} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
+				}
+			} break;
+	}
+}
 
 void inputSongHex(char value)
 {
@@ -474,6 +554,15 @@ void insertMacrov(row *r, uint8_t macro, int input)
 		}
 }
 
+void leaveSpecialModes(void)
+{
+	switch (w->mode)
+	{
+		case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
+		case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
+		default:                 w->mode = T_MODE_NORMAL; break;
+	}
+}
 void trackerInput(int input)
 {
 	int button, x, y, i, j, k;
@@ -502,13 +591,7 @@ void trackerInput(int input)
 							{
 								case 'A': /* linux f1 */ showTracker(); break;
 								case 'B': /* linux f2 */ showInstrument(); break;
-								case 'E': /* linux f5 */
-									switch (w->mode)
-									{
-										case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
-										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
-										default:                 w->mode = T_MODE_NORMAL; break;
-									} startPlayback(); break;
+								case 'E': /* linux f5 */ leaveSpecialModes(); startPlayback(); break;
 							} redraw(); break;
 						case 'A': /* up arrow    */ trackerUpArrow(); redraw(); break;
 						case 'B': /* down arrow  */ trackerDownArrow(); redraw(); break;
@@ -517,20 +600,8 @@ void trackerInput(int input)
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
-								case '5': /* xterm f5, play */
-									switch (w->mode)
-									{
-										case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
-										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
-										default:                 w->mode = T_MODE_NORMAL; break;
-									} startPlayback(); getchar(); break;
-								case '7': /* f6, stop */
-									switch (w->mode)
-									{
-										case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
-										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
-										default:                 w->mode = T_MODE_NORMAL; break;
-									} stopPlayback(); getchar(); break;
+								case '5': /* xterm f5 */ leaveSpecialModes(); startPlayback(); getchar(); break;
+								case '7': /* f6       */ leaveSpecialModes(); stopPlayback(); getchar(); break;
 								case ';': /* mod+arrow */
 									switch (getchar())
 									{
@@ -544,92 +615,14 @@ void trackerInput(int input)
 											} break;
 										default: getchar(); break;
 									} break;
-								case '~': /* linux home */
-									switch (w->mode)
-									{
-										case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
-											w->songfy = 0;
-											break;
-										default:
-											w->trackerfy = 0;
-											break;
-									} redraw(); break;
+								case '~': /* linux home */ trackerHome(); redraw(); break;
 							} break;
-						case 'H': /* xterm home */
-							switch (w->mode)
-							{
-								case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
-									w->songfy = 0;
-									break;
-								default:
-									w->trackerfy = 0;
-									break;
-							} redraw(); break;
-						case '4': /* end */
-							if (getchar() == '~')
-							{
-								switch (w->mode)
-								{
-									case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
-										w->songfy = 255;
-										break;
-									default:
-										w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
-										break;
-								} redraw();
-							} break;
-						case '5': /* page up */
-							switch (w->mode)
-							{
-								case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
-									for (int i = 0; i < MAX(1, w->count); i++)
-									{
-										w->songfy -= s->rowhighlight;
-										if (w->songfy < 0) { w->songfy = 0; break; }
-									} break;
-								default:
-									for (int i = 0; i < MAX(1, w->count); i++)
-									{
-										if (s->songi[w->songfy] == 255) break;
-										w->trackerfy -= s->rowhighlight;
-										if (w->trackerfy < 0)
-										{
-											if (w->songfy > 0 && s->songi[w->songfy - 1] != 255)
-											{
-												w->songfy--;
-												w->trackerfy += s->patternv[s->patterni[s->songi[w->songfy]]]->rowc + 1;
-											} else w->trackerfy = 0;
-										}
-									} break;
-							} getchar(); redraw(); break;
-						case '6': /* page down */
-							switch (w->mode)
-							{
-								case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
-									for (int i = 0; i < MAX(1, w->count); i++)
-									{
-										w->songfy += s->rowhighlight;
-										if (w->songfy >= 255)
-										{
-											w->songfy = 255;
-											break;
-										}
-									} break;
-								default:
-									for (int i = 0; i < MAX(1, w->count); i++)
-									{
-										if (s->songi[w->songfy] == 255) break;
-										w->trackerfy += s->rowhighlight;
-										if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfy]]]->rowc)
-										{
-											if (w->songfy < 255 && s->songi[w->songfy + 1] != 255)
-											{
-												w->songfy++;
-												w->trackerfy -= s->patternv[s->patterni[s->songi[w->songfy]]]->rowc + 1;
-											} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
-										}
-									} break;
-							} getchar(); redraw(); break;
+						case 'H': /* xterm home */ trackerHome(); redraw(); break;
+						case '4': /* end        */
+							if (getchar() == '~') { trackerEnd(); redraw(); }
+							break;
+						case '5': /* page up   */ trackerPageUp(); getchar(); redraw(); break;
+						case '6': /* page down */ trackerPageDown(); getchar(); redraw(); break;
 						case 'M': /* mouse */
 							button = getchar();
 							x = getchar() - 32;
@@ -1119,7 +1112,7 @@ dxandwchannelset:
 											{
 												if (s->songi[w->songfy] == 255) break;
 												p = s->patternv[s->patterni[s->songi[w->songfy]]];
-												j = MIN(p->rowc-1, w->trackerfy - 1 + MAX(1, w->count)) - w->trackerfy;
+												j = MIN(p->rowc, w->trackerfy - 1 + MAX(1, w->count)) - w->trackerfy;
 												yankPartPattern(0, 1+s->channelv[w->channel].macroc,
 														w->trackerfy, w->trackerfy+j,
 														w->channel, w->channel);

@@ -6,6 +6,9 @@
 #define I_MODE_ADJUST 3
 #define I_MODE_MOUSEADJUST 4
 #define I_MODE_VISUAL 5
+#define I_MODE_INDICES_PREVIEW 6
+#define I_MODE_ADJUST_PREVIEW 7
+#define I_MODE_MOUSEADJUST_PREVIEW 8
 
 #define MAX_INSTRUMENT_INDEX 14
 
@@ -29,10 +32,11 @@ void drawInstrument(void)
 	printf("\033[%d;%dH\033[2mPATTERN\033[m \033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col-18) / 2);
 	switch (w->mode)
 	{
-		case I_MODE_INDICES: case I_MODE_NORMAL:     printf("\033[0 q"); break;
-		case I_MODE_PREVIEW:                         printf("\033[%d;0H\033[1m-- PREVIEW --\033[m\033[3 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST: printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case I_MODE_VISUAL:                          printf("\033[%d;0H\033[1m-- VISUAL --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_NORMAL: case I_MODE_INDICES:                     printf("\033[0 q"); break;
+		case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW:            printf("\033[%d;0H\033[1m-- PREVIEW --\033[m\033[3 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:                 printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW: printf("\033[%d;0H\033[1m-- PREVIEW ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_VISUAL:                                          printf("\033[%d;0H\033[1m-- VISUAL --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
 	}
 
 	int i;
@@ -41,12 +45,16 @@ void drawInstrument(void)
 	for (i = 0; i < 255; i++)
 		if (w->centre - w->instrument + i > CHANNEL_ROW && w->centre - w->instrument + i < ws.ws_row)
 		{
-			if (w->mode != I_MODE_INDICES && w->instrument == i) printf("\033[7m");
-
 			iv = s->instrumentv[s->instrumenti[i]];
-			if (iv) printf("\033[%d;1H %02x \033[2m%02x\033[22m \033[1m[%08x]\033[22m ", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
-			else    printf("\033[%d;1H %02x \033[2m%02x\033[22m  ........  ",            w->centre - w->instrument + i, i, s->instrumenti[i]);
-			printf("\033[m");
+			if (w->mode != I_MODE_INDICES && w->mode != I_MODE_INDICES_PREVIEW && w->instrument == i)
+			{
+				if (iv) printf("\033[%d;1H\033[7m %02x %02x \033[1m[%08x]\033[22m \033[27m", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
+				else    printf("\033[%d;1H\033[7m %02x %02x  ........  \033[27m",            w->centre - w->instrument + i, i, s->instrumenti[i]);
+			} else
+			{
+				if (iv) printf("\033[%d;1H %02x \033[2m%02x\033[22m \033[1m[%08x]\033[22m ", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
+				else    printf("\033[%d;1H %02x \033[2m%02x\033[22m  ........  ",            w->centre - w->instrument + i, i, s->instrumenti[i]);
+			}
 		}
 
 	iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -156,6 +164,7 @@ void drawInstrument(void)
 		switch (w->mode)
 		{
 			case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+			case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 				drawChannels(iv->channelmode, y+2, x+12, (w->instrumentindex == 4));
 				break;
 			default:
@@ -186,8 +195,12 @@ void drawInstrument(void)
 		}
 	} else printf("\033[%d;%dH [NOT ADDED] \033[11D", w->centre, INSTRUMENT_INDEX_COLS + (ws.ws_col - INSTRUMENT_INDEX_COLS - 13)/2);
 
-	if (w->mode == I_MODE_INDICES)
-		printf("\033[%d;%dH", w->centre + w->fyoffset, 9);
+	switch (w->mode)
+	{
+		case I_MODE_INDICES: case I_MODE_INDICES_PREVIEW:
+			printf("\033[%d;%dH", w->centre + w->fyoffset, 9);
+			break;
+	}
 }
 
 void instrumentIncFieldPointer(short index)
@@ -383,7 +396,7 @@ void instrumentUpArrow(int count, instrument *iv)
 {
 	switch (w->mode)
 	{
-		case I_MODE_INDICES:
+		case I_MODE_INDICES: case I_MODE_INDICES_PREVIEW:
 			if (w->instrumentrecv == INST_REC_LOCK_OK)
 			{
 				w->instrument -= count;
@@ -397,6 +410,7 @@ void instrumentUpArrow(int count, instrument *iv)
 				if (w->instrumentindex < 0) w->instrumentindex = 0;
 			} w->fieldpointer = 0; break;
 		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 			instrumentAdjustUp(iv, w->instrumentindex, 0);
 			break;
 	}
@@ -405,7 +419,7 @@ void instrumentDownArrow(int count, instrument *iv)
 {
 	switch (w->mode)
 	{
-		case I_MODE_INDICES:
+		case I_MODE_INDICES: case I_MODE_INDICES_PREVIEW:
 			if (w->instrumentrecv == INST_REC_LOCK_OK)
 			{
 				w->instrument += count;
@@ -420,6 +434,7 @@ void instrumentDownArrow(int count, instrument *iv)
 				if (w->instrumentindex > MAX_INSTRUMENT_INDEX) w->instrumentindex = MAX_INSTRUMENT_INDEX;
 			} w->fieldpointer = 0; break;
 		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 			instrumentAdjustDown(iv, w->instrumentindex, 0);
 			break;
 	}
@@ -431,6 +446,7 @@ void instrumentLeftArrow(instrument *iv)
 	{
 		case I_MODE_NORMAL: case I_MODE_PREVIEW: case I_MODE_VISUAL:
 		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 			if (!w->instrumentindex)
 			{
 				if (iv)
@@ -452,6 +468,7 @@ void instrumentCtrlLeftArrow(instrument *iv)
 		{
 			case I_MODE_NORMAL: case I_MODE_PREVIEW: case I_MODE_VISUAL:
 			case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+			case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 				delta = w->waveformwidth / WAVEFORM_FINE_SLICES;
 				if (delta > w->waveformcursor) w->waveformcursor = 0;
 				else                           w->waveformcursor -= delta;
@@ -466,6 +483,7 @@ void instrumentCtrlRightArrow(instrument *iv)
 		{
 			case I_MODE_NORMAL: case I_MODE_PREVIEW: case I_MODE_VISUAL:
 			case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+			case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 				delta = w->waveformwidth / WAVEFORM_FINE_SLICES;
 				if (delta > iv->length-1 - w->waveformcursor) w->waveformcursor = iv->length-1;
 				else                                          w->waveformcursor += delta;
@@ -479,6 +497,7 @@ void instrumentRightArrow(instrument *iv)
 	{
 		case I_MODE_NORMAL: case I_MODE_PREVIEW: case I_MODE_VISUAL:
 		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:
+		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 			if (!w->instrumentindex)
 			{
 				if (iv)
@@ -496,7 +515,7 @@ void instrumentHome(instrument *iv)
 {
 	switch (w->mode)
 	{
-		case I_MODE_INDICES:
+		case I_MODE_INDICES: case I_MODE_INDICES_PREVIEW:
 			if (w->instrumentrecv == INST_REC_LOCK_OK)
 			{ w->instrument = 0; resetWaveform(); }
 			break;
@@ -522,7 +541,7 @@ void instrumentEnd(instrument *iv)
 {
 	switch (w->mode)
 	{
-		case I_MODE_INDICES:
+		case I_MODE_INDICES: case I_MODE_INDICES_PREVIEW:
 			if (w->instrumentrecv == INST_REC_LOCK_OK)
 			{ w->instrument = 254; resetWaveform(); }
 			break;
@@ -545,6 +564,36 @@ void instrumentEnd(instrument *iv)
 	}
 }
 
+void trackerModeToIndices(void)
+{
+	switch (w->mode)
+	{
+		case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW: case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
+			w->mode = I_MODE_INDICES_PREVIEW; break;
+		default:
+			w->mode = I_MODE_INDICES; break;
+	}
+}
+void trackerModeToNormal(void)
+{
+	switch (w->mode)
+	{
+		case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW: case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
+			w->mode = I_MODE_PREVIEW; break;
+		case I_MODE_INDICES:
+			w->mode = I_MODE_NORMAL; break;
+	}
+}
+void trackerModeToMouseadjust(void)
+{
+	switch (w->mode)
+	{
+		case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW: case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
+			w->mode = I_MODE_MOUSEADJUST_PREVIEW; break;
+		default:
+			w->mode = I_MODE_MOUSEADJUST; break;
+	}
+}
 void instrumentInput(int input)
 {
 	instrument *iv = s->instrumentv[s->instrumenti[w->instrument]];
@@ -622,13 +671,13 @@ void instrumentInput(int input)
 								case WHEEL_UP: case WHEEL_UP_CTRL:
 									if (x < INSTRUMENT_INDEX_COLS)
 									{
-										w->mode = I_MODE_INDICES;
+										trackerModeToIndices();
 										if (w->instrument > WHEEL_SPEED) w->instrument -= WHEEL_SPEED;
 										else                             w->instrument = 0;
 										resetWaveform();
 									} else
 									{
-										if (w->mode == I_MODE_INDICES) w->mode = I_MODE_NORMAL;
+										trackerModeToNormal();
 										if (y < yo && iv)
 										{
 											w->instrumentindex = 0;
@@ -639,13 +688,13 @@ void instrumentInput(int input)
 								case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 									if (x < INSTRUMENT_INDEX_COLS)
 									{
-										w->mode = I_MODE_INDICES;
+										trackerModeToIndices();
 										if (w->instrument < 254 - WHEEL_SPEED) w->instrument += WHEEL_SPEED;
 										else                                   w->instrument = 254;
 										resetWaveform();
 									} else
 									{
-										if (w->mode == I_MODE_INDICES) w->mode = I_MODE_NORMAL;
+										trackerModeToNormal();
 										if (y < yo && iv)
 										{
 											w->instrumentindex = 0;
@@ -656,15 +705,15 @@ void instrumentInput(int input)
 								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 									switch (w->mode)
 									{
-										case I_MODE_INDICES:
+										case I_MODE_INDICES: case I_MODE_INDICES_PREVIEW:
 											if ((short)w->instrument + w->fyoffset < 0)        w->instrument = 0;
 											else if ((short)w->instrument + w->fyoffset > 254) w->instrument = 254;
 											else                                               w->instrument += w->fyoffset;
 											resetWaveform();
 											w->fyoffset = 0;
 											break;
-										case I_MODE_MOUSEADJUST:
-											w->mode = I_MODE_NORMAL;
+										case I_MODE_MOUSEADJUST: case I_MODE_MOUSEADJUST_PREVIEW:
+											w->mode = w->oldmode;
 											switch (w->instrumentindex)
 											{
 												case 1: case 12: break;
@@ -672,13 +721,14 @@ void instrumentInput(int input)
 											} break;
 									} break;
 								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
-									if (w->mode == I_MODE_MOUSEADJUST)
+									switch (w->mode)
 									{
-										if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex, 1);
-										else if (x < w->mousex) instrumentAdjustLeft(iv, w->instrumentindex, 1);
-										if      (y > w->mousey) instrumentAdjustDown(iv, w->instrumentindex, 1);
-										else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex, 1);
-										w->mousey = y; w->mousex = x;
+										case I_MODE_MOUSEADJUST: case I_MODE_MOUSEADJUST_PREVIEW:
+											if      (x > w->mousex) instrumentAdjustRight(iv, w->instrumentindex, 1);
+											else if (x < w->mousex) instrumentAdjustLeft(iv, w->instrumentindex, 1);
+											if      (y > w->mousey) instrumentAdjustDown(iv, w->instrumentindex, 1);
+											else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex, 1);
+											w->mousey = y; w->mousex = x; break;
 									} break;
 								case BUTTON1:      case BUTTON3:
 								case BUTTON1_CTRL: case BUTTON3_CTRL:
@@ -691,12 +741,10 @@ void instrumentInput(int input)
 
 									if (x < INSTRUMENT_INDEX_COLS)
 									{
-										if (w->mode == I_MODE_VISUAL) w->mode = I_MODE_NORMAL;
+										trackerModeToIndices();
 										if (button == BUTTON1 || button == BUTTON1_CTRL)
-										{
-											w->mode = I_MODE_INDICES;
 											w->fyoffset = y - w->centre;
-										} else
+										else
 										{
 											if ((short)w->instrument + (y - w->centre) < 0)        w->instrument = 0;
 											else if ((short)w->instrument + (y - w->centre) > 254) w->instrument = 254;
@@ -705,13 +753,13 @@ void instrumentInput(int input)
 											if (!s->instrumenti[w->instrument]) addInstrument(w->instrument);
 											w->popup = 2;
 											w->fyoffset = 0;
-											w->oldmode = I_MODE_INDICES;
+											w->oldmode = w->mode;
 											w->mode = 0;
 											w->filebrowserCallback = &sampleLoadCallback;
 										} previewNote(NOTE_OFF, INST_VOID, w->channel);
 									} else if (iv)
 									{
-										if (w->mode == I_MODE_INDICES) w->mode = I_MODE_NORMAL;
+										trackerModeToNormal();
 										if (y < yo)
 										{
 											w->instrumentindex = 0;
@@ -799,7 +847,7 @@ void instrumentInput(int input)
 											}
 											/* enter mouseadjust mode */
 											w->oldmode = w->mode;
-											w->mode = I_MODE_MOUSEADJUST;
+											trackerModeToMouseadjust();
 											w->mousey = y; w->mousex = x;
 										}
 									} if (iv) { w->waveformdrawpointer = 0; redraw(); } break;
@@ -809,9 +857,12 @@ void instrumentInput(int input)
 					previewNote(NOTE_OFF, INST_VOID, w->channel);
 					switch (w->mode)
 					{
-						case I_MODE_VISUAL:                      w->mode = I_MODE_NORMAL; w->fieldpointer = 0; w->waveformdrawpointer = 0; redraw(); break;
-						case I_MODE_PREVIEW: case I_MODE_ADJUST: w->mode = w->oldmode; w->fieldpointer = 0; break;
-						case I_MODE_MOUSEADJUST:                 w->mode = w->oldmode; break;
+						case I_MODE_VISUAL:
+							w->mode = I_MODE_NORMAL; w->fieldpointer = 0; w->waveformdrawpointer = 0; redraw(); break;
+						case I_MODE_PREVIEW: case I_MODE_ADJUST: case I_MODE_ADJUST_PREVIEW:
+							w->mode = w->oldmode; w->fieldpointer = 0; break;
+						case I_MODE_INDICES_PREVIEW: case I_MODE_MOUSEADJUST: case I_MODE_MOUSEADJUST_PREVIEW:
+							w->mode = w->oldmode; break;
 					} redraw(); break;
 			} break;
 		default:
@@ -858,7 +909,7 @@ void instrumentInput(int input)
 								switch (input)
 								{
 									case '\t': /* normal         */ w->mode = I_MODE_NORMAL; w->fieldpointer = 0; redraw(); break;
-									case 'i':  /* preview        */ w->instrumentindex = 0; w->oldmode = w->mode; w->mode = I_MODE_PREVIEW; redraw(); break;
+									case 'i':  /* preview        */ w->instrumentindex = 0; w->oldmode = I_MODE_INDICES; w->mode = I_MODE_INDICES_PREVIEW; redraw(); break;
 									case 'r':  /* record         */ w->chord = 'r'; redraw(); return;
 									case 'k':  /* keyboard macro */ w->chord = 'k'; redraw(); return;
 									case 'a':  /* add            */ if (!s->instrumenti[w->instrument]) { addInstrument(w->instrument); redraw(); } break;
@@ -921,19 +972,20 @@ void instrumentInput(int input)
 							} else
 								switch (input)
 								{
-									case 'v':  /* normal  */ w->mode = I_MODE_NORMAL; w->waveformdrawpointer = 0; redraw(); break;
-									case '\t': /* indices */ w->mode = I_MODE_INDICES; w->waveformdrawpointer = 0; redraw(); break;
-									case 'z':  /* zoom    */ if (!w->instrumentindex) w->chord = 'z'; redraw(); return;
+									case 'v':           /* normal   */ w->mode = I_MODE_NORMAL; w->waveformdrawpointer = 0; redraw(); break;
+									case '\t':          /* indices  */ w->mode = I_MODE_INDICES; w->waveformdrawpointer = 0; redraw(); break;
+									case 'i':           /* preview  */ w->oldmode = I_MODE_NORMAL; w->mode = I_MODE_PREVIEW; w->waveformdrawpointer = 0; redraw(); break;
+									case 'z':           /* zoom     */ if (!w->instrumentindex) w->chord = 'z'; redraw(); return;
 									case '+': case '=': /* zoom in  */ if (iv) { w->waveformwidth /= 2; w->waveformdrawpointer = 0; redraw(); } break;
 									case '-':           /* zoom out */ if (iv) { w->waveformwidth = MIN(iv->length, w->waveformwidth*2); w->waveformdrawpointer = 0; redraw(); } break;
-									case 't':  /* trim    */
+									case 't':           /* trim     */
 										if (iv)
 										{
 											iv->trim[0] = MIN(w->waveformcursor, w->waveformvisual);
 											iv->trim[1] = MAX(w->waveformcursor, w->waveformvisual);
 											w->mode = I_MODE_NORMAL; w->waveformdrawpointer = 0; redraw();
 										} break;
-									case 'l':  /* loop    */
+									case 'l':           /* loop     */
 										if (iv)
 										{
 											iv->loop[0] = MIN(w->waveformcursor, w->waveformvisual);
@@ -1014,8 +1066,7 @@ void instrumentInput(int input)
 									iv->trim[1] = 0;
 									iv->loop[0] = 0;
 									iv->loop[1] = 0;
-								}
-								break;
+								} break;
 						} w->count = 0; redraw();
 					} else
 					{
@@ -1026,8 +1077,7 @@ void instrumentInput(int input)
 									switch (w->instrumentindex)
 									{
 										case 6:  iv->flags ^= S_FLAG_SUSTAIN; break;
-										case 8:
-											iv->flags ^= S_FLAG_MIDI;
+										case 8:  iv->flags ^= S_FLAG_MIDI;
 											if (!(iv->flags&S_FLAG_MIDI) && w->instrumentlockv == INST_GLOBAL_LOCK_OK)
 											{
 												w->instrumentlocki = s->instrumenti[w->instrument];
@@ -1036,10 +1086,9 @@ void instrumentInput(int input)
 										case 10: iv->flags ^= S_FLAG_PPLOOP;  break;
 										case 13: iv->flags ^= S_FLAG_TTEMPO;  break;
 										default: w->oldmode = w->mode; w->mode = I_MODE_ADJUST; break;
-									}
-									redraw(); break;
+									} redraw(); break;
 								case '\t': /* indices          */ w->mode = I_MODE_INDICES; redraw(); break;
-								case 'i':  /* preview          */ w->oldmode = w->mode; w->mode = I_MODE_PREVIEW; redraw(); break;
+								case 'i':  /* preview          */ w->oldmode = I_MODE_NORMAL; w->mode = I_MODE_PREVIEW; redraw(); break;
 								case 'r':  /* record           */ w->chord = 'r'; redraw(); return;
 								case 'k':  /* keyboard macro   */ w->chord = 'k'; redraw(); return;
 								case 'u':  /* undo             */ popInstrumentHistory(s->instrumenti[w->instrument]); redraw(); break;
@@ -1112,7 +1161,7 @@ void instrumentInput(int input)
 								case 'j':  /* jump             */ w->chord = 'j'; redraw(); return;
 								case 'd':  /* delete           */ w->chord = 'd'; redraw(); return;
 								case '\t': /* indices          */ w->mode = I_MODE_INDICES; redraw(); break;
-								case 'i':  /* preview          */ w->oldmode = w->mode; w->mode = I_MODE_PREVIEW; redraw(); break;
+								case 'i':  /* preview          */ w->oldmode = I_MODE_NORMAL; w->mode = I_MODE_PREVIEW; redraw(); break;
 								case 'r':  /* record           */ w->chord = 'r'; redraw(); return;
 								case 'k':  /* keyboard macro   */ w->chord = 'k'; redraw(); return;
 								case 'u':  /* undo             */ popInstrumentHistory(s->instrumenti[w->instrument]); redraw(); break;
@@ -1124,20 +1173,55 @@ void instrumentInput(int input)
 					{
 						case '\n': case '\r': w->mode = I_MODE_NORMAL; redraw(); break;
 					} break;
-				case I_MODE_PREVIEW:
+				case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW: case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 					switch (input)
 					{
 						case '\n': case '\r':
-							if (!w->instrumentindex)
+							switch (w->mode)
 							{
-								if (!s->instrumenti[w->instrument]) addInstrument(w->instrument);
-								w->popup = 2;
-								w->fyoffset = 0;
-								w->oldmode = w->mode;
-								w->mode = 0;
-								w->filebrowserCallback = &sampleLoadCallback;
-								redraw();
+								case I_MODE_PREVIEW:
+									if (!w->instrumentindex)
+									{
+										if (!s->instrumenti[w->instrument]) addInstrument(w->instrument);
+										w->popup = 2;
+										w->fyoffset = 0;
+										w->oldmode = I_MODE_NORMAL;
+										w->mode = 0;
+										w->filebrowserCallback = &sampleLoadCallback;
+										redraw();
+									} else
+									{
+										switch (w->instrumentindex)
+										{
+											case 6:  iv->flags ^= S_FLAG_SUSTAIN; break;
+											case 8:  iv->flags ^= S_FLAG_MIDI;
+												if (!(iv->flags&S_FLAG_MIDI) && w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+												{
+													w->instrumentlocki = s->instrumenti[w->instrument];
+													w->instrumentlockv = INST_GLOBAL_INST_MUTE;
+												} break;
+											case 10: iv->flags ^= S_FLAG_PPLOOP;  break;
+											case 13: iv->flags ^= S_FLAG_TTEMPO;  break;
+											default: w->oldmode = w->mode; w->mode = I_MODE_ADJUST_PREVIEW; break;
+										} redraw();
+									} break;
+								case I_MODE_INDICES_PREVIEW:
+									if (!s->instrumenti[w->instrument]) addInstrument(w->instrument);
+									w->popup = 2;
+									w->fyoffset = 0;
+									w->oldmode = I_MODE_NORMAL;
+									w->mode = 0;
+									w->filebrowserCallback = &sampleLoadCallback;
+									redraw(); break;
+								case I_MODE_ADJUST_PREVIEW:
+									w->mode = I_MODE_PREVIEW; redraw(); break;
 							} break;
+						case '\t':
+							switch (w->mode)
+							{
+								case I_MODE_PREVIEW: w->mode = I_MODE_INDICES_PREVIEW; break;
+								case I_MODE_INDICES_PREVIEW: w->mode = I_MODE_PREVIEW; break;
+							} redraw(); break;
 						case '0': w->octave = 0; redraw(); break;
 						case '1': w->octave = 1; redraw(); break;
 						case '2': w->octave = 2; redraw(); break;

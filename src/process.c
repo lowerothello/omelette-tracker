@@ -759,6 +759,8 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t i = 0; i < p->s->channelc; i++)
 		{
 			cv = &p->s->channelv[i];
+			cv->delaysamples = 0;
+			cv->cutsamples = 0;
 			triggerNote(p, 0, cv, NOTE_OFF, cv->r.inst);
 			triggerMidi(p, 0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 			cv->r.note = NOTE_OFF;
