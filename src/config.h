@@ -4,6 +4,9 @@
 /* draw the samples being output to the background */
 #define ENABLE_BACKGROUND 0
 
+/* in nanoseconds */
+#define UPDATE_DELAY 10000000
+
 /* new file bpm */
 #define DEF_BPM 120
 
@@ -17,15 +20,12 @@
 /* how many lines the mouse wheel should scroll */
 #define WHEEL_SPEED 1
 
-/* screenwidth*screenheight*WAVEFORM_OVERSAMPLING samples are drawn */
-#define WAVEFORM_OVERSAMPLING 4
 /* how many slices to divide the screen into for left/right */
 #define WAVEFORM_COARSE_SLICES 16
 /* how many slices to divide the screen into for ctrl+left/right */
 #define WAVEFORM_FINE_SLICES 128
-
-/* size of the oscillator lookup tables */ // DEPRECATED
-#define OSCILLATOR_TABLE_LEN 512
+/* how many samples to draw per update, set to the uint32 limit to disable lazy drawing */
+#define WAVEFORM_LAZY_BLOCK_SIZE 3000
 
 /* approximately how many samples to wait between pitch wheel events */
 /* also used for aftertouch */

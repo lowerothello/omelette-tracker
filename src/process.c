@@ -27,13 +27,12 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 		instrument *iv = p->s->instrumentv[realinstrument];
 
 		/* clear the rampbuffer so cruft isn't played in edge cases */
-		memset(cv->rampbuffer, 0, sizeof(sample_t) * rampmax * 2);
+		memset(cv->rampbuffer, 0, sizeof(short) * rampmax * 2);
 
+		/* set the gain */
 		if (cv->gain != -1) cv->rampgain = cv->gain;
-		else if (iv)        cv->rampgain = iv->defgain;
+		else cv->rampgain = 0x88;
 
-		SVFilter oldfl = cv->fl;
-		SVFilter oldfr = cv->fr;
 		if (iv)
 		{
 			if (cv->reverse)
@@ -51,8 +50,6 @@ void ramp(playbackinfo *p, channel *cv, uint8_t realinstrument, uint32_t pointer
 					samplerProcess(iv, cv, pointeroffset + i,
 							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]);
 		}
-		cv->fl = oldfl;
-		cv->fr = oldfr;
 	}
 }
 jack_midi_data_t midiGain(channel *cv, instrument *iv)
@@ -60,14 +57,14 @@ jack_midi_data_t midiGain(channel *cv, instrument *iv)
 	if (cv->targetgain != -1)
 	{
 		if (cv->gain != -1) return ((cv->targetgain>>4)<<3);
-		else if (iv)        return ((iv->defgain>>4)<<3);
+		else                return 64;
 	} else
 	{
 		if (cv->gain != -1) return (cv->gain>>4)<<3;
-		else if (iv)        return (iv->defgain>>4)<<3;
+		else                return 64;
 	} return 0;
 }
-void applyGain(playbackinfo *p, float rowprogress, channel *cv, instrument *iv, float *l, float *r)
+void applyGain(playbackinfo *p, float rowprogress, channel *cv, float *l, float *r)
 {
 	if (cv->targetgain != -1)
 	{
@@ -75,15 +72,15 @@ void applyGain(playbackinfo *p, float rowprogress, channel *cv, instrument *iv, 
 		{
 			*l *= (cv->gain>>4)*DIV16 + ((cv->targetgain>>4) - (cv->gain>>4))*DIV16 * rowprogress;
 			*r *= (cv->gain%16)*DIV16 + ((cv->targetgain%16) - (cv->gain%16))*DIV16 * rowprogress;
-		} else if (iv)
+		} else
 		{
-			*l *= (iv->defgain>>4)*DIV16 + ((cv->targetgain>>4) - (iv->defgain>>4))*DIV16 * rowprogress;
-			*r *= (iv->defgain%16)*DIV16 + ((cv->targetgain%16) - (iv->defgain%16))*DIV16 * rowprogress;
+			*l *= 0.5f + ((cv->targetgain>>4) - 8)*DIV16 * rowprogress;
+			*r *= 0.5f + ((cv->targetgain%16) - 8)*DIV16 * rowprogress;
 		}
 	} else
 	{
 		if (cv->gain != -1) { *l *= (cv->gain>>4)*DIV16; *r *= (cv->gain%16)*DIV16; }
-		else if (iv) { *l *= (iv->defgain>>4)*DIV16; *r *= (iv->defgain%16)*DIV16; }
+		else                { *l *= 0.5f; *r *= 0.5f; }
 	}
 }
 
@@ -152,8 +149,7 @@ char triggerMidi(playbackinfo *p, jack_nframes_t fptr, channel *cv, uint8_t oldn
 			midiNoteOn(fptr, iv->midichannel, note, midiGain(cv, iv));
 			return 1;
 		}
-	}
-	return 0;
+	} return 0;
 }
 
 
@@ -167,16 +163,15 @@ void calcVibrato(channel *cv, int m)
 }
 
 char Vc(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	calcVibrato(cv, m);
-	return 1;
-}
+{ calcVibrato(cv, m); return 1; }
+
 char bc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (m == 0) changeBpm(p->s, p->s->songbpm);
 	else        changeBpm(p->s, MAX(32, m));
 	return 0;
 }
+
 char Cc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (!m>>4)
@@ -191,40 +186,45 @@ char Cc(jack_nframes_t fptr, int m, channel *cv, row r)
 		cv->cutsamples = p->s->spr * (float)(m>>4) / (float)(m%16);
 	return 0;
 }
+
 char Pc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	cv->portamento = r.note;
 	cv->portamentospeed = m;
 	return 1;
 }
+
+char dc(jack_nframes_t fptr, int m, channel *cv, row r)
+{
+	if (m%16 == 0) return 0;
+	cv->delaysamples = p->s->spr * m*DIV256;
+	cv->delaynote = r.note;
+	if (r.inst == INST_VOID) cv->delayinst = cv->r.inst;
+	else                     cv->delayinst = r.inst;
+	return 1;
+}
 char Dc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	if (m%16 != 0)
-	{
-		cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
-		cv->delaynote = r.note;
-		if (r.inst == INST_VOID) cv->delayinst = cv->r.inst;
-		else                     cv->delayinst = r.inst;
-		return 1;
-	} return 0;
+	if (m%16 == 0) return 0;
+	cv->delaysamples = p->s->spr * (float)(m>>4) / (float)(m%16);
+	cv->delaynote = r.note;
+	if (r.inst == INST_VOID) cv->delayinst = cv->r.inst;
+	else                     cv->delayinst = r.inst;
+	return 1;
 }
+
 char PRERAMP(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	if (cv->pointer) return 1;
-	return 0;
-}
+{ if (cv->pointer) return 1; return 0; }
+
 char GcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	cv->gain = m;
-	return 0;
-}
+{ cv->gain = m; return 1; }
 char gc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	/* only slide if a note is already playing */
 	if (cv->pointer) cv->targetgain = m;
 	else             cv->gain = m;
 	return 0;
 }
+
 char Rc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (m%16 != 0)
@@ -234,15 +234,17 @@ char Rc(jack_nframes_t fptr, int m, channel *cv, row r)
 		cv->rtrigblocksize = m>>4;
 	} return 0;
 }
+
 char Wc(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	cv->waveshaper = m>>4;
-	cv->waveshaperstrength = m%16;
-	return 0;
-}
+{ cv->waveshaper = m>>4; cv->waveshaperstrength = m%16; return 0; }
+
 char tc(jack_nframes_t fptr, int m, channel *cv, row r)
 { cv->gate = m; return 0; }
-char Oc(jack_nframes_t fptr, int m, channel *cv, row r)
+
+char OCPRERAMP(jack_nframes_t fptr, int m, channel *cv, row r)
+{ if (cv->pointer && r.note == NOTE_VOID) return 1; return 0; }
+
+char OcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 	if (cv->r.note != NOTE_VOID) /* if playing a note */
@@ -256,14 +258,17 @@ char Oc(jack_nframes_t fptr, int m, channel *cv, row r)
 		cv->pointer = 0;
 	} return 0;
 }
-char oc(jack_nframes_t fptr, int m, channel *cv, row r)
+
+char ocPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	cv->reverse = !cv->reverse;
-	if (m) return Oc(fptr, m, cv, r);
+	if (m) return OcPOSTRAMP(fptr, m, cv, r);
 	return 0;
 }
+
 char Mc(jack_nframes_t fptr, int m, channel *cv, row r)
 { cv->microtonalfinetune = m*DIV255; return 0; }
+
 char PERCENTc(jack_nframes_t fptr, int m, channel *cv, row r) /* returns true to NOT play */
 {
 	if (rand()%256 > m) return 1;
@@ -271,68 +276,43 @@ char PERCENTc(jack_nframes_t fptr, int m, channel *cv, row r) /* returns true to
 }
 
 char FcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	cv->filtercut = m;
-	return 0;
-}
+{ cv->filtercut = m; return 0; }
 char fc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	/* only slide if a note is already playing */
 	if (cv->pointer) cv->targetfiltercut = m;
 	else             cv->filtercut = m;
 	return 0;
 }
+
 char ZcPOSTRAMP(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->filterres = (uint8_t)((uint8_t)m<<4)>>4;
+	cv->filtermode = (m>>4)%4; /* TODO: smooth filter mode changes, 24dB/oct modes */
+	cv->filterres = m%16;
 	return 0;
 }
-/* char Lc(jack_nframes_t fptr, int m, channel *cv, row r)
+char zc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->filtermode = 0;
-	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
+	cv->filtermode = (m>>4)%4; /* TODO: smooth filter mode changes, 24dB/oct modes */
+	if (cv->pointer) cv->targetfilterres = m%16;
+	else             cv->filterres = m%16;
 	return 0;
 }
-char Hc(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	cv->filtermode = 1;
-	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
-	return 0;
-}
-char Bc(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	cv->filtermode = 2;
-	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
-	return 0;
-}
-char Nc(jack_nframes_t fptr, int m, channel *cv, row r)
-{
-	cv->filtermode = 3;
-	cv->filterres = (m>>4)*DIV15;
-	cv->filtercut = ((uint8_t)((uint8_t)m<<4)>>4)*DIV15;
-	return 0;
-} */
 
 void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 {
 	char ret;
 	instrument *iv = p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
-	float lo = 0.0f;
-	float ro = 0.0f;
+	short li = 0; short ri = 0; /* the compiler REALLY wants to make these static */
 
 	float rowprogress = (float)p->s->sprp / (float)p->s->spr;
 
 	cv->finetune = cv->portamentofinetune + cv->microtonalfinetune;
 	if (cv->vibratosamples)
 	{
-		cv->finetune += oscillator(0, (float)cv->vibratosamplepointer / (float)cv->vibratosamples, 0.5)
-			* cv->vibrato*DIV16;
+		cv->finetune += triosc((float)cv->vibratosamplepointer / (float)cv->vibratosamples) * cv->vibrato*DIV16;
 
-		/* re-read the macro once phase is about to overflow */
 		cv->vibratosamplepointer++;
+		/* re-read the macro once phase is about to overflow */
 		if (cv->vibratosamplepointer > cv->vibratosamples)
 		{
 			cv->vibratosamplepointer = 0;
@@ -355,16 +335,22 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 		ret = triggerMidi(p, fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
 		if (cv->delaynote == NOTE_OFF) cv->r.note = NOTE_OFF;
 
-		/* dumb hack */
 		short oldgain = cv->gain;
 		short oldtargetgain = cv->targetgain;
 		_triggerNote(cv, cv->delaynote, cv->delayinst);
-		cv->gain = oldgain;
-		cv->targetgain = oldtargetgain;
+		if (ifMacro(fptr, cv, cv->r, 'G', &GcPOSTRAMP))
+		{
+			cv->gain = oldgain;
+			cv->targetgain = oldtargetgain;
+		}
 
 		cv->delaysamples = 0;
-		ifMacro(fptr, cv, cv->r, 'O', &Oc); /* offset            */
-		ifMacro(fptr, cv, cv->r, 'b', &bc); /* bw offset         */
+
+		if (ifMacro(fptr, cv, cv->r, 'O', &OCPRERAMP) || ifMacro(fptr, cv, cv->r, 'o', &OCPRERAMP))
+		{ ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer); cv->rampindex = 0; }
+
+		ifMacro(fptr, cv, cv->r, 'O', &OcPOSTRAMP); /* offset    */
+		ifMacro(fptr, cv, cv->r, 'o', &ocPOSTRAMP); /* bw offset */
 		ifMacro(fptr, cv, cv->r, 'M', &Mc); /* microtonal offset */
 	}
 
@@ -391,117 +377,119 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 				}
 				ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer - cv->rtrigsamples);
 				cv->rampindex = 0;
-			}
-
-			samplerProcess(iv, cv, cv->rtrigpointer + rtrigoffset, &lo, &ro);
-		} else samplerProcess(iv, cv, cv->pointer, &lo, &ro);
+			} samplerProcess(iv, cv, cv->rtrigpointer + rtrigoffset, &li, &ri);
+		} else samplerProcess(iv, cv, cv->pointer, &li, &ri);
 
 		if (cv->reverse) { if (cv->pointer) cv->pointer--; }
 		else                                cv->pointer++;
 	}
 
-	applyGain(p, rowprogress, cv, iv, &lo, &ro);
+	float lf = (float)li*DIVSHRT;
+	float rf = (float)ri*DIVSHRT;
+
+	applyGain(p, rowprogress, cv, &lf, &rf);
 
 	if (cv->rampbuffer && cv->rampindex < rampmax)
 	{ /* ramping */
 		float gain = (float)cv->rampindex / (float)rampmax;
-		lo = lo * gain + cv->rampbuffer[cv->rampindex*2 + 0] * (1.0f - gain) * (cv->rampgain>>4)*DIV16;
-		ro = ro * gain + cv->rampbuffer[cv->rampindex*2 + 1] * (1.0f - gain) * (cv->rampgain%16)*DIV16;
+		lf = lf * gain + ((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT) * (1.0f - gain) * (cv->rampgain>>4)*DIV16;
+		rf = rf * gain + ((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT) * (1.0f - gain) * (cv->rampgain%16)*DIV16;
 		cv->rampindex++;
 	}
 
 	/* denormals */
-	if (fabsf(lo) < NOISE_GATE && fabsf(ro) < NOISE_GATE) return;
+	if (fabsf(lf) < NOISE_GATE && fabsf(rf) < NOISE_GATE) { lf = 0.0f; rf = 0.0f; }
 
 	/* waveshapers */ /* TODO: ramping */
 	if (cv->waveshaperstrength)
 	{
-		float strength;
+		float strength, hold;
 		switch (cv->waveshaper)
 		{
 			case 0: /* hard clipper */
-				strength = 1.0f + cv->waveshaperstrength*1.5f;
-				lo = hardclip(lo * strength); ro = hardclip(ro * strength);
+				strength = 1.0f + (cv->waveshaperstrength<<1);
+				hold = 1.0f / sqrtf(strength);
+				lf = hardclip(lf*strength)*hold;
+				rf = hardclip(rf*strength)*hold;
 				break;
 			case 1: /* soft clipper */
-				strength = 1.0f + cv->waveshaperstrength*0.4f;
-				lo = thirddegreepolynomial(lo * strength); ro = thirddegreepolynomial(ro * strength);
+				strength = 1.0f + cv->waveshaperstrength;
+				hold = 1.0f / sqrtf(strength);
+				lf = thirddegreepolynomial(lf*strength)*hold;
+				rf = thirddegreepolynomial(rf*strength)*hold;
 				break;
 			case 2: /* rectifier */
-				strength = cv->waveshaperstrength*DIV16;
-				lo = rectify(0, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-				ro = rectify(0, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				strength = cv->waveshaperstrength*DIV15;
+				lf = rectify(0, lf) * (MIN(strength, 0.5f) * 2) + lf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				rf = rectify(0, rf) * (MIN(strength, 0.5f) * 2) + rf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				break;
 			case 3: /* rectifier x2 */
-				strength = cv->waveshaperstrength*DIV16;
-				lo = rectify(1, lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-				ro = rectify(1, ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				strength = cv->waveshaperstrength*DIV15;
+				lf = rectify(1, lf) * (MIN(strength, 0.5f) * 2) + lf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				rf = rectify(1, rf) * (MIN(strength, 0.5f) * 2) + rf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				break;
 			case 4: /* wavefolder */
-				strength = 1.0f + cv->waveshaperstrength*0.3f;
-				lo = wavefolder(lo * strength); ro = wavefolder(ro * strength);
+				strength = 1.0f + cv->waveshaperstrength;
+				hold = 1.0f / sqrtf(strength);
+				lf = wavefolder(lf*strength)*hold;
+				rf = wavefolder(rf*strength)*hold;
 				break;
 			case 5: /* wavewrapper */
-				strength = 1.0f + cv->waveshaperstrength*0.2f;
-				lo = wavewrapper(lo * strength); ro = wavewrapper(ro * strength);
+				strength = 1.0f + cv->waveshaperstrength;
+				hold = 1.0f / sqrtf(strength);
+				lf = wavewrapper(lf*strength)*hold;
+				rf = wavewrapper(rf*strength)*hold;
 				break;
-			case 6: /* signed unsigned conversion */
-				strength = cv->waveshaperstrength*DIV16;
-				lo = signedunsigned(lo) * (MIN(strength, 0.5f) * 2) + lo * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
-				ro = signedunsigned(ro) * (MIN(strength, 0.5f) * 2) + ro * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+			case 6: /* sign conversion */
+				strength = cv->waveshaperstrength*DIV15;
+				lf = signedunsigned(lf) * (MIN(strength, 0.5f) * 2) + lf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
+				rf = signedunsigned(rf) * (MIN(strength, 0.5f) * 2) + rf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				break;
 		}
 	}
 
 	/* gate */
-	if (MAX(fabsf(lo), fabsf(ro)) < (cv->gate%16)*0.025f)
+	if (MAX(fabsf(lf), fabsf(rf)) < (cv->gate%16)*0.025f)
 		cv->gateopen = MAX(0.5f - ((cv->gate>>4)*DIV16) * 0.5f, cv->gateopen - MIN_GATE_SPEED_SEC/samplerate - (cv->gate>>4)*DIV128);
 	else
 		cv->gateopen = MIN(1.0f, cv->gateopen + MIN_GATE_SPEED_SEC/samplerate + (cv->gate>>4)*DIV128);
-	lo *= cv->gateopen; ro *= cv->gateopen;
+	lf *= cv->gateopen; rf *= cv->gateopen;
 
 	/* filter */
-	float cutoff;
+	float cutoff = 1.0f;
+	float resonance = 0.0f;
 	switch (cv->filtermode)
 	{
-		case 0: /* low-pass  */
+		case 0: /* lfw-pass  */
 			if (cv->targetfiltercut != -1) cutoff = cv->filtercut*DIV255 + (cv->targetfiltercut - (short)cv->filtercut)*DIV255 * rowprogress;
-			else if (cv->filtercut != 255) cutoff = cv->filtercut*DIV255;
+			else                           cutoff = cv->filtercut*DIV255;
 			break;
 		case 1: /* high-pass */
 			if (cv->targetfiltercut != -1) cutoff = cv->filtercut*DIV255 + (cv->targetfiltercut - (short)cv->filtercut)*DIV255 * rowprogress;
-			else if   (cv->filtercut != 0) cutoff = cv->filtercut*DIV255;
+			else                           cutoff = cv->filtercut*DIV255;
 			break;
 		case 2: case 3: /* band-pass / notch */
 			if (cv->targetfiltercut != -1) cutoff = cv->filtercut*DIV255 + (cv->targetfiltercut - (short)cv->filtercut)*DIV255 * rowprogress;
 			else                           cutoff = cv->filtercut*DIV255;
 			break;
 	}
-	runSVFilter(&cv->fl, thirddegreepolynomial(lo), cutoff, cv->filterres);
-	runSVFilter(&cv->fr, thirddegreepolynomial(ro), cutoff, cv->filterres);
+	if (cv->targetfilterres != -1) resonance = cv->filterres*DIV15 + (cv->targetfilterres - cv->filterres)*DIV15 * rowprogress;
+	else                           resonance = cv->filterres*DIV15;
+	runSVFilter(&cv->fl, lf, cutoff, resonance);
+	runSVFilter(&cv->fr, rf, cutoff, resonance);
 	switch (cv->filtermode)
 	{
-		case 0: /* low-pass  */ lo = hardclip(cv->fl.l); ro = hardclip(cv->fr.l); break;
-		case 1: /* high-pass */ lo = hardclip(cv->fl.h); ro = hardclip(cv->fr.h); break;
-		case 2: /* band-pass */ lo = hardclip(cv->fl.b); ro = hardclip(cv->fr.b); break;
-		case 3: /* notch     */ lo = hardclip(cv->fl.n); ro = hardclip(cv->fr.n); break;
+		case 0: /* low-pass  */ if (!(cv->targetfiltercut == -1 && cv->filtercut == 255)) { lf = hardclip(cv->fl.l); rf = hardclip(cv->fr.l); } break;
+		case 1: /* high-pass */ if (!(cv->targetfiltercut == -1 && cv->filtercut == 0)) { lf = hardclip(cv->fl.h); rf = hardclip(cv->fr.h); } break;
+		case 2: /* band-pass */ lf = hardclip(cv->fl.b); rf = hardclip(cv->fr.b); break;
+		case 3: /* notch     */ lf = hardclip(cv->fl.n); rf = hardclip(cv->fr.n); break;
 	}
 
-	if (!cv->mute)
-	{ pb.out.l[fptr] += lo; pb.out.r[fptr] += ro; }
+	if (!cv->mute) { pb.out.l[fptr] += lf; pb.out.r[fptr] += rf; }
 }
 
-void bendUp(channel *cv, uint32_t spr, uint32_t count)
-{
-	cv->portamentofinetune = MIN((float)(cv->portamento - cv->r.note),
-			cv->portamentofinetune + (12.0f / spr) * (cv->portamentospeed*DIV255) * count);
-}
-
-void bendDown(channel *cv, uint32_t spr, uint32_t count)
-{
-	cv->portamentofinetune = MAX((float)(cv->portamento - cv->r.note),
-			cv->portamentofinetune - (12.0f / spr) * (cv->portamentospeed*DIV255) * count);
-}
+void bendUp(channel *cv, uint32_t spr, uint32_t count) { cv->portamentofinetune = MIN((float)(cv->portamento - cv->r.note), cv->portamentofinetune + (12.0f / spr) * (cv->portamentospeed*DIV255) * count); }
+void bendDown(channel *cv, uint32_t spr, uint32_t count) { cv->portamentofinetune = MAX((float)(cv->portamento - cv->r.note), cv->portamentofinetune - (12.0f / spr) * (cv->portamentospeed*DIV255) * count); }
 
 void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 {
@@ -511,25 +499,12 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	for (int i = 0; i < cv->macroc; i++)
 		cv->r.macro[i] = r.macro[i];
 
-	/* gain */
-	if (cv->targetgain != -1)
-	{
-		cv->gain = cv->targetgain;
-		cv->targetgain = -1;
-	}
-	/* filter */
-	if (cv->targetfiltercut != -1)
-	{
-		cv->filtercut = cv->targetfiltercut;
-		cv->targetfiltercut = -1;
-	}
-	/* retrigger */
-	if (cv->rtrigsamples)
-	{
-		if (cv->rtrigblocksize) cv->rtrigblocksize--;
-		else                    cv->rtrigsamples = 0;
-	}
-	/* vibrato */
+	/* end interpolation */
+	if (cv->targetgain != -1) { cv->gain = cv->targetgain; cv->targetgain = -1; }
+	if (cv->targetfiltercut != -1) { cv->filtercut = cv->targetfiltercut; cv->targetfiltercut = -1; }
+	if (cv->targetfilterres != -1) { cv->filterres = cv->targetfilterres; cv->targetfilterres = -1; }
+	if (cv->rtrigsamples) { if (cv->rtrigblocksize) cv->rtrigblocksize--; else cv->rtrigsamples = 0; }
+
 	ret = ifMacro(fptr, cv, r, 'V', &Vc);
 	if (!ret) cv->vibratosamples = 0;
 
@@ -543,7 +518,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 		ret = ifMacro(fptr, cv, r, 'P', &Pc); /* pitch slide */
 		if (!ret)
 		{
-			ret = ifMacro(fptr, cv, r, 'D', &Dc); /* delay */
+			ret = (ifMacro(fptr, cv, r, 'D', &Dc) || ifMacro(fptr, cv, r, 'd', &dc)); /* delay */
 			if (!ret)
 			{
 				oldnote = cv->r.note;
@@ -556,17 +531,21 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	/* ramping */
 	if (ifMacro(fptr, cv, r, 'G', &PRERAMP)
 			|| ifMacro(fptr, cv, r, 'F', &PRERAMP)
-			|| ifMacro(fptr, cv, r, 'Z', &PRERAMP))
-	{
-		ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer);
-		cv->rampindex = 0;
-	}
+			|| ifMacro(fptr, cv, r, 'Z', &PRERAMP)
+			|| ifMacro(fptr, cv, r, 'O', &OCPRERAMP)
+			|| ifMacro(fptr, cv, r, 'o', &OCPRERAMP))
+	{ ramp(p, cv, p->s->instrumenti[cv->r.inst], cv->pointer); cv->rampindex = 0; }
+
+	ifMacro(fptr, cv, r, 'O', &OcPOSTRAMP); /* offset    */
+	ifMacro(fptr, cv, r, 'o', &ocPOSTRAMP); /* bw offset */
+
 	ifMacro(fptr, cv, r, 'G', &GcPOSTRAMP);
 	ifMacro(fptr, cv, r, 'F', &FcPOSTRAMP);
 	ifMacro(fptr, cv, r, 'Z', &ZcPOSTRAMP);
 
 	ifMacro(fptr, cv, r, 'g', &gc);
 	ifMacro(fptr, cv, r, 'f', &fc);
+	ifMacro(fptr, cv, r, 'Z', &zc);
 
 	if (oldnote != NOTE_UNUSED && midi) /* trigger midi (needs to be after gain calculation) */
 	{
@@ -577,8 +556,6 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 
 
 	ifMacro(fptr, cv, r, 'M', &Mc); /* microtonal offset */
-	ifMacro(fptr, cv, r, 'O', &Oc); /* offset            */
-	ifMacro(fptr, cv, r, 'o', &oc); /* bw offset         */
 	ifMacro(fptr, cv, r, 'R', &Rc); /* retrigger         */
 
 	// ifMacro(fptr, cv, r, 'L', &Lc); /* low-pass          */
@@ -656,6 +633,12 @@ int process(jack_nframes_t nfptr, void *arg)
 				p->w->previewchannel.rtrigsamples = 0;
 				p->w->previewchannel.rampindex = rampmax;
 				p->w->previewchannel.rampbuffer = NULL;
+				p->w->previewchannel.waveshaperstrength = 0;
+				p->w->previewchannel.gate = 0;
+				p->w->previewchannel.gateopen = 1.0f;
+				p->w->previewchannel.filtermode = 0;
+				p->w->previewchannel.filtercut = 255; p->w->previewchannel.targetfiltercut = -1;
+				p->w->previewchannel.filterres = 0; p->w->previewchannel.targetfilterres = -1;
 				preprocessRow(0, 0, &p->w->previewchannel, p->w->previewrow);
 				p->w->previewtrigger++;
 				break;
@@ -718,8 +701,8 @@ int process(jack_nframes_t nfptr, void *arg)
 						} else
 						{
 							_triggerNote(cv, cv->delaynote, cv->delayinst);
-							ifMacro(0, cv, cv->r, 'O', &Oc); /* offset            */
-							ifMacro(0, cv, cv->r, 'b', &bc); /* bw offset         */
+							ifMacro(0, cv, cv->r, 'O', &OcPOSTRAMP); /* offset            */
+							ifMacro(0, cv, cv->r, 'b', &ocPOSTRAMP); /* bw offset         */
 							ifMacro(0, cv, cv->r, 'M', &Mc); /* microtonal offset */
 							if (cv->reverse)
 							{
@@ -736,8 +719,8 @@ int process(jack_nframes_t nfptr, void *arg)
 					} else if (cv->delaysamples)
 					{
 						_triggerNote(cv, cv->delaynote, cv->delayinst);
-						ifMacro(0, cv, cv->r, 'O', &Oc); /* offset            */
-						ifMacro(0, cv, cv->r, 'b', &bc); /* bw offset         */
+						ifMacro(0, cv, cv->r, 'O', &OcPOSTRAMP); /* offset            */
+						ifMacro(0, cv, cv->r, 'b', &ocPOSTRAMP); /* bw offset         */
 						ifMacro(0, cv, cv->r, 'M', &Mc); /* microtonal offset */
 						if (cv->reverse)
 						{

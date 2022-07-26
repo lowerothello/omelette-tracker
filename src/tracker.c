@@ -14,23 +14,25 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
-		case '%': *dest = '%'; break; /* note chance       */
-		case 'B': *dest = 'b'; break; /* bpm               */
-		case 'c': *dest = 'C'; break; /* note cut          */
-		case 'd': *dest = 'D'; break; /* note delay        */
-		case 'f': *dest = 'F'; break; /* filter            */
-		case 'F': *dest = 'f'; break; /* smooth filter     */
-		case 'g': *dest = 'G'; break; /* gain              */
-		case 'G': *dest = 'g'; break; /* smooth gain       */
-		case 'm': *dest = 'M'; break; /* microtonal offset */
-		case 'o': *dest = 'O'; break; /* offset            */
-		case 'O': *dest = 'o'; break; /* backwards offset  */
-		case 'p': *dest = 'P'; break; /* pitch slide       */
-		case 'r': *dest = 'R'; break; /* retrigger         */
-		case 'T': *dest = 't'; break; /* gate              */
-		case 'v': *dest = 'V'; break; /* vibrato           */
-		case 'w': *dest = 'W'; break; /* waveshaper        */
-		case 'z': *dest = 'Z'; break; /* filter resonance  */
+		case '%': *dest = '%'; break; /* note chance             */
+		case 'B': *dest = 'b'; break; /* bpm                     */
+		case 'c': *dest = 'C'; break; /* note cut                */
+		case 'd': *dest = 'D'; break; /* note delay              */
+		case 'D': *dest = 'd'; break; /* fine note delay         */
+		case 'f': *dest = 'F'; break; /* filter                  */
+		case 'F': *dest = 'f'; break; /* smooth filter           */
+		case 'g': *dest = 'G'; break; /* gain                    */
+		case 'G': *dest = 'g'; break; /* smooth gain             */
+		case 'm': *dest = 'M'; break; /* microtonal offset       */
+		case 'o': *dest = 'O'; break; /* offset                  */
+		case 'O': *dest = 'o'; break; /* backwards offset        */
+		case 'p': *dest = 'P'; break; /* pitch slide             */
+		case 'r': *dest = 'R'; break; /* retrigger               */
+		case 'T': *dest = 't'; break; /* gate                    */
+		case 'v': *dest = 'V'; break; /* vibrato                 */
+		case 'w': *dest = 'W'; break; /* waveshaper              */
+		case 'z': *dest = 'Z'; break; /* filter resonance        */
+		case 'Z': *dest = 'z'; break; /* smooth filter resonance */
 	}
 }
 
@@ -125,7 +127,7 @@ void trackerAdjustLeft(void) /* mouse adjust only */
 	}
 }
 
-void upArrow(void)
+void trackerUpArrow(void)
 {
 	int i;
 	if (w->flags&0b1) w->flags ^= 0b1;
@@ -152,7 +154,7 @@ void upArrow(void)
 			} break;
 	}
 }
-void downArrow(void)
+void trackerDownArrow(void)
 {
 	int i;
 	if (w->flags&0b1) w->flags ^= 0b1;
@@ -235,7 +237,7 @@ void cycleDown(void)
 			} break;
 	}
 }
-void leftArrow(void)
+void trackerLeftArrow(void)
 {
 	if (w->flags&0b1) w->flags ^= 0b1;
 	switch (w->mode)
@@ -294,7 +296,7 @@ void channelLeft(void)
 			} break;
 	}
 }
-void rightArrow(void)
+void trackerRightArrow(void)
 {
 	if (w->flags&0b1) w->flags ^= 0b1;
 	switch (w->mode)
@@ -484,36 +486,51 @@ void trackerInput(int input)
 		case '\033': /* escape */
 			switch (getchar())
 			{
-				case 'O': handleFKeys(getchar()); previewNote(NOTE_OFF, INST_VOID, w->channel); redraw(); break;
+				case 'O':
+					previewNote(NOTE_OFF, INST_VOID, w->channel);
+					switch (getchar())
+					{
+						case 'P': /* xterm f1 */ showTracker(); break;
+						case 'Q': /* xterm f2 */ showInstrument(); break;
+					} redraw(); break;
 				case '[':
 					previewNote(NOTE_OFF, INST_VOID, w->channel);
 					switch (getchar())
 					{
-						case 'A': /* up arrow    */ upArrow(); redraw(); break;
-						case 'B': /* down arrow  */ downArrow(); redraw(); break;
-						case 'D': /* left arrow  */ leftArrow(); redraw(); break;
-						case 'C': /* right arrow */ rightArrow(); redraw(); break;
-						case '1': /* mod+arrow / f5 - f8 */
+						case '[':
 							switch (getchar())
 							{
-								case '5': /* f5, play */
+								case 'A': /* linux f1 */ showTracker(); break;
+								case 'B': /* linux f2 */ showInstrument(); break;
+								case 'E': /* linux f5 */
 									switch (w->mode)
 									{
 										case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
 										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
 										default:                 w->mode = T_MODE_NORMAL; break;
-									}
-									startPlayback();
-									getchar(); break;
+									} startPlayback(); break;
+							} redraw(); break;
+						case 'A': /* up arrow    */ trackerUpArrow(); redraw(); break;
+						case 'B': /* down arrow  */ trackerDownArrow(); redraw(); break;
+						case 'D': /* left arrow  */ trackerLeftArrow(); redraw(); break;
+						case 'C': /* right arrow */ trackerRightArrow(); redraw(); break;
+						case '1': /* mod+arrow / f5 - f8 */
+							switch (getchar())
+							{
+								case '5': /* xterm f5, play */
+									switch (w->mode)
+									{
+										case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
+										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
+										default:                 w->mode = T_MODE_NORMAL; break;
+									} startPlayback(); getchar(); break;
 								case '7': /* f6, stop */
 									switch (w->mode)
 									{
 										case T_MODE_INSERT: case T_MODE_SONG: case T_MODE_SONG_INSERT: break;
 										case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
 										default:                 w->mode = T_MODE_NORMAL; break;
-									}
-									stopPlayback();
-									getchar(); break;
+									} stopPlayback(); getchar(); break;
 								case ';': /* mod+arrow */
 									switch (getchar())
 									{
@@ -527,8 +544,18 @@ void trackerInput(int input)
 											} break;
 										default: getchar(); break;
 									} break;
+								case '~': /* linux home */
+									switch (w->mode)
+									{
+										case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
+											w->songfy = 0;
+											break;
+										default:
+											w->trackerfy = 0;
+											break;
+									} redraw(); break;
 							} break;
-						case 'H': /* home */
+						case 'H': /* xterm home */
 							switch (w->mode)
 							{
 								case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
@@ -623,7 +650,7 @@ void trackerInput(int input)
 
 							switch (button)
 							{
-								case WHEEL_UP: case WHEEL_UP_CTRL: /* scroll up */
+								case WHEEL_UP: case WHEEL_UP_CTRL:
 									if (w->flags&0b1) w->flags ^= 0b1;
 
 									if (x < dx - LINENO_COLS)
@@ -643,7 +670,7 @@ void trackerInput(int input)
 											} else w->trackerfy = 0;
 										}
 									} break;
-								case WHEEL_DOWN: case WHEEL_DOWN_CTRL: /* scroll down */
+								case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 									if (w->flags&0b1) w->flags ^= 0b1;
 
 									if (x < dx - LINENO_COLS)
@@ -663,7 +690,7 @@ void trackerInput(int input)
 											} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
 										}
 									} break;
-								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL: /* release click */
+								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 									switch (w->mode)
 									{
 										case T_MODE_SONG: case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL:
@@ -710,8 +737,8 @@ void trackerInput(int input)
 								default: /* click / click+drag */
 									if (y <= CHANNEL_ROW-2)
 									{
-										if (x < (ws.ws_col-17) / 2 + 7) handleFKeys('P');
-										else                            handleFKeys('Q');
+										if (x < (ws.ws_col-17) / 2 + 7) showTracker();
+										else                            showInstrument();
 										break;
 									}
 									if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
@@ -1099,7 +1126,7 @@ dxandwchannelset:
 												delPartPattern(0, 1+s->channelv[w->channel].macroc,
 														w->trackerfy, w->trackerfy+j,
 														w->channel, w->channel);
-												for (i = 0; i < j; i++) downArrow();
+												for (i = 0; i < j; i++) trackerDownArrow();
 												redraw();
 											} break;
 										case 'y': if (input == 'y') /* yank */
@@ -1110,7 +1137,7 @@ dxandwchannelset:
 												yankPartPattern(0, 1+s->channelv[w->channel].macroc,
 														w->trackerfy, w->trackerfy+j,
 														w->channel, w->channel);
-												for (i = 0; i < j; i++) downArrow();
+												for (i = 0; i < j; i++) trackerDownArrow();
 												redraw();
 											} break;
 										case 'c': /* channel */
@@ -1488,7 +1515,7 @@ dxandwchannelset:
 											putPartPattern();
 											w->trackerfy = MIN(w->trackerfy + w->pbfy[1] - w->pbfy[0],
 														s->patternv[s->patterni[s->songi[w->songfy]]]->rowc - 1);
-											downArrow();
+											trackerDownArrow();
 											redraw(); break;
 										case 'P': /* pattern put before */ /* TODO: count */
 											if (s->songi[w->songfy] == 255) break;
@@ -1550,6 +1577,7 @@ dxandwchannelset:
 														case '~': /* toggle case */
 															if      (isupper(r->macro[macro].c)) r->macro[macro].c += 32;
 															else if (islower(r->macro[macro].c)) r->macro[macro].c -= 32;
+															break;
 													} break;
 											} redraw(); break;
 									}
@@ -1666,8 +1694,8 @@ dxandwchannelset:
 									case '9': r->note = changeNoteOctave(9, r->note); break;
 									default:
 										note = charToNote(input);
-										previewNote(note, r->inst, w->channel);
 										insertNote(r, note);
+										previewNote(note, r->inst, w->channel);
 										w->trackerfy += w->step;
 										if (w->trackerfy > s->patternv[s->patterni[s->songi[w->songfy]]]->rowc)
 										{
@@ -1681,9 +1709,17 @@ dxandwchannelset:
 							case 1: /* instrument */ insertInst(r, input); break;
 							default: /* macros */
 								macro = (w->trackerfx - 2) / 2;
-								if (!(w->trackerfx%2)) insertMacroc(r, macro, input);
-								else                   insertMacrov(r, macro, input);
-								break;
+								switch (input)
+								{
+									case '~': /* toggle case */
+										if      (isupper(r->macro[macro].c)) r->macro[macro].c += 32;
+										else if (islower(r->macro[macro].c)) r->macro[macro].c -= 32;
+										break;
+									default:
+										if (!(w->trackerfx%2)) insertMacroc(r, macro, input);
+										else                   insertMacrov(r, macro, input);
+										break;
+								} break;
 						} redraw(); break;
 				} break;
 	}

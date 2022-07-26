@@ -36,7 +36,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 88;
+const unsigned char MINOR = 89;
 
 
 jack_nframes_t samplerate;
@@ -68,7 +68,8 @@ void redraw(void);
 void resize(int);
 void startPlayback(void);
 void stopPlayback(void);
-void handleFKeys(int);
+void showTracker(void);
+void showInstrument(void);
 
 void changeMacro(int, char *);
 
@@ -120,7 +121,7 @@ void redraw(void)
 	fcntl(0, F_SETFL, 0); /* blocking */
 	puts("\033[2J\033[?25h");
 
-	if (ws.ws_row < 20 || ws.ws_col < 70 + INSTRUMENT_INDEX_COLS)
+	if (ws.ws_row < 20 || ws.ws_col < 57 + INSTRUMENT_INDEX_COLS)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 		fflush(stdout);
@@ -211,23 +212,18 @@ void stopPlayback(void)
 	redraw();
 }
 
-/* should be called after recieving \033O */
-void handleFKeys(int input)
+void showTracker(void)
 {
-	switch (input)
-	{
-		case 'P': /* tracker */
-			w->mode = 0;
-			w->popup = 0;
-			break;
-		case 'Q': /* instrument */
-			w->instrumentindex = 0;
-			w->mode = 0;
-			w->popup = 1;
-			if (s->instrumenti[w->instrument])
-				resetWaveform();
-			break;
-	}
+	w->mode = 0;
+	w->popup = 0;
+}
+void showInstrument(void)
+{
+	w->instrumentindex = 0;
+	w->mode = 0;
+	w->popup = 1;
+	if (s->instrumenti[w->instrument])
+		resetWaveform();
 }
 
 int input(void)
@@ -321,16 +317,14 @@ void resize(int _)
 	w->instrumentrowoffset =  (ws.ws_row - INSTRUMENT_BODY_ROWS) / 2 + 1;
 	w->centre =                ws.ws_row / 2 + 1;
 
-	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS + 1) * 2;
-	w->waveformh = (ws.ws_row - CHANNEL_ROW - INSTRUMENT_CONTROL_ROW) * 4;
-	if (w->waveformcanvas) free_canvas(w->waveformcanvas);
-	w->waveformcanvas = NULL;
-	w->waveformcanvas = new_canvas(w->waveformw, w->waveformh);
+	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1) * 2;
+	w->waveformh = (ws.ws_row - CHANNEL_ROW - INSTRUMENT_CONTROL_ROW -1) * 4;
+	if (w->waveformcanvas) { free_canvas(w->waveformcanvas); w->waveformcanvas = NULL; } w->waveformcanvas = new_canvas(w->waveformw, w->waveformh);
 	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
 	w->waveformbuffer = NULL;
 	w->waveformbuffer = new_buffer(w->waveformcanvas);
 	if (w->popup == 1 && s->instrumenti[w->instrument])
-		resizeWaveform(s->instrumentv[s->instrumenti[w->instrument]]);
+		w->waveformdrawpointer = 0;
 
 	resizeBackground();
 	changeDirectory(); /* recalc the maxwidth/cols */
@@ -365,7 +359,6 @@ void cleanup(int ret)
 	delSong(s);
 	free(p);
 	freeBackground();
-	freeOscillator();
 	jack_client_close(client);
 
 	common_cleanup(ret);
@@ -447,7 +440,9 @@ int main(int argc, char **argv)
 	p->w = w;
 
 	initBackground(); /* needs to be before jack_activate */
-	genOscillator();
+
+	w->previewchannel.r.note = NOTE_VOID;
+	w->previewchannel.filtercut = 1.0f;
 
 
 	jack_set_process_callback(client, process, p);
@@ -488,7 +483,7 @@ int main(int argc, char **argv)
 
 		running = input();
 
-		// if (ENABLE_BACKGROUND || p->dirty)
+		if (ENABLE_BACKGROUND || p->dirty)
 		{ p->dirty = 0; redraw(); }
 
 		/* perform any pending instrument actions */
@@ -530,7 +525,7 @@ int main(int argc, char **argv)
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
-		req.tv_nsec = 16666666; // wait ~>16.7ms (60hz)
+		req.tv_nsec = UPDATE_DELAY;
 		while(nanosleep(&req, &req) < 0);
 	}
 

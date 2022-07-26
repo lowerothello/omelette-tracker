@@ -1,30 +1,29 @@
 #define S_FLAG_TTEMPO  0b00000001 /* timestretch     */
-#define S_FLAG_MONO    0b00000010 /*   deprecated    */
+#define S_FLAG_PHASE   0b00000010 /* invert phase    */
 #define S_FLAG_SUSTAIN 0b00000100 /* inverse sustain */
 #define S_FLAG_MIDI    0b00001000 /* midi output     */
 #define S_FLAG_RPLAY   0b00010000 /*   deprecated    */
 #define S_FLAG_PPLOOP  0b00100000 /* ping-pong loop  */
-#define S_FLAG_PHASE   0b10000000 /* invert phase    */
 
-void getSample(uint32_t p, instrument *iv, float *l, float *r)
+void getSample(uint32_t p, instrument *iv, short *l, short *r)
 {
 	uint8_t shift = 15 - iv->bitdepth;
-	/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
-	if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT;
-	else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT;
+	/* listchars */       *l += (iv->sampledata[p*iv->channels+0]>>shift)<<shift;
+	if (iv->channels > 1) *r += (iv->sampledata[p*iv->channels+1]>>shift)<<shift;
+	else                  *r += (iv->sampledata[p*iv->channels+0]>>shift)<<shift;
 }
 
-void getSampleLoopRamp(uint32_t p, uint32_t q, float lerp, instrument *iv, float *l, float *r)
+void getSampleLoopRamp(uint32_t p, uint32_t q, float lerp, instrument *iv, short *l, short *r)
 {
 	uint8_t shift = 15 - iv->bitdepth;
-	/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
-	if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+1]>>shift)<<shift)*DIVSHRT * lerp;
-	else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift)*DIVSHRT * (1.0 - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift)*DIVSHRT * lerp;
+	/* listchars */       *l += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift) * (1.0f - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift) * lerp;
+	if (iv->channels > 1) *r += ((iv->sampledata[p*iv->channels+1]>>shift)<<shift) * (1.0f - lerp) + ((iv->sampledata[q * iv->channels+1]>>shift)<<shift) * lerp;
+	else                  *r += ((iv->sampledata[p*iv->channels+0]>>shift)<<shift) * (1.0f - lerp) + ((iv->sampledata[q * iv->channels+0]>>shift)<<shift) * lerp;
 }
 
 /* clamps within range and loop, returns output samples */
 void trimloop(uint32_t pitchedpointer, uint32_t pointer,
-		channel *cv, instrument *iv, sample_t *l, sample_t *r)
+		channel *cv, instrument *iv, short *l, short *r)
 {
 	uint32_t p = pitchedpointer + iv->trim[0] + cv->pointeroffset;
 
@@ -32,7 +31,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 	{ /* if there is a loop range */
 		if (iv->loop[0] == iv->loop[1] && p > iv->loop[1])
 		{
-			*l = *r = 0.0f;
+			*l = *r = 0;
 			return;
 		}
 
@@ -69,22 +68,16 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 		}
 	}
 
-	/* trigger the release envelope */
-	if (((iv->loop[1] && iv->trim[1] < iv->loop[1]) || !iv->loop[1])
-			&& p > iv->trim[1] - (iv->volume.r * ENVELOPE_RELEASE * samplerate)
-			&& !cv->releasepointer)
+	/* auto-trigger the release envelope */
+	if (!cv->releasepointer && ((iv->loop[1] && iv->trim[1] < iv->loop[1]) || !iv->loop[1])
+			&& p > iv->trim[1] - (((iv->envelope%16)+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate))
 		cv->releasepointer = pointer;
 
 	if (!(iv->loop[0] || iv->loop[1]))
 	{
-		/* always point to the left channel */
 		p -= p % iv->channels;
-
 		if (p < iv->length) getSample(p, iv, l, r);
 	}
-
-	/* sample gain */
-	*l *= iv->gain*DIV64; *r *= iv->gain*DIV64;
 }
 
 uint32_t calcDecimate(instrument *iv, uint8_t decimate, uint32_t pointer)
@@ -95,14 +88,15 @@ uint32_t calcDecimate(instrument *iv, uint8_t decimate, uint32_t pointer)
 	else                       return (uint32_t)(pointer / d) * d;
 }
 
-void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, float *r)
+void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, short *l, short *r)
 {
 	uint32_t ramppos, pointersnap;
 	uint16_t cyclelength;
+	short hold;
+	float gain;
 
-	float gain = adsrEnvelope(iv->volume, 0.0, pointer, cv->releasepointer);
-	if (!(pointer > (iv->volume.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate && gain == 0.0f)
-			&& iv->length > 0)
+	float envgain = envelope(iv->envelope, pointer, cv->releasepointer, !(iv->flags&S_FLAG_SUSTAIN));
+	if (!(pointer > ((iv->envelope>>4)+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate && envgain < NOISE_GATE) && iv->length > 0)
 	{
 		cyclelength = MAX(iv->cyclelength, 1);
 		pointersnap = pointer % cyclelength;
@@ -129,13 +123,14 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 			if (cv->stretchrampindex < cv->localstretchrampmax)
 			{
-				float rl = 0.0f; float rr = 0.0f;
+				short rl = 0; short rr = 0;
 				trimloop(calcDecimate(iv, iv->samplerate,
 						((pointer - pointersnap - cyclelength) * calcrate) + ((cyclelength + cv->stretchrampindex) * calcpitch * calcrate)),
 						pointer, cv, iv, &rl, &rr);
 
-				float gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
-				*l = *l * gain + rl * (1.0f - gain); *r = *r * gain + rr * (1.0f - gain);
+				gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
+				*l = *l * gain + rl * (1.0f - gain);
+				*r = *r * gain + rr * (1.0f - gain);
 				cv->stretchrampindex++;
 			}
 		} else
@@ -148,18 +143,27 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, float *l, flo
 
 			if (cv->stretchrampindex < cv->localstretchrampmax)
 			{
-				float rl = 0.0f; float rr = 0.0f;
+				short rl = 0; short rr = 0;
 				trimloop(calcDecimate(iv, iv->samplerate,
 						(float)(pointer - pointersnap - cyclelength + ((cyclelength + cv->stretchrampindex) * (float)(iv->pitchshift*DIV128))) * calcpitch * calcrate),
 						pointer, cv, iv, &rl, &rr);
 
-				float gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
-				*l = *l * gain + rl * (1.0f - gain); *r = *r * gain + rr * (1.0f - gain);
+				gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
+				*l = *l * gain + rl * (1.0f - gain);
+				*r = *r * gain + rr * (1.0f - gain);
 				cv->stretchrampindex++;
 			}
 		}
 	}
 
-	if (iv->flags & S_FLAG_MONO)  { *l = (*l + *r) * 0.5f; *r = *l; }
-	*l *= gain; *r *= gain;
+	switch (iv->channelmode)
+	{
+		case 1: *r = *l; break;
+		case 2: *l = *r; break;
+		case 3: *l = *r = ((*l>>1) + (*r>>1)); break;
+		case 4: hold = *l; *l = *r; *r = hold; break;
+	}
+
+	if (iv->flags & S_FLAG_PHASE) { *l *= -1; *r *= -1; }
+	*l *= envgain; *r *= envgain;
 }

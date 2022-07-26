@@ -137,11 +137,21 @@ void filebrowserInput(int input)
 							break;
 					} redraw(); break;
 				case 'O':
-					handleFKeys(getchar());
-					redraw(); break;
+					switch (getchar())
+					{
+						case 'P': /* xterm f1 */ showTracker(); break;
+						case 'Q': /* xterm f2 */ showInstrument(); break;
+					} redraw(); break;
 				case '[':
 					switch (getchar())
 					{
+						case '[':
+							switch (getchar())
+							{
+								case 'A': /* linux f1 */ showTracker(); break;
+								case 'B': /* linux f2 */ showInstrument(); break;
+								case 'E': /* linux f5 */ startPlayback(); break;
+							} redraw(); break;
 						case 'A': /* up arrow */
 							w->filebrowserindex -= w->dircols;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
@@ -158,7 +168,7 @@ void filebrowserInput(int input)
 							w->filebrowserindex++;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
 							redraw(); break;
-						case 'H': /* home */
+						case 'H': /* xterm home */
 							w->filebrowserindex = 0;
 							redraw(); break;
 						case '4': /* end */
@@ -180,9 +190,10 @@ void filebrowserInput(int input)
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
-								case '5': /* f5, play  */ getchar(); startPlayback(); break;
-								case '7': /* f6, stop  */ getchar(); stopPlayback(); break;
-								case ';': /* mod+arrow */ getchar(); break;
+								case '5': /* xterm f5, play  */ getchar(); startPlayback(); break;
+								case '7': /* f6, stop        */ getchar(); stopPlayback(); break;
+								case ';': /* mod+arrow       */ getchar(); break;
+								case '~': /* linux home      */ w->filebrowserindex = 0; redraw(); break;
 							} break;
 						case 'M': /* mouse */
 							button = getchar();

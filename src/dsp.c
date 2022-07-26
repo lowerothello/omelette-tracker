@@ -6,12 +6,10 @@
 #define FM_DEPTH 0.005
 
 /* <seconds> */
-#define ENVELOPE_ATTACK 0.005
-#define ENVELOPE_ATTACK_MIN 1
-#define ENVELOPE_DECAY 0.020
-#define ENVELOPE_DECAY_MIN 1
-#define ENVELOPE_RELEASE 0.020
-#define ENVELOPE_RELEASE_MIN 1
+#define ENVELOPE_ATTACK 0.01
+#define ENVELOPE_ATTACK_MIN 0
+#define ENVELOPE_DECAY 0.1
+#define ENVELOPE_DECAY_MIN 0
 #define LFO_MIN 2.00
 #define LFO_MAX 0.001
 /* </seconds> */
@@ -57,6 +55,10 @@ float getWnoise(wnoise *w)
 	return out;
 }
 
+float hardclip(float input)
+{
+	return MIN(1.0f, MAX(-1.0f, input));
+}
 
 typedef struct
 {
@@ -68,12 +70,9 @@ typedef struct
 
 
 /* state variable filter */
-#define MAX_RESONANCE 0.02 /* how far off of infinity to go */
+#define MAX_RESONANCE 0.005 /* how far off of infinity to go */
 #define MIN_RESONANCE 0.95
-typedef struct
-{
-	double l, h, b, n;
-} SVFilter;
+typedef struct { double l, h, b, n; } SVFilter;
 void runSVFilter(SVFilter *s, double input, double cutoff, double q)
 {
 	double F1 = 2 * M_PI * cutoff * 0.15;
@@ -84,141 +83,90 @@ void runSVFilter(SVFilter *s, double input, double cutoff, double q)
 }
 
 
-void drawWave(uint8_t wave, unsigned short y, unsigned short x, char adjust)
-{
-	switch (wave)
-	{
-		case 0:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH [  tri] ", y+0, x);
-				printf(   "\033[%d;%dH    saw  ", y+1, x);
-				printf(   "\033[%d;%dH   ramp  ", y+2, x);
-				printf(   "\033[%d;%dH  pulse  ", y+3, x);
-				printf(   "\033[%d;%dH   sine  ", y+4, x);
-			} else printf("\033[%d;%dH [  tri] ", y+0, x);
-			break;
-		case 1:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH    tri  ", y-1, x);
-				printf(   "\033[%d;%dH [  saw] ", y+0, x);
-				printf(   "\033[%d;%dH   ramp  ", y+1, x);
-				printf(   "\033[%d;%dH  pulse  ", y+2, x);
-				printf(   "\033[%d;%dH   sine  ", y+3, x);
-			} else printf("\033[%d;%dH [  saw] ", y+0, x);
-			break;
-		case 2:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH    tri  ", y-2, x);
-				printf(   "\033[%d;%dH    saw  ", y-1, x);
-				printf(   "\033[%d;%dH [ ramp] ", y+0, x);
-				printf(   "\033[%d;%dH  pulse  ", y+1, x);
-				printf(   "\033[%d;%dH   sine  ", y+2, x);
-			} else printf("\033[%d;%dH [ ramp] ", y+0, x);
-			break;
-		case 3:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH    tri  ", y-3, x);
-				printf(   "\033[%d;%dH    saw  ", y-2, x);
-				printf(   "\033[%d;%dH   ramp  ", y-1, x);
-				printf(   "\033[%d;%dH [pulse] ", y+0, x);
-				printf(   "\033[%d;%dH   sine  ", y+1, x);
-			} else printf("\033[%d;%dH [pulse] ", y+0, x);
-			break;
-		case 4:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH    tri  ", y-4, x);
-				printf(   "\033[%d;%dH    saw  ", y-3, x);
-				printf(   "\033[%d;%dH   ramp  ", y-2, x);
-				printf(   "\033[%d;%dH  pulse  ", y-1, x);
-				printf(   "\033[%d;%dH [ sine] ", y+0, x);
-			} else printf("\033[%d;%dH [ sine] ", y+0, x);
-			break;
-	}
-}
-void drawFilterType(uint8_t type, unsigned short y, unsigned short x, char adjust)
-{
-	switch (type)
-	{
-		case 0:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH[low]", y+0, x);
-				printf(   "\033[%d;%dH  hi ", y+1, x);
-				printf(   "\033[%d;%dH bnd ", y+2, x);
-				printf(   "\033[%d;%dH rej ", y+3, x);
-			} else printf("\033[%d;%dH[low]", y+0, x);
-			break;
-		case 1:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH low ", y-1, x);
-				printf(   "\033[%d;%dH[ hi]", y+0, x);
-				printf(   "\033[%d;%dH bnd ", y+1, x);
-				printf(   "\033[%d;%dH rej ", y+2, x);
-			} else printf("\033[%d;%dH[ hi]", y+0, x);
-			break;
-		case 2:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH low ", y-2, x);
-				printf(   "\033[%d;%dH  hi ", y-1, x);
-				printf(   "\033[%d;%dH[bnd]", y+0, x);
-				printf(   "\033[%d;%dH rej ", y+1, x);
-			} else printf("\033[%d;%dH[bnd]", y+0, x);
-			break;
-		case 3:
-			if (adjust)
-			{
-				printf(   "\033[%d;%dH low ", y-3, x);
-				printf(   "\033[%d;%dH  hi ", y-2, x);
-				printf(   "\033[%d;%dH bnd ", y-1, x);
-				printf(   "\033[%d;%dH[rej]", y+0, x);
-			} else printf("\033[%d;%dH[rej]", y+0, x);
-			break;
-	}
-}
 void drawBit(char a)
 {
 	if (a) printf("[X]");
 	else   printf("[ ]");
 }
-
-
-/* curve 0: linear */
-/* curve 1: exponential */
-float adsrEnvelope(adsr env, float curve,
-		uint32_t pointer,
-		uint32_t releasepointer)
+void drawChannels(uint8_t mode, unsigned short y, unsigned short x, char adjust)
 {
-	float linear;
-	if (releasepointer && releasepointer < pointer)
-	{ /* release */
-		uint32_t releaselength = (env.r+ENVELOPE_RELEASE_MIN) * ENVELOPE_RELEASE * samplerate;
-		linear = (1.0f - MIN(1.0f, (float)(pointer - releasepointer) / (float)releaselength)) * (env.s*DIV256);
-	} else
+	switch (mode)
 	{
-		uint32_t attacklength = (env.a+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate;
-		uint32_t decaylength = (env.d+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate;
-		if (pointer < attacklength)
-		{ /* attack */
-			linear = (float)pointer / (float)attacklength;
-			if (!env.d) linear *= env.s*DIV256; /* ramp to sustain if there's no decay stage */
-		} else if (env.s < 255 && pointer < attacklength + decaylength)
-		{ /* decay */
-			linear = 1.0f - (float)(pointer - attacklength) / (float)decaylength * (1.0f - env.s*DIV256);
-		} else /* sustain */
-			linear = env.s*DIV256;
+		case 0:
+			if (adjust)
+			{
+				printf("\033[%d;%dH [stereo] ", y+0, x);
+				printf("\033[%d;%dH    left  ", y+1, x);
+				printf("\033[%d;%dH   right  ", y+2, x);
+				// printf("\033[%d;%dH     mix  ", y+3, x);
+				// printf("\033[%d;%dH    swap  ", y+4, x);
+			} else printf("\033[%d;%dH [stereo] ", y+0, x);
+			break;
+		case 1:
+			if (adjust)
+			{
+				printf("\033[%d;%dH  stereo  ", y-1, x);
+				printf("\033[%d;%dH [  left] ", y+0, x);
+				printf("\033[%d;%dH   right  ", y+1, x);
+				printf("\033[%d;%dH     mix  ", y+2, x);
+				// printf("\033[%d;%dH    swap  ", y+3, x);
+			} else printf("\033[%d;%dH [  left] ", y+0, x);
+			break;
+		case 2:
+			if (adjust)
+			{
+				printf("\033[%d;%dH  stereo  ", y-2, x);
+				printf("\033[%d;%dH    left  ", y-1, x);
+				printf("\033[%d;%dH [ right] ", y+0, x);
+				printf("\033[%d;%dH     mix  ", y+1, x);
+				printf("\033[%d;%dH    swap  ", y+2, x);
+			} else printf("\033[%d;%dH [ right] ", y+0, x);
+			break;
+		case 3:
+			if (adjust)
+			{
+				printf("\033[%d;%dH  stereo  ", y-3, x);
+				printf("\033[%d;%dH    left  ", y-2, x);
+				printf("\033[%d;%dH   right  ", y-1, x);
+				printf("\033[%d;%dH [   mix] ", y+0, x);
+				printf("\033[%d;%dH    swap  ", y+1, x);
+			} else printf("\033[%d;%dH [   mix] ", y+0, x);
+			break;
+		case 4:
+			if (adjust)
+			{
+				printf("\033[%d;%dH  stereo  ", y-4, x);
+				printf("\033[%d;%dH    left  ", y-3, x);
+				printf("\033[%d;%dH   right  ", y-2, x);
+				printf("\033[%d;%dH     mix  ", y-1, x);
+				printf("\033[%d;%dH [  swap] ", y+0, x);
+			} else printf("\033[%d;%dH [  swap] ", y+0, x);
+			break;
 	}
-	/* lerp between linear and exponential */
-	return linear * (1.0f - curve) + powf(linear, 2.0f) * curve;
 }
 
-typedef struct
+
+float envelope(uint8_t env, uint32_t pointer, uint32_t releasepointer, char sustain)
+{
+	uint32_t attacklength = ((env>>4)+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate;
+	uint32_t decaylength = ((env%16)+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate;
+
+	if (!pointer || (!sustain && pointer > attacklength + decaylength) || (sustain && releasepointer && pointer > releasepointer + decaylength))
+		return 0.0f;
+	else if (sustain && releasepointer && pointer > releasepointer)
+		return 1.0f - MIN(1.0f, (float)(pointer - releasepointer) / (float)decaylength);
+	else
+	{
+		if (pointer < attacklength)
+			return (float)pointer / (float)attacklength;
+		else if (!sustain && pointer < attacklength + decaylength)
+			return 1.0f - (float)(pointer - attacklength) / (float)decaylength;
+		else
+			return 1.0f;
+	}
+}
+
+/* typedef struct
 {
 	float *triangle;
 	float *saw;
@@ -226,7 +174,6 @@ typedef struct
 	float *sine;
 } oscillatortable;
 oscillatortable o;
-
 void freeOscillator(void)
 {
 	free(o.triangle);
@@ -234,40 +181,39 @@ void freeOscillator(void)
 	free(o.ramp);
 	free(o.sine);
 }
-
+#define OSCILLATOR_TABLE_LEN 512
 void genOscillator(void)
 {
 	o.triangle = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
 	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
 		o.triangle[i] = fabsf(fmodf(((float)i / (OSCILLATOR_TABLE_LEN - 1)) + 0.75f, 1.0f) - 0.5f) * 4.0f - 1.0f;
-
 	o.saw = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
 	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
 		o.saw[i] = 1.0f - (float)i / (OSCILLATOR_TABLE_LEN - 1) * 2.0f;
-
 	o.ramp = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
 	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
 		o.ramp[i] = -1.0f + fmodf((float)i / (OSCILLATOR_TABLE_LEN - 1) + 0.5f, 1.0f) * 2.0f;
-
 	o.sine = calloc(OSCILLATOR_TABLE_LEN, sizeof(float));
 	for (size_t i = 0; i < OSCILLATOR_TABLE_LEN; i++)
 		o.sine[i] = sinf((float)i / (OSCILLATOR_TABLE_LEN - 1) * M_PI * 2);
-}
+} */
 
 /* phase should be 0-1 */
 /* pw should be 0-1    */
-float oscillator(char wave, float phase, float pw)
+/* float oscillator(char wave, float phase, float pw)
 {
 	switch (wave)
 	{
-		case 0: /* triangle */ return o.triangle[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
-		case 1: /* saw      */ return o.saw[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
-		case 2: /* ramp     */ return o.ramp[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
-		case 3: /* square   */ return (phase > pw) ? -1.0f : +1.0f;
-		case 4: /* sine     */ return o.sine[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];
+		case 0: return o.triangle[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))]; // triangle
+		case 1: return o.saw[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];      // saw
+		case 2: return o.ramp[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];     // ramp
+		case 3: return (phase > pw) ? -1.0f : +1.0f;                                 // square
+		case 4: return o.sine[(int)(phase * (float)(OSCILLATOR_TABLE_LEN - 1))];     // sine
 		default: return 0.0f;
 	}
-}
+} */
+
+float triosc(float phase) { return (fabsf(fmodf(phase + 0.75f, 1.0f) - 0.5f) * 4.0f) - 1.0f; }
 
 /* waveshaper threshold */
 float wavefolder(float input)
@@ -294,10 +240,6 @@ float signedunsigned(float input)
 		if (input > 0.0f) return input - 1.0f;
 		else              return input + 1.0f;
 	}
-}
-float hardclip(float input)
-{
-	return MIN(1.0f, MAX(-1.0f, input));
 }
 float rectify(char type, float input) /* TODO: clicky */
 {

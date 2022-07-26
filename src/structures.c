@@ -68,12 +68,11 @@ typedef struct
 
 	/* ramping */
 	uint16_t    rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
-	sample_t   *rampbuffer;                   /* samples to ramp out */
+	short      *rampbuffer;                   /* samples to ramp out */
 	uint8_t     rampgain;                     /* raw gain m for the ramp buffer */
 
 	uint16_t    stretchrampindex;             /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
 	uint16_t    localstretchrampmax;          /* actual stretchrampmax used, to allow for tiny buffer sizes */
-	sample_t   *stretchrampbuffer;            /* raw samples to ramp out */
 } channel;
 
 typedef struct Instrument
@@ -90,13 +89,13 @@ typedef struct Instrument
 	uint8_t             pitchshift;
 	uint32_t            trim[2];
 	uint32_t            loop[2];
-	adsr                volume;
+	uint8_t             envelope;
 	uint8_t             gain;
+	uint8_t             channelmode;
 	uint8_t             flags;
 	uint8_t             loopramp;
 	uint8_t             midichannel;
 
-	uint8_t             defgain;                      /* implied Gxy macro m */
 	struct Instrument  *history[128];                 /* instrument snapshots */
 	short               historyindex[128];            /* cursor positions for instrument snapshots */
 	uint8_t             historyptr;                   /* highest bit is an overflow bit */
@@ -189,7 +188,7 @@ typedef struct
 	short          visualfy, visualfx;
 	uint8_t        visualchannel;
 	short          instrumentindex;
-	uint8_t        instrument;                   /* focused instrument */
+	short          instrument;                   /* focused instrument */
 	unsigned short instrumentcelloffset;
 	unsigned short instrumentrowoffset;
 
@@ -212,10 +211,11 @@ typedef struct
 	uint32_t       waveformwidth;
 	uint32_t       waveformcursor;
 	uint32_t       waveformvisual;
+	uint32_t       waveformdrawpointer;
 
 	short          songfy;
 
-	char           chord;                        /* key chord buffer, vi-style multi-letter commands eg. dd, di4", cap, 4j, etc. */
+	char           chord;                        /* key chord buffer, vi-style multi-letter commands */
 	uint16_t       count;                        /* action repeat count, follows similar rules to w->chord */
 	char           octave;
 	uint8_t        step;
@@ -299,10 +299,10 @@ void strrep(char *string, char *find, char *replace)
 void _addChannel(song *cs, channel *cv)
 {
 	cv->rampindex = rampmax;
-	cv->rampbuffer = malloc(sizeof(sample_t) * rampmax * 2); /* *2 for stereo */
+	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
 	cv->stretchrampindex = stretchrampmax;
-	cv->stretchrampbuffer = malloc(sizeof(sample_t) * stretchrampmax * 2); /* *2 for stereo */
-	cv->filtercut = 1.0f; /* TODO: ugly */
+	cv->filtercut = 1.0f;
+	cv->r.note = NOTE_VOID;
 }
 void clearPatternChannel(song *cs, uint8_t rawpattern, uint8_t channel)
 {
@@ -343,7 +343,6 @@ int addChannel(song *cs, uint8_t index)
 void _delChannel(song *cs, uint8_t index)
 {
 	free(cs->channelv[index].rampbuffer); cs->channelv[index].rampbuffer = NULL;
-	free(cs->channelv[index].stretchrampbuffer); cs->channelv[index].stretchrampbuffer = NULL;
 }
 int delChannel(uint8_t index)
 {
@@ -831,8 +830,6 @@ void randPartPattern(signed char value, short x1, short x2, short y1, short y2, 
 
 void copyInstrument(instrument *dest, instrument *src)
 {
-	dest->defgain = src->defgain;
-
 	dest->samplelength = src->samplelength;
 	dest->length = src->length;
 	dest->channels = src->channels;
@@ -843,7 +840,7 @@ void copyInstrument(instrument *dest, instrument *src)
 	dest->pitchshift = src->pitchshift;
 	dest->trim[0] = src->trim[0]; dest->trim[1] = src->trim[1];
 	dest->loop[0] = src->loop[0]; dest->loop[1] = src->loop[1];
-	memcpy(&dest->volume, &src->volume, sizeof(adsr));
+	dest->envelope = src->envelope;
 	dest->gain = src->gain;
 	dest->flags = src->flags;
 	dest->loopramp = src->loopramp;
@@ -924,8 +921,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 	if (!ivh) return;
 
 	/* TODO: maybe check sampledata for changes too, or have a way to force a push if sampledata has been changed */
-	if (ivh->defgain != iv->defgain
-			|| ivh->samplelength != iv->samplelength
+	if (ivh->samplelength != iv->samplelength
 			|| ivh->length != iv->length
 			|| ivh->channels != iv->channels
 			|| ivh->c5rate != iv->c5rate
@@ -935,7 +931,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 			|| ivh->pitchshift != iv->pitchshift
 			|| ivh->trim[0] != iv->trim[0] || ivh->trim[1] != iv->trim[1]
 			|| ivh->loop[0] != iv->loop[0] || ivh->loop[1] != iv->loop[1]
-			|| memcmp(&ivh->volume, &iv->volume, sizeof(adsr))
+			|| ivh->envelope != iv->envelope
 			|| ivh->gain != iv->gain
 			|| ivh->flags != iv->flags
 			|| ivh->loopramp != iv->loopramp
@@ -994,8 +990,6 @@ int addInstrument(uint8_t index)
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
-	s->instrumentv[s->instrumentc]->defgain = 0x88;
-	s->instrumentv[s->instrumentc]->volume.s = 0xff;
 	s->instrumentv[s->instrumentc]->gain = 0xff;
 	s->instrumentv[s->instrumentc]->samplerate = 0xff;
 	s->instrumentv[s->instrumentc]->bitdepth = 0xf;
@@ -1133,8 +1127,7 @@ void loadSample(uint8_t index, char *path)
 	}
 
 	/* unload any present sample data */
-	if (iv->samplelength > 0)
-		free(iv->sampledata);
+	if (iv->samplelength) free(iv->sampledata);
 	iv->sampledata = sampledata;
 	iv->samplelength = sfinfo.frames * sfinfo.channels;
 	iv->channels = sfinfo.channels;
@@ -1217,12 +1210,12 @@ int writeSong(char *path)
 	char *pathext = fileExtension(path, ".omlm");
 	if (!strcmp(pathext, ".omlm"))
 	{
+		free(pathext);
 		if (!strlen(w->filepath))
 		{
 			strcpy(w->command.error, "no file name");
 			return 1;
 		}
-		free(pathext);
 		pathext = malloc(sizeof(w->filepath) + 1);
 		strcpy(pathext, w->filepath);
 	} else strcpy(w->filepath, pathext);
@@ -1304,8 +1297,6 @@ int writeSong(char *path)
 	for (i = 1; i < s->instrumentc; i++)
 	{
 		iv = s->instrumentv[i];
-		fputc(iv->defgain, fp);
-
 		fwrite(&iv->length, sizeof(uint32_t), 1, fp);
 		fwrite(&iv->channels, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->c5rate, sizeof(uint32_t), 1, fp);
@@ -1315,8 +1306,9 @@ int writeSong(char *path)
 		fwrite(&iv->pitchshift, sizeof(uint8_t), 1, fp);
 		fwrite(iv->trim, sizeof(uint32_t), 2, fp);
 		fwrite(iv->loop, sizeof(uint32_t), 2, fp);
-		fwrite(&iv->volume, sizeof(adsr), 1, fp);
+		fwrite(&iv->envelope, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->gain, sizeof(uint8_t), 1, fp);
+		fwrite(&iv->channelmode, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->flags, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->samplelength, sizeof(uint32_t), 1, fp);
 		fwrite(&iv->loopramp, sizeof(uint8_t), 1, fp);
@@ -1463,8 +1455,7 @@ song *readSong(char *path)
 		cs->instrumentv[i] = calloc(1, sizeof(instrument));
 
 		iv = cs->instrumentv[i];
-		iv->defgain = fgetc(fp);
-
+		if (filemajor == 0 && fileminor < 89) fseek(fp, 1, SEEK_CUR);
 		fread(&iv->length, sizeof(uint32_t), 1, fp);
 		fread(&iv->channels, sizeof(uint8_t), 1, fp);
 		fread(&iv->c5rate, sizeof(uint32_t), 1, fp);
@@ -1475,8 +1466,10 @@ song *readSong(char *path)
 		if (filemajor == 0 && fileminor < 83) fseek(fp, sizeof(uint16_t), SEEK_CUR);
 		fread(iv->trim, sizeof(uint32_t), 2, fp);
 		fread(iv->loop, sizeof(uint32_t), 2, fp);
-		fread(&iv->volume, sizeof(adsr), 1, fp);
+		if (filemajor == 0 && fileminor < 89) fseek(fp, sizeof(uint8_t)*4, SEEK_CUR);
+		else fread(&iv->envelope, sizeof(uint8_t), 1, fp);
 		fread(&iv->gain, sizeof(uint8_t), 1, fp);
+		if (!(filemajor == 0 && fileminor < 89)) fread(&iv->channelmode, sizeof(uint8_t), 1, fp);
 		fread(&iv->flags, sizeof(uint8_t), 1, fp);
 		fread(&iv->samplelength, sizeof(uint32_t), 1, fp);
 		fread(&iv->loopramp, sizeof(uint8_t), 1, fp);

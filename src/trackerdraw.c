@@ -48,6 +48,7 @@ void descMacro(char c, uint8_t v)
 		case 'b': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
 		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
 		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2, "NOTE DELAY"); break;
+		case 'd': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FINE NOTE DELAY")) / 2, "FINE NOTE DELAY"); break;
 		case 'F': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER CUTOFF")) / 2, "FILTER CUTOFF"); break;
 		case 'f': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH FILTER CUTOFF")) / 2, "SMOOTH FILTER CUTOFF"); break;
 		case 'G': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2, "STEREO GAIN"); break;
@@ -72,6 +73,7 @@ void descMacro(char c, uint8_t v)
 			}
 			break;
 		case 'Z': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER RESONANCE")) / 2, "FILTER RESONANCE"); break;
+		case 'z': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH FILTER RESONANCE")) / 2, "SMOOTH FILTER RESONANCE"); break;
 	}
 }
 
