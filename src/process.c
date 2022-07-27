@@ -165,7 +165,7 @@ void calcVibrato(channel *cv, int m)
 char Vc(jack_nframes_t fptr, int m, channel *cv, row r)
 { calcVibrato(cv, m); return 1; }
 
-char bc(jack_nframes_t fptr, int m, channel *cv, row r)
+char Bc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (m == 0) changeBpm(p->s, p->s->songbpm);
 	else        changeBpm(p->s, MAX(32, m));
@@ -190,7 +190,7 @@ char Cc(jack_nframes_t fptr, int m, channel *cv, row r)
 char Pc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	cv->portamento = r.note;
-	cv->portamentospeed = m;
+	cv->portamentospeed = m+1; /* avoid P00 doing nothing */
 	return 1;
 }
 
@@ -488,8 +488,8 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 	if (!cv->mute) { pb.out.l[fptr] += lf; pb.out.r[fptr] += rf; }
 }
 
-void bendUp(channel *cv, uint32_t spr, uint32_t count) { cv->portamentofinetune = MIN((float)(cv->portamento - cv->r.note), cv->portamentofinetune + (12.0f / spr) * (cv->portamentospeed*DIV255) * count); }
-void bendDown(channel *cv, uint32_t spr, uint32_t count) { cv->portamentofinetune = MAX((float)(cv->portamento - cv->r.note), cv->portamentofinetune - (12.0f / spr) * (cv->portamentospeed*DIV255) * count); }
+void bendUp(channel *cv, uint32_t spr, uint32_t count) { cv->portamentofinetune = MIN((float)(cv->portamento - cv->r.note), cv->portamentofinetune + (12.0f / spr) * (cv->portamentospeed*DIV256) * count); }
+void bendDown(channel *cv, uint32_t spr, uint32_t count) { cv->portamentofinetune = MAX((float)(cv->portamento - cv->r.note), cv->portamentofinetune - (12.0f / spr) * (cv->portamentospeed*DIV256) * count); }
 
 void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 {
@@ -510,7 +510,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 
 	if (ifMacro(fptr, cv, r, '%', &PERCENTc)) return;
 
-	ifMacro(fptr, cv, r, 'b', &bc); /* bpm */
+	ifMacro(fptr, cv, r, 'b', &Bc); /* bpm */
 
 	ret = ifMacro(fptr, cv, r, 'C', &Cc); /* cut */
 	if (!ret && r.note != NOTE_VOID)
@@ -557,11 +557,6 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 
 	ifMacro(fptr, cv, r, 'M', &Mc); /* microtonal offset */
 	ifMacro(fptr, cv, r, 'R', &Rc); /* retrigger         */
-
-	// ifMacro(fptr, cv, r, 'L', &Lc); /* low-pass          */
-	// ifMacro(fptr, cv, r, 'H', &Hc); /* high-pass         */
-	// ifMacro(fptr, cv, r, 'B', &Bc); /* band-pass         */
-	// ifMacro(fptr, cv, r, 'N', &Nc); /* notch             */
 
 	ifMacro(fptr, cv, r, 'W', &Wc); /* waveshaper        */
 	ifMacro(fptr, cv, r, 't', &tc); /* gate              */
@@ -777,7 +772,6 @@ int process(jack_nframes_t nfptr, void *arg)
 		changeBpm(p->s, p->s->songbpm);
 		p->w->request = REQ_OK;
 	}
-
 
 	/* loop over samples */
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)

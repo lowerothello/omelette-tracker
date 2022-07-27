@@ -1,9 +1,45 @@
 PATTERN VIEW
 ------------
 This is the default view of the tracker. It's the screen that greets you when
-the program starts. One pattern is displayed, which one can be set in the song
-view.
+the program starts. One pattern is displayed fully for editing, others are
+indexed in the song column.
 
+for more info on how trackers work see the OpenMPT wiki.
+
++-----------------------------------------------------------------------------+
+|omelette tracker                                              v0.89  27      |
+|                            PATTERN INSTRUMENT                               |
+|                                                                             |
+|                    CHANNEL 00       CHANNEL 01       CHANNEL 02             |
+|                                                                             |
+|                                                                             |
+|                                                                             |
+|                                                                             |
+|                                                                             |
+|                                                                             |
+|         00  00 * C-5 00 ... ... * C-5 00 d03 ... * ... .. ... ... *         |
+|         ..  01   ... .. ... ...   ... .. ... ...   ... .. ... ...           |
+|         ..  02   C-5 00 D78 G44   ... .. ... ...   ... .. ... ...           |
+|         ..  03   ... .. ... R02   ... .. ... ...   ... .. ... ...           |
+|         ..  04 * C-5 00 ... ... * ... .. ... ... * ... .. ... ... *         |
+|         ..  05   ... .. ... ...   ... .. ... ...   ... .. ... ...           |
+|         ..  06   C-5 00 D78 G44   ... .. ... ...   ... .. ... ...           |
+|         ..  07   ... .. ... ...   ... .. ... ...   ... .. ... ...           |
+|         ..  08 * C-5 00 ... R02 * C-5 00 d02 ... * ... .. ... ... *         |
+|         ^   ^  ^ ^   ^  ^   ^                       STOP  &4 +0       130BPM|
++---------|---|--|-|---|--|---|-----------------------------------------------+
++         |   |  | |   |  |   |                       |      |  |       |
++         |   |  | |   |  |   |                       |      |  |       ^ bpm
++         |   |  | |   |  |   |                       |      |  ^ edit step
++         |   |  | |   |  |   |                       |      ^ input octave
++         |   |  | |   |  |   |                       ^ sequencer state
++         |   |  | |   |  |   ^ macro column #2
++         |   |  | |   |  ^ macro column #1
++         |   |  | |   ^ instrument column
++         |   |  | ^ note column
++         |   |  ^ row highlight
++         |   ^ line numbers
++         ^ song playlist
 
 KEYBINDS
 --------
@@ -11,18 +47,17 @@ COLON - enter command mode
 
 navigation:
 	ARROWS           - navigate the pattern cell-wise
-	CTRL+LEFT/[      - move one channel to the left
-	CTRL+RIGHT/]     - move one channel to the right
-	HOME/END         - go to the top/bottom of the pattern
-	PGUP/PGDN        - go up/down by the row highlight (the stars between channels)
+	CTRL+LEFT        - move one channel to the left
+	CTRL+RIGHT       - move one channel to the right
+	gg/HOME G/END    - go to the top/bottom of the pattern
+	PGUP/PGDN        - go up/down by the row highlight
 	LEFT CLICK       - go to cell
 	RIGHT CLICK      - extend the visual selection to cell
 
-CTRL+UP/CTRL+DOWN     - shift the current channel up/down
-CLICK on channel text - toggle channel mute
-ENTER                 - toggle current channel mute
-ALT+[0-9]             - set the edit step (shown in the ruler as "+step")
-CTRL+a/CTRL+x         - increment/decrement
+CTRL+UP/CTRL+DOWN           - cycle rows between the cursor and the bottom
+CLICK on channel text/ENTER - toggle channel mute
+ALT+[0-9]                   - set the edit step
+^a/^x                       - inc/dec
 
 ESCAPE - return to normal mode
 
@@ -30,21 +65,74 @@ normal mode:
 	v           - enter visual mode
 	V           - enter visual line mode (like visual mode but always line-wise)
 	i           - enter insert mode
-	p           - put from the yank buffer
+	TAB         - enter song mode
+	p           - put
+	P           - put before
 	yy          - yank the current row
 	dd          - delete the current row
-	c           - channel chord
+
+	cc          - clear the current channel
+	ca          - add a new channel
+	cA          - add a new channel before
+	cd          - delete the current channel
+	cD          - delete channels to the end
+	cy          - yank the current channel
+	cp          - paste the yanked channel
+
 	ma          - add a macro column at the end, between 1 and 8 are allowed
 	md          - delete a macro column from the end, between 1 and 8 are allowed
+	mm          - set the number of macro columns to <count>
+
+	rc          - cut the current channel at the cursor row
+	RC          - cut all channels at the cursor row
+	rr          - set the current channel length to <count>
+	RR          - set all channel's length to <count>
+	rd          - delete a channel row from the bottom
+	RD          - delete a channel row from the bottom for all channels
+	ra          - add a channel row at the bottom
+	RA          - add a channel row at the bottom for all channels
+	r-          - halve the channel length by removing the bottom half
+	R-          - halve all channel's length by removing the bottom half
+	r+          - double the channel length by repeating the contents
+	R+          - double all channel's length by repeating the contents
+	r/          - halve the channel length by removing every other row
+	R/          - halve all channel's length by removing every other row
+	r*          - double the channel length by adding an empty row after every row
+	R*          - double all channel's length by adding an empty row after every row
+
 	x/BACKSPACE - delete the current cell
 	s           - delete the current cell, then enter insert mode
 	k?          - preview macro ? on the note column, kk to revert to normal
 	f           - toggle song follow
+	b           - set the song bpm to <count>
+	o           - set the input octave to <count>
+	^a/^x       - inc/dec
+	~           - toggle macro case
 
 visual mode:
 	NAVIGATION - navigate, drag the visual selection
-	y          - yank the selection
-	d          - delete the selection
+	v          - leave visual mode
+	r          - enter visual replace mode
+	%          - randomize
+	^a/^x      - inc/dec
+	x/d        - delete
+	y          - yank
+
+song mode:
+	TAB         - leave song mode
+	f           - toggle song follow
+	s           - clear the current index, then enter song insert mode
+	i           - enter song insert mode
+	v           - enter song visual mode
+	^a/^x       - inc/dec the selected index
+	l           - toggle index loop
+	n           - set this index as the next one to play
+	a           - add new (select an empty index)
+	c           - clone the current index
+	p           - paste
+	P           - paste above
+	y           - yank
+	x           - clear the current index
 
 channel: (c)
 	c   - clear the current channel for this pattern

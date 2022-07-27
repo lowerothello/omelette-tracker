@@ -1,25 +1,42 @@
 INSTRUMENTS
 -----------
-omelette's sound sources.
+A basic digital-sounding workhorse sampler.
 
-Instruments revolve around "types", which are the name for different sound
-generators.
++-----------------------------------------------------------------------------+
+|omelette tracker                                              v0.89  27      |
+|                            PATTERN INSTRUMENT                               |
+|                                                                             |
+|                                          [WAVEFORM]                         |
+|                   ⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡂|
+|                   ⡂⠀⠀⠀⠠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⠀⠀⡂|
+|                   ⡂⣄⠀⡇⢰⠀⡆⠀⡆⢐⠀⣢⡐⠄⢐⠄⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⡂⠀⡃⢀⠀⡀⠀⠄⢐⠀⠀⠀⢔⣰⠀⠠⣀⡅⠀⠀⠀⡐⠀⠀⠀⠀⢠⡀⢰⠀⡇⣊|
+|                   ⣲⣿⣼⣿⣼⣶⣷⣴⣧⢸⣦⣿⣷⣷⣼⣿⣇⡀⡇⠀⣀⡆⠀⢠⣾⣧⣲⣤⣧⣿⣄⣧⣄⡆⢸⣠⣷⣆⣷⣿⣄⣶⣿⣷⣴⣴⣴⣷⣧⣤⣠⣿⣼⣿⣿⣤⣷⣪|
+|                   ⣺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣷⣿⣿⣿⣺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣺|
+|                   ⣺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣺|
+| 00 01 [00047c00]  ⣺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⢿⣿⡟⢻⣿⣿⣺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣺|
+| 01 00  ........   ⡚⣿⡿⣿⢿⠃⣿⠋⠋⢸⠉⢿⠟⠿⢻⣿⡏⠈⠇⠀⠀⠏⠀⠘⢹⠉⡊⠈⠿⢻⠉⡏⠙⡇⢹⠋⡏⠻⡿⣿⠟⣿⣿⡟⢹⠹⡟⠿⣿⡟⢿⡿⠛⡿⣿⠋⡟⣺|
+| 02 00  ........   ⡂⠟⠀⠀⠈⠀⠇⠀⠁⠀⠀⠉⠐⠀⠈⠀⠇⠀⠀⠀⠀⠀⠀⠀⠘⠀⡂⠀⠀⠈⠀⠁⠀⠁⠈⠀⠁⠀⡂⠙⠀⠑⢶⠇⠈⠀⠀⠀⠇⠀⠀⠁⠀⠀⠸⠀⠁⡒|
+| 03 00  ........   ⡂⠀⠀⠀⠀⠀⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠘⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡂|
+| 04 00  ........   ⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠂|
+| 05 00  ........   C-5 rate:  [0000ac44]    TODO: gain/pan      MIDI: [ ][ff]|
+| 06 00  ........   decimate:     [f][ff]  ┌─   LOOP   ─┐  ┌─  TIMESTRETCH  ─┐|
+| 07 00  ........   channels:    [stereo]  ping-pong: [ ]  cycle size:  [06ff]|
+| 08 00  ........   env a[d,r]/s: [00][X]  ramping:  [ff]  time/pitch: [ ][80]|
+| |  |   |                                            STOP  &4 +0       120BPM|
++-|--|---|--------------------------------------------------------------------+
++ |  |   |
++ |  |   ^ sample length
++ |  ^ logical indices (debug)
++ ^ indices
 
-TYPES
------
-0: Sampler
-	A basic digital-sounding workhorse sampler.
 
-	FEATURES:
-		- loads most file formats thanks to libsndfile
-		- either record from the JACK inputs, or loopback record
-		- timestretch and pitch/formant shift samples similarly to an old Akai
-		- option to lock tempo when playing different notes
-		- non-destructive pseudo-rate reduction
-		- full ADSR to sculpt envelopes
-		- sample looping, forwards or ping-pong algorithms
+FEATURES:
+	- loads most file formats thanks to libsndfile
+	- can record in live data from JACK ports
+	- timestretch and pitch/formant shift samples similarly to an old Akai
+	- option to lock tempo when playing different notes
+	- non-destructive pseudo-rate reduction
+	- sample looping, forwards and ping-pong algorithms
 
 
-1: Virtual Analogue
-	A questionable subtractive synth designed by someone who hasn't designed any
-	synths before.
+vim: sidescrolloff=0

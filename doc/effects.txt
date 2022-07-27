@@ -6,19 +6,12 @@ are heavily inspired by other trackers, some are wholly original.
 - Case is inverted, to input a lowercase macro hold shift.
 
 
-(alphabetical order, default case priority)
 %xx - NOTE CHANCE
-	chance the note will be read
-	only affects the note column, doesn't affect other macro columns
+	chance the row will be processed
 
-Bxy - BAND-PASS FILTER
-	only one filter is active at a time
-	x is the resonance
-	y is the centre frequency
-
-bxx - BPM
+Bxx - BPM
 	set the bpm of the song to xx, values are clamped between 32 and 255
-	(xx == 0) sets the bpm to the song bpm
+	(xx == 0) sets the bpm back to the starting bpm
 
 Cxy - NOTE CUT
 	send a note off x/y through the row
@@ -27,96 +20,102 @@ Dxy - NOTE DELAY
 	only has any effect if a note is specified
 	wait until x/y through the row to trigger the note
 
+dxx - FINE NOTE DELAY
+	only has any effect if a note is specified
+	wait until xx/256 through the row to trigger the note
+
+Fxx - FILTER CUTOFF
+	set the filter cutoff to xx immediately
+
+fxx - SMOOTH FILTER CUTOFF
+	interpolate the filter cutoff to xx over the row
+
 Gxy - STEREO GAIN
-	set the gain of the left channel to x/15
-	set the gain of the right channel to y/15
-	local to the note, each note resets the gain to the instrument gain
-	applies at the end of the channel
+	set the gain of the left channel to x/15 immediately
+	set the gain of the right channel to y/15 immediately
+	each trigger implies a G88 call
 
 gxy - SMOOTH STEREO GAIN
-	slide the gain of the left channel to x/15 over the row
-	slide the gain of the right channel to y/15 over the row
-	local to the note, each note resets the gain to the instrument gain
-	applies at the end of the channel
+	interpolate the gain of the left channel to x/15 over the row
+	interpolate the gain of the right channel to y/15 over the row
+	each trigger implies a G88 call
 
-Hxy - HIGH-PASS FILTER
-	only one filter is active at a time
-	x is the resonance
-	y is the cutoff frequency
-	(y == 0) is a true bypass
-
-Lxy - LOW-PASS FILTER
-	only one filter is active at a time
-	x is the resonance
-	y is the cutoff frequency
-	(y == f) is a true bypass
-
-Mxx - LOCAL MICROTONAL OFFSET
+Mxx - MICROTONAL OFFSET
 	set the microtonal offset to xx/1 semitones
-	volatile, overwritten by notes
-
-Nxy - NOTCH FILTER
-	only one filter is active at a time
-	x is the resonance
-	y is the centre frequency
+	each trigger implies an M00 call
 
 Oxx - NOTE OFFSET
-	depends on the type for support (mainly for the sampler)
 	set the playhead to xx/256 through the sound
 
 oxx - BACKWARDS NOTE OFFSET
-	depends on the type for support (mainly for the sampler)
 	toggles the reverse bit (walks the pointer backwards)
-	(xx > 0) sets the playhead to xx/256 through the sound
+	(xx > 0) also sets the playhead to xx/256 through the sound
+	(xx = 0) just toggles the reverse bit
 
 Pxx - PITCH SLIDE
 	portamento to the note specified at speed xx
 	low xx values are slower
 
 Rxy - BLOCK RETRIGGER
-	retrigger y times over a block of size x rows
+	retrigger y times each row for x+1 rows
 	overridden by another Rxy macro if the block hasn't finished
-	won't restart the sample, \
-		will continue as if nothing happened at the end of the block
+	will skip forwards to where the pointer should be at the end of the block
 
 txy - GATE
-	gate the signal aggressively, more of an effect than a noise gate
+	gates the signal aggressively, more of an effect than a noise gate
 	x is the strength of the effect (max reduction and speed)
 	y is the threshold
+	t?0 to disable
 
 Vxy - VIBRATO
 	modulate the pitch of the sample at speed x and depth y
 	lfo is hardcoded to a triangle wave
 	modulation goes both up and down
-	will NOT be overridden, \
-		will only read another Vxy macro only if the lfo has ended
+	behaves a bit differently to other trackers
+	will read another Vxy macro only if the lfo has ended
 
 WAVESHAPERS (Wxy)
 	only one waveshaper can be active at a time
+	threshold also adds makeup gain, tuned to minimize percieved volume change
 W0x - HARD CLIPPER
-	clips off the tips of the signal
-	x is the input gain
-W1x - SOFT CLIPPER (add odd harmonics)
+	clips off the tips of the waveform
+	x is the threshold
+W1x - SOFT CLIPPER
 	rounds off the tips of the signal
-	x is the input gain
-W2x - RECTIFIER (add even harmonics)
-	full-wave rectifies the signal
-	full mix will not play the fundamental
+	x is the threshold
+W2x - RECTIFIER
+	rectifies the signal
+	full mix will not play the fundamental at all
 	x is the mix
-W3x - RECTIFIERx2 (poor girl's octaver)
-	full-wave rectifies the signal twice
-	full mix will not play the fundamental
+W3x - RECTIFIERx2 (shitty octaver)
+	rectifies the signal twice
+	full mix will not play the fundamental at all
 	x is the mix
 W4x - WAVEFOLDER
-	folds over the tips of the signal
-	x is the input gain
+	inverts the tips of the signal
+	x is the threshold
 W5x - WAVEWRAPPER
 	wraps the signal back to 0 when it crosses 1
-	x is the input gain
+	x is the threshold
 W6x - SIGN CONVERSION
 	simulates reading an unsigned number as a signed number
 	adds a nasty DC offset, be careful!
 	x is the mix
+
+Zxy - FILTER RESONANCE
+	y is the filter resonance, set immediately
+	x is the filter mode
+		0 (default) - low pass (12dB/oct)
+		1           - high pass (12dB/oct)
+		2           - band pass (12dB/oct)
+		3           - band reject (12dB/oct)
+Zxy - SMOOTH FILTER RESONANCE
+	y is the filter resonance, interpolated over the row
+	x is the filter mode
+		0 (default) - low pass (12dB/oct)
+		1           - high pass (12dB/oct)
+		2           - band pass (12dB/oct)
+		3           - band reject (12dB/oct)
 
 
 vim: sidescrolloff=0

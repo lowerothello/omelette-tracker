@@ -4,10 +4,14 @@
 - make it clearer when in visual replace pseudo-mode
 	- make modes clearer in general, it's too easy to get lost
 - tilde in tracker visual (replace) mode
-- fix envelope properly (properly de-click, remove retrigger artifacts, probably need state)
+- fix envelope properly (properly de-click, remove retrigger artifacts, need some state)
 	- use hold time to normalize notes a bit instead of emulating analogue timing intricacies
-- consider re-adding instrument index preview mode
 - gain slide doesn't seem to work
+- ~ allows invalid macros
+
+- oxx - smooth note offset
+	- fast forward the playhead over the row taking into account drift
+	- current oxx needs to be moved, and can have a smooth variant too
 
 - sample gain
 	- LOT of range, esp. upwards (20x or so, otherwise quiet samples are unusable)

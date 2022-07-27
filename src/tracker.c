@@ -15,7 +15,7 @@ void changeMacro(int input, char *dest)
 	else switch (input)
 	{
 		case '%': *dest = '%'; break; /* note chance             */
-		case 'B': *dest = 'b'; break; /* bpm                     */
+		case 'b': *dest = 'B'; break; /* bpm                     */
 		case 'c': *dest = 'C'; break; /* note cut                */
 		case 'd': *dest = 'D'; break; /* note delay              */
 		case 'D': *dest = 'd'; break; /* fine note delay         */

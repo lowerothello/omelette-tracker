@@ -339,7 +339,6 @@ void common_cleanup(int ret)
 	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
 	puts("\033[?1002l"); /* disable mouse */
 	puts("\033[?1049l"); /* reset to the front buffer */
-	puts("\033[0 q"); /* reset the cursor shape */
 
 	exit(ret);
 }

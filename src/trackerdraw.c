@@ -45,7 +45,7 @@ void descMacro(char c, uint8_t v)
 	switch (c)
 	{
 		case '%': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CHANCE")) / 2, "NOTE CHANCE"); break;
-		case 'b': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
+		case 'B': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
 		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
 		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2, "NOTE DELAY"); break;
 		case 'd': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FINE NOTE DELAY")) / 2, "FINE NOTE DELAY"); break;
@@ -482,11 +482,10 @@ void drawTracker(void)
 
 	switch (w->mode)
 	{
-		case T_MODE_VISUAL: case T_MODE_SONG_VISUAL: printf("\033[%d;0H\033[1m-- VISUAL --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_VISUALLINE:                      printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_MOUSEADJUST:                     printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_INSERT: case T_MODE_SONG_INSERT: printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[3 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		default: printf("\033[0 q"); break;
+		case T_MODE_VISUAL: case T_MODE_SONG_VISUAL: printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_VISUALLINE:                      printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_MOUSEADJUST:                     printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_INSERT: case T_MODE_SONG_INSERT: printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
 	}
 
 	if (w->mode == T_MODE_SONG || w->mode == T_MODE_SONG_INSERT || w->mode == T_MODE_SONG_VISUAL)

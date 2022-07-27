@@ -32,11 +32,10 @@ void drawInstrument(void)
 	printf("\033[%d;%dH\033[2mPATTERN\033[m \033[1mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col-18) / 2);
 	switch (w->mode)
 	{
-		case I_MODE_NORMAL: case I_MODE_INDICES:                     printf("\033[0 q"); break;
-		case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW:            printf("\033[%d;0H\033[1m-- PREVIEW --\033[m\033[3 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:                 printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW: printf("\033[%d;0H\033[1m-- PREVIEW ADJUST --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case I_MODE_VISUAL:                                          printf("\033[%d;0H\033[1m-- VISUAL --\033[m\033[0 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_PREVIEW: case I_MODE_INDICES_PREVIEW:            printf("\033[%d;0H\033[1m-- PREVIEW --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_ADJUST: case I_MODE_MOUSEADJUST:                 printf("\033[%d;0H\033[1m-- ADJUST --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW: printf("\033[%d;0H\033[1m-- PREVIEW ADJUST --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case I_MODE_VISUAL:                                          printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
 	}
 
 	int i;

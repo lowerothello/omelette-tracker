@@ -4,6 +4,9 @@ features aren't set in stone, expect mods to be broken on new versions!
 from version 1.0 i'll try not to make as many breaking changes, but until then
 treat this as alpha software!
 
+doc/ has some documentation but it's very unfinished and not kept up to date
+very well, the only up-to-date source of info is the source code itself.
+
 src/lib/libdrawille: https://github.com/huulivoide/libdrawille
 
 DEPENDS:
@@ -13,12 +16,12 @@ DEPENDS:
 
 BUILD:
 $ git submodule init
-$ git submodule update
-$ cd src/lib/libdrawille; cmake .; make; cd ../../..
-$ CC=gcc ./make 3 # use your preferred compiler
+$ git submodule update # fetch libdrawille
+$ cd src/lib/libdrawille; cmake .; make; cd ../../.. # build libdrawille
+$ ./make.sh 3 # build with -O3 (system CFLAGS aren't read currently)
 
 INSTALL: (no proper install script yet)
-$ su -c "cp ./omelette /usr/bin/omelette"
+$ su -c "install -Dm755 omelette '/usr/bin/omelette'"
 
 
 vim: wrap
