@@ -738,8 +738,7 @@ void instrumentInput(int input)
 											else if (y < w->mousey) instrumentAdjustUp(iv, w->instrumentindex, 1);
 											w->mousey = y; w->mousex = x; break;
 									} break;
-								case BUTTON1:      case BUTTON3:
-								case BUTTON1_CTRL: case BUTTON3_CTRL:
+								default:
 									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									if (y <= CHANNEL_ROW-2)
 									{
@@ -751,20 +750,29 @@ void instrumentInput(int input)
 									if (x < INSTRUMENT_INDEX_COLS)
 									{
 										instrumentModeToIndices();
-										if (button == BUTTON1 || button == BUTTON1_CTRL)
-											w->fyoffset = y - w->centre;
-										else
+										switch (button)
 										{
-											if ((short)w->instrument + (y - w->centre) < 0)        w->instrument = 0;
-											else if ((short)w->instrument + (y - w->centre) > 254) w->instrument = 254;
-											else                                                   w->instrument += y - w->centre;
+											case BUTTON2: case BUTTON2_CTRL:
+												if (!(w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci == w->instrument + y - w->centre) && s->instrumenti[w->instrument + y - w->centre])
+												{
+													yankInstrument(w->instrument + y - w->centre);
+													delInstrument(w->instrument + y - w->centre);
+												}
+											case BUTTON1: case BUTTON1_CTRL:
+												w->fyoffset = y - w->centre;
+												break;
+											default:
+												if ((short)w->instrument + (y - w->centre) < 0)        w->instrument = 0;
+												else if ((short)w->instrument + (y - w->centre) > 254) w->instrument = 254;
+												else                                                   w->instrument += y - w->centre;
 
-											if (!s->instrumenti[w->instrument]) addInstrument(w->instrument);
-											w->popup = 2;
-											w->fyoffset = 0;
-											w->oldmode = w->mode;
-											w->mode = 0;
-											w->filebrowserCallback = &sampleLoadCallback;
+												if (!s->instrumenti[w->instrument]) addInstrument(w->instrument);
+												w->popup = 2;
+												w->fyoffset = 0;
+												w->oldmode = w->mode;
+												w->mode = 0;
+												w->filebrowserCallback = &sampleLoadCallback;
+												break;
 										} previewNote(NOTE_OFF, INST_VOID, w->channel);
 									} else if (iv)
 									{
@@ -910,7 +918,7 @@ void instrumentInput(int input)
 								switch (input)
 								{
 									case '\t': /* indices        */ w->mode = I_MODE_NORMAL; w->fieldpointer = 0; resetWaveform(); redraw(); break;
-									case 'i':  /* preview        */ w->instrumentindex = 0; w->oldmode = I_MODE_INDICES; w->mode = I_MODE_INDICES_PREVIEW; redraw(); break;
+									case 'i':  /* preview        */ w->instrumentindex = 0; w->mode = I_MODE_INDICES_PREVIEW; redraw(); break;
 									case 'Q':  /* record         */ w->chord = 'Q'; redraw(); return;
 									case 'K':  /* keyboard macro */ w->chord = 'K'; redraw(); return;
 									case 'k':  /* up arrow       */ instrumentUpArrow(1, iv); redraw(); break;
@@ -979,7 +987,7 @@ void instrumentInput(int input)
 								{
 									case 'v':  /* normal           */ w->mode = I_MODE_NORMAL; redraw(); break;
 									case '\t': /* indices          */ w->mode = I_MODE_INDICES; resetWaveform(); redraw(); break;
-									case 'i':  /* preview          */ w->oldmode = I_MODE_NORMAL; w->mode = I_MODE_PREVIEW; w->waveformdrawpointer = 0; redraw(); break;
+									case 'i':  /* preview          */ w->mode = I_MODE_PREVIEW; w->waveformdrawpointer = 0; redraw(); break;
 									case 'z':  /* zoom             */ if (!w->instrumentindex) w->chord = 'z'; redraw(); return;
 									case '+': case '=': /* zoom in */ if (iv) { w->waveformwidth /= 2; w->waveformdrawpointer = 0; redraw(); } break;
 									case '-':  /* zoom out         */ if (iv) { w->waveformwidth = MIN(iv->length, w->waveformwidth*2); w->waveformdrawpointer = 0; redraw(); } break;
@@ -1081,7 +1089,7 @@ void instrumentInput(int input)
 										default: w->oldmode = w->mode; w->mode = I_MODE_ADJUST; break;
 									} redraw(); break;
 								case '\t': /* indices          */ w->mode = I_MODE_INDICES; w->fieldpointer = 0; resetWaveform(); redraw(); break;
-								case 'i':  /* preview          */ w->oldmode = I_MODE_NORMAL; w->mode = I_MODE_PREVIEW; redraw(); break;
+								case 'i':  /* preview          */ w->mode = I_MODE_PREVIEW; redraw(); break;
 								case 'Q':  /* record           */ w->chord = 'Q'; redraw(); return;
 								case 'K':  /* keyboard macro   */ w->chord = 'K'; redraw(); return;
 								case 'u':  /* undo             */ popInstrumentHistory(s->instrumenti[w->instrument]); redraw(); break;
@@ -1158,7 +1166,7 @@ void instrumentInput(int input)
 								case '\'': /* jump             */ w->chord = '\''; redraw(); return;
 								case 'd':  /* delete           */ w->chord = 'd'; redraw(); return;
 								case '\t': /* indices          */ w->mode = I_MODE_INDICES; w->fieldpointer = 0; resetWaveform(); redraw(); break;
-								case 'i':  /* preview          */ w->oldmode = I_MODE_NORMAL; w->mode = I_MODE_PREVIEW; redraw(); break;
+								case 'i':  /* preview          */ w->mode = I_MODE_PREVIEW; redraw(); break;
 								case 'Q':  /* record           */ w->chord = 'Q'; redraw(); return;
 								case 'K':  /* keyboard macro   */ w->chord = 'K'; redraw(); return;
 								case 'u':  /* undo             */ popInstrumentHistory(s->instrumenti[w->instrument]); redraw(); break;

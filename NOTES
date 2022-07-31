@@ -1,19 +1,19 @@
-- pitch slide is fucked
-	- it seems ok sometimes? not sure
+- pitch slide is fucked, needs a redesign and rewrite
 - make it clearer when in visual replace pseudo-mode
 	- make modes clearer in general, it's too easy to get lost
 - fix envelope properly (properly de-click, remove retrigger artifacts, need some state)
 	- use hold time to normalize notes a bit instead of emulating analogue timing intricacies
-- ctrl+click to set step also sets the channel, looks tricky to restrict
 - use set_pixel_unsafe
 - dynamically set WAVEFORM_LAZY_BLOCK_SIZE
-- remove reliance on oldmode
 - some waveshapers are always too loud when affecting quiet samples
 	- remove signed unsigned conversion?
 - show instruments without parent notes, for MIDI CCs
-- instrument midi channel sometimes jumps really high, idk why
+	- allow changing instruments during a sound? (naive approach breaks midi)
+- instrument midi channel value sometimes jumps really high, idk why
+	- either some weird memory corruption or i'm big dumb
 
 - portamento to note off should act like a tape stop
+	- portamento to C-0, then off
 - visual mode cycle should cycle the selection
 - waveform visual bug when opening files
 	- honestly just force to the pattern tab on load lol
@@ -25,4 +25,4 @@
 
 lookback:
 	- bpm macros
-	- pitch slides mask(?) the starting note
+	- portamento masks(?) the starting note

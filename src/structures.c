@@ -486,7 +486,6 @@ void pushPatternHistory(pattern *pv)
 	pv->historychannel[pv->historyptr%128] = w->channel;
 	pv->historyfy[pv->historyptr%128] = w->trackerfy;
 	pv->historyfx[pv->historyptr%128] = w->trackerfx;
-DEBUG=pv->historyptr; p->dirty = 1;
 }
 void pushPatternHistoryIfNew(pattern *pv)
 {
@@ -523,7 +522,6 @@ void popPatternHistory(uint8_t realindex) /* undo */
 
 	pv->historybehind++;
 	pv->historyahead++;
-DEBUG=pv->historyptr; p->dirty = 1;
 }
 void unpopPatternHistory(uint8_t realindex) /* redo */
 {

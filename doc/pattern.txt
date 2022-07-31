@@ -92,14 +92,14 @@ normal mode:
 	RD          - delete a channel row from the bottom for all channels
 	ra          - add a channel row at the bottom
 	RA          - add a channel row at the bottom for all channels
-	r-          - halve the channel length by removing the bottom half
-	R-          - halve all channel's length by removing the bottom half
-	r+          - double the channel length by repeating the contents
-	R+          - double all channel's length by repeating the contents
-	r/          - halve the channel length by removing every other row
-	R/          - halve all channel's length by removing every other row
-	r*          - double the channel length by adding an empty row after every row
-	R*          - double all channel's length by adding an empty row after every row
+	r-          - halve the channel's length by removing the bottom half
+	R-          - halve all channels' length by removing the bottom half
+	r+          - double the channel's length by repeating the contents
+	R+          - double all channels' length by repeating the contents
+	r/          - halve the channel's length by removing every other row
+	R/          - halve all channels' length by removing every other row
+	r*          - double the channel's length by adding an empty row after every row
+	R*          - double all channels' length by adding an empty row after every row
 
 	x/BACKSPACE - delete the current cell
 	s           - delete the current cell, then enter insert mode

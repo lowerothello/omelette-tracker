@@ -121,12 +121,6 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
 	if (note == NOTE_VOID) return;
 
-	if (!cv->mute && p->s->instrumenti[inst])
-	{
-		p->s->instrumentv[p->s->instrumenti[inst]]->triggerflash = samplerate / buffersize *DIV1000 * INSTRUMENT_TRIGGER_FLASH_MS;
-		p->dirty = 1;
-	}
-
 	if (note == NOTE_OFF)
 	{
 		if (!cv->releasepointer) cv->releasepointer = cv->pointer;
@@ -144,6 +138,12 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		cv->gain = -1;
 		cv->targetgain = -1;
 		cv->vibrato = 0;
+
+		if (!cv->mute && p->s->instrumenti[inst])
+		{
+			p->s->instrumentv[p->s->instrumenti[inst]]->triggerflash = samplerate / buffersize *DIV1000 * INSTRUMENT_TRIGGER_FLASH_MS;
+			p->dirty = 1;
+		}
 	}
 }
 void triggerNote(jack_nframes_t fptr, channel *cv, uint8_t note, uint8_t inst)
