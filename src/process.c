@@ -107,9 +107,26 @@ void midiNoteOn(jack_nframes_t fptr, uint8_t midichannel, uint8_t note, uint8_t 
 		jack_midi_event_write(pb.midiout, fptr, event, 3);
 	}
 }
+void midiPC(jack_nframes_t fptr, uint8_t midichannel, uint8_t program)
+{
+	jack_midi_data_t event[2] = {0b11000000 | midichannel, program};
+	jack_midi_event_write(pb.midiout, fptr, event, 2);
+}
+void midiCC(jack_nframes_t fptr, uint8_t midichannel, uint8_t controller, uint8_t value)
+{
+	jack_midi_data_t event[3] = {0b10110000 | midichannel, controller, value};
+	jack_midi_event_write(pb.midiout, fptr, event, 3);
+}
 void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 {
 	if (note == NOTE_VOID) return;
+
+	if (!cv->mute && p->s->instrumenti[inst])
+	{
+		p->s->instrumentv[p->s->instrumenti[inst]]->triggerflash = samplerate / buffersize *DIV1000 * INSTRUMENT_TRIGGER_FLASH_MS;
+		p->dirty = 1;
+	}
+
 	if (note == NOTE_OFF)
 	{
 		if (!cv->releasepointer) cv->releasepointer = cv->pointer;
@@ -129,7 +146,7 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		cv->vibrato = 0;
 	}
 }
-void triggerNote(playbackinfo *p, jack_nframes_t fptr, channel *cv, uint8_t note, uint8_t inst)
+void triggerNote(jack_nframes_t fptr, channel *cv, uint8_t note, uint8_t inst)
 {
 	if (p->s->instrumenti[cv->r.inst] && !(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
 			&& p->w->instrumentlocki == p->s->instrumenti[cv->r.inst]))
@@ -137,7 +154,7 @@ void triggerNote(playbackinfo *p, jack_nframes_t fptr, channel *cv, uint8_t note
 	cv->rampindex = 0; /* set this even if it's not populated so it always ramps out */
 }
 /* separate from triggerNote() cos gain needs to be calculated in between */
-char triggerMidi(playbackinfo *p, jack_nframes_t fptr, channel *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
+char triggerMidi(jack_nframes_t fptr, channel *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
 	if (note != NOTE_VOID && !cv->mute && p->s->instrumenti[inst])
 	{
@@ -176,8 +193,8 @@ char Cc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (!m>>4)
 	{ /* cut now */
-		triggerNote(p, fptr, cv, NOTE_OFF, cv->r.inst);
-		triggerMidi(p, fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
+		triggerNote(fptr, cv, NOTE_OFF, cv->r.inst);
+		triggerMidi(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 		cv->r.note = NOTE_OFF;
 		_triggerNote(cv, NOTE_OFF, cv->r.inst);
 		cv->cutsamples = 0;
@@ -288,6 +305,27 @@ char zc(jack_nframes_t fptr, int m, channel *cv, row r)
 	cv->targetfilterres = m%16;
 	return 1;
 }
+char midicctargetc(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->midiccindex = m%128; return 1; }
+char midipcc(jack_nframes_t fptr, int m, channel *cv, row r)
+{
+	if (!cv->mute && p->s->instrumenti[r.inst != INST_VOID ? r.inst : cv->r.inst])
+	{
+		instrument *iv = p->s->instrumentv[p->s->instrumenti[r.inst != INST_VOID ? r.inst : cv->r.inst]];
+		if (iv->flags&S_FLAG_MIDI) midiPC(fptr, iv->midichannel, m%128);
+	} return 1;
+}
+char midiccc(jack_nframes_t fptr, int m, channel *cv, row r)
+{
+	cv->midicc = m%128;
+	if (cv->midiccindex != -1 && !cv->mute && p->s->instrumenti[r.inst != INST_VOID ? r.inst : cv->r.inst])
+	{
+		instrument *iv = p->s->instrumentv[p->s->instrumenti[r.inst != INST_VOID ? r.inst : cv->r.inst]];
+		if (iv->flags&S_FLAG_MIDI) midiCC(fptr, iv->midichannel, cv->midiccindex, cv->midicc);
+	} return 1;
+}
+char smoothmidiccc(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->targetmidicc = m%128; return 1; }
 
 void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 {
@@ -313,16 +351,16 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 
 	if (cv->cutsamples && p->s->sprp > cv->cutsamples)
 	{
-		triggerNote(p, fptr, cv, NOTE_OFF, cv->r.inst);
-		triggerMidi(p, fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
+		triggerNote(fptr, cv, NOTE_OFF, cv->r.inst);
+		triggerMidi(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 		cv->r.note = NOTE_OFF;
 		_triggerNote(cv, NOTE_OFF, cv->r.inst);
 		cv->cutsamples = 0;
 	}
 	if (cv->delaysamples && p->s->sprp > cv->delaysamples)
 	{
-		triggerNote(p, fptr, cv, cv->delaynote, cv->delayinst);
-		triggerMidi(p, fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
+		triggerNote(fptr, cv, cv->delaynote, cv->delayinst);
+		triggerMidi(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
 		if (cv->delaynote == NOTE_OFF) cv->r.note = NOTE_OFF;
 
 		short oldgain = cv->gain;
@@ -344,8 +382,10 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 		ifMacro(fptr, cv, cv->r, 'M', &Mc); /* microtonal offset */
 	}
 
-	if (cv->finetune != 0.0f && !(p->s->sprp % PITCH_WHEEL_SAMPLES) && iv->flags&S_FLAG_MIDI)
+	if (!cv->mute && cv->finetune != 0.0f && !(p->s->sprp % PITCH_WHEEL_SAMPLES) && iv->flags&S_FLAG_MIDI)
 		midiPitchWheel(fptr, iv->midichannel, MIN(2.0f, MAX(-2.0f, cv->finetune)));
+	if (!cv->mute && cv->targetmidicc != -1 && !(p->s->sprp % PITCH_WHEEL_SAMPLES) && iv->flags&S_FLAG_MIDI)
+		midiCC(fptr, iv->midichannel, cv->midiccindex, cv->midicc + (cv->targetmidicc - cv->midicc) * rowprogress);
 
 	/* process the sampler */
 	if (iv && cv->r.note != NOTE_VOID && cv->r.note != NOTE_OFF
@@ -518,6 +558,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	if (cv->targetfiltercut != -1) { cv->filtercut = cv->targetfiltercut; cv->targetfiltercut = -1; }
 	if (cv->targetfilterres != -1) { cv->filterres = cv->targetfilterres; cv->targetfilterres = -1; }
 	if (cv->targetwaveshaperstrength != -1) { cv->waveshaperstrength = cv->targetwaveshaperstrength; cv->targetwaveshaperstrength = -1; }
+	if (cv->targetmidicc != -1) { cv->midicc = cv->targetmidicc; cv->targetmidicc = -1; }
 	if (cv->rtrigsamples) { if (cv->rtrigblocksize) cv->rtrigblocksize--; else cv->rtrigsamples = 0; }
 
 	ret = ifMacro(fptr, cv, r, 'V', &Vc);
@@ -537,8 +578,8 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 			if (!ret)
 			{
 				oldnote = cv->r.note;
-				if (r.inst == INST_VOID) { triggerNote(p, fptr, cv, r.note, cv->r.inst); _triggerNote(cv, r.note, cv->r.inst); }
-				else                     { triggerNote(p, fptr, cv, r.note, r.inst); _triggerNote(cv, r.note, r.inst);         }
+				if (r.inst == INST_VOID) { triggerNote(fptr, cv, r.note, cv->r.inst); _triggerNote(cv, r.note, cv->r.inst); }
+				else                     { triggerNote(fptr, cv, r.note, r.inst); _triggerNote(cv, r.note, r.inst);         }
 			}
 		}
 	}
@@ -564,10 +605,14 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 
 	if (oldnote != NOTE_UNUSED && midi) /* trigger midi (needs to be after gain calculation) */
 	{
-		if (r.inst == INST_VOID) ret = triggerMidi(p, fptr, cv, oldnote, r.note, cv->r.inst);
-		else                     ret = triggerMidi(p, fptr, cv, oldnote, r.note, r.inst);
+		if (r.inst == INST_VOID) ret = triggerMidi(fptr, cv, oldnote, r.note, cv->r.inst);
+		else                     ret = triggerMidi(fptr, cv, oldnote, r.note, r.inst);
 		if (r.note == NOTE_OFF) cv->r.note = NOTE_OFF;
 	}
+	ifMacro(fptr, cv, r, ';', &midicctargetc);
+	ifMacro(fptr, cv, r, '@', &midipcc);
+	ifMacro(fptr, cv, r, '.', &midiccc);
+	ifMacro(fptr, cv, r, ',', &smoothmidiccc);
 
 
 	ifMacro(fptr, cv, r, 'M', &Mc); /* microtonal offset */
@@ -675,6 +720,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv->filtermode = 0;
 			cv->filtercut = 255; cv->targetfiltercut = -1;
 			cv->filterres = 0; cv->targetfilterres = -1;
+			cv->midiccindex = -1; cv->midicc = 0; cv->targetmidicc = -1;
 		}
 
 		/* non-volatile state */
@@ -767,8 +813,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv = &p->s->channelv[i];
 			cv->delaysamples = 0;
 			cv->cutsamples = 0;
-			triggerNote(p, 0, cv, NOTE_OFF, cv->r.inst);
-			triggerMidi(p, 0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
+			triggerNote(0, cv, NOTE_OFF, cv->r.inst);
+			triggerMidi(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 			cv->r.note = NOTE_OFF;
 			_triggerNote(cv, NOTE_OFF, cv->r.inst);
 			cv->r.note = NOTE_VOID;
@@ -883,5 +929,12 @@ int process(jack_nframes_t nfptr, void *arg)
 	}
 
 	if (ENABLE_BACKGROUND) updateBackground(nfptr, pb.out);
+	for (int i = 1; i < p->s->instrumentc; i++)
+		if (p->s->instrumentv[i]->triggerflash)
+		{
+			if (p->s->instrumentv[i]->triggerflash == 1) p->dirty = 1;
+			p->s->instrumentv[i]->triggerflash--;
+		}
+
 	return 0;
 }

@@ -30,5 +30,8 @@
 /* how many samples to draw per update, set to the uint32 limit to disable lazy drawing */
 #define WAVEFORM_LAZY_BLOCK_SIZE 3000
 
+/* how long the instrument indices flashes last for */
+#define INSTRUMENT_TRIGGER_FLASH_MS 150
+
 /* approximately how many samples to wait between pitch wheel events */
 #define PITCH_WHEEL_SAMPLES 500

@@ -18,11 +18,18 @@ typedef struct
 	uint8_t inst;
 	macro   macro[8];
 } row;
-typedef struct
+typedef struct Pattern
 {
-	uint8_t rowc;
-	uint8_t rowcc[MAX_CHANNELS];     /* rowc per-channel */
-	row     rowv[MAX_CHANNELS][256]; /* MAX_CHANNELS channels, each with 256 rows */
+	uint8_t         rowc;
+	uint8_t         rowcc[MAX_CHANNELS];     /* rowc per-channel */
+	row             rowv[MAX_CHANNELS][256]; /* MAX_CHANNELS channels, each with 256 rows */
+
+	struct Pattern *history[128];            /* pattern snapshots */
+	uint8_t         historychannel[128];
+	short           historyfy[128], historyfx[128];
+	uint8_t         historyptr;              /* highest bit is effectively an overflow bit */
+	uint8_t         historybehind;           /* tracks how many less than 128 safe indices there are */
+	uint8_t         historyahead;            /* tracks how many times it's safe to redo */
 } pattern;
 
 typedef struct
@@ -52,6 +59,10 @@ typedef struct
 	uint8_t     vibrato;                      /* vibrato depth, 0-f */
 	uint32_t    vibratosamples;               /* samples per full phase walk */
 	uint32_t    vibratosamplepointer;         /* distance through cv->vibratosamples */
+
+	short       midiccindex;
+	uint8_t     midicc;
+	short       targetmidicc;
 
 	/* waveshaper */
 	char        waveshaper;                   /* which waveshaper to use */
@@ -94,6 +105,8 @@ typedef struct Instrument
 	uint8_t             flags;
 	uint8_t             loopramp;
 	uint8_t             midichannel;
+
+	uint32_t            triggerflash;
 
 	struct Instrument  *history[128];                 /* instrument snapshots */
 	short               historyindex[128];            /* cursor positions for instrument snapshots */
@@ -302,6 +315,7 @@ void _addChannel(song *cs, channel *cv)
 	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
 	cv->stretchrampindex = stretchrampmax;
 	cv->filtercut = 1.0f;
+	cv->targetmidicc = -1;
 	cv->r.note = NOTE_VOID;
 }
 void clearPatternChannel(song *cs, uint8_t rawpattern, uint8_t channel)
@@ -439,6 +453,99 @@ int _addPattern(song *cs, uint8_t realindex)
 		}
 	return 0;
 }
+void copyPattern(pattern *dest, pattern *src)
+{
+	dest->rowc = src->rowc;
+	memcpy(dest->rowcc, src->rowcc, sizeof(uint8_t) * MAX_CHANNELS);
+	memcpy(dest->rowv, src->rowv, sizeof(row) * MAX_CHANNELS * 256);
+}
+void _delPattern(pattern *pv)
+{
+	for (int i = 0; i < 128; i++)
+	{
+		if (pv->history[i]) free(pv->history[i]);
+		pv->history[i] = NULL;
+	}
+}
+void pushPatternHistory(pattern *pv)
+{
+	if (!pv) return;
+
+	if (pv->historyptr == 255) pv->historyptr = 128;
+	else                       pv->historyptr++;
+
+	if (pv->historybehind) pv->historybehind--;
+	if (pv->historyahead)  pv->historyahead = 0;
+
+	if (pv->history[pv->historyptr%128])
+		_delPattern(pv->history[pv->historyptr%128]);
+	free(pv->history[pv->historyptr%128]);
+	pv->history[pv->historyptr%128] = calloc(1, sizeof(pattern));
+	copyPattern(pv->history[pv->historyptr%128], pv);
+
+	pv->historychannel[pv->historyptr%128] = w->channel;
+	pv->historyfy[pv->historyptr%128] = w->trackerfy;
+	pv->historyfx[pv->historyptr%128] = w->trackerfx;
+DEBUG=pv->historyptr; p->dirty = 1;
+}
+void pushPatternHistoryIfNew(pattern *pv)
+{
+	if (!pv) return;
+
+	pattern *pvh = pv->history[pv->historyptr%128];
+	if (!pvh) return;
+
+	/* dest->rowc = src->rowc;
+	memcpy(dest->rowcc, src->rowcc, sizeof(uint8_t) * MAX_CHANNELS);
+	memcpy(dest->rowv, src->rowv, sizeof(row) * MAX_CHANNELS * 256); */
+	if (pvh->rowc != pv->rowc
+			|| memcmp(pvh->rowcc, pv->rowcc, sizeof(uint8_t) * MAX_CHANNELS)
+			|| memcmp(pvh->rowv, pv->rowv, sizeof(row) * MAX_CHANNELS * 256))
+		pushPatternHistory(pv);
+}
+
+void popPatternHistory(uint8_t realindex) /* undo */
+{
+	pattern *pv = s->patternv[realindex];
+	if (!pv) return;
+
+	if (pv->historyptr <= 1 || pv->historybehind >= 127)
+	{ strcpy(w->command.error, "already at oldest change"); return; }
+	pushPatternHistoryIfNew(pv);
+
+	if (pv->historyptr == 128) pv->historyptr = 255;
+	else                       pv->historyptr--;
+
+	copyPattern(pv, pv->history[pv->historyptr%128]);
+	w->channel = pv->historychannel[(pv->historyptr+1)%128];
+	w->trackerfy = pv->historyfy[(pv->historyptr+1)%128];
+	w->trackerfx = pv->historyfx[(pv->historyptr+1)%128];
+
+	pv->historybehind++;
+	pv->historyahead++;
+DEBUG=pv->historyptr; p->dirty = 1;
+}
+void unpopPatternHistory(uint8_t realindex) /* redo */
+{
+	pattern *pv = s->patternv[realindex];
+	if (!pv) return;
+	if (pv->historyahead == 0)
+	{ strcpy(w->command.error, "already at newest change"); return; }
+	pushPatternHistoryIfNew(pv);
+
+	if (pv->historyptr == 255)
+		pv->historyptr = 128;
+	else
+		pv->historyptr++;
+
+	copyPattern(pv, pv->history[pv->historyptr%128]);
+	w->channel = pv->historychannel[pv->historyptr%128];
+	w->trackerfy = pv->historyfy[pv->historyptr%128];
+	w->trackerfx = pv->historyfx[pv->historyptr%128];
+
+	pv->historybehind--;
+	pv->historyahead--;
+}
 /* length 0 for the default */
 int addPattern(uint8_t index, uint8_t length)
 {
@@ -457,6 +564,8 @@ int addPattern(uint8_t index, uint8_t length)
 		s->patternv[s->patternc]->rowcc[c] = s->patternv[s->patternc]->rowc;
 
 	s->patterni[index] = s->patternc;
+
+	pushPatternHistory(s->patternv[s->patternc]);
 	s->patternc++;
 	return 0;
 }
@@ -1018,7 +1127,6 @@ void popInstrumentHistory(uint8_t realindex) /* undo */
 
 	if (iv->historyptr <= 1 || iv->historybehind >= 127)
 	{ strcpy(w->command.error, "already at oldest change"); return; }
-
 	pushInstrumentHistoryIfNew(iv);
 
 	if (iv->historyptr == 128) iv->historyptr = 255;
@@ -1265,7 +1373,10 @@ void delSong(song *cs)
 		_delChannel(cs, i);
 
 	for (int i = 1; i < cs->patternc; i++)
+	{
+		_delPattern(cs->patternv[i]);
 		free(cs->patternv[i]);
+	}
 
 	for (int i = 1; i < cs->instrumentc; i++)
 	{
@@ -1533,7 +1644,7 @@ song *readSong(char *path)
 					cs->patternv[i]->rowv[j][k].macro[l].v = fgetc(fp);
 				}
 			}
-		}
+		} pushPatternHistory(cs->patternv[i]);
 	}
 
 	/* instrumentv */

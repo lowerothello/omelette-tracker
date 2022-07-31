@@ -1,6 +1,5 @@
 - pitch slide is fucked
 	- it seems ok sometimes? not sure
-- tracker undo buffer
 - make it clearer when in visual replace pseudo-mode
 	- make modes clearer in general, it's too easy to get lost
 - fix envelope properly (properly de-click, remove retrigger artifacts, need some state)
@@ -11,21 +10,18 @@
 - remove reliance on oldmode
 - some waveshapers are always too loud when affecting quiet samples
 	- remove signed unsigned conversion?
+- show instruments without parent notes, for MIDI CCs
+- instrument midi channel sometimes jumps really high, idk why
 
 - portamento to note off should act like a tape stop
 - visual mode cycle should cycle the selection
-- waveform bug when opening files
+- waveform visual bug when opening files
 	- honestly just force to the pattern tab on load lol
 
 - sample gain
 	- LOT of range, esp. upwards (~10x or so)
 	- show gain on the waveform view?
 	- gain/pan: [80][80]
-
-midi:
-	- extra midi note offs on the first play after startup
-		- one for each tracker channel, all on midi channel 0(variable?)
-		- unsure how to replicate
 
 lookback:
 	- bpm macros

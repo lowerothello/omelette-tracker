@@ -47,12 +47,18 @@ void drawInstrument(void)
 			iv = s->instrumentv[s->instrumenti[i]];
 			if (w->mode != I_MODE_INDICES && w->mode != I_MODE_INDICES_PREVIEW && w->instrument == i)
 			{
-				if (iv) printf("\033[%d;1H\033[7m %02x %02x \033[1m[%08x]\033[22m \033[27m", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
-				else    printf("\033[%d;1H\033[7m %02x %02x  ........  \033[27m",            w->centre - w->instrument + i, i, s->instrumenti[i]);
+				if (iv)
+				{
+					if (iv->triggerflash) printf("\033[%d;1H\033[7m\033[2m %02x %02x [%08x] \033[22m\033[27m", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
+					else                  printf("\033[%d;1H\033[7m %02x %02x \033[1m[%08x]\033[22m \033[27m", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
+				} else    printf("\033[%d;1H\033[7m %02x %02x  ........  \033[27m",                            w->centre - w->instrument + i, i, s->instrumenti[i]);
 			} else
 			{
-				if (iv) printf("\033[%d;1H %02x \033[2m%02x\033[22m \033[1m[%08x]\033[22m ", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
-				else    printf("\033[%d;1H %02x \033[2m%02x\033[22m  ........  ",            w->centre - w->instrument + i, i, s->instrumenti[i]);
+				if (iv)
+				{
+					if (iv->triggerflash) printf("\033[%d;1H\033[2m %02x %02x [%08x]\033[22m ",                w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
+					else                  printf("\033[%d;1H %02x \033[2m%02x\033[22m \033[1m[%08x]\033[22m ", w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
+				} else    printf("\033[%d;1H %02x \033[2m%02x\033[22m  ........  ",                            w->centre - w->instrument + i, i, s->instrumenti[i]);
 			}
 		}
 
@@ -416,7 +422,7 @@ void instrumentUpArrow(int count, instrument *iv)
 		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 			instrumentAdjustUp(iv, w->instrumentindex, 0);
 			break;
-	}
+	} pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 }
 void instrumentDownArrow(int count, instrument *iv)
 {
@@ -439,7 +445,7 @@ void instrumentDownArrow(int count, instrument *iv)
 		case I_MODE_ADJUST_PREVIEW: case I_MODE_MOUSEADJUST_PREVIEW:
 			instrumentAdjustDown(iv, w->instrumentindex, 0);
 			break;
-	}
+	} pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 }
 void instrumentLeftArrow(instrument *iv)
 {
@@ -460,7 +466,7 @@ void instrumentLeftArrow(instrument *iv)
 				}
 			} else instrumentAdjustLeft(iv, w->instrumentindex, 0);
 			break;
-	}
+	} pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 }
 void instrumentCtrlLeftArrow(instrument *iv)
 {
@@ -537,7 +543,7 @@ void instrumentHome(instrument *iv)
 				w->fieldpointer = 0;
 			} else if (iv) { w->waveformcursor = 0; w->waveformdrawpointer = 0; redraw(); }
 			break;
-	}
+	} pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 }
 void instrumentEnd(instrument *iv)
 {
@@ -563,7 +569,7 @@ void instrumentEnd(instrument *iv)
 				w->fieldpointer = 0;
 			} else if (iv) { w->waveformcursor = iv->length-1; w->waveformdrawpointer = 0; redraw(); }
 			break;
-	}
+	} pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 }
 
 void instrumentModeToIndices(void)
@@ -734,12 +740,13 @@ void instrumentInput(int input)
 									} break;
 								case BUTTON1:      case BUTTON3:
 								case BUTTON1_CTRL: case BUTTON3_CTRL:
+									pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
 									if (y <= CHANNEL_ROW-2)
 									{
 										if (x < (ws.ws_col-17) / 2 + 7) showTracker();
 										else                            showInstrument();
 										break;
-									} pushInstrumentHistoryIfNew(s->instrumentv[s->instrumenti[w->instrument]]);
+									}
 
 									if (x < INSTRUMENT_INDEX_COLS)
 									{

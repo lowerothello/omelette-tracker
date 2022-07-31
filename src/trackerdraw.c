@@ -44,6 +44,10 @@ void descMacro(char c, uint8_t v)
 {
 	switch (c)
 	{
+		case ';': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MIDI CC TARGET")) / 2, "MIDI CC TARGET"); break;
+		case '@': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MIDI PC")) / 2, "MIDI PC"); break;
+		case '.': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MIDI CC")) / 2, "MIDI CC"); break;
+		case ',': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH MIDI CC")) / 2, "SMOOTH MIDI CC"); break;
 		case '%': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CHANCE")) / 2, "NOTE CHANCE"); break;
 		case 'B': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
 		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;

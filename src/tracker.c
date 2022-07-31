@@ -15,15 +15,23 @@ void changeMacro(int input, char *dest)
 	if (isdigit(input)) *dest = input;
 	else switch (input)
 	{
+		case ';': *dest = ';'; break; /* MIDI CC target          */
+		case '@': *dest = '@'; break; /* MIDI PC                 */
+		case '.': *dest = '.'; break; /* MIDI CC                 */
+		case ',': *dest = ','; break; /* smooth MIDI CC          */
 		case '%': *dest = '%'; break; /* note chance             */
 		case 'b': *dest = 'B'; break; /* bpm                     */
 		case 'c': *dest = 'C'; break; /* note cut                */
 		case 'd': *dest = 'D'; break; /* note delay              */
 		case 'D': *dest = 'd'; break; /* fine note delay         */
+		/* Exx - local envelope times */
 		case 'f': *dest = 'F'; break; /* filter                  */
 		case 'F': *dest = 'f'; break; /* smooth filter           */
 		case 'g': *dest = 'G'; break; /* gain                    */
 		case 'G': *dest = 'g'; break; /* smooth gain             */
+		/* Hxx - local pitch shift        */
+		/* hxx - smooth local pitch shift */
+		/* Lxx - local cycle length       */
 		case 'm': *dest = 'M'; break; /* microtonal offset       */
 		case 'o': *dest = 'O'; break; /* offset                  */
 		case 'O': *dest = 'o'; break; /* backwards offset        */
@@ -35,10 +43,9 @@ void changeMacro(int input, char *dest)
 		case 'W': *dest = 'w'; break; /* smooth waveshaper       */
 		case 'z': *dest = 'Z'; break; /* filter resonance        */
 		case 'Z': *dest = 'z'; break; /* smooth filter resonance */
-		/* /xx - MIDI CC        */
-		/* ?xx - smooth MIDI CC */
-		/* :xx - MIDI CC target */
-		/* .xx - MIDI PC        */
+
+		/* ?xx - local cycle length        */
+		/* ?xx - smooth local cycle length */
 	}
 }
 
@@ -85,7 +92,7 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 
 void trackerAdjustRight(void) /* mouse adjust only */
 {
-	uint8_t modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
+	uint8_t modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
 	row *r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
 	short macro;
 	switch (w->trackerfx)
@@ -110,7 +117,7 @@ void trackerAdjustRight(void) /* mouse adjust only */
 void trackerAdjustLeft(void) /* mouse adjust only */
 {
 	short macro;
-	uint8_t modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
+	uint8_t modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
 	row *r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
 	switch (w->trackerfx)
 	{
@@ -1554,7 +1561,7 @@ dxandwchannelset:
 								} w->count = 0;
 							} else
 							{
-								modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
+								modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
 								r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
 								switch (input)
 								{
@@ -1562,6 +1569,8 @@ dxandwchannelset:
 									case 'f': /* toggle song follow */ w->flags ^= 0b1; redraw(); break;
 									case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; redraw(); break;
 									case 'k': /* up arrow           */ trackerUpArrow(); redraw(); break;
+									case 'u': /* undo               */ popPatternHistory(s->patterni[s->songi[w->songfy]]); redraw(); break;
+									case 18:  /* redo               */ unpopPatternHistory(s->patterni[s->songi[w->songfy]]); redraw(); break;
 									case 'j': /* down arrow         */ trackerDownArrow(); redraw(); break;
 									case 'h': /* left arrow         */ trackerLeftArrow(); redraw(); break;
 									case 'l': /* right arrow        */ trackerRightArrow(); redraw(); break;
@@ -1823,4 +1832,5 @@ dxandwchannelset:
 	}
 	if (w->count) { w->count = 0; redraw(); }
 	if (w->chord) { w->chord = '\0'; redraw(); }
+	pushPatternHistoryIfNew(s->patternv[s->patterni[s->songi[w->songfy]]]);
 }
