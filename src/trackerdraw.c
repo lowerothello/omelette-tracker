@@ -53,10 +53,13 @@ void descMacro(char c, uint8_t v)
 		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
 		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2,      "NOTE DELAY"); break;
 		case 'd': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FINE NOTE DELAY")) / 2, "FINE NOTE DELAY"); break;
+		case 'E': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL ENVELOPE TIME")) / 2, "LOCAL ENVELOPE TIME"); break;
 		case 'F': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER CUTOFF")) / 2,        "FILTER CUTOFF"); break;
 		case 'f': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH FILTER CUTOFF")) / 2, "SMOOTH FILTER CUTOFF"); break;
 		case 'G': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2,        "STEREO GAIN"); break;
 		case 'g': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH STEREO GAIN")) / 2, "SMOOTH STEREO GAIN"); break;
+		case 'H': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL PITCH SHIFT")) / 2, "LOCAL PITCH SHIFT"); break;
+		case 'L': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL CYCLELENGTH")) / 2, "LOCAL CYCLELENGTH"); break;
 		case 'M': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;
 		case 'O': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE OFFSET")) / 2,           "NOTE OFFSET"); break;
 		case 'o': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BACKWARDS NOTE OFFSET")) / 2, "BACKWARDS NOTE OFFSET"); break;

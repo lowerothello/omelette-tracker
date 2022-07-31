@@ -138,6 +138,9 @@ void _triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		cv->gain = -1;
 		cv->targetgain = -1;
 		cv->vibrato = 0;
+		cv->localenvelope = -1;
+		cv->localpitchshift = -1;
+		cv->localcyclelength = -1;
 
 		if (!cv->mute && p->s->instrumenti[inst])
 		{
@@ -305,6 +308,12 @@ char zc(jack_nframes_t fptr, int m, channel *cv, row r)
 	cv->targetfilterres = m%16;
 	return 1;
 }
+char Ec(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->localenvelope = m; return 1; }
+char Hc(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->localpitchshift = m; return 1; }
+char Lc(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->localcyclelength = m; return 1; }
 char midicctargetc(jack_nframes_t fptr, int m, channel *cv, row r)
 { cv->midiccindex = m%128; return 1; }
 char midipcc(jack_nframes_t fptr, int m, channel *cv, row r)
@@ -380,6 +389,7 @@ void playChannel(jack_nframes_t fptr, playbackinfo *p, channel *cv)
 		ifMacro(fptr, cv, cv->r, 'O', &OcPOSTRAMP); /* offset    */
 		ifMacro(fptr, cv, cv->r, 'o', &ocPOSTRAMP); /* bw offset */
 		ifMacro(fptr, cv, cv->r, 'M', &Mc); /* microtonal offset */
+		ifMacro(fptr, cv, cv->r, 'E', &Ec); /* local envelope    */
 	}
 
 	if (!cv->mute && cv->finetune != 0.0f && !(p->s->sprp % PITCH_WHEEL_SAMPLES) && iv->flags&S_FLAG_MIDI)
@@ -620,6 +630,10 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 
 	ifMacro(fptr, cv, r, 'W', &Wc); /* waveshaper        */
 	ifMacro(fptr, cv, r, 'w', &wc); /* smooth waveshaper */
+
+	ifMacro(fptr, cv, r, 'E', &Ec); /* local envelope    */
+	ifMacro(fptr, cv, r, 'H', &Hc); /* local pitch shift */
+	ifMacro(fptr, cv, r, 'L', &Lc); /* local cyclelength */
 }
 
 int process(jack_nframes_t nfptr, void *arg)
@@ -753,9 +767,10 @@ int process(jack_nframes_t nfptr, void *arg)
 						} else
 						{
 							_triggerNote(cv, cv->delaynote, cv->delayinst);
-							ifMacro(0, cv, cv->r, 'O', &OcPOSTRAMP); /* offset            */
-							ifMacro(0, cv, cv->r, 'b', &ocPOSTRAMP); /* bw offset         */
+							ifMacro(0, cv, cv->r, 'O', &OcPOSTRAMP); /* offset    */
+							ifMacro(0, cv, cv->r, 'b', &ocPOSTRAMP); /* bw offset */
 							ifMacro(0, cv, cv->r, 'M', &Mc); /* microtonal offset */
+							ifMacro(0, cv, cv->r, 'E', &Ec); /* local envelope    */
 							if (cv->reverse)
 							{
 								if (cv->pointer > p->s->spr - cv->delaysamples)
@@ -771,9 +786,10 @@ int process(jack_nframes_t nfptr, void *arg)
 					} else if (cv->delaysamples)
 					{
 						_triggerNote(cv, cv->delaynote, cv->delayinst);
-						ifMacro(0, cv, cv->r, 'O', &OcPOSTRAMP); /* offset            */
-						ifMacro(0, cv, cv->r, 'b', &ocPOSTRAMP); /* bw offset         */
+						ifMacro(0, cv, cv->r, 'O', &OcPOSTRAMP); /* offset    */
+						ifMacro(0, cv, cv->r, 'b', &ocPOSTRAMP); /* bw offset */
 						ifMacro(0, cv, cv->r, 'M', &Mc); /* microtonal offset */
+						ifMacro(0, cv, cv->r, 'E', &Ec); /* local envelope    */
 						if (cv->reverse)
 						{
 							if (cv->pointer > p->s->spr - cv->delaysamples)

@@ -22,7 +22,7 @@ void getSampleLoopRamp(uint32_t p, uint32_t q, float lerp, instrument *iv, short
 }
 
 /* clamps within range and loop, returns output samples */
-void trimloop(uint32_t pitchedpointer, uint32_t pointer,
+void trimloop(uint32_t pitchedpointer, uint32_t pointer, uint8_t localenvelope,
 		channel *cv, instrument *iv, short *l, short *r)
 {
 	uint32_t p = pitchedpointer + iv->trim[0] + cv->pointeroffset;
@@ -70,7 +70,7 @@ void trimloop(uint32_t pitchedpointer, uint32_t pointer,
 
 	/* auto-trigger the release envelope */
 	if (!cv->releasepointer && ((iv->loop[1] && iv->trim[1] < iv->loop[1]) || !iv->loop[1])
-			&& p > iv->trim[1] - (((iv->envelope%16)+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate))
+			&& p > iv->trim[1] - (((localenvelope%16)+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate))
 		cv->releasepointer = pointer;
 
 	if (!(iv->loop[0] || iv->loop[1]))
@@ -91,14 +91,25 @@ uint32_t calcDecimate(instrument *iv, uint8_t decimate, uint32_t pointer)
 void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, short *l, short *r)
 {
 	uint32_t ramppos, pointersnap;
-	uint16_t cyclelength;
 	short hold;
 	float gain;
 
-	float envgain = envelope(iv->envelope, pointer, cv->releasepointer, !(iv->flags&S_FLAG_SUSTAIN));
-	if (!(pointer > ((iv->envelope>>4)+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate && envgain < NOISE_GATE) && iv->length > 0)
+	uint8_t localenvelope;
+	if (cv->localenvelope != -1) localenvelope = cv->localenvelope;
+	else                         localenvelope = iv->envelope;
+
+	uint8_t localpitchshift;
+	if (cv->localpitchshift != -1) localpitchshift = cv->localpitchshift;
+	else                           localpitchshift = iv->pitchshift;
+
+	uint16_t localcyclelength;
+	if (cv->localcyclelength != -1) localcyclelength = cv->localcyclelength<<8;
+	else                            localcyclelength = iv->cyclelength;
+
+	float envgain = envelope(localenvelope, pointer, cv->releasepointer, !(iv->flags&S_FLAG_SUSTAIN));
+	if (!(pointer > ((localenvelope>>4)+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate && envgain < NOISE_GATE) && iv->length > 0)
 	{
-		cyclelength = MAX(1, samplerate*DIV1000 * TIMESTRETCH_CYCLE_UNIT_MS * MAX(1, iv->cyclelength));
+		uint16_t cyclelength = MAX(1, samplerate*DIV1000 * TIMESTRETCH_CYCLE_UNIT_MS * MAX(1, localcyclelength));
 		pointersnap = pointer % cyclelength;
 
 		if (cv->reverse) ramppos = cyclelength;
@@ -115,18 +126,18 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, short *l, sho
 		float calcrate = (float)iv->c5rate / (float)samplerate;
 		if (iv->flags & S_FLAG_TTEMPO)
 		{ /* time stretch */
-			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune + (iv->pitchshift*DIV64ALT - 2.0f) * 12.0f);
+			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune + (localpitchshift*DIV64ALT - 2.0f) * 12.0f);
 
 			trimloop(calcDecimate(iv, iv->samplerate,
 					((pointer - pointersnap) * calcrate) + (pointersnap * calcpitch) * calcrate),
-					pointer, cv, iv, l, r);
+					pointer, localenvelope, cv, iv, l, r);
 
 			if (cv->stretchrampindex < cv->localstretchrampmax)
 			{
 				short rl = 0; short rr = 0;
 				trimloop(calcDecimate(iv, iv->samplerate,
 						((pointer - pointersnap - cyclelength) * calcrate) + ((cyclelength + cv->stretchrampindex) * calcpitch * calcrate)),
-						pointer, cv, iv, &rl, &rr);
+						pointer, localenvelope, cv, iv, &rl, &rr);
 
 				gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
 				*l = *l * gain + rl * (1.0f - gain);
@@ -136,18 +147,18 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, short *l, sho
 		} else
 		{ /* pitch shift */
 			calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - C5 + cv->finetune); /* really slow */
-			calcshift = powf(2, iv->pitchshift*DIV64ALT - 2.0f);
+			calcshift = powf(2, localpitchshift*DIV64ALT - 2.0f);
 
 			trimloop(calcDecimate(iv, iv->samplerate,
 					(float)(pointer - pointersnap + (pointersnap * calcshift)) * calcpitch * calcrate),
-					pointer, cv, iv, l, r);
+					pointer, localenvelope, cv, iv, l, r);
 
 			if (cv->stretchrampindex < cv->localstretchrampmax)
 			{
 				short rl = 0; short rr = 0;
 				trimloop(calcDecimate(iv, iv->samplerate,
 						(float)(pointer - pointersnap - cyclelength + ((cyclelength + cv->stretchrampindex) * calcshift)) * calcpitch * calcrate),
-						pointer, cv, iv, &rl, &rr);
+						pointer, localenvelope, cv, iv, &rl, &rr);
 
 				gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
 				*l = *l * gain + rl * (1.0f - gain);

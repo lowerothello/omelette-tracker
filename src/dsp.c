@@ -6,7 +6,7 @@
 #define FM_DEPTH 0.005
 
 /* <seconds> */
-#define ENVELOPE_ATTACK 0.01
+#define ENVELOPE_ATTACK 0.1
 #define ENVELOPE_ATTACK_MIN 0
 #define ENVELOPE_DECAY 0.1
 #define ENVELOPE_DECAY_MIN 0

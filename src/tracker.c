@@ -24,14 +24,13 @@ void changeMacro(int input, char *dest)
 		case 'c': *dest = 'C'; break; /* note cut                */
 		case 'd': *dest = 'D'; break; /* note delay              */
 		case 'D': *dest = 'd'; break; /* fine note delay         */
-		/* Exx - local envelope times */
+		case 'e': *dest = 'E'; break; /* local envelope          */
 		case 'f': *dest = 'F'; break; /* filter                  */
 		case 'F': *dest = 'f'; break; /* smooth filter           */
 		case 'g': *dest = 'G'; break; /* gain                    */
 		case 'G': *dest = 'g'; break; /* smooth gain             */
-		/* Hxx - local pitch shift        */
-		/* hxx - smooth local pitch shift */
-		/* Lxx - local cycle length       */
+		case 'h': *dest = 'H'; break; /* local pitch shift       */
+		case 'l': *dest = 'L'; break; /* local cycle length      */
 		case 'm': *dest = 'M'; break; /* microtonal offset       */
 		case 'o': *dest = 'O'; break; /* offset                  */
 		case 'O': *dest = 'o'; break; /* backwards offset        */

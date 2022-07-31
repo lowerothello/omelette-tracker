@@ -165,7 +165,7 @@ void drawInstrument(void)
 		drawBit(iv->flags&S_FLAG_MIDI); printf("[%x] ", iv->midichannel);
 		printf("\033[%d;%dHdecimate:    [%x][%02x]  ┌─   LOOP   ─┐  ┌─  TIMESTRETCH  ─┐", y+1, x, iv->bitdepth, iv->samplerate);
 		printf("\033[%d;%dHchannels:             ping-pong: ", y+2, x);
-		drawBit(iv->flags&S_FLAG_PPLOOP); printf("  cycle size:  [%04x]", iv->cyclelength);
+		drawBit(iv->flags&S_FLAG_PPLOOP); printf("  cyclelength: [%04x]", iv->cyclelength);
 		printf("\033[%d;%dHenvelope:    [%02x]", y+3, x, iv->envelope);
 		drawBit(!(iv->flags&S_FLAG_SUSTAIN)); printf("  ramping:  [%02x]  time/pitch: ", iv->loopramp);
 		drawBit(iv->flags&S_FLAG_TTEMPO); printf("[%02x]", iv->pitchshift);

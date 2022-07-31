@@ -60,6 +60,10 @@ typedef struct
 	uint32_t    vibratosamples;               /* samples per full phase walk */
 	uint32_t    vibratosamplepointer;         /* distance through cv->vibratosamples */
 
+	short       localenvelope;
+	short       localpitchshift;
+	short       localcyclelength;
+
 	short       midiccindex;
 	uint8_t     midicc;
 	short       targetmidicc;
