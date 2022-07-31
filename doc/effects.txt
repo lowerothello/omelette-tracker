@@ -61,12 +61,6 @@ Rxy - BLOCK RETRIGGER
 	overridden by another Rxy macro if the block hasn't finished
 	will skip forwards to where the pointer should be at the end of the block
 
-txy - GATE
-	gates the signal aggressively, more of an effect than a noise gate
-	x is the strength of the effect (max reduction and speed)
-	y is the threshold
-	t?0 to disable
-
 Vxy - VIBRATO
 	modulate the pitch of the sample at speed x and depth y
 	lfo is hardcoded to a triangle wave

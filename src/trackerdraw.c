@@ -47,32 +47,45 @@ void descMacro(char c, uint8_t v)
 		case '%': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CHANCE")) / 2, "NOTE CHANCE"); break;
 		case 'B': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BPM")) / 2, "BPM"); break;
 		case 'C': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE CUT")) / 2, "NOTE CUT"); break;
-		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2, "NOTE DELAY"); break;
+		case 'D': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE DELAY")) / 2,      "NOTE DELAY"); break;
 		case 'd': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FINE NOTE DELAY")) / 2, "FINE NOTE DELAY"); break;
-		case 'F': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER CUTOFF")) / 2, "FILTER CUTOFF"); break;
+		case 'F': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER CUTOFF")) / 2,        "FILTER CUTOFF"); break;
 		case 'f': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH FILTER CUTOFF")) / 2, "SMOOTH FILTER CUTOFF"); break;
-		case 'G': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2, "STEREO GAIN"); break;
+		case 'G': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("STEREO GAIN")) / 2,        "STEREO GAIN"); break;
 		case 'g': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH STEREO GAIN")) / 2, "SMOOTH STEREO GAIN"); break;
 		case 'M': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;
-		case 'O': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE OFFSET")) / 2, "NOTE OFFSET"); break;
+		case 'O': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("NOTE OFFSET")) / 2,           "NOTE OFFSET"); break;
 		case 'o': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BACKWARDS NOTE OFFSET")) / 2, "BACKWARDS NOTE OFFSET"); break;
 		case 'P': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("PITCH SLIDE")) / 2, "PITCH SLIDE"); break;
 		case 'R': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("BLOCK RETRIGGER")) / 2, "BLOCK RETRIGGER"); break;
-		case 't': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("GATE")) / 2, "GATE"); break;
 		case 'V': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("VIBRATO")) / 2, "VIBRATO"); break;
 		case 'W': /* waveshapers */
 			switch (v>>4)
 			{
-				case 0: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("HARD CLIPPER")) / 2, "HARD CLIPPER"); break;
-				case 1: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SOFT CLIPPER")) / 2, "SOFT CLIPPER"); break;
-				case 2: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("RECTIFIER")) / 2, "RECTIFIER"); break;
-				case 3: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("RECTIFIERx2")) / 2, "RECTIFIERx2"); break;
-				case 4: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("WAVEFOLDER")) / 2, "WAVEFOLDER"); break;
-				case 5: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("WAVEWRAPPER")) / 2, "WAVEWRAPPER"); break;
+				case 0: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("HARD CLIP")) / 2,       "HARD CLIP"); break;
+				case 1: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SOFT CLIP")) / 2,       "SOFT CLIP"); break;
+				case 2: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("RECTIFY")) / 2,         "RECTIFY"); break;
+				case 3: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("RECTIFYx2")) / 2,       "RECTIFYx2"); break;
+				case 4: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("WAVEFOLD")) / 2,        "WAVEFOLD"); break;
+				case 5: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("WAVEWRAP")) / 2,        "WAVEWRAP"); break;
 				case 6: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SIGN CONVERSION")) / 2, "SIGN CONVERSION"); break;
+				case 7: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("HARD GATE")) / 2,       "HARD GATE"); break;
 			}
 			break;
-		case 'Z': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER RESONANCE")) / 2, "FILTER RESONANCE"); break;
+		case 'w': /* smooth waveshapers */
+			switch (v>>4)
+			{
+				case 0: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH HARD CLIP")) / 2,       "SMOOTH HARD CLIP"); break;
+				case 1: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH SOFT CLIP")) / 2,       "SMOOTH SOFT CLIP"); break;
+				case 2: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH RECTIFY")) / 2,         "SMOOTH RECTIFY"); break;
+				case 3: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH RECTIFYx2")) / 2,       "SMOOTH RECTIFYx2"); break;
+				case 4: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH WAVEFOLD")) / 2,        "SMOOTH WAVEFOLD"); break;
+				case 5: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH WAVEWRAP")) / 2,        "SMOOTH WAVEWRAP"); break;
+				case 6: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH SIGN CONVERSION")) / 2, "SMOOTH SIGN CONVERSION"); break;
+				case 7: printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH HARD GATE")) / 2,       "SMOOTH HARD GATE"); break;
+			}
+			break;
+		case 'Z': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("FILTER RESONANCE")) / 2,        "FILTER RESONANCE"); break;
 		case 'z': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH FILTER RESONANCE")) / 2, "SMOOTH FILTER RESONANCE"); break;
 	}
 }
@@ -179,15 +192,15 @@ void startVisual(char *buffer, uint8_t channel, int i, signed char fieldpointer)
 			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
-					if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+					if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 							&& MIN(w->visualfx, tfxToVfx(w->trackerfx)) == fieldpointer)
 						strcat(buffer, "\033[2;7m");
-				} else if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+				} else if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 						&& (w->visualchannel <= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)) == fieldpointer)
 					strcat(buffer, "\033[2;7m");
 				break;
 			case T_MODE_VISUALLINE:
-				if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy) && fieldpointer == 0)
+				if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset) && fieldpointer == 0)
 					strcat(buffer, "\033[2;7m");
 				break;
 		}
@@ -202,20 +215,20 @@ void stopVisual(char *buffer, uint8_t channel, int i, signed char fieldpointer)
 			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
-					if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+					if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 							&& MAX(w->visualfx, tfxToVfx(w->trackerfx)) == fieldpointer)
 					{
 						strcat(buffer, "\033[27m");
 						if (!s->channelv[channel].mute) strcat(buffer, "\033[22m");
 					}
-				} else if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+				} else if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 						&& (w->visualchannel >= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)) == fieldpointer)
 				{
 					strcat(buffer, "\033[27m");
 					if (!s->channelv[channel].mute) strcat(buffer, "\033[22m");
 				} break;
 			case T_MODE_VISUALLINE:
-				if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy) && fieldpointer == 3)
+				if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset) && fieldpointer == 3)
 				{
 					strcat(buffer, "\033[27m");
 					if (!s->channelv[channel].mute) strcat(buffer, "\033[22m");
@@ -234,7 +247,7 @@ int ifVisual(uint8_t channel, int i, signed char fieldpointer)
 			case T_MODE_VISUAL:
 				if (w->visualchannel == w->channel)
 				{
-					if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+					if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 							&& fieldpointer >= MIN(w->visualfx, tfxToVfx(w->trackerfx))
 							&& fieldpointer <= MAX(w->visualfx, tfxToVfx(w->trackerfx)))
 						return 1;
@@ -243,17 +256,17 @@ int ifVisual(uint8_t channel, int i, signed char fieldpointer)
 					if (channel > MIN(w->visualchannel, w->channel) && channel < MAX(w->visualchannel, w->channel)) return 1;
 					else if (channel == MIN(w->visualchannel, w->channel))
 					{
-						if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+						if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 								&& fieldpointer >= (w->visualchannel <= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)))
 							return 1;
 					} else if (channel == MAX(w->visualchannel, w->channel))
 					{
-						if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)
+						if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 								&& fieldpointer <= (w->visualchannel >= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)))
 							return 1;
 					}
 				} break;
-			case T_MODE_VISUALLINE: if (i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy)) return 1;
+			case T_MODE_VISUALLINE: if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)) return 1;
 		}
 	} return 0;
 }
@@ -283,7 +296,7 @@ void drawChannel(uint8_t channel, unsigned short x)
 			if (s->channelv[channel].mute || i < polycutoff || i > polycutoff + rowcc - 1) strcat(rowbuffer, "\033[2m");
 			if ((w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE)
 					&& channel > MIN(w->visualchannel, w->channel) && channel <= MAX(w->visualchannel, w->channel)
-					&& i >= MIN(w->visualfy, w->trackerfy) && i <= MAX(w->visualfy, w->trackerfy))
+					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 				strcat(rowbuffer, "\033[2;7m");
 
 			startVisual(rowbuffer, channel, i, 0);

@@ -41,7 +41,7 @@ typedef struct
 	float       portamentofinetune;           /* used by portamento, clamped between -2/+2 for midi */
 	float       microtonalfinetune;           /* used by the local microtonal macro */
 	uint8_t     portamento;                   /* portamento target, 255 for off */
-	uint8_t     portamentospeed;              /* portamento m */
+	short       portamentospeed;              /* portamento m */
 	uint16_t    rtrigsamples;                 /* samples per retrigger */
 	uint32_t    rtrigpointer;                 /* sample ptr to ratchet back to */
 	uint8_t     rtrigblocksize;               /* number of rows block extends to */
@@ -52,12 +52,11 @@ typedef struct
 	uint8_t     vibrato;                      /* vibrato depth, 0-f */
 	uint32_t    vibratosamples;               /* samples per full phase walk */
 	uint32_t    vibratosamplepointer;         /* distance through cv->vibratosamples */
-	uint8_t     gate;                         /* gain m */
-	float       gateopen;
 
 	/* waveshaper */
 	char        waveshaper;                   /* which waveshaper to use */
-	char        waveshaperstrength;           /* mix / input gain */
+	uint8_t     waveshaperstrength;           /* mix / input gain */
+	short       targetwaveshaperstrength;     /* mix / input gain target */
 
 	/* filter */
 	SVFilter    fl, fr;
@@ -147,12 +146,14 @@ song *s;
 #define INST_GLOBAL_CHANNEL_MUTE 8   /* like INST_MUTE but locki contains a channel index */
 
 #define INST_REC_LOCK_OK 0          /* playback and most memory ops are safe */
-#define INST_REC_LOCK_START 1       /* playback and most memory ops are safe */
-#define INST_REC_LOCK_CONT 2        /* recording                             */
-#define INST_REC_LOCK_PREP_END 3    /* start stopping recording              */
-#define INST_REC_LOCK_END 4         /* stopping recording has finished       */
-#define INST_REC_LOCK_PREP_CANCEL 5 /* start cancelling recording            */
-#define INST_REC_LOCK_CANCEL 6      /* cancelling recording has finished     */
+#define INST_REC_LOCK_START 1       /* want to be unsafe                     */
+#define INST_REC_LOCK_CUE_START 2   /* want to be unsafe                     */
+#define INST_REC_LOCK_CONT 3        /* recording                             */
+#define INST_REC_LOCK_CUE_CONT 4    /* recording                             */
+#define INST_REC_LOCK_PREP_END 5    /* start stopping recording              */
+#define INST_REC_LOCK_END 6         /* stopping recording has finished       */
+#define INST_REC_LOCK_PREP_CANCEL 7 /* start cancelling recording            */
+#define INST_REC_LOCK_CANCEL 8      /* cancelling recording has finished     */
 
 #define REQ_OK 0  /* do nothing / done */
 #define REQ_BPM 1 /* re-apply the song bpm */
@@ -235,11 +236,10 @@ typedef struct
 	uint8_t        instrumentlockv;              /* value, set to an INST_GLOBAL_LOCK constant */
 	char           request;                      /* ask the playback function to do something */
 
-	uint8_t        instrumentreci;               /* realindex */
+	uint8_t        instrumentreci;               /* NOT a realindex */
 	uint8_t        instrumentrecv;               /* value, set to an INST_REC_LOCK constant */
 	short         *recbuffer;                    /* disallow changing the type or removing while recording */
 	uint32_t       recptr;
-	uint8_t        recordflags;                  /* %2: gate around the next pattern */
 
 	char           newfilename[COMMAND_LENGTH];  /* used by readSong */
 } window;
@@ -748,6 +748,73 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 				}
 			else break;
 }
+/* block toggle case */
+void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	uint8_t i, j, row;
+	int k;
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
+	if (c1 == c2) /* only one channel */
+	{
+		for (j = y1; j <= y2; j++)
+		{
+			row = j % (destpattern->rowcc[w->channel]+1);
+			for (k = 0; k < s->channelv[c1].macroc; k++)
+				if (x1 <= k+2 && x2 >= k+2)
+				{
+					if      (isupper(destpattern->rowv[c1][row].macro[k].c))
+						changeMacro(destpattern->rowv[c1][row].macro[k].c,
+								&destpattern->rowv[c1][row].macro[k].c);
+					else if (islower(destpattern->rowv[c1][row].macro[k].c))
+						changeMacro(destpattern->rowv[c1][row].macro[k].c,
+								&destpattern->rowv[c1][row].macro[k].c);
+				}
+		}
+	} else
+		for (i = c1; i <= c2; i++)
+			if (i < s->channelc)
+				for (j = y1; j <= y2; j++)
+				{
+					row = j % (destpattern->rowcc[i]+1);
+					if (i == c1) /* first channel */
+						for (k = 0; k < s->channelv[i].macroc; k++)
+						{
+							if (x1 <= k+2)
+							{
+								if      (isupper(destpattern->rowv[i][row].macro[k].c))
+									changeMacro(destpattern->rowv[i][row].macro[k].c,
+											&destpattern->rowv[i][row].macro[k].c);
+								else if (islower(destpattern->rowv[i][row].macro[k].c))
+									changeMacro(destpattern->rowv[i][row].macro[k].c,
+											&destpattern->rowv[i][row].macro[k].c);
+							}
+						}
+					else if (i == c2) /* last channel */
+						for (k = 0; k < s->channelv[i].macroc; k++)
+						{
+							if (x1 >= k+2)
+							{
+								if      (isupper(destpattern->rowv[i][row].macro[k].c))
+									changeMacro(destpattern->rowv[i][row].macro[k].c,
+											&destpattern->rowv[i][row].macro[k].c);
+								else if (islower(destpattern->rowv[i][row].macro[k].c))
+									changeMacro(destpattern->rowv[i][row].macro[k].c,
+											&destpattern->rowv[i][row].macro[k].c);
+							}
+						}
+					else /* middle channel */
+						for (k = 0; k < s->channelv[i].macroc; k++)
+						{
+							if      (isupper(destpattern->rowv[i][row].macro[k].c))
+								changeMacro(destpattern->rowv[i][row].macro[k].c,
+										&destpattern->rowv[i][row].macro[k].c);
+							else if (islower(destpattern->rowv[i][row].macro[k].c))
+								changeMacro(destpattern->rowv[i][row].macro[k].c,
+										&destpattern->rowv[i][row].macro[k].c);
+						}
+				}
+			else break;
+}
 /* block randomize */
 void randPartPattern(signed char value, short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
@@ -994,7 +1061,7 @@ int addInstrument(uint8_t index)
 	s->instrumentv[s->instrumentc]->samplerate = 0xff;
 	s->instrumentv[s->instrumentc]->bitdepth = 0xf;
 	s->instrumentv[s->instrumentc]->loopramp = 0xff;
-	s->instrumentv[s->instrumentc]->cyclelength = 0x06ff;
+	s->instrumentv[s->instrumentc]->cyclelength = 0x37ff;
 	s->instrumentv[s->instrumentc]->pitchshift = 0x80;
 	s->instrumenti[index] = s->instrumentc;
 
@@ -1032,11 +1099,10 @@ int delInstrument(uint8_t index)
 }
 
 
-void toggleRecording(uint8_t inst)
+void toggleRecording(uint8_t inst, char cue)
 {
-	if (w->instrumentrecv == INST_REC_LOCK_OK)
-		w->instrumentreci = s->instrumenti[inst];
-	if (w->instrumentreci == s->instrumenti[inst])
+	if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrumentreci = inst;
+	if (w->instrumentreci == inst)
 	{
 		switch (w->instrumentrecv)
 		{
@@ -1045,18 +1111,43 @@ void toggleRecording(uint8_t inst)
 				if (!w->recbuffer)
 				{
 					strcpy(w->command.error, "failed to start recording, out of memory");
-					if (w->recbuffer) { free(w->recbuffer); w->recbuffer = NULL; }
 					break;
 				}
 				w->recptr = 0;
-				w->instrumentrecv = INST_REC_LOCK_START;
+				if (cue) w->instrumentrecv = INST_REC_LOCK_CUE_START;
+				else     w->instrumentrecv = INST_REC_LOCK_START;
 				break;
-			default:
-				w->instrumentrecv = INST_REC_LOCK_PREP_END;
-				break;
+			default: w->instrumentrecv = INST_REC_LOCK_PREP_END; break;
 		}
+	} redraw();
+}
+void recordBinds(short instrument, int input)
+{
+	switch (input)
+	{
+		case 'S': case 's': /* start/stop */
+			if (w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci != instrument)
+			{ /* stop whichever instrument is already recording */
+				toggleRecording(w->instrumentreci, 0);
+			} else
+			{
+				if (!s->instrumenti[instrument]) addInstrument(instrument);
+				toggleRecording(instrument, 0);
+			} break;
+		case 'Q': case 'q': /* start/stop cue */
+			if (w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci != instrument)
+			{ /* stop whichever instrument is already recording */
+				toggleRecording(w->instrumentreci, 1);
+			} else
+			{
+				if (!s->instrumenti[instrument]) addInstrument(instrument);
+				toggleRecording(instrument, 1);
+			} break;
+		case 'C': case 'c': /* cancel     */
+			if (w->instrumentrecv != INST_REC_LOCK_OK)
+				w->instrumentrecv = INST_REC_LOCK_PREP_CANCEL;
+			break;
 	}
-	redraw();
 }
 
 
@@ -1134,7 +1225,7 @@ void loadSample(uint8_t index, char *path)
 	iv->length = sfinfo.frames;
 	iv->c5rate = sfinfo.samplerate;
 	iv->trim[0] = 0;
-	iv->trim[1] = sfinfo.frames - 1;
+	iv->trim[1] = sfinfo.frames-1;
 	iv->loop[0] = 0;
 	iv->loop[1] = 0;
 	iv->samplerate = 0xff;
@@ -1171,19 +1262,16 @@ song *addSong(void)
 void delSong(song *cs)
 {
 	for (int i = 0; i < cs->channelc; i++)
-	{
-		/* jack_port_unregister(client, p->cin[i].l);
-		jack_port_unregister(client, p->cin[i].r);
-		jack_port_unregister(client, p->cout[i].l);
-		jack_port_unregister(client, p->cout[i].r); */
 		_delChannel(cs, i);
-	}
 
 	for (int i = 1; i < cs->patternc; i++)
 		free(cs->patternv[i]);
 
 	for (int i = 1; i < cs->instrumentc; i++)
+	{
 		_delInstrument(cs->instrumentv[i]);
+		free(cs->instrumentv[i]);
+	}
 
 	free(cs);
 }

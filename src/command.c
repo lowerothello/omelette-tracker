@@ -77,7 +77,7 @@ void drawCommand(command_t *command, unsigned char mode)
 }
 
 char buffer[COMMAND_LENGTH];
-int commandInput(command_t *command, int input, unsigned char *mode)
+int commandInput(command_t *command, int input, unsigned char *mode, unsigned char oldmode)
 {
 	switch (input)
 	{
@@ -121,7 +121,7 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 				break;
 			} else /* assume escape */
 			{
-				*mode = 0;
+				*mode = oldmode;
 				break;
 			}
 		case 9: /* tab */
@@ -129,7 +129,7 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 			command->commandptr = strlen(command->historyv[command->historyc]);
 			break;
 		case 10: case 13: /* return */
-			*mode = 0;
+			*mode = oldmode;
 
 			if (strcmp(command->historyv[command->historyc], ""))
 			{
@@ -144,7 +144,7 @@ int commandInput(command_t *command, int input, unsigned char *mode)
 					command->historyc = HISTORY_LENGTH;
 			}
 			break;
-		case 127: /* backspace */
+		case 127: case '\b': /* backspace */
 			if (command->commandptr > 0)
 			{
 				for (int i = 0; i < strlen(command->historyv[command->historyc]); i++)

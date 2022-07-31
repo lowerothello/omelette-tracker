@@ -112,7 +112,7 @@ void filebrowserInput(int input)
 			}
 			redraw();
 			break;
-		case 127: case 8: /* backspace */
+		case 127: case '\b': /* backspace */
 			dirname(w->dirpath);
 			changeDirectory();
 			w->filebrowserindex = 0;

@@ -46,15 +46,16 @@ KEYBINDS
 COLON - enter command mode
 
 navigation:
-	ARROWS           - navigate the pattern cell-wise
-	CTRL+LEFT        - move one channel to the left
-	CTRL+RIGHT       - move one channel to the right
+	ARROWS/hjkl      - navigate the pattern cell-wise
+	CTRL+LEFT/[      - move one channel to the left
+	CTRL+RIGHT/]     - move one channel to the right
 	gg/HOME G/END    - go to the top/bottom of the pattern
 	PGUP/PGDN        - go up/down by the row highlight
 	LEFT CLICK       - go to cell
 	RIGHT CLICK      - extend the visual selection to cell
 
-CTRL+UP/CTRL+DOWN           - cycle rows between the cursor and the bottom
+CTRL+UP/{                   - cycle up
+CTRL+DOWN/}                 - cycle down
 CLICK on channel text/ENTER - toggle channel mute
 ALT+[0-9]                   - set the edit step
 ^a/^x                       - inc/dec
@@ -63,7 +64,7 @@ ESCAPE - return to normal mode
 
 normal mode:
 	v           - enter visual mode
-	V           - enter visual line mode (like visual mode but always line-wise)
+	V           - enter visual line mode
 	i           - enter insert mode
 	TAB         - enter song mode
 	p           - put

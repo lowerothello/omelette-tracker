@@ -6,6 +6,7 @@
 #define T_MODE_SONG 6
 #define T_MODE_SONG_INSERT 7
 #define T_MODE_SONG_VISUAL 8
+#define T_MODE_SONG_MOUSEADJUST 9
 
 #include "trackerdraw.c"
 
@@ -28,11 +29,16 @@ void changeMacro(int input, char *dest)
 		case 'O': *dest = 'o'; break; /* backwards offset        */
 		case 'p': *dest = 'P'; break; /* pitch slide             */
 		case 'r': *dest = 'R'; break; /* retrigger               */
-		case 'T': *dest = 't'; break; /* gate                    */
-		case 'v': *dest = 'V'; break; /* vibrato                 */
+		/* Sxy - send to output group */
+		case 'v': *dest = 'V'; break; /* vibrato TODO: MIDI      */
 		case 'w': *dest = 'W'; break; /* waveshaper              */
+		case 'W': *dest = 'w'; break; /* smooth waveshaper       */
 		case 'z': *dest = 'Z'; break; /* filter resonance        */
 		case 'Z': *dest = 'z'; break; /* smooth filter resonance */
+		/* /xx - MIDI CC        */
+		/* ?xx - smooth MIDI CC */
+		/* :xx - MIDI CC target */
+		/* .xx - MIDI PC        */
 	}
 }
 
@@ -196,7 +202,7 @@ void cycleUp(void)
 					s->songf[j] = s->songf[j+1];
 				} s->songi[255] = 255; s->songf[255] = 0;
 			} break;
-		default:
+		case T_MODE_NORMAL: case T_MODE_INSERT:
 			if (s->songi[w->songfy] == 255) return;
 			bound = w->trackerfy%(s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
 			for (int i = 0; i < MAX(1, w->count); i++)
@@ -224,7 +230,7 @@ void cycleDown(void)
 					s->songf[j+1] = s->songf[j];
 				} s->songi[bound] = 255; s->songf[bound] = 0;
 			} break;
-		default:
+		case T_MODE_NORMAL: case T_MODE_INSERT:
 			if (s->songi[w->songfy] == 255) return;
 			bound = w->trackerfy%(s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
 			for (int i = 0; i < MAX(1, w->count); i++)
@@ -486,8 +492,8 @@ void insertInst(row *r, int input)
 			case 24: /* ^x */ r->inst-=MAX(1, w->count);
 				if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
 				break;
-			case ' ':         /* space     */ r->inst = w->instrument; break;
-			case 127: case 8: /* backspace */ r->inst = INST_VOID; break;
+			case ' ':            /* space     */ r->inst = w->instrument; break;
+			case 127: case '\b': /* backspace */ r->inst = INST_VOID; break;
 			case '0':           inputPatternHex(r, 0);  if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst; break;
 			case '1':           inputPatternHex(r, 1);  if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst; break;
 			case '2':           inputPatternHex(r, 2);  if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst; break;
@@ -510,7 +516,7 @@ void insertMacroc(row *r, uint8_t macro, int input)
 {
 	switch (input)
 	{
-		case 127: case 8: /* backspace */ r->macro[macro].c = 0; break;
+		case 127: case '\b': /* backspace */ r->macro[macro].c = 0; break;
 		default:
 			if (!r->macro[macro].c) r->macro[macro].v = 0;
 			changeMacro(input, &r->macro[macro].c);
@@ -534,7 +540,7 @@ void insertMacrov(row *r, uint8_t macro, int input)
 					case 'G': r->macro[macro].v -= MAX(1, w->count)*16;
 					default:  r->macro[macro].v -= MAX(1, w->count);
 				} break;
-			case 127: case 8: /* backspace */ r->macro[macro].c = 0; break;
+			case 127: case '\b': /* backspace */ r->macro[macro].c = 0; break;
 			case '0':           inputPatternHex(r, 0);  break;
 			case '1':           inputPatternHex(r, 1);  break;
 			case '2':           inputPatternHex(r, 2);  break;
@@ -552,6 +558,16 @@ void insertMacrov(row *r, uint8_t macro, int input)
 			case 'E': case 'e': inputPatternHex(r, 14); break;
 			case 'F': case 'f': inputPatternHex(r, 15); break;
 		}
+}
+
+void toggleChannelMute(void)
+{
+	s->channelv[w->channel].mute = !s->channelv[w->channel].mute;
+	if (s->channelv[w->channel].mute && w->instrumentlockv == INST_GLOBAL_LOCK_OK)
+	{
+		w->instrumentlocki = w->channel;
+		w->instrumentlockv = INST_GLOBAL_CHANNEL_MUTE;
+	}
 }
 
 void leaveSpecialModes(void)
@@ -713,21 +729,39 @@ void trackerInput(int input)
 												MAX(0, MIN(s->channelc - 1 - w->visiblechannels / 2,
 															w->channel - w->visiblechannels / 2));
 											break;
-									}
-									w->fyoffset = 0;
-									w->fieldpointer = 0;
-									if (w->mode == T_MODE_MOUSEADJUST) /* leave adjust mode */
-										w->mode = w->oldmode;
-									break;
-								case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
-									if (w->flags&0b1) w->flags ^= 0b1;
-									if (w->mode == T_MODE_MOUSEADJUST)
-									{
-										if      (x > w->mousex) trackerAdjustRight();
-										else if (x < w->mousex) trackerAdjustLeft();
-										w->mousex = x;
+									} w->fyoffset = w->fieldpointer = 0;
+
+									switch (w->mode)
+									{ /* leave mouseadjust mode */
+										case T_MODE_MOUSEADJUST: case T_MODE_SONG_MOUSEADJUST:
+											w->mode = w->oldmode; break;
 									} break;
-								default: /* click / click+drag */
+								case BUTTON1_HOLD:
+									if (w->flags&0b1) w->flags ^= 0b1;
+									switch (w->mode)
+									{
+										case T_MODE_MOUSEADJUST:
+											if      (x > w->mousex) trackerAdjustRight();
+											else if (x < w->mousex) trackerAdjustLeft();
+											break;
+										case T_MODE_SONG_MOUSEADJUST:
+											if (!s->playing)
+											{
+												if (x > w->mousex)
+												{
+													if (w->fieldpointer) s->songi[w->songfy]+=16;
+													else                 s->songi[w->songfy]++;
+													addPattern(s->songi[w->songfy], 0);
+												}
+												else if (x < w->mousex)
+												{
+													if (w->fieldpointer) s->songi[w->songfy]-=16;
+													else                 s->songi[w->songfy]--;
+													addPattern(s->songi[w->songfy], 0);
+												}
+											} break;
+									} w->mousex = x; break;
+								default: /* click */
 									if (y <= CHANNEL_ROW-2)
 									{
 										if (x < (ws.ws_col-17) / 2 + 7) showTracker();
@@ -749,15 +783,21 @@ void trackerInput(int input)
 										{
 											case BUTTON1: case BUTTON1_CTRL:
 												if (w->mode != T_MODE_SONG_INSERT) w->mode = T_MODE_SONG;
-												break;
+												if (y - w->centre == 0)
+												{
+													w->oldmode = w->mode;
+													w->mode = T_MODE_SONG_MOUSEADJUST;
+													w->mousex = x;
+													if (x < dx - LINENO_COLS - 3) w->fieldpointer = 1;
+													else                          w->fieldpointer = 0;
+												} break;
 											case BUTTON3: case BUTTON3_CTRL:
 												if (w->mode != T_MODE_SONG_VISUAL)
 												{
 													w->visualfy = w->songfy;
 													w->mode = T_MODE_SONG_VISUAL;
 												} break;
-										}
-										w->fyoffset = y - w->centre;
+										} w->fyoffset = y - w->centre;
 									} else
 									{ /* tracker channels */
 										switch (w->mode)
@@ -792,12 +832,13 @@ dxandwchannelset:
 														w->instrumentlockv = INST_GLOBAL_CHANNEL_MUTE;
 													} break;
 											}
-										} else if (button == BUTTON1 || button == BUTTON1_CTRL
-												|| button == BUTTON3 || button == BUTTON3_CTRL)
+										} else if (button == BUTTON1_CTRL)
+											w->step = MIN(15, abs(y - w->centre));
+										else
 										{
 											switch (button)
 											{
-												case BUTTON1: case BUTTON1_CTRL:
+												case BUTTON1:
 													if (w->mode != T_MODE_INSERT) /* suggest mode 0, but allow insert */
 														w->mode = T_MODE_NORMAL;
 													break;
@@ -861,45 +902,172 @@ dxandwchannelset:
 					} redraw(); break;
 			} break;
 		default:
-			if (input == '\n' || input == '\r') /* RET mute */
+			switch (w->mode)
 			{
-				s->channelv[w->channel].mute = !s->channelv[w->channel].mute;
-				if (s->channelv[w->channel].mute && w->instrumentlockv == INST_GLOBAL_LOCK_OK)
-				{
-					w->instrumentlocki = w->channel;
-					w->instrumentlockv = INST_GLOBAL_CHANNEL_MUTE;
-				} redraw(); break;
-			} else
-				switch (w->mode)
-				{
-					case T_MODE_VISUALLINE:
+				case T_MODE_VISUALLINE:
+					switch (input)
+					{
+						case '\n': case '\r': toggleChannelMute(); redraw(); break;
+						case 'v': /* visual       */ w->mode = T_MODE_VISUAL; redraw(); break;
+						case 'V': /* visual  line */ w->mode = w->oldmode; redraw(); break;
+						case 'k': /* up arrow     */ trackerUpArrow(); redraw(); break;
+						case 'j': /* down arrow   */ trackerDownArrow(); redraw(); break;
+						case 'h': /* left arrow   */ trackerLeftArrow(); redraw(); break;
+						case 'l': /* right arrow  */ trackerRightArrow(); redraw(); break;
+						case '[': /* chnl left    */ channelLeft(); redraw(); break;
+						case ']': /* chnl right   */ channelRight(); redraw(); break;
+						case '{': /* cycle up     */ cycleUp(); redraw(); break;
+						case '}': /* cycle down   */ cycleDown(); redraw(); break;
+						case '~': /* vi tilde    */
+							tildePartPattern(0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							redraw(); break;
+						case '%': /* random */
+							randPartPattern(MAX(1, w->count),
+									0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							redraw(); break;
+						case 1: /* ^a */
+							addPartPattern(MAX(1, w->count),
+									0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							redraw(); break;
+						case 24: /* ^x */
+							addPartPattern(-MAX(1, w->count),
+									0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							redraw(); break;
+						case 'x': case 'd': /* pattern cut */
+							if (s->songi[w->songfy] == 255) break;
+							yankPartPattern(
+									0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							delPartPattern(
+									0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							w->trackerfx = 0;
+							w->trackerfy = MIN(w->trackerfy, w->visualfy);
+							w->channel = MIN(w->channel, w->visualchannel);
+							w->mode = T_MODE_NORMAL;
+							redraw(); break;
+						case 'y': /* pattern copy */
+							if (s->songi[w->songfy] == 255) break;
+							yankPartPattern(
+									0, 1+s->channelv[w->channel].macroc,
+									MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+									MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							w->trackerfx = 0;
+							w->trackerfy = MIN(w->trackerfy, w->visualfy);
+							w->channel = MIN(w->channel, w->visualchannel);
+							w->mode = T_MODE_NORMAL;
+							redraw(); break;
+					} break;
+				case T_MODE_VISUAL:
+					if (w->chord)
+					{
+						w->count = MIN(256, w->count);
+						switch (w->chord)
+						{
+							case 'r': /* replace */
+								if (w->channel == w->visualchannel && tfxToVfx(w->trackerfx) == w->visualfx)
+								{
+									switch (w->trackerfx)
+									{
+										case 0:  /* note  */
+											note = charToNote(input);
+											modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
+											r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+											previewNote(note, r->inst, w->channel);
+											for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+											{
+												modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
+												r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+												insertNote(r, note);
+											} break;
+										case 1:  /* inst  */
+											for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+											{
+												modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
+												r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+												insertInst(r, input);
+											} break;
+										default: /* macro */
+											macro = (w->trackerfx - 2) / 2;
+											if (!(w->trackerfx%2))
+											{ /* macroc */
+												for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+												{
+													modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
+													r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+													insertMacroc(r, macro, input);
+												}
+											} else
+											{ /* macrov */
+												for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+												{
+													modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
+													r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+													insertMacrov(r, macro, input);
+												}
+											} break;
+									}
+								} redraw(); return;
+						} w->count = 0;
+					} else
 						switch (input)
 						{
-							case 'v': /* visual       */ w->mode = T_MODE_VISUAL; redraw(); break;
-							case 'V': /* visual  line */ w->mode = w->oldmode; redraw(); break;
+							case '\n': case '\r': toggleChannelMute(); redraw(); break;
+							case 'v': /* exit visual */ w->mode = w->oldmode; redraw(); break;
+							case 'V': /* visual line */ w->mode = T_MODE_VISUALLINE; redraw(); break;
+							case 'r': /* replace     */ w->chord = 'r'; redraw(); return;
+							case 'k': /* up arrow    */ trackerUpArrow(); redraw(); break;
+							case 'j': /* down arrow  */ trackerDownArrow(); redraw(); break;
+							case 'h': /* left arrow  */ trackerLeftArrow(); redraw(); break;
+							case 'l': /* right arrow */ trackerRightArrow(); redraw(); break;
+							case '[': /* chnl left   */ channelLeft(); redraw(); break;
+							case ']': /* chnl right  */ channelRight(); redraw(); break;
+							case '{': /* cycle up    */ cycleUp(); redraw(); break;
+							case '}': /* cycle down  */ cycleDown(); redraw(); break;
+							case '~': /* vi tilde    */
+								tildePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
+										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+								redraw(); break;
+							case '%': /* random */
+								randPartPattern(MAX(1, w->count),
+										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
+										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+								redraw(); break;
 							case 1: /* ^a */
 								addPartPattern(MAX(1, w->count),
-										0, 1+s->channelv[w->channel].macroc,
+										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 								redraw(); break;
 							case 24: /* ^x */
 								addPartPattern(-MAX(1, w->count),
-										0, 1+s->channelv[w->channel].macroc,
+										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 								redraw(); break;
 							case 'x': case 'd': /* pattern cut */
 								if (s->songi[w->songfy] == 255) break;
 								yankPartPattern(
-										0, 1+s->channelv[w->channel].macroc,
+										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 								delPartPattern(
-										0, 1+s->channelv[w->channel].macroc,
+										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-								w->trackerfx = 0;
+								w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
 								w->trackerfy = MIN(w->trackerfy, w->visualfy);
 								w->channel = MIN(w->channel, w->visualchannel);
 								w->mode = T_MODE_NORMAL;
@@ -907,122 +1075,42 @@ dxandwchannelset:
 							case 'y': /* pattern copy */
 								if (s->songi[w->songfy] == 255) break;
 								yankPartPattern(
-										0, 1+s->channelv[w->channel].macroc,
+										MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
 										MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
 										MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-								w->trackerfx = 0;
+								w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
 								w->trackerfy = MIN(w->trackerfy, w->visualfy);
 								w->channel = MIN(w->channel, w->visualchannel);
 								w->mode = T_MODE_NORMAL;
 								redraw(); break;
 						} break;
-					case T_MODE_VISUAL:
-						if (w->chord)
+				case T_MODE_SONG:
+					if (w->chord)
+					{
+						w->count = MIN(256, w->count);
+						switch (w->chord)
 						{
-							w->count = MIN(256, w->count);
-							switch (w->chord)
-							{
-								case 'r': /* replace */
-									if (w->channel == w->visualchannel && tfxToVfx(w->trackerfx) == w->visualfx)
-									{
-										switch (w->trackerfx)
-										{
-											case 0:  /* note  */
-												note = charToNote(input);
-												modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
-												r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-												previewNote(note, r->inst, w->channel);
-												for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-												{
-													modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
-													r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-													insertNote(r, note);
-												} break;
-											case 1:  /* inst  */
-												for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-												{
-													modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
-													r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-													insertInst(r, input);
-												} break;
-											default: /* macro */
-												macro = (w->trackerfx - 2) / 2;
-												if (!(w->trackerfx%2))
-												{ /* macroc */
-													for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-													{
-														modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
-														r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-														insertMacroc(r, macro, input);
-													}
-												} else
-												{ /* macrov */
-													for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-													{
-														modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
-														r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-														insertMacrov(r, macro, input);
-													}
-												} break;
-										}
-									} redraw(); return;
-							} w->count = 0;
-						} else
-							switch (input)
-							{
-								case 'v': /* exit visual */ w->mode = w->oldmode; redraw(); break;
-								case 'V': /* visual line */ w->mode = T_MODE_VISUALLINE; redraw(); break;
-								case 'r': /* replace     */ w->chord = 'r'; redraw(); return;
-								case '%': /* random */
-									randPartPattern(MAX(1, w->count),
-											MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
-											MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
-											MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-									redraw(); break;
-								case 1: /* ^a */
-									addPartPattern(MAX(1, w->count),
-											MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
-											MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
-											MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-									redraw(); break;
-								case 24: /* ^x */
-									addPartPattern(-MAX(1, w->count),
-											MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
-											MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
-											MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-									redraw(); break;
-								case 'x': case 'd': /* pattern cut */
-									if (s->songi[w->songfy] == 255) break;
-									yankPartPattern(
-											MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
-											MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
-											MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-									delPartPattern(
-											MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
-											MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
-											MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-									w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
-									w->trackerfy = MIN(w->trackerfy, w->visualfy);
-									w->channel = MIN(w->channel, w->visualchannel);
-									w->mode = T_MODE_NORMAL;
-									redraw(); break;
-								case 'y': /* pattern copy */
-									if (s->songi[w->songfy] == 255) break;
-									yankPartPattern(
-											MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx),
-											MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
-											MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-									w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
-									w->trackerfy = MIN(w->trackerfy, w->visualfy);
-									w->channel = MIN(w->channel, w->visualchannel);
-									w->mode = T_MODE_NORMAL;
-									redraw(); break;
-							} break;
-					case T_MODE_SONG:
+							case 'Q': /* record */ recordBinds(w->instrument, input); break;
+							case 'K': /* keyboard macro */ /* ignores w->count */
+								w->keyboardmacro = '\0';
+								if (input != 'k' && input != 'K') changeMacro(input, &w->keyboardmacro);
+								break;
+						} w->count = 0; redraw();
+					} else
 						switch (input)
 						{
 							case '\t': /* leave song mode    */ w->mode = T_MODE_NORMAL; redraw(); break;
 							case 'f':  /* toggle song follow */ w->flags ^= 0b1; redraw(); break;
+							case 'Q':  /* record             */ w->chord = 'Q'; redraw(); return;
+							case 'K':  /* keyboard macro     */ w->chord = 'K'; redraw(); return;
+							case 'k':  /* up arrow           */ trackerUpArrow(); redraw(); break;
+							case 'j':  /* down arrow         */ trackerDownArrow(); redraw(); break;
+							case 'h':  /* left arrow         */ trackerLeftArrow(); redraw(); break;
+							case 'l':  /* right arrow        */ trackerRightArrow(); redraw(); break;
+							case '[':  /* chnl left          */ channelLeft(); redraw(); break;
+							case ']':  /* chnl right         */ channelRight(); redraw(); break;
+							case '{':  /* cycle up           */ cycleUp(); redraw(); break;
+							case '}':  /* cycle down         */ cycleDown(); redraw(); break;
 							case 'i':  /* enter insert mode  */ w->mode = T_MODE_SONG_INSERT; redraw(); break;
 							case 'v':  /* enter visual mode  */
 								w->visualfy = w->songfy;
@@ -1043,11 +1131,11 @@ dxandwchannelset:
 								if (s->songi[w->songfy] == 255 && w->songnext == w->songfy + 1)
 									w->songnext = 0;
 								redraw(); break;
-							case 'l': /* loop */
+							case '?': /* loop */
 								if (s->songi[w->songfy] != 255)
 									s->songf[w->songfy] = !s->songf[w->songfy];
 								redraw(); break;
-							case 'n':
+							case '>': /* next */
 								if (s->songi[w->songfy] != 255)
 								{
 									if (w->songnext == w->songfy + 1) w->songnext = 0;
@@ -1079,8 +1167,7 @@ dxandwchannelset:
 									memcpy(&s->songi[w->songfy], w->songibuffer, w->songbufferlen);
 									memcpy(&s->songf[w->songfy], w->songfbuffer, w->songbufferlen);
 								} redraw(); break;
-							case 's': w->mode = T_MODE_SONG_INSERT;
-							case 127: case 8: case 'x': /* backspace */
+							case 'x': case 127: case '\b': /* backspace */
 								if (s->playing && s->songp == w->songfy) break;
 								if (w->songnext == w->songfy + 1)
 									w->songnext = 0;
@@ -1089,562 +1176,580 @@ dxandwchannelset:
 								s->songf[w->songfy] = 0;
 								redraw(); break;
 						} break;
-					case T_MODE_NORMAL:
-						switch (input)
-						{ /* set count first */
-							case '0': w->count *= 10; w->count += 0; redraw(); return;
-							case '1': w->count *= 10; w->count += 1; redraw(); return;
-							case '2': w->count *= 10; w->count += 2; redraw(); return;
-							case '3': w->count *= 10; w->count += 3; redraw(); return;
-							case '4': w->count *= 10; w->count += 4; redraw(); return;
-							case '5': w->count *= 10; w->count += 5; redraw(); return;
-							case '6': w->count *= 10; w->count += 6; redraw(); return;
-							case '7': w->count *= 10; w->count += 7; redraw(); return;
-							case '8': w->count *= 10; w->count += 8; redraw(); return;
-							case '9': w->count *= 10; w->count += 9; redraw(); return;
-							default:
-								if (w->chord)
+				case T_MODE_NORMAL:
+					switch (input)
+					{ /* set count first */
+						case '0': w->count *= 10; w->count += 0; redraw(); return;
+						case '1': w->count *= 10; w->count += 1; redraw(); return;
+						case '2': w->count *= 10; w->count += 2; redraw(); return;
+						case '3': w->count *= 10; w->count += 3; redraw(); return;
+						case '4': w->count *= 10; w->count += 4; redraw(); return;
+						case '5': w->count *= 10; w->count += 5; redraw(); return;
+						case '6': w->count *= 10; w->count += 6; redraw(); return;
+						case '7': w->count *= 10; w->count += 7; redraw(); return;
+						case '8': w->count *= 10; w->count += 8; redraw(); return;
+						case '9': w->count *= 10; w->count += 9; redraw(); return;
+						default:
+							if (w->chord)
+							{
+								w->count = MIN(256, w->count);
+								switch (w->chord)
 								{
-									w->count = MIN(256, w->count);
-									switch (w->chord)
-									{
-										case 'd': if (input == 'd') /* delete */
-											{
-												if (s->songi[w->songfy] == 255) break;
-												p = s->patternv[s->patterni[s->songi[w->songfy]]];
-												j = MIN(p->rowc, w->trackerfy - 1 + MAX(1, w->count)) - w->trackerfy;
-												yankPartPattern(0, 1+s->channelv[w->channel].macroc,
-														w->trackerfy, w->trackerfy+j,
-														w->channel, w->channel);
-												delPartPattern(0, 1+s->channelv[w->channel].macroc,
-														w->trackerfy, w->trackerfy+j,
-														w->channel, w->channel);
-												for (i = 0; i < j; i++) trackerDownArrow();
-												redraw();
-											} break;
-										case 'y': if (input == 'y') /* yank */
-											{
-												if (s->songi[w->songfy] == 255) break;
-												p = s->patternv[s->patterni[s->songi[w->songfy]]];
-												j = MIN(p->rowc-1, w->trackerfy - 1 + MAX(1, w->count)) - w->trackerfy;
-												yankPartPattern(0, 1+s->channelv[w->channel].macroc,
-														w->trackerfy, w->trackerfy+j,
-														w->channel, w->channel);
-												for (i = 0; i < j; i++) trackerDownArrow();
-												redraw();
-											} break;
-										case 'c': /* channel */
-											switch (input)
-											{
-												case 'c': /* clear */
-													clearPatternChannel(s, s->patterni[w->pattern], w->channel);
-													resize(0); break;
-												case 'a': /* add */
-													for (i = 0; i < MAX(1, w->count); i++)
-													{
-														if (s->channelc >= MAX_CHANNELS-1) break;
-														addChannel(s, w->channel+1);
-														w->channel++;
-														if (w->channeloffset + w->visiblechannels < s->channelc
-																&& w->channel > w->visiblechannels / 2)
-															w->channeloffset++;
-													} resize(0); break;
-												case 'A': /* add before */
-													for (i = 0; i < MAX(1, w->count); i++)
-													{
-														if (s->channelc >= MAX_CHANNELS-1) break;
-														addChannel(s, w->channel);
-													} resize(0); break;
-												case 'd': /* delete */
-													for (i = 0; i < MAX(1, w->count); i++)
-													{
-														if (delChannel(w->channel)) break;
-														if (w->channel > s->channelc - 1)
-															w->channel--;
-													} resize(0); break;
-												case 'D': /* delete to end */ /* ignores w->count */
-													if (w->channel == 0) w->channel++;
-													for (uint8_t i = s->channelc; i > w->channel; i--)
-														delChannel(i - 1);
-													w->channel--;
-													resize(0); break;
-												case 'y': /* yank */ /* ignores w->count */
-													yankChannel(w->pattern, w->channel);
-													redraw(); break;
-												case 'p': /* put */
-													putChannel(w->pattern, w->channel);
-													for (i = 1; i < MAX(1, w->count); i++)
-													{
-														if (s->channelc >= MAX_CHANNELS-1) break;
-														w->channel++;
-														putChannel(w->pattern, w->channel);
-													} resize(0); break;
-												case 'P': /* mix put */
-													mixPutChannel(w->pattern, w->channel);
-													for (i = 1; i < MAX(1, w->count); i++)
-													{
-														if (s->channelc >= MAX_CHANNELS-1) break;
-														w->channel++;
-														mixPutChannel(w->pattern, w->channel);
-													} resize(0); break;
-											} break;
-										case 'm': /* macro */
-											switch (input)
-											{
-												case 'a': /* add */
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (s->channelv[w->channel].macroc < 8)
-															s->channelv[w->channel].macroc++;
-													resize(0); break;
-												case 'd': /* delete */
-													for (i = 0; i < MAX(1, w->count); i++)
-													{
-														if (s->channelv[w->channel].macroc > 1)
-															s->channelv[w->channel].macroc--;
-														if (w->trackerfx > 1 + s->channelv[w->channel].macroc * 2)
-															w->trackerfx = s->channelv[w->channel].macroc * 2;
-													} resize(0); break;
-												case 'm': /* set */
-													if (w->count) s->channelv[w->channel].macroc = MIN(8, w->count);
-													else s->channelv[w->channel].macroc = 2;
-													resize(0); break;
-											} break;
-										case 'k': /* keyboard macro */ /* ignores w->count */
-											w->keyboardmacro = '\0';
-											if (input != 'k') // kk resets
-												changeMacro(input, &w->keyboardmacro);
-											redraw(); break;
-										case 'g': /* graphic */
-											if (input == 'g') w->trackerfy = 0;
-											redraw(); break;
-										case 'r': /* row */
+									case 'd': if (input == 'd') /* delete */
+										{
+											if (s->songi[w->songfy] == 255) break;
 											p = s->patternv[s->patterni[s->songi[w->songfy]]];
-											switch (input)
-											{
-												case 'c': case 'C': /* ignores count */
-													j = p->rowcc[w->channel];
-													p->rowcc[w->channel] = w->trackerfy;
-													while (j < p->rowcc[w->channel])
+											j = MIN(p->rowc, w->trackerfy - 1 + MAX(1, w->count)) - w->trackerfy;
+											yankPartPattern(0, 1+s->channelv[w->channel].macroc,
+													w->trackerfy, w->trackerfy+j,
+													w->channel, w->channel);
+											delPartPattern(0, 1+s->channelv[w->channel].macroc,
+													w->trackerfy, w->trackerfy+j,
+													w->channel, w->channel);
+											for (i = 0; i < j; i++) trackerDownArrow();
+											redraw();
+										} break;
+									case 'y': if (input == 'y') /* yank */
+										{
+											if (s->songi[w->songfy] == 255) break;
+											p = s->patternv[s->patterni[s->songi[w->songfy]]];
+											j = MIN(p->rowc-1, w->trackerfy - 1 + MAX(1, w->count)) - w->trackerfy;
+											yankPartPattern(0, 1+s->channelv[w->channel].macroc,
+													w->trackerfy, w->trackerfy+j,
+													w->channel, w->channel);
+											for (i = 0; i < j; i++) trackerDownArrow();
+											redraw();
+										} break;
+									case 'c': /* channel */
+										switch (input)
+										{
+											case 'c': /* clear */
+												clearPatternChannel(s, s->patterni[w->pattern], w->channel);
+												resize(0); break;
+											case 'a': /* add */
+												for (i = 0; i < MAX(1, w->count); i++)
+												{
+													if (s->channelc >= MAX_CHANNELS-1) break;
+													addChannel(s, w->channel+1);
+													w->channel++;
+													if (w->channeloffset + w->visiblechannels < s->channelc
+															&& w->channel > w->visiblechannels / 2)
+														w->channeloffset++;
+												} resize(0); break;
+											case 'A': /* add before */
+												for (i = 0; i < MAX(1, w->count); i++)
+												{
+													if (s->channelc >= MAX_CHANNELS-1) break;
+													addChannel(s, w->channel);
+												} resize(0); break;
+											case 'd': /* delete */
+												for (i = 0; i < MAX(1, w->count); i++)
+												{
+													if (delChannel(w->channel)) break;
+													if (w->channel > s->channelc - 1)
+														w->channel--;
+												} resize(0); break;
+											case 'D': /* delete to end */ /* ignores w->count */
+												if (w->channel == 0) w->channel++;
+												for (uint8_t i = s->channelc; i > w->channel; i--)
+													delChannel(i - 1);
+												w->channel--;
+												resize(0); break;
+											case 'y': /* yank */ /* ignores w->count */
+												yankChannel(w->pattern, w->channel);
+												redraw(); break;
+											case 'p': /* put */
+												putChannel(w->pattern, w->channel);
+												for (i = 1; i < MAX(1, w->count); i++)
+												{
+													if (s->channelc >= MAX_CHANNELS-1) break;
+													w->channel++;
+													putChannel(w->pattern, w->channel);
+												} resize(0); break;
+											case 'P': /* mix put */
+												mixPutChannel(w->pattern, w->channel);
+												for (i = 1; i < MAX(1, w->count); i++)
+												{
+													if (s->channelc >= MAX_CHANNELS-1) break;
+													w->channel++;
+													mixPutChannel(w->pattern, w->channel);
+												} resize(0); break;
+										} break;
+									case 'm': /* macro */
+										switch (input)
+										{
+											case 'a': /* add */
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (s->channelv[w->channel].macroc < 8)
+														s->channelv[w->channel].macroc++;
+												resize(0); break;
+											case 'd': /* delete */
+												for (i = 0; i < MAX(1, w->count); i++)
+												{
+													if (s->channelv[w->channel].macroc > 1)
+														s->channelv[w->channel].macroc--;
+													if (w->trackerfx > 1 + s->channelv[w->channel].macroc * 2)
+														w->trackerfx = s->channelv[w->channel].macroc * 2;
+												} resize(0); break;
+											case 'm': /* set */
+												if (w->count) s->channelv[w->channel].macroc = MIN(8, w->count);
+												else s->channelv[w->channel].macroc = 2;
+												resize(0); break;
+										} break;
+									case 'Q': /* record */ recordBinds(w->instrument, input); redraw(); break;
+									case 'K': /* keyboard macro */ /* ignores w->count */
+										w->keyboardmacro = '\0';
+										if (input != 'k' && input != 'K') changeMacro(input, &w->keyboardmacro);
+										redraw(); break;
+									case 'g': /* graphic */
+										if (input == 'g') w->trackerfy = 0;
+										redraw(); break;
+									case 'r': /* row */
+										p = s->patternv[s->patterni[s->songi[w->songfy]]];
+										switch (input)
+										{
+											case 'c': case 'C': /* ignores count */
+												j = p->rowcc[w->channel];
+												p->rowcc[w->channel] = w->trackerfy;
+												while (j < p->rowcc[w->channel])
+													if (j < 127)
+													{
+														memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+																sizeof(row) * (j + 1));
+														j = (j + 1) * 2 - 1;
+													} else
+													{
+														memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+																sizeof(row) * (255 - j));
+														j = 255; break;
+													}
+												redraw(); break;
+											case 'r': case 'R':
+												j = p->rowcc[w->channel];
+												if (w->count) p->rowcc[w->channel] = w->count - 1;
+												else          p->rowcc[w->channel] = p->rowc;
+												while (j < p->rowcc[w->channel])
+													if (j < 127)
+													{
+														memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+																sizeof(row) * (j + 1));
+														j = (j + 1) * 2 - 1;
+													} else
+													{
+														memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+																sizeof(row) * (255 - j));
+														j = 255; break;
+													}
+												redraw(); break;
+											case 'd': case 'D':
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (p->rowcc[w->channel]) p->rowcc[w->channel]--;
+												redraw(); break;
+											case 'a': case 'A':
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (p->rowcc[w->channel] < 255)
+													{
+														p->rowcc[w->channel]++;
+														memset(&p->rowv[w->channel][p->rowcc[w->channel]], 0, sizeof(row));
+														p->rowv[w->channel][p->rowcc[w->channel]].note = NOTE_VOID;
+														p->rowv[w->channel][p->rowcc[w->channel]].inst = INST_VOID;
+													} else break;
+												redraw(); break;
+											case '-': case '_':
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (p->rowcc[w->channel] == 255)
+														p->rowcc[w->channel] = 127;
+													else if (p->rowcc[w->channel])
+														p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) / 2 - 1;
+													else break;
+												redraw(); break;
+											case '+': case '=':
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (p->rowcc[w->channel] < 127)
+													{
+														memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
+																sizeof(row) * (p->rowcc[w->channel] + 1));
+														p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
+													} else
+													{
+														memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
+																sizeof(row) * (255 - p->rowcc[w->channel]));
+														p->rowcc[w->channel] = 255;
+														break;
+													}
+												redraw(); break;
+											case '/': case '?':
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (p->rowcc[w->channel] == 255)
+													{
+														for (j = 0; j < 127; j++)
+															p->rowv[w->channel][j] = p->rowv[w->channel][j*2];
+														p->rowcc[w->channel] = 127;
+													} else if (p->rowcc[w->channel])
+													{
+														for (j = 0; j < p->rowcc[w->channel] + 1; j++)
+															p->rowv[w->channel][j] = p->rowv[w->channel][j*2];
+														p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) / 2 - 1;
+													} else break;
+												redraw(); break;
+											case '*': /* no shift bind for this one */
+												for (i = 0; i < MAX(1, w->count); i++)
+													if (p->rowcc[w->channel] < 127)
+													{
+														for (j = p->rowcc[w->channel] + 1; j > 0; j--)
+														{
+															p->rowv[w->channel][j*2] = p->rowv[w->channel][j];
+															memset(&p->rowv[w->channel][j*2-1], 0, sizeof(row));
+															p->rowv[w->channel][j*2-1].note = NOTE_VOID;
+															p->rowv[w->channel][j*2-1].inst = INST_VOID;
+														} p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
+													} else if (p->rowcc[w->channel] < 255)
+													{
+														for (j = p->rowcc[w->channel] + 1; j > 0; j--)
+														{
+															p->rowv[w->channel][j*2] = p->rowv[w->channel][j];
+															memset(&p->rowv[w->channel][j*2-1], 0, sizeof(row));
+															p->rowv[w->channel][j*2-1].note = NOTE_VOID;
+															p->rowv[w->channel][j*2-1].inst = INST_VOID;
+														} p->rowcc[w->channel] = 255;
+													} else break;
+												redraw(); break;
+										}
+										p->rowc = 0;
+										for (i = 0; i < MAX_CHANNELS; i++)
+											p->rowc = MAX(p->rowc, p->rowcc[i]);
+										w->trackerfy = MIN(p->rowc, w->trackerfy);
+										break;
+									case 'R': /* global row */
+										p = s->patternv[s->patterni[s->songi[w->songfy]]];
+										switch (input)
+										{
+											case 'c': case 'C': /* ignores count */
+												k = p->rowcc[w->channel];
+												for (i = 0; i < MAX_CHANNELS; i++)
+												{
+													j = k;
+													p->rowcc[i] = w->trackerfy;
+													while (j < p->rowcc[i])
 														if (j < 127)
 														{
-															memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+															memcpy(&p->rowv[i][j + 1], p->rowv[i],
 																	sizeof(row) * (j + 1));
 															j = (j + 1) * 2 - 1;
 														} else
 														{
-															memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+															memcpy(&p->rowv[i][j + 1], p->rowv[i],
 																	sizeof(row) * (255 - j));
 															j = 255; break;
 														}
-													redraw(); break;
-												case 'r': case 'R':
-													j = p->rowcc[w->channel];
-													if (w->count) p->rowcc[w->channel] = w->count - 1;
-													else          p->rowcc[w->channel] = p->rowc;
-													while (j < p->rowcc[w->channel])
+												} redraw(); break;
+											case 'r': case 'R':
+												k = p->rowcc[w->channel];
+												for (i = 0; i < MAX_CHANNELS; i++)
+												{
+													j = k;
+													if (w->count) p->rowcc[i] = w->count - 1;
+													else          p->rowcc[i] = p->rowc;
+													while (j < p->rowcc[i])
 														if (j < 127)
 														{
-															memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+															memcpy(&p->rowv[i][j + 1], p->rowv[i],
 																	sizeof(row) * (j + 1));
 															j = (j + 1) * 2 - 1;
 														} else
 														{
-															memcpy(&p->rowv[w->channel][j + 1], p->rowv[w->channel],
+															memcpy(&p->rowv[i][j + 1], p->rowv[i],
 																	sizeof(row) * (255 - j));
 															j = 255; break;
 														}
-													redraw(); break;
-												case 'd': case 'D':
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (p->rowcc[w->channel]) p->rowcc[w->channel]--;
-													redraw(); break;
-												case 'a': case 'A':
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (p->rowcc[w->channel] < 255)
+												} redraw(); break;
+											case 'd': case 'D':
+												for (i = 0; i < MAX_CHANNELS; i++)
+													for (j = 0; j < MAX(1, w->count); j++) if (p->rowcc[i]) p->rowcc[i]--;
+												redraw(); break;
+											case 'a': case 'A':
+												for (i = 0; i < MAX_CHANNELS; i++)
+													for (j = 0; j < MAX(1, w->count); j++)
+														if (p->rowcc[i] < 255)
 														{
-															p->rowcc[w->channel]++;
-															memset(&p->rowv[w->channel][p->rowcc[w->channel]], 0, sizeof(row));
-															p->rowv[w->channel][p->rowcc[w->channel]].note = NOTE_VOID;
-															p->rowv[w->channel][p->rowcc[w->channel]].inst = INST_VOID;
+															p->rowcc[i]++;
+															memset(&p->rowv[i][p->rowcc[i]], 0, sizeof(row));
+															p->rowv[i][p->rowcc[i]].note = NOTE_VOID;
+															p->rowv[i][p->rowcc[i]].inst = INST_VOID;
 														} else break;
-													redraw(); break;
-												case '-': case '_':
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (p->rowcc[w->channel] == 255)
-															p->rowcc[w->channel] = 127;
-														else if (p->rowcc[w->channel])
-															p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) / 2 - 1;
+												redraw(); break;
+											case '-': case '_':
+												for (i = 0; i < MAX_CHANNELS; i++)
+													for (j = 0; j < MAX(1, w->count); j++)
+													{
+														if (p->rowcc[i] == 255)
+															p->rowcc[i] = 127;
+														else if (p->rowcc[i])
+															p->rowcc[i] = (p->rowcc[i] + 1) / 2 - 1;
 														else break;
-													redraw(); break;
-												case '+': case '=':
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (p->rowcc[w->channel] < 127)
+													}
+												redraw(); break;
+											case '+': case '=':
+												for (i = 0; i < MAX_CHANNELS; i++)
+													for (j = 0; j < MAX(1, w->count); j++)
+														if (p->rowcc[i] < 127)
 														{
-															memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
-																	sizeof(row) * (p->rowcc[w->channel] + 1));
-															p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
+															memcpy(&p->rowv[i][p->rowcc[i] + 1], p->rowv[i],
+																	sizeof(row) * (p->rowcc[i] + 1));
+															p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
 														} else
 														{
-															memcpy(&p->rowv[w->channel][p->rowcc[w->channel] + 1], p->rowv[w->channel],
-																	sizeof(row) * (255 - p->rowcc[w->channel]));
-															p->rowcc[w->channel] = 255;
+															memcpy(&p->rowv[w->channel][p->rowcc[i] + 1], p->rowv[w->channel],
+																	sizeof(row) * (255 - p->rowcc[i]));
+															p->rowcc[i] = 255;
 															break;
 														}
-													redraw(); break;
-												case '/': case '?':
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (p->rowcc[w->channel] == 255)
+												redraw(); break;
+											case '/': case '?':
+												for (i = 0; i < MAX_CHANNELS; i++)
+													for (k = 0; k < MAX(1, w->count); k++)
+														if (p->rowcc[i] == 255)
 														{
 															for (j = 0; j < 127; j++)
-																p->rowv[w->channel][j] = p->rowv[w->channel][j*2];
-															p->rowcc[w->channel] = 127;
-														} else if (p->rowcc[w->channel])
+																p->rowv[i][j] = p->rowv[i][j*2];
+															p->rowcc[i] = 127;
+														} else if (p->rowcc[i])
 														{
-															for (j = 0; j < p->rowcc[w->channel] + 1; j++)
-																p->rowv[w->channel][j] = p->rowv[w->channel][j*2];
-															p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) / 2 - 1;
+															for (j = 0; j < p->rowcc[i] + 1; j++)
+																p->rowv[i][j] = p->rowv[i][j*2];
+															p->rowcc[i] = (p->rowcc[i] + 1) / 2 - 1;
 														} else break;
-													redraw(); break;
-												case '*': /* no shift bind for this one */
-													for (i = 0; i < MAX(1, w->count); i++)
-														if (p->rowcc[w->channel] < 127)
+												redraw(); break;
+											case '*': /* no shift bind for this one */
+												for (i = 0; i < MAX_CHANNELS; i++)
+													for (k = 0; k < MAX(1, w->count); k++)
+														if (p->rowcc[i] < 127)
 														{
-															for (j = p->rowcc[w->channel] + 1; j > 0; j--)
+															for (j = p->rowcc[i] + 1; j > 0; j--)
 															{
-																p->rowv[w->channel][j*2] = p->rowv[w->channel][j];
-																memset(&p->rowv[w->channel][j*2-1], 0, sizeof(row));
-																p->rowv[w->channel][j*2-1].note = NOTE_VOID;
-																p->rowv[w->channel][j*2-1].inst = INST_VOID;
-															} p->rowcc[w->channel] = (p->rowcc[w->channel] + 1) * 2 - 1;
-														} else if (p->rowcc[w->channel] < 255)
+																p->rowv[i][j*2] = p->rowv[i][j];
+																memset(&p->rowv[i][j*2-1], 0, sizeof(row));
+																p->rowv[i][j*2-1].note = NOTE_VOID;
+																p->rowv[i][j*2-1].inst = INST_VOID;
+															}
+															p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
+														} else if (p->rowcc[i] < 255)
 														{
-															for (j = p->rowcc[w->channel] + 1; j > 0; j--)
+															for (j = p->rowcc[i] + 1; j > 0; j--)
 															{
-																p->rowv[w->channel][j*2] = p->rowv[w->channel][j];
-																memset(&p->rowv[w->channel][j*2-1], 0, sizeof(row));
-																p->rowv[w->channel][j*2-1].note = NOTE_VOID;
-																p->rowv[w->channel][j*2-1].inst = INST_VOID;
-															} p->rowcc[w->channel] = 255;
+																p->rowv[i][j*2] = p->rowv[i][j];
+																memset(&p->rowv[i][j*2-1], 0, sizeof(row));
+																p->rowv[i][j*2-1].note = NOTE_VOID;
+																p->rowv[i][j*2-1].inst = INST_VOID;
+															}
+															p->rowcc[i] = 255;
 														} else break;
-													redraw(); break;
-											}
-											p->rowc = 0;
-											for (i = 0; i < MAX_CHANNELS; i++)
-												p->rowc = MAX(p->rowc, p->rowcc[i]);
-											w->trackerfy = MIN(p->rowc, w->trackerfy);
-											break;
-										case 'R': /* global row */
-											p = s->patternv[s->patterni[s->songi[w->songfy]]];
-											switch (input)
-											{
-												case 'c': case 'C': /* ignores count */
-													k = p->rowcc[w->channel];
-													for (i = 0; i < MAX_CHANNELS; i++)
-													{
-														j = k;
-														p->rowcc[i] = w->trackerfy;
-														while (j < p->rowcc[i])
-															if (j < 127)
-															{
-																memcpy(&p->rowv[i][j + 1], p->rowv[i],
-																		sizeof(row) * (j + 1));
-																j = (j + 1) * 2 - 1;
-															} else
-															{
-																memcpy(&p->rowv[i][j + 1], p->rowv[i],
-																		sizeof(row) * (255 - j));
-																j = 255; break;
-															}
-													} redraw(); break;
-												case 'r': case 'R':
-													k = p->rowcc[w->channel];
-													for (i = 0; i < MAX_CHANNELS; i++)
-													{
-														j = k;
-														if (w->count) p->rowcc[i] = w->count - 1;
-														else          p->rowcc[i] = p->rowc;
-														while (j < p->rowcc[i])
-															if (j < 127)
-															{
-																memcpy(&p->rowv[i][j + 1], p->rowv[i],
-																		sizeof(row) * (j + 1));
-																j = (j + 1) * 2 - 1;
-															} else
-															{
-																memcpy(&p->rowv[i][j + 1], p->rowv[i],
-																		sizeof(row) * (255 - j));
-																j = 255; break;
-															}
-													} redraw(); break;
-												case 'd': case 'D':
-													for (i = 0; i < MAX_CHANNELS; i++)
-														for (j = 0; j < MAX(1, w->count); j++) if (p->rowcc[i]) p->rowcc[i]--;
-													redraw(); break;
-												case 'a': case 'A':
-													for (i = 0; i < MAX_CHANNELS; i++)
-														for (j = 0; j < MAX(1, w->count); j++)
-															if (p->rowcc[i] < 255)
-															{
-																p->rowcc[i]++;
-																memset(&p->rowv[i][p->rowcc[i]], 0, sizeof(row));
-																p->rowv[i][p->rowcc[i]].note = NOTE_VOID;
-																p->rowv[i][p->rowcc[i]].inst = INST_VOID;
-															} else break;
-													redraw(); break;
-												case '-': case '_':
-													for (i = 0; i < MAX_CHANNELS; i++)
-														for (j = 0; j < MAX(1, w->count); j++)
+												redraw(); break;
+										}
+										p->rowc = 0;
+										for (i = 0; i < MAX_CHANNELS; i++)
+											p->rowc = MAX(p->rowc, p->rowcc[i]);
+										w->trackerfy = MIN(p->rowc, w->trackerfy);
+										break;
+								} w->count = 0;
+							} else
+							{
+								modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
+								r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+								switch (input)
+								{
+									case '\n': case '\r': toggleChannelMute(); redraw(); break;
+									case 'f': /* toggle song follow */ w->flags ^= 0b1; redraw(); break;
+									case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; redraw(); break;
+									case 'k': /* up arrow           */ trackerUpArrow(); redraw(); break;
+									case 'j': /* down arrow         */ trackerDownArrow(); redraw(); break;
+									case 'h': /* left arrow         */ trackerLeftArrow(); redraw(); break;
+									case 'l': /* right arrow        */ trackerRightArrow(); redraw(); break;
+									case '[': /* chnl left          */ channelLeft(); redraw(); break;
+									case ']': /* chnl right         */ channelRight(); redraw(); break;
+									case '{': /* cycle up           */ cycleUp(); redraw(); break;
+									case '}': /* cycle down         */ cycleDown(); redraw(); break;
+									case 'v': /* enter visual mode  */
+										w->visualfx = tfxToVfx(w->trackerfx);
+										w->visualfy = w->trackerfy;
+										w->visualchannel = w->channel;
+										w->oldmode = T_MODE_NORMAL;
+										w->mode = T_MODE_VISUAL;
+										redraw(); break;
+									case 'V': /* enter visual line mode */
+										w->visualfx = tfxToVfx(w->trackerfx);
+										w->visualfy = w->trackerfy;
+										w->visualchannel = w->channel;
+										w->oldmode = T_MODE_NORMAL;
+										w->mode = T_MODE_VISUALLINE;
+										redraw(); break;
+									case '\t': /* enter song mode */ w->mode = T_MODE_SONG; redraw(); break;
+									case 'y':  /* pattern copy    */ w->chord = 'y'; redraw(); return;
+									case 'd':  /* pattern cut     */ w->chord = 'd'; redraw(); return;
+									case 'c':  /* channel         */ w->chord = 'c'; redraw(); return;
+									case 'm':  /* macro           */ w->chord = 'm'; redraw(); return;
+									case 'Q':  /* record          */ w->chord = 'Q'; redraw(); return;
+									case 'K':  /* keyboard macro  */ w->chord = 'K'; redraw(); return;
+									case 'r':  /* row             */ w->chord = 'r'; redraw(); return;
+									case 'R':  /* global row      */ w->chord = 'R'; redraw(); return;
+									case 'g':  /* graphic misc    */ w->chord = 'g'; redraw(); return;
+									case 'G':  /* graphic end     */ w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc; redraw(); break;
+									case 'b':  /* bpm             */ if (w->count) s->songbpm = MIN(255, MAX(32, w->count)); w->request = REQ_BPM; redraw(); break;
+									case 't':  /* row highlight   */ if (w->count) s->rowhighlight = MIN(16, w->count); redraw(); break;
+									case 's':  /* step            */ w->step = MIN(15, w->count); redraw(); break;
+									case 'o':  /* octave          */
+										if (!w->trackerfx) r->note = changeNoteOctave(MIN(9, w->count), r->note);
+										else               w->octave = MIN(9, w->count);
+										redraw(); break;
+									case 'p':  /* pattern put     */ /* TODO: count */
+										if (s->songi[w->songfy] == 255) break;
+										putPartPattern();
+										w->trackerfy = MIN(w->trackerfy + w->pbfy[1] - w->pbfy[0],
+												s->patternv[s->patterni[s->songi[w->songfy]]]->rowc - 1);
+										trackerDownArrow();
+										redraw(); break;
+									case 'P': /* pattern put before */ /* TODO: count */
+										if (s->songi[w->songfy] == 255) break;
+										putPartPattern();
+										redraw(); break;
+									case 'x': case 127: case '\b': /* backspace */
+										if (w->trackerfx == 0)
+										{
+											yankPartPattern(0, 1, w->trackerfy, w->trackerfy, w->channel, w->channel);
+											delPartPattern(0, 1, w->trackerfy, w->trackerfy, w->channel, w->channel);
+										} else
+										{
+											yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
+											delPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
+										}
+										redraw(); break;
+									default: /* column specific */
+										switch (w->trackerfx)
+										{
+											case 0: /* note */
+												switch (input)
+												{
+													case 1:  /* ^a */ r->note+=MAX(1, w->count); break;
+													case 24: /* ^x */ r->note-=MAX(1, w->count); break;
+												} break;
+											case 1: /* instrument */
+												switch (input)
+												{
+													case 1: /* ^a */
+														r->inst+=MAX(1, w->count);
+														if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
+														break;
+													case 24: /* ^x */
+														r->inst-=MAX(1, w->count);
+														if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
+														break;
+												} break;
+											default:
+												macro = (w->trackerfx - 2) / 2;
+												switch (input)
+												{
+													case 1:  /* ^a */
+														switch (r->macro[macro].c)
 														{
-															if (p->rowcc[i] == 255)
-																p->rowcc[i] = 127;
-															else if (p->rowcc[i])
-																p->rowcc[i] = (p->rowcc[i] + 1) / 2 - 1;
-															else break;
-														}
-													redraw(); break;
-												case '+': case '=':
-													for (i = 0; i < MAX_CHANNELS; i++)
-														for (j = 0; j < MAX(1, w->count); j++)
-															if (p->rowcc[i] < 127)
-															{
-																memcpy(&p->rowv[i][p->rowcc[i] + 1], p->rowv[i],
-																		sizeof(row) * (p->rowcc[i] + 1));
-																p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
-															} else
-															{
-																memcpy(&p->rowv[w->channel][p->rowcc[i] + 1], p->rowv[w->channel],
-																		sizeof(row) * (255 - p->rowcc[i]));
-																p->rowcc[i] = 255;
-																break;
-															}
-													redraw(); break;
-												case '/': case '?':
-													for (i = 0; i < MAX_CHANNELS; i++)
-														for (k = 0; k < MAX(1, w->count); k++)
-															if (p->rowcc[i] == 255)
-															{
-																for (j = 0; j < 127; j++)
-																	p->rowv[i][j] = p->rowv[i][j*2];
-																p->rowcc[i] = 127;
-															} else if (p->rowcc[i])
-															{
-																for (j = 0; j < p->rowcc[i] + 1; j++)
-																	p->rowv[i][j] = p->rowv[i][j*2];
-																p->rowcc[i] = (p->rowcc[i] + 1) / 2 - 1;
-															} else break;
-													redraw(); break;
-												case '*': /* no shift bind for this one */
-													for (i = 0; i < MAX_CHANNELS; i++)
-														for (k = 0; k < MAX(1, w->count); k++)
-															if (p->rowcc[i] < 127)
-															{
-																for (j = p->rowcc[i] + 1; j > 0; j--)
-																{
-																	p->rowv[i][j*2] = p->rowv[i][j];
-																	memset(&p->rowv[i][j*2-1], 0, sizeof(row));
-																	p->rowv[i][j*2-1].note = NOTE_VOID;
-																	p->rowv[i][j*2-1].inst = INST_VOID;
-																}
-																p->rowcc[i] = (p->rowcc[i] + 1) * 2 - 1;
-															} else if (p->rowcc[i] < 255)
-															{
-																for (j = p->rowcc[i] + 1; j > 0; j--)
-																{
-																	p->rowv[i][j*2] = p->rowv[i][j];
-																	memset(&p->rowv[i][j*2-1], 0, sizeof(row));
-																	p->rowv[i][j*2-1].note = NOTE_VOID;
-																	p->rowv[i][j*2-1].inst = INST_VOID;
-																}
-																p->rowcc[i] = 255;
-															} else break;
-													redraw(); break;
-											}
-											p->rowc = 0;
-											for (i = 0; i < MAX_CHANNELS; i++)
-												p->rowc = MAX(p->rowc, p->rowcc[i]);
-											w->trackerfy = MIN(p->rowc, w->trackerfy);
-											break;
-									} w->count = 0;
-								} else
-								{
-									modulorow = w->trackerfy % s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel];
-									r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-									switch (input)
-									{
-										case 'f': /* toggle song follow */ w->flags ^= 0b1; redraw(); break;
-										case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; redraw(); break;
-										case 'v': /* enter visual mode  */
-											w->visualfx = tfxToVfx(w->trackerfx);
-											w->visualfy = w->trackerfy;
-											w->visualchannel = w->channel;
-											w->oldmode = T_MODE_NORMAL;
-											w->mode = T_MODE_VISUAL;
-											redraw(); break;
-										case 'V': /* enter visual line mode */
-											w->visualfx = tfxToVfx(w->trackerfx);
-											w->visualfy = w->trackerfy;
-											w->visualchannel = w->channel;
-											w->oldmode = T_MODE_NORMAL;
-											w->mode = T_MODE_VISUALLINE;
-											redraw(); break;
-										case '\t': /* enter song mode */ w->mode = T_MODE_SONG; redraw(); break;
-										case 'y':  /* pattern copy    */ w->chord = 'y'; redraw(); return;
-										case 'd':  /* pattern cut     */ w->chord = 'd'; redraw(); return;
-										case 'c':  /* channel         */ w->chord = 'c'; redraw(); return;
-										case 'm':  /* macro           */ w->chord = 'm'; redraw(); return;
-										case 'k':  /* keyboard macro  */ w->chord = 'k'; redraw(); return;
-										case 'r':  /* row             */ w->chord = 'r'; redraw(); return;
-										case 'R':  /* global row      */ w->chord = 'R'; redraw(); return;
-										case 'g':  /* graphic misc    */ w->chord = 'g'; redraw(); return;
-										case 'G':  /* graphic end     */ w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc; redraw(); break;
-										case 'b':  /* bpm             */ if (w->count) s->songbpm = MIN(255, MAX(32, w->count)); redraw(); break;
-										case 'h':  /* row highlight   */ if (w->count) s->rowhighlight = MIN(16, w->count); redraw(); break;
-										case 'o':  /* octave          */
-											if (!w->trackerfx) r->note = changeNoteOctave(MIN(9, w->count), r->note);
-											else               w->octave = MIN(9, w->count);
-											redraw(); break;
-										case 'p':  /* pattern put     */ /* TODO: count */
-											if (s->songi[w->songfy] == 255) break;
-											putPartPattern();
-											w->trackerfy = MIN(w->trackerfy + w->pbfy[1] - w->pbfy[0],
-														s->patternv[s->patterni[s->songi[w->songfy]]]->rowc - 1);
-											trackerDownArrow();
-											redraw(); break;
-										case 'P': /* pattern put before */ /* TODO: count */
-											if (s->songi[w->songfy] == 255) break;
-											putPartPattern();
-											redraw(); break;
-										case 's': w->mode = T_MODE_INSERT;
-										case 'x': case 127: case 8: /* backspace */
-											if (w->trackerfx == 0)
-											{
-												yankPartPattern(0, 1,
-														w->trackerfy, w->trackerfy, w->channel, w->channel);
-												delPartPattern(0, 1,
-														w->trackerfy, w->trackerfy, w->channel, w->channel);
-											} else
-											{
-												yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx),
-														w->trackerfy, w->trackerfy, w->channel, w->channel);
-												delPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx),
-														w->trackerfy, w->trackerfy, w->channel, w->channel);
-											}
-											redraw(); break;
-										default: /* column specific */
-											switch (w->trackerfx)
-											{
-												case 0: /* note */
-													switch (input)
-													{
-														case 1:  /* ^a */ r->note+=MAX(1, w->count); break;
-														case 24: /* ^x */ r->note-=MAX(1, w->count); break;
-													} break;
-												case 1: /* instrument */
-													switch (input)
-													{
-														case 1: /* ^a */
-															r->inst+=MAX(1, w->count);
-															if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
-															break;
-														case 24: /* ^x */
-															r->inst-=MAX(1, w->count);
-															if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
-															break;
-													} break;
-												default:
-													macro = (w->trackerfx - 2) / 2;
-													switch (input)
-													{
-														case 1:  /* ^a */
-															switch (r->macro[macro].c)
-															{
-																case 'G': r->macro[macro].v += MAX(1, w->count)*16;
-																default:  r->macro[macro].v += MAX(1, w->count);
-															} break;
-														case 24: /* ^x */
-															switch (r->macro[macro].c)
-															{
-																case 'G': r->macro[macro].v -= MAX(1, w->count)*16;
-																default:  r->macro[macro].v -= MAX(1, w->count);
-															} break;
-														case '~': /* toggle case */
-															if      (isupper(r->macro[macro].c)) r->macro[macro].c += 32;
-															else if (islower(r->macro[macro].c)) r->macro[macro].c -= 32;
-															break;
-													} break;
-											} redraw(); break;
-									}
-								} break;
-						} break;
-					case T_MODE_SONG_VISUAL:
-						switch (input)
-						{
-							case 'v': w->mode = T_MODE_SONG; redraw(); break;
-							case 'y': /* song copy */
-								w->songbufferlen = MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1;
-								if (w->songbufferlen)
-								{
-									memcpy(w->songibuffer, &s->songi[MIN(w->songfy, w->visualfy)], w->songbufferlen);
-									memcpy(w->songfbuffer, &s->songf[MIN(w->songfy, w->visualfy)], w->songbufferlen);
+															case 'G': r->macro[macro].v += MAX(1, w->count)*16;
+															default:  r->macro[macro].v += MAX(1, w->count);
+														} break;
+													case 24: /* ^x */
+														switch (r->macro[macro].c)
+														{
+															case 'G': r->macro[macro].v -= MAX(1, w->count)*16;
+															default:  r->macro[macro].v -= MAX(1, w->count);
+														} break;
+													case '~': /* toggle case */
+														if      (isupper(r->macro[macro].c)) changeMacro(r->macro[macro].c, &r->macro[macro].c);
+														else if (islower(r->macro[macro].c)) changeMacro(r->macro[macro].c, &r->macro[macro].c);
+														break;
+												} break;
+										} redraw(); break;
 								}
-								w->songfy = MIN(w->songfy, w->visualfy);
-								w->mode = T_MODE_SONG;
-								redraw(); break;
-							case 'd': case 'x': /* song delete */
-								w->songbufferlen = MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1;
-								if (w->songbufferlen)
+							} break;
+					} break;
+				case T_MODE_SONG_VISUAL:
+					switch (input)
+					{
+						case 'v': w->mode = T_MODE_SONG; redraw(); break;
+						case 'k': /* up arrow    */ trackerUpArrow(); redraw(); break;
+						case 'j': /* down arrow  */ trackerDownArrow(); redraw(); break;
+						case 'h': /* left arrow  */ trackerLeftArrow(); redraw(); break;
+						case 'l': /* right arrow */ trackerRightArrow(); redraw(); break;
+						case '[': /* chnl left   */ channelLeft(); redraw(); break;
+						case ']': /* chnl right  */ channelRight(); redraw(); break;
+						case '{': /* cycle up    */ cycleUp(); redraw(); break;
+						case '}': /* cycle down  */ cycleDown(); redraw(); break;
+						case 'y': /* song copy   */
+							w->songbufferlen = MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1;
+							if (w->songbufferlen)
+							{
+								memcpy(w->songibuffer, &s->songi[MIN(w->songfy, w->visualfy)], w->songbufferlen);
+								memcpy(w->songfbuffer, &s->songf[MIN(w->songfy, w->visualfy)], w->songbufferlen);
+							}
+							w->songfy = MIN(w->songfy, w->visualfy);
+							w->mode = T_MODE_SONG;
+							redraw(); break;
+						case 'd': case 'x': /* song delete */
+							w->songbufferlen = MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1;
+							if (w->songbufferlen)
+							{
+								memcpy(w->songibuffer, &s->songi[MIN(w->songfy, w->visualfy)], w->songbufferlen);
+								memcpy(w->songfbuffer, &s->songf[MIN(w->songfy, w->visualfy)], w->songbufferlen);
+								for (i = 0; i < w->songbufferlen; i++)
 								{
-									memcpy(w->songibuffer, &s->songi[MIN(w->songfy, w->visualfy)], w->songbufferlen);
-									memcpy(w->songfbuffer, &s->songf[MIN(w->songfy, w->visualfy)], w->songbufferlen);
-									for (i = 0; i < w->songbufferlen; i++)
-									{
-										s->songi[MIN(w->songfy, w->visualfy)+i] = 255;
-										s->songf[MIN(w->songfy, w->visualfy)+i] = 0;
-										if (w->songnext == MIN(w->songfy, w->visualfy)+i + 1)
-											w->songnext = 0;
-									}
+									s->songi[MIN(w->songfy, w->visualfy)+i] = 255;
+									s->songf[MIN(w->songfy, w->visualfy)+i] = 0;
+									if (w->songnext == MIN(w->songfy, w->visualfy)+i + 1)
+										w->songnext = 0;
 								}
-								w->songfy = MIN(w->songfy, w->visualfy);
-								w->mode = T_MODE_SONG;
-								redraw(); break;
-							case 'l': /* block loop */
-								for (i = 0; i < MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1; i++)
-									if (s->songi[MIN(w->songfy, w->visualfy)+i] != 255)
-										s->songf[MIN(w->songfy, w->visualfy)+i] = !s->songf[MIN(w->songfy, w->visualfy)+i];
-								redraw(); break;
-						} break;
-					case T_MODE_SONG_INSERT:
-						if (s->playing && s->songp == w->songfy) break;
-						switch (input)
-						{
-							case '0':           inputSongHex(0);  break;
-							case '1':           inputSongHex(1);  break;
-							case '2':           inputSongHex(2);  break;
-							case '3':           inputSongHex(3);  break;
-							case '4':           inputSongHex(4);  break;
-							case '5':           inputSongHex(5);  break;
-							case '6':           inputSongHex(6);  break;
-							case '7':           inputSongHex(7);  break;
-							case '8':           inputSongHex(8);  break;
-							case '9':           inputSongHex(9);  break;
-							case 'A': case 'a': inputSongHex(10); break;
-							case 'B': case 'b': inputSongHex(11); break;
-							case 'C': case 'c': inputSongHex(12); break;
-							case 'D': case 'd': inputSongHex(13); break;
-							case 'E': case 'e': inputSongHex(14); break;
-							case 'F': case 'f': inputSongHex(15); break;
-							case 127: case 8: /* backspace */
-								if (w->songnext == w->songfy + 1)
-									w->songnext = 0;
-								prunePattern(s->songi[w->songfy], w->songfy);
-								s->songi[w->songfy] = 255;
-								s->songf[w->songfy] = 0;
-								redraw(); break;
-						} break;
-					case T_MODE_INSERT:
-						if (s->songi[w->songfy] == 255) break;
-						modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
-						r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+							}
+							w->songfy = MIN(w->songfy, w->visualfy);
+							w->mode = T_MODE_SONG;
+							redraw(); break;
+						case '?': /* block loop */
+							for (i = 0; i < MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1; i++)
+								if (s->songi[MIN(w->songfy, w->visualfy)+i] != 255)
+									s->songf[MIN(w->songfy, w->visualfy)+i] = !s->songf[MIN(w->songfy, w->visualfy)+i];
+							redraw(); break;
+					} break;
+				case T_MODE_SONG_INSERT:
+					if (s->playing && s->songp == w->songfy) break;
+					switch (input)
+					{
+						case '0':           inputSongHex(0);  break;
+						case '1':           inputSongHex(1);  break;
+						case '2':           inputSongHex(2);  break;
+						case '3':           inputSongHex(3);  break;
+						case '4':           inputSongHex(4);  break;
+						case '5':           inputSongHex(5);  break;
+						case '6':           inputSongHex(6);  break;
+						case '7':           inputSongHex(7);  break;
+						case '8':           inputSongHex(8);  break;
+						case '9':           inputSongHex(9);  break;
+						case 'A': case 'a': inputSongHex(10); break;
+						case 'B': case 'b': inputSongHex(11); break;
+						case 'C': case 'c': inputSongHex(12); break;
+						case 'D': case 'd': inputSongHex(13); break;
+						case 'E': case 'e': inputSongHex(14); break;
+						case 'F': case 'f': inputSongHex(15); break;
+						case 127: case '\b': /* backspace */
+							if (w->songnext == w->songfy + 1)
+								w->songnext = 0;
+							prunePattern(s->songi[w->songfy], w->songfy);
+							s->songi[w->songfy] = 255;
+							s->songf[w->songfy] = 0;
+							redraw(); break;
+					} break;
+				case T_MODE_INSERT:
+					if (s->songi[w->songfy] == 255) break;
+					modulorow = w->trackerfy % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
+					r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
+					if (input == '\n' || input == '\r')
+					{
+						toggleChannelMute(); redraw();
+					} else
 						switch (w->trackerfx)
 						{
 							case 0: /* note */
@@ -1663,7 +1768,7 @@ dxandwchannelset:
 												w->songfy++;
 											} else w->trackerfy = s->patternv[s->patterni[s->songi[w->songfy]]]->rowc;
 										} break;
-									case 127: case 8: /* backspace */
+									case 127: case '\b': /* backspace */
 										r->note = NOTE_VOID;
 										r->inst = INST_VOID;
 										w->trackerfy -= w->step;
@@ -1714,7 +1819,7 @@ dxandwchannelset:
 										break;
 								} break;
 						} redraw(); break;
-				} break;
+			} break;
 	}
 	if (w->count) { w->count = 0; redraw(); }
 	if (w->chord) { w->chord = '\0'; redraw(); }

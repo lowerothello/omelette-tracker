@@ -24,14 +24,16 @@
 
 
 /* multiply instead of dividing for float powers of 2 */
-#define DIV256 0.00390625
-#define DIV255 0.00392156862745098
-#define DIV128 0.0078125
-#define DIV64  0.015625
-#define DIV32  0.03125
-#define DIV16  0.0625
-#define DIV15  0.06666666666666667
-#define DIV8   0.125
+#define DIV256   0.00390625
+#define DIV128   0.0078125
+#define DIV64    0.015625
+#define DIV32    0.03125
+#define DIV16    0.0625
+#define DIV8     0.125
+#define DIV255   0.00392156862745098
+#define DIV64ALT 0.01568627450980392 /* DIV63.75 to be exact */
+#define DIV15    0.06666666666666667
+#define DIV1000  0.001
 const double DIVSHRT = 1.0 / SHRT_MAX;
 const double DIVCHAR = 1.0 / SCHAR_MAX;
 
@@ -241,18 +243,12 @@ float signedunsigned(float input)
 		else              return input + 1.0f;
 	}
 }
-float rectify(char type, float input) /* TODO: clicky */
+float rectify(float input) /* TODO: clicky */
 {
-	if (fabsf(input) < NOISE_GATE) /* TODO: fix dc properly, high pass it */
+	if (fabsf(input) < NOISE_GATE) /* TODO: fix dc properly, high pass the output */
 		return 0.0f;
 	else
-	{
-		switch (type)
-		{
-			case 0: /* full-wave    */ return hardclip(fabsf(input) * 2 - 1.0f);
-			case 1: /* full-wave x2 */ return hardclip(fabsf(fabsf(input) * 2 - 1.0f) * 2 - 1.0f);
-		}
-	}
+		return hardclip(fabsf(input) * 2.0f - 1.0f);
 	return input;
 }
 float thirddegreepolynomial(float input)

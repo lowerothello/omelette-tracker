@@ -36,7 +36,7 @@ uint32_t pow32(uint32_t a, uint32_t b)
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 89;
+const unsigned char MINOR = 90;
 
 
 jack_nframes_t samplerate;
@@ -53,6 +53,7 @@ struct termios term, origterm;
 
 #define INSTRUMENT_INDEX_COLS 20
 #define INSTRUMENT_CONTROL_ROW 4
+#define INSTRUMENT_CONTROL_COLS 57
 
 #define RECORD_LENGTH 600 /* record length, in seconds */
 
@@ -96,10 +97,16 @@ void drawRuler(void)
 	/* bottom ruler */
 	if (w->mode < 255)
 	{
-		if (w->instrumentrecv == INST_REC_LOCK_CONT)
+		switch (w->instrumentrecv)
 		{
-			if (w->recptr == 0) printf("\033[%d;%dH\033[3m{REC   0s}\033[m", ws.ws_row, ws.ws_col - 50);
-			else                printf("\033[%d;%dH\033[3m{REC %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->recptr / samplerate + 1);
+			case INST_REC_LOCK_CONT: case INST_REC_LOCK_START:
+				if (w->recptr == 0) printf("\033[%d;%dH\033[3m{REC %02x   0s}\033[m", ws.ws_row, ws.ws_col - 50, w->instrumentreci);
+				else                printf("\033[%d;%dH\033[3m{REC %02x %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->instrumentreci, w->recptr / samplerate + 1);
+				break;
+			case INST_REC_LOCK_CUE_CONT: case INST_REC_LOCK_CUE_START:
+				if (w->recptr == 0) printf("\033[%d;%dH\033[3m[cue]{REC %02x   0s}\033[m", ws.ws_row, ws.ws_col - 55, w->instrumentreci);
+				else                printf("\033[%d;%dH\033[3m[cue]{REC %02x %3ds}\033[m", ws.ws_row, ws.ws_col - 55, w->instrumentreci, w->recptr / samplerate + 1);
+				break;
 		}
 
 		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
@@ -121,7 +128,7 @@ void redraw(void)
 	fcntl(0, F_SETFL, 0); /* blocking */
 	puts("\033[2J\033[?25h");
 
-	if (ws.ws_row < 20 || ws.ws_col < 57 + INSTRUMENT_INDEX_COLS)
+	if (ws.ws_row < 20 || ws.ws_col < INSTRUMENT_CONTROL_COLS + INSTRUMENT_INDEX_COLS - 1)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 		fflush(stdout);
@@ -205,7 +212,7 @@ void stopPlayback(void)
 {
 	if (s->playing)
 	{
-		if (w->instrumentrecv == INST_REC_LOCK_CONT)
+		if (w->instrumentrecv == INST_REC_LOCK_CONT || w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
 			w->instrumentrecv = INST_REC_LOCK_PREP_END;
 		s->playing = PLAYING_PREP_STOP;
 	} else w->trackerfy = 0;
@@ -237,13 +244,14 @@ int input(void)
 
 		if (w->mode == 255) /* command */
 		{
-			if (commandInput(&w->command, input, &w->mode)) return 1;
+			if (commandInput(&w->command, input, &w->mode, w->oldmode)) return 1;
 			redraw();
 		} else switch (input)
 			{
 				case ':': /* enter command mode */
 					setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
 					// setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
+					w->oldmode = w->mode;
 					w->mode = 255;
 					redraw();
 					break;
@@ -345,6 +353,15 @@ void common_cleanup(int ret)
 void cleanup(int ret)
 {
 	if (w->dir) closedir(w->dir);
+	stopPlayback();
+	struct timespec req;
+	while (s->playing)
+	{ /* wait until stopPlayback() finishes fully */
+		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
+		req.tv_nsec = UPDATE_DELAY;
+		nanosleep(&req, &req);
+	}
+
 	jack_deactivate(client);
 
 	_delInstrument(&w->instrumentbuffer);
@@ -397,7 +414,7 @@ int main(int argc, char **argv)
 		common_cleanup(1);
 	}
 	memset(p, 0, sizeof(playbackinfo));
-	client = jack_client_open("omutrack", JackNullOption, NULL);
+	client = jack_client_open("omelette", JackNullOption, NULL);
 	if (client == NULL)
 	{
 		puts("failed to init the jack client");
@@ -498,7 +515,7 @@ int main(int argc, char **argv)
 		{
 			if (w->recptr > 0)
 			{
-				instrument *iv = s->instrumentv[w->instrumentreci];
+				instrument *iv = s->instrumentv[s->instrumenti[w->instrumentreci]];
 				if (iv->sampledata)
 				{ free(iv->sampledata); iv->sampledata = NULL; }
 				iv->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
@@ -511,7 +528,7 @@ int main(int argc, char **argv)
 					iv->length = w->recptr;
 					iv->c5rate = samplerate;
 					iv->trim[0] = 0;
-					iv->trim[1] = w->recptr;
+					iv->trim[1] = w->recptr-1;
 					iv->loop[0] = 0;
 					iv->loop[1] = 0;
 				}

@@ -3,26 +3,29 @@
 - tracker undo buffer
 - make it clearer when in visual replace pseudo-mode
 	- make modes clearer in general, it's too easy to get lost
-- tilde in tracker visual (replace) mode
 - fix envelope properly (properly de-click, remove retrigger artifacts, need some state)
 	- use hold time to normalize notes a bit instead of emulating analogue timing intricacies
-- gain slide doesn't seem to work
-- ~ allows invalid macros
+- ctrl+click to set step also sets the channel, looks tricky to restrict
+- use set_pixel_unsafe
+- dynamically set WAVEFORM_LAZY_BLOCK_SIZE
+- remove reliance on oldmode
+- some waveshapers are always too loud when affecting quiet samples
+	- remove signed unsigned conversion?
 
-- oxx - smooth note offset
-	- fast forward the playhead over the row taking into account drift
-	- current oxx needs to be moved, and can have a smooth variant too
+- portamento to note off should act like a tape stop
+- visual mode cycle should cycle the selection
+- waveform bug when opening files
+	- honestly just force to the pattern tab on load lol
 
 - sample gain
-	- LOT of range, esp. upwards (20x or so, otherwise quiet samples are unusable)
+	- LOT of range, esp. upwards (~10x or so)
 	- show gain on the waveform view?
-	- gain/pan: [+80][80]
-	- phase inversion sign bit
+	- gain/pan: [80][80]
 
 midi:
 	- extra midi note offs on the first play after startup
 		- one for each tracker channel, all on midi channel 0(variable?)
-	- orphaned notes on quit because notes aren't properly stopped
+		- unsure how to replicate
 
 lookback:
 	- bpm macros
