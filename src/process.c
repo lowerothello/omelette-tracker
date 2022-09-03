@@ -195,6 +195,11 @@ char Cc(jack_nframes_t fptr, int m, channel *cv, row r)
 	return 0;
 }
 
+char Kc(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->compressor = m; return 0; }
+char kc(jack_nframes_t fptr, int m, channel *cv, row r)
+{ cv->targetcompressor = m; return 0; }
+
 char Pc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (cv->portamentosamplepointer > cv->portamentosamples)
@@ -425,6 +430,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	if (cv->targetwaveshaperstrength != -1) { cv->waveshaperstrength = cv->targetwaveshaperstrength; cv->targetwaveshaperstrength = -1; }
 	if (cv->targetmidicc != -1) { cv->midicc = cv->targetmidicc; cv->targetmidicc = -1; }
 	if (cv->targetsendgain != -1) { cv->sendgain = cv->targetsendgain; cv->targetsendgain = -1; }
+	if (cv->targetcompressor != -1) { cv->compressor = cv->targetcompressor; cv->targetcompressor = -1; }
 	if (cv->rtrigsamples)
 	{
 		if (cv->rtrigblocksize > 0 || cv->rtrigblocksize == -1) cv->rtrigblocksize--;
@@ -443,14 +449,14 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	ifMacro(fptr, cv, r, 'b', &Bc); /* bpm */
 
 	if (cv->pointer
-			&& (ifMacro(fptr, cv, r, 'G', &DUMMY)
-			||  ifMacro(fptr, cv, r, 'I', &DUMMY)
-			||  ifMacro(fptr, cv, r, 'F', &DUMMY)
-			||  ifMacro(fptr, cv, r, 'Z', &DUMMY)
-			||  ifMacro(fptr, cv, r, 'O', &OcPRERAMP)
-			||  ifMacro(fptr, cv, r, 'o', &OcPRERAMP)
-			||  ifMacro(fptr, cv, r, 'U', &OcPRERAMP)
-			||  ifMacro(fptr, cv, r, 'u', &OcPRERAMP)))
+			&&(ifMacro(fptr, cv, r, 'G', &DUMMY)
+			|| ifMacro(fptr, cv, r, 'I', &DUMMY)
+			|| ifMacro(fptr, cv, r, 'F', &DUMMY)
+			|| ifMacro(fptr, cv, r, 'Z', &DUMMY)
+			|| ifMacro(fptr, cv, r, 'O', &OcPRERAMP)
+			|| ifMacro(fptr, cv, r, 'o', &OcPRERAMP)
+			|| ifMacro(fptr, cv, r, 'U', &OcPRERAMP)
+			|| ifMacro(fptr, cv, r, 'u', &OcPRERAMP)))
 		ramp(cv, p->s->instrumenti[cv->samplerinst], cv->pointer, cv->pitchedpointer);
 
 	ifMacro(fptr, cv, r, 'G', &GcPOSTRAMP); /* gain      */
@@ -462,8 +468,10 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	ifMacro(fptr, cv, r, 'f', &fc); /* smooth cutoff     */
 	ifMacro(fptr, cv, r, 'z', &zc); /* smooth resonance  */
 
-	ifMacro(fptr, cv, r, 'S', &Sc); /* send        */
-	ifMacro(fptr, cv, r, 's', &sc); /* smooth send */
+	ifMacro(fptr, cv, r, 'S', &Sc); /* send              */
+	ifMacro(fptr, cv, r, 's', &sc); /* smooth send       */
+	ifMacro(fptr, cv, r, 'K', &Kc); /* compressor        */
+	ifMacro(fptr, cv, r, 'k', &kc); /* smooth compressor */
 
 	ret = ifMacro(fptr, cv, r, 'C', &Cc); /* cut */
 	if (!ret && r.note != NOTE_VOID) { ret = ifMacro(fptr, cv, r, 'P', &Pc); /* portamento */
@@ -654,6 +662,21 @@ void postSampler(jack_nframes_t fptr, int outputgroup, channel *cv, float rp,
 
 	if (!(cv->flags&C_FLAG_MUTE))
 	{
+		if (cv->targetcompressor != -1 && (cv->targetcompressor>>4))
+			p->s->compressorsidechain += (fabsf(lf) + fabsf(rf))*0.5f * (cv->compressor>>4)*DIV15 + ((cv->targetcompressor>>4) - (cv->compressor>>4))*DIV15 * rp;
+		else if (cv->compressor>>4)
+			p->s->compressorsidechain += (fabsf(lf) + fabsf(rf))*0.5f * (cv->compressor>>4)*DIV15;
+
+		if (cv->targetcompressor != -1 && (cv->targetcompressor%16))
+		{
+			lf *= 1.0f - p->s->compressorcoef * (cv->compressor%16)*DIV15 + ((cv->targetcompressor%16) - (cv->compressor%16))*DIV15 * rp;
+			rf *= 1.0f - p->s->compressorcoef * (cv->compressor%16)*DIV15 + ((cv->targetcompressor%16) - (cv->compressor%16))*DIV15 * rp;
+		} else if ((cv->compressor<<4)>>4)
+		{
+			lf *= 1.0f - p->s->compressorcoef * (cv->compressor%16)*DIV15;
+			rf *= 1.0f - p->s->compressorcoef * (cv->compressor%16)*DIV15;
+		}
+
 		pb.out[outputgroup].l[fptr] += lf;
 		pb.out[outputgroup].r[fptr] += rf;
 		if (cv->targetsendgain != -1)
@@ -772,10 +795,10 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 		cv->delaysamples = 0;
 
 		if (cv->pointer
-				&& (ifMacro(fptr, cv, cv->r, 'O', &OcPRERAMP)
-				||  ifMacro(fptr, cv, cv->r, 'o', &OcPRERAMP)
-				||  ifMacro(fptr, cv, cv->r, 'U', &OcPRERAMP)
-				||  ifMacro(fptr, cv, cv->r, 'u', &OcPRERAMP)))
+				&&(ifMacro(fptr, cv, cv->r, 'O', &OcPRERAMP)
+				|| ifMacro(fptr, cv, cv->r, 'o', &OcPRERAMP)
+				|| ifMacro(fptr, cv, cv->r, 'U', &OcPRERAMP)
+				|| ifMacro(fptr, cv, cv->r, 'u', &OcPRERAMP)))
 			ramp(cv, p->s->instrumenti[cv->samplerinst], cv->pointer, cv->pitchedpointer);
 
 		ifMacro(fptr, cv, cv->r, 'O', &OcPOSTRAMP); /* offset         */
@@ -921,22 +944,6 @@ void lookback(jack_nframes_t fptr)
 	}
 }
 
-void clearChannel(channel *cv)
-{
-	cv->r.note = cv->samplernote = NOTE_VOID;
-	cv->r.inst = cv->samplerinst = INST_VOID;
-	cv->rtrigsamples = 0;
-	if (cv->flags&C_FLAG_RTRIG_REV) cv->flags ^= C_FLAG_RTRIG_REV;
-	cv->waveshaperstrength = 0; cv->targetwaveshaperstrength = -1;
-	cv->gain = cv->randgain = 0x88; cv->targetgain = -1;
-	if (cv->flags&C_FLAG_TARGET_RAND) cv->flags ^= C_FLAG_TARGET_RAND;
-	cv->filtermode = 0; cv->targetfiltermode = -1;
-	cv->filtercut = 255; cv->targetfiltercut = -1;
-	cv->filterres = 0; cv->targetfilterres = -1;
-	cv->midiccindex = -1; cv->midicc = 0; cv->targetmidicc = -1;
-	cv->sendgroup = 0; cv->sendgain = 0; cv->targetsendgain = -1;
-}
-
 int process(jack_nframes_t nfptr, void *arg)
 {
 	playbackinfo *p = arg;
@@ -1079,6 +1086,7 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->request = REQ_OK;
 	}
 
+	p->s->compressorsidechain = 0.0f;
 	/* loop over samples */
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 	{
@@ -1139,9 +1147,17 @@ int process(jack_nframes_t nfptr, void *arg)
 					p->w->trackerfy = p->s->songr;
 				} p->dirty = 1;
 			}
-			// lookback(fptr);
 		}
 	}
+
+	/* compressor */
+	if (p->s->compressorsidechain > COMPRESSOR_THRESHOLD)
+		p->s->compressorcoef += 1.0f / (COMPRESSOR_ATTACK_S * samplerate);
+	else
+		p->s->compressorcoef -= 1.0f / (COMPRESSOR_RELEASE_S * samplerate);
+
+	if (p->s->compressorcoef > 1.0f) p->s->compressorcoef = 1.0f;
+	if (p->s->compressorcoef < 0.0f) p->s->compressorcoef = 0.0f;
 
 	/* record */
 	if (p->w->instrumentrecv == INST_REC_LOCK_CONT

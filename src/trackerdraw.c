@@ -60,6 +60,8 @@ void descMacro(char c, uint8_t v)
 		case 'H': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL PITCH SHIFT")) / 2, "LOCAL PITCH SHIFT"); break;
 		case 'I': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("CHANCE GAIN")) / 2, "CHANCE GAIN"); break;
 		case 'i': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH CHANCE GAIN")) / 2, "SMOOTH CHANCE GAIN"); break;
+		case 'K': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("COMPRESSOR COEFFICIENTS")) / 2, "COMPRESSOR COEFFICIENTS"); break;
+		case 'k': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH COMPRESSOR COEF.")) / 2, "SMOOTH COMPRESSOR COEF."); break;
 		case 'L': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL CYCLELENGTH HIGH BYTE")) / 2, "LOCAL CYCLELENGTH HIGH BYTE"); break;
 		case 'l': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL CYCLELENGTH LOW BYTE")) / 2, "LOCAL CYCLELENGTH LOW BYTE"); break;
 		case 'M': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;

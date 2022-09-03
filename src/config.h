@@ -19,7 +19,7 @@
 #define TIMESTRETCH_RAMP_MS 15 /* timestretch ramp time */
 
 /* real length of an iv->cyclelength unit */
-#define TIMESTRETCH_CYCLE_UNIT_MS 0.005
+#define TIMESTRETCH_CYCLE_UNIT_MS 0.005f
 
 /* how many lines the mouse wheel should scroll */
 #define WHEEL_SPEED 1
@@ -36,3 +36,9 @@
 
 /* approximately how many samples to wait between pitch wheel events */
 #define PITCH_WHEEL_SAMPLES 500
+
+
+/* hardcoded compressor state */
+#define COMPRESSOR_ATTACK_S 0.00007f
+#define COMPRESSOR_RELEASE_S 0.00014f
+#define COMPRESSOR_THRESHOLD 10.0f

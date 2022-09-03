@@ -22,9 +22,9 @@ typedef struct
 #define ROW_MAX 256
 typedef struct Pattern
 {
-	uint8_t         rowc;
-	uint8_t         rowcc[MAX_CHANNELS];         /* rowc per-channel */
-	row             rowv[MAX_CHANNELS][ROW_MAX]; /* MAX_CHANNELS channels, each with ROW_MAX rows */
+	uint8_t rowc;
+	uint8_t rowcc[MAX_CHANNELS];         /* rowc per-channel */
+	row     rowv[MAX_CHANNELS][ROW_MAX]; /* MAX_CHANNELS channels, each with ROW_MAX rows */
 
 	struct Pattern *history[128];                /* pattern snapshots */
 	uint8_t         historychannel[128];
@@ -41,105 +41,109 @@ typedef struct Pattern
 #define C_FLAG_TARGET_RAND 0b00010000
 typedef struct
 {
-	uint8_t     flags;
-	uint8_t     macroc;                       /* macro count */
+	uint8_t flags;
+	uint8_t macroc; /* macro count */
 
-	uint32_t    pointer;                      /* clock */
-	uint32_t    pitchedpointer;               /* sample to play */
-	uint8_t     gain;                         /* unsigned nibble per-channel */
-	uint8_t     randgain;                     /* gain override for the Ixy macro */
-	short       targetgain;                   /* smooth gain target */
-	row         r;
-	uint8_t     samplernote, samplerinst;
-	float       finetune;                     /* calculated fine tune, clamped between -2/+2 for midi */
+	uint32_t pointer;        /* clock */
+	uint32_t pitchedpointer; /* sample to play */
+	uint8_t  gain;           /* unsigned nibble per-channel */
+	uint8_t  randgain;       /* gain override for the Ixy macro */
+	short    targetgain;     /* smooth gain target */
+	row      r;
+	uint8_t  samplernote, samplerinst;
+	float    finetune;                 /* calculated fine tune, clamped between -2/+2 for midi */
 
-	float       portamentofinetune;           /* portamento fine tune */
-	float       targetportamentofinetune;     /* cv->portamentofinetune destination */
-	float       startportamentofinetune;      /* cv->portamentofinetune start       */
-	uint32_t    portamentosamples;            /* portamento length   */
-	uint32_t    portamentosamplepointer;      /* portamento progress */
+	float    portamentofinetune;       /* portamento fine tune */
+	float    targetportamentofinetune; /* cv->portamentofinetune destination */
+	float    startportamentofinetune;  /* cv->portamentofinetune start       */
+	uint32_t portamentosamples;        /* portamento length   */
+	uint32_t portamentosamplepointer;  /* portamento progress */
 
-	float       microtonalfinetune;           /* used by the local microtonal macro */
-	uint16_t    rtrigsamples;                 /* samples per retrigger */
-	uint32_t    rtrigpointer;                 /* clock reference */
-	uint32_t    rtrigpitchedpointer;          /* pitchedpointer to ratchet back to */
-	uint32_t    rtrigcurrentpitchedpointer;   /* pitchedpointer the current retrig started at */
-	int8_t      rtrigblocksize;               /* number of rows block extends to */
-	uint16_t    cutsamples;                   /* samples into the row to cut, 0 for no cut */
-	uint16_t    delaysamples;                 /* samples into the row to delay, 0 for no delay */
-	uint8_t     delaynote;
-	uint8_t     delayinst;
-	uint8_t     vibrato;                      /* vibrato depth, 0-f */
-	uint32_t    vibratosamples;               /* samples per full phase walk */
-	uint32_t    vibratosamplepointer;         /* distance through cv->vibratosamples */
+	float    microtonalfinetune;         /* used by the local microtonal macro */
+	uint16_t rtrigsamples;               /* samples per retrigger */
+	uint32_t rtrigpointer;               /* clock reference */
+	uint32_t rtrigpitchedpointer;        /* pitchedpointer to ratchet back to */
+	uint32_t rtrigcurrentpitchedpointer; /* pitchedpointer the current retrig started at */
+	int8_t   rtrigblocksize;             /* number of rows block extends to */
+	uint16_t cutsamples;                 /* samples into the row to cut, 0 for no cut */
+	uint16_t delaysamples;               /* samples into the row to delay, 0 for no delay */
+	uint8_t  delaynote;
+	uint8_t  delayinst;
+	uint8_t  vibrato;                    /* vibrato depth, 0-f */
+	uint32_t vibratosamples;             /* samples per full phase walk */
+	uint32_t vibratosamplepointer;       /* distance through cv->vibratosamples */
 
-	short       localenvelope;
-	short       localpitchshift;
-	int         localcyclelength;
+	short localenvelope;
+	short localpitchshift;
+	int   localcyclelength;
 
-	short       midiccindex;
-	uint8_t     midicc;
-	short       targetmidicc;
+	short   midiccindex;
+	uint8_t midicc;
+	short   targetmidicc;
 
-	int8_t      sendgroup;
-	int8_t      sendgain;
-	int8_t      targetsendgain;
+	int8_t sendgroup;
+	int8_t sendgain;
+	int8_t targetsendgain;
 
-	float       envgain;
+	float envgain;
 
 	/* waveshaper */
-	char        waveshaper;                 /* which waveshaper to use */
-	uint8_t     waveshaperstrength;         /* mix / input gain */
-	short       targetwaveshaperstrength;   /* mix / input gain target */
+	char    waveshaper;               /* which waveshaper to use */
+	uint8_t waveshaperstrength;       /* mix / input gain */
+	short   targetwaveshaperstrength; /* mix / input gain target */
 
 	/* filter */
-	SVFilter    fl[2], fr[2];
-	SVFilter    rampfl[2], rampfr[2];
-	char        filtermode;
-	int8_t      targetfiltermode;
-	uint8_t     filtercut;
-	short       targetfiltercut;
-	int8_t      filterres, targetfilterres;
+	SVFilter fl[2], fr[2];
+	SVFilter rampfl[2], rampfr[2];
+	char     filtermode;
+	int8_t   targetfiltermode;
+	uint8_t  filtercut;
+	short    targetfiltercut;
+	int8_t   filterres, targetfilterres;
+
+	/* compressor */
+	uint8_t compressor;       /* high nibble:sidechain weight  low nibble:output weight */
+	short   targetcompressor;
 
 	/* ramping */
-	uint16_t    rampindex;                  /* progress through the ramp buffer, rampmax if not ramping */
-	short      *rampbuffer;                 /* samples to ramp out */
-	uint8_t     rampgain;                   /* raw gain m for the ramp buffer */
-	uint8_t     rampinst;                   /* real index, needed to determine the output group */
+	uint16_t rampindex;        /* progress through the ramp buffer, rampmax if not ramping */
+	short   *rampbuffer;       /* samples to ramp out */
+	uint8_t  rampgain;         /* raw gain m for the ramp buffer */
+	uint8_t  rampinst;         /* real index, needed to determine the output group */
 
-	uint16_t    stretchrampindex;           /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
-	uint16_t    localstretchrampmax;        /* actual stretchrampmax used, to allow for tiny buffer sizes */
+	uint16_t stretchrampindex; /* progress through the stretch ramp buffer, >=cv->stretchrampmax if not ramping */
+	uint16_t stretchrampmax;   /* actual stretchrampmax used, to allow for tiny buffer sizes */
 } channel;
 
 typedef struct Instrument
 {
-	short              *sampledata;        /* variable size, persists between types */
-	uint32_t            samplelength;      /* raw samples allocated for sampledata */
+	short    *sampledata;   /* variable size, persists between types */
+	uint32_t  samplelength; /* raw samples allocated for sampledata */
 
-	uint32_t            length;
-	uint8_t             channels;
-	uint32_t            c5rate;
-	uint8_t             samplerate;        /* percent of c5rate to actually use */
-	uint8_t             bitdepth;
-	uint16_t            cyclelength;
-	uint8_t             pitchshift;
-	uint32_t            trim[2];
-	uint32_t            loop;
-	uint8_t             envelope;
-	uint8_t             gain;
-	uint8_t             outputgroup;
-	uint8_t             channelmode;
-	uint8_t             flags;
-	uint8_t             loopramp;
-	uint8_t             midichannel;
+	uint32_t length;
+	uint8_t  channels;
+	uint32_t c5rate;
+	uint8_t  samplerate;  /* percent of c5rate to actually use */
+	uint8_t  bitdepth;
+	uint16_t cyclelength;
+	uint8_t  pitchshift;
+	uint32_t trim[2];
+	uint32_t loop;
+	uint8_t  envelope;
+	uint8_t  gain;
+	uint8_t  outputgroup;
+	uint8_t  channelmode;
+	uint8_t  flags;
+	uint8_t  loopramp;
+	uint8_t  midichannel;
 
-	uint32_t            triggerflash;
+	uint32_t triggerflash;
 
-	struct Instrument  *history[128];      /* instrument snapshots */
-	short               historyindex[128]; /* cursor positions for instrument snapshots */
-	uint8_t             historyptr;        /* highest bit is an overflow bit */
-	uint8_t             historybehind;     /* tracks how many less than 128 safe indices there are */
-	uint8_t             historyahead;      /* tracks how many times it's safe to redo */
+	struct Instrument *history[128];      /* instrument snapshots */
+	short              historyindex[128]; /* cursor positions for instrument snapshots */
+	uint8_t            historyptr;        /* highest bit is an overflow bit */
+	uint8_t            historybehind;     /* tracks how many less than 128 safe indices there are */
+	uint8_t            historyahead;      /* tracks how many times it's safe to redo */
 } instrument;
 
 #define SONG_MAX 256
@@ -152,34 +156,43 @@ typedef struct Instrument
 typedef struct
 {
 	/* patterns */
-	uint8_t         patternc;                    /* pattern count */
-	uint8_t         patterni[PATTERN_MAX];       /* pattern backref */
-	pattern        *patternv[PATTERN_MAX];       /* pattern values */
+	uint8_t  patternc;              /* pattern count */
+	uint8_t  patterni[PATTERN_MAX]; /* pattern backref */
+	pattern *patternv[PATTERN_MAX]; /* pattern values */
 
 	/* instruments */
-	uint8_t         instrumentc;                 /* instrument count */
-	uint8_t         instrumenti[INSTRUMENT_MAX]; /* instrument backref */
-	instrument     *instrumentv[INSTRUMENT_MAX]; /* instrument values */
+	uint8_t     instrumentc;                 /* instrument count */
+	uint8_t     instrumenti[INSTRUMENT_MAX]; /* instrument backref */
+	instrument *instrumentv[INSTRUMENT_MAX]; /* instrument values */
 
 	/* channels */
-	uint8_t         channelc;                    /* channel count */
-	channel         channelv[32];                /* channel values */
+	uint8_t channelc;     /* channel count */
+	channel channelv[32]; /* channel values */
+
+	/* effect state */
+	struct
+	{
+		uint8_t mix;
+		uint8_t feedback;
+	} reverb;
+	float compressorcoef;
+	float compressorsidechain;
 
 	/* playlist */
-	uint8_t         songi[SONG_MAX];             /* song list backref, links to patterns */
-	uint8_t         songf[SONG_MAX];             /* song list flags */
+	uint8_t songi[SONG_MAX]; /* song list backref, links to patterns */
+	uint8_t songf[SONG_MAX]; /* song list flags */
 
 	/* playback pointer */
-	uint8_t         songp;                       /* song pos, analogous to window->songfy */
-	short           songr;                       /* song row, analogous to window->trackerfy */
+	uint8_t songp; /* song pos, analogous to window->songfy */
+	short   songr; /* song row, analogous to window->trackerfy */
 
 	/* misc. state */
-	uint8_t         rowhighlight;
-	uint8_t         bpm;
-	uint8_t         songbpm;                     /* to store the song's bpm through bpm change macros */
-	uint16_t        spr;                         /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
-	uint16_t        sprp;                        /* samples per row progress */
-	char            playing;
+	uint8_t  rowhighlight;
+	uint8_t  bpm;
+	uint8_t  songbpm;      /* to store the song's bpm through bpm change macros */
+	uint16_t spr;          /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
+	uint16_t sprp;         /* samples per row progress */
+	char     playing;
 } song;
 song *s;
 
@@ -210,19 +223,19 @@ song *s;
 #define REQ_BPM 1 /* re-apply the song bpm */
 typedef struct
 {
-	pattern        songbuffer;                   /* full pattern paste buffer, TODO: use */
-	pattern        patternbuffer;                /* partial pattern paste buffer */
-	short          pbfy[2], pbfx[2];             /* partial pattern paste buffer clipping region */
-	uint8_t        pbchannel[2];                 /* " */
-	char           pbpopulated;                  /* there's no good way to tell if pb is set */
-	instrument     instrumentbuffer;             /* instrument paste buffer */
-	uint8_t        defpatternlength;
+	pattern    songbuffer;       /* full pattern paste buffer, TODO: use */
+	pattern    patternbuffer;    /* partial pattern paste buffer */
+	short      pbfy[2], pbfx[2]; /* partial pattern paste buffer clipping region */
+	uint8_t    pbchannel[2];     /* " */
+	char       pbpopulated;      /* there's no good way to tell if pb is set */
+	instrument instrumentbuffer; /* instrument paste buffer */
+	uint8_t    defpatternlength;
 
-	uint8_t        songibuffer[PATTERN_MAX];    /* song list paste buffer */
-	uint8_t        songfbuffer[PATTERN_MAX];    /* song list flags paste buffer */
-	uint8_t        songbufferlen;                /* how much of song[i,f]buffer has meaningful data */
+	uint8_t songibuffer[PATTERN_MAX]; /* song list paste buffer */
+	uint8_t songfbuffer[PATTERN_MAX]; /* song list flags paste buffer */
+	uint8_t songbufferlen;            /* how much of song[i,f]buffer has meaningful data */
 
-	char           filepath[COMMAND_LENGTH];
+	char filepath[COMMAND_LENGTH];
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
 	command_t      command;
@@ -239,16 +252,16 @@ typedef struct
 	short          visualfy, visualfx;
 	uint8_t        visualchannel;
 	short          instrumentindex;
-	short          instrument;                   /* focused instrument */
+	short          instrument;           /* focused instrument */
 	unsigned short instrumentcelloffset;
 	unsigned short instrumentrowoffset;
 
-	int            filebrowserindex;
+	int filebrowserindex;
 
 	unsigned short mousey, mousex;
 
-	short          fyoffset;
-	signed char    fieldpointer;
+	short       fyoffset;
+	signed char fieldpointer;
 
 	char           dirpath[NAME_MAX+1];
 	unsigned int   dirc;
@@ -256,42 +269,42 @@ typedef struct
 	unsigned char  dircols;
 	DIR           *dir;
 
-	Canvas        *waveformcanvas;
-	char         **waveformbuffer;
-	size_t         waveformw, waveformh;
-	uint32_t       waveformwidth;
-	uint32_t       waveformcursor;
-	uint32_t       waveformvisual;
-	uint32_t       waveformdrawpointer;
+	Canvas  *waveformcanvas;
+	char   **waveformbuffer;
+	size_t   waveformw, waveformh;
+	uint32_t waveformwidth;
+	uint32_t waveformcursor;
+	uint32_t waveformvisual;
+	uint32_t waveformdrawpointer;
 
-	short          songfy;
+	short songfy;
 
-	char           chord;                        /* key chord buffer, vi-style multi-letter commands */
-	uint16_t       count;                        /* action repeat count, follows similar rules to w->chord */
-	char           octave;
-	uint8_t        step;
-	char           keyboardmacro;
-	uint8_t        flags;                        /* %1:follow */
+	char     chord;         /* key chord buffer, vi-style multi-letter commands */
+	uint16_t count;         /* action repeat count, follows similar rules to w->chord */
+	char     octave;
+	uint8_t  step;
+	char     keyboardmacro;
+	uint8_t  flags;         /* %1:follow */
 
-	uint8_t        songnext;
+	uint8_t songnext;
 
-	row            previewrow;
-	uint8_t        previewchannelsrc;
-	channel        previewchannel;
-	char           previewtrigger;               /* 0:cut
-	                                                1:start inst
-	                                                2:still inst */
+	row     previewrow;
+	uint8_t previewchannelsrc;
+	channel previewchannel;
+	char    previewtrigger;               /* 0:cut
+	                                         1:start inst
+	                                         2:still inst */
 
-	uint8_t        instrumentlocki;              /* realindex */
-	uint8_t        instrumentlockv;              /* value, set to an INST_GLOBAL_LOCK constant */
-	char           request;                      /* ask the playback function to do something */
+	uint8_t instrumentlocki; /* realindex */
+	uint8_t instrumentlockv; /* value, set to an INST_GLOBAL_LOCK constant */
+	char    request;         /* ask the playback function to do something */
 
-	uint8_t        instrumentreci;               /* NOT a realindex */
-	uint8_t        instrumentrecv;               /* value, set to an INST_REC_LOCK constant */
-	short         *recbuffer;                    /* disallow changing the type or removing while recording */
-	uint32_t       recptr;
+	uint8_t  instrumentreci; /* NOT a realindex */
+	uint8_t  instrumentrecv; /* value, set to an INST_REC_LOCK constant */
+	short   *recbuffer;      /* disallow changing the type or removing while recording */
+	uint32_t recptr;
 
-	char           newfilename[COMMAND_LENGTH];  /* used by readSong */
+	char newfilename[COMMAND_LENGTH]; /* used by readSong */
 } window;
 window *w;
 
@@ -351,20 +364,29 @@ void strrep(char *string, char *find, char *replace)
 
 
 
+void clearChannel(channel *cv)
+{
+	cv->r.note = cv->samplernote = NOTE_VOID;
+	cv->r.inst = cv->samplerinst = INST_VOID;
+	cv->rtrigsamples = 0;
+	if (cv->flags&C_FLAG_RTRIG_REV) cv->flags ^= C_FLAG_RTRIG_REV;
+	cv->waveshaperstrength = 0; cv->targetwaveshaperstrength = -1;
+	cv->gain = cv->randgain = 0x88; cv->targetgain = -1;
+	if (cv->flags&C_FLAG_TARGET_RAND) cv->flags ^= C_FLAG_TARGET_RAND;
+	cv->filtermode = 0; cv->targetfiltermode = -1;
+	cv->filtercut = 255; cv->targetfiltercut = -1;
+	cv->filterres = 0; cv->targetfilterres = -1;
+	cv->midiccindex = -1; cv->midicc = 0; cv->targetmidicc = -1;
+	cv->sendgroup = 0; cv->sendgain = 0; cv->targetsendgain = -1;
+	cv->compressor = 0; cv->targetcompressor = -1;
+}
+
 void _addChannel(song *cs, channel *cv)
 {
 	cv->rampindex = rampmax;
 	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
 	cv->stretchrampindex = stretchrampmax;
-	cv->gain = 0x88;
-	cv->targetgain = -1;
-	cv->waveshaperstrength = 0; cv->targetwaveshaperstrength = -1;
-	cv->filtercut = 255; cv->targetfiltercut = -1;
-	cv->filterres = 0; cv->targetfilterres = -1;
-	cv->targetmidicc = -1;
-	cv->targetsendgain = -1;
-	cv->r.note = cv->samplernote = NOTE_VOID;
-	cv->r.inst = cv->samplerinst = INST_VOID;
+	clearChannel(cv);
 }
 void clearPatternChannel(song *cs, uint8_t rawpattern, uint8_t channel)
 {

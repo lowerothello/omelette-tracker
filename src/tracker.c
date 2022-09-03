@@ -32,6 +32,8 @@ void changeMacro(int input, char *dest)
 		case 'h': *dest = 'H'; break; /* local pitch shift            */
 		case 'i': *dest = 'I'; break; /* random gain                  */
 		case 'I': *dest = 'i'; break; /* smooth random gain           */
+		case 'k': *dest = 'K'; break; /* compressor                   */
+		case 'K': *dest = 'k'; break; /* smooth compressor            */
 		case 'l': *dest = 'L'; break; /* local cycle length high byte */
 		case 'L': *dest = 'l'; break; /* local cycle length low byte  */
 		case 'm': *dest = 'M'; break; /* microtonal offset            */
@@ -288,7 +290,7 @@ void trackerLeftArrow(void)
 					if (w->channel > 0)
 					{
 						w->channel--;
-						w->trackerfx = 2 + s->channelv[w->channel].macroc * 2;
+						w->trackerfx = 3 + s->channelv[w->channel].macroc * 2;
 					} else w->trackerfx = 0;
 				}
 			} break;
@@ -308,8 +310,8 @@ void channelLeft(void)
 					if (w->channel > 0)
 					{
 						w->channel--;
-						if (w->trackerfx > 2 + s->channelv[w->channel].macroc * 2)
-							w->trackerfx = 2 + s->channelv[w->channel].macroc * 2;
+						if (w->trackerfx > 3 + s->channelv[w->channel].macroc * 2)
+							w->trackerfx = 3 + s->channelv[w->channel].macroc * 2;
 					}
 				}
 			} break;
@@ -326,13 +328,13 @@ void trackerRightArrow(void)
 			{
 				if (s->songi[w->songfy] == PATTERN_VOID) return;
 				w->trackerfx++;
-				if (w->trackerfx > 2 + s->channelv[w->channel].macroc * 2)
+				if (w->trackerfx > 3 + s->channelv[w->channel].macroc * 2)
 				{
 					if (w->channel < s->channelc - 1)
 					{
 						w->channel++;
 						w->trackerfx = 0;
-					} else w->trackerfx = 2 + s->channelv[w->channel].macroc * 2;
+					} else w->trackerfx = 3 + s->channelv[w->channel].macroc * 2;
 				}
 			} break;
 	}
@@ -350,8 +352,8 @@ void channelRight(void)
 				if (w->channel < s->channelc - 1)
 				{
 					w->channel++;
-					if (w->trackerfx > 2 + s->channelv[w->channel].macroc * 2)
-						w->trackerfx = 2 + s->channelv[w->channel].macroc * 2;
+					if (w->trackerfx > 3 + s->channelv[w->channel].macroc * 2)
+						w->trackerfx = 3 + s->channelv[w->channel].macroc * 2;
 				}
 			} break;
 	}

@@ -15,6 +15,7 @@
 - tracker binds are organised really REALLY badly in the code, they're really awkward to maintain
 - pattern history doesn't save channelc properly, causing zombie channels
 	- don't save channelc, don't let undo/redo manipulate the channel index
+- visual bug is still present lol
 
 - bind to set the octave of the hovered note and NOT the default octave?
 	- maybe inc/dec by octaves? ctrl+shft+a/x or smth

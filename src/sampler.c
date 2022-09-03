@@ -96,8 +96,8 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 
 	if (pointersnap == ramppos)
 	{ // first sample of a cycle
-		cv->localstretchrampmax = MIN(cyclelength, stretchrampmax);
-		if (pointer == 0) cv->stretchrampindex = cv->localstretchrampmax;
+		cv->stretchrampmax = MIN(cyclelength, stretchrampmax);
+		if (pointer == 0) cv->stretchrampindex = cv->stretchrampmax;
 		else cv->stretchrampindex = 0;
 	}
 
@@ -110,14 +110,14 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 				((pointer - pointersnap) * calcrate) + (pointersnap * calcpitch * calcshift) * calcrate),
 				localenvelope, cv, iv, l, r);
 
-		if (cv->stretchrampindex < cv->localstretchrampmax)
+		if (cv->stretchrampindex < cv->stretchrampmax)
 		{
 			short rl = 0; short rr = 0;
 			trimloop(calcDecimate(iv, iv->samplerate,
 					((pointer - pointersnap - cyclelength) * calcrate) + ((cyclelength + cv->stretchrampindex) * calcpitch * calcshift * calcrate)),
 					localenvelope, cv, iv, &rl, &rr);
 
-			gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
+			gain = (float)cv->stretchrampindex / (float)cv->stretchrampmax;
 			*l = *l * gain + rl * (1.0f - gain);
 			*r = *r * gain + rr * (1.0f - gain);
 			cv->stretchrampindex++;
@@ -128,14 +128,14 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 				(pointer - pointersnap + (pointersnap * calcshift)) * calcpitch * calcrate),
 				localenvelope, cv, iv, l, r);
 
-		if (cv->stretchrampindex < cv->localstretchrampmax)
+		if (cv->stretchrampindex < cv->stretchrampmax)
 		{
 			short rl = 0; short rr = 0;
 			trimloop(calcDecimate(iv, iv->samplerate,
 					(pointer - pointersnap - cyclelength + ((cyclelength + cv->stretchrampindex) * calcshift)) * calcpitch * calcrate),
 					localenvelope, cv, iv, &rl, &rr);
 
-			gain = (float)cv->stretchrampindex / (float)cv->localstretchrampmax;
+			gain = (float)cv->stretchrampindex / (float)cv->stretchrampmax;
 			*l = *l * gain + rl * (1.0f - gain);
 			*r = *r * gain + rr * (1.0f - gain);
 			cv->stretchrampindex++;
