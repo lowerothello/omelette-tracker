@@ -11,8 +11,9 @@
 #define DEF_BPM 125
 
 /* RAMPING */
-/* how long it takes for notes to fade in/out */
+/* how long it takes for notes to fade in/out                 */
 /* anything above ~300 risks overflowing at high sample rates */
+/* retrigger never has any ramping cos it causes artifacts    */
 #define RAMP_MS 3 /* usual ramp time */
 #define LOOP_RAMP_MS 80 /* loop crossfade time, will auto-lower to half the loop range */
 #define TIMESTRETCH_RAMP_MS 15 /* timestretch ramp time */

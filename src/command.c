@@ -139,7 +139,7 @@ int commandInput(command_t *command, int input, unsigned char *mode, unsigned ch
 				if (command->history < 0) break;
 				command->historyc++;
 
-				/* protect against reaching the short limit */
+				/* protect against reaching an int limit */
 				if (command->historyc >= HISTORY_LENGTH * 2)
 					command->historyc = HISTORY_LENGTH;
 			}

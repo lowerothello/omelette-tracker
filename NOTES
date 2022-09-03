@@ -1,28 +1,25 @@
-- pitch slide is fucked, needs a redesign and rewrite
-- make it clearer when in visual replace pseudo-mode
-	- make modes clearer in general, it's too easy to get lost
-- fix envelope properly (properly de-click, remove retrigger artifacts, need some state)
-	- use hold time to normalize notes a bit instead of emulating analogue timing intricacies
+- make modes clearer in general, it's too easy to get lost
+	- change the cursor shape to help
 - use set_pixel_unsafe
-- dynamically set WAVEFORM_LAZY_BLOCK_SIZE
-- some waveshapers are always too loud when affecting quiet samples
-	- remove signed unsigned conversion?
-- show instruments without parent notes, for MIDI CCs
-	- allow changing instruments during a sound? (naive approach breaks midi)
+- dynamically set WAVEFORM_LAZY_BLOCK_SIZE?
+	- how?
 - instrument midi channel value sometimes jumps really high, idk why
-	- either some weird memory corruption or i'm big dumb
-
-- portamento to note off should act like a tape stop
-	- portamento to C-0, then off
-- visual mode cycle should cycle the selection
+	- either some weird memory corruption or i'm big dumb (probably the latter)
 - waveform visual bug when opening files
-	- honestly just force to the pattern tab on load lol
+- clear the bottom line and leave the cursor at the beginning of it when quitting
+- smooth midi cc loses track of the correct old cc value when midiccindex is changed
+	- need to remember state for all midi ccs?
+	- might cut smooth midi cc from scope
+- ramping causes clicks, think it's from the filter? not sure
+- tracker binds when the pattern is null are too restrictive, only tab is allowed
+- tracker binds are organised really REALLY badly in the code, they're really awkward to maintain
+- pattern history doesn't save channelc properly, causing zombie channels
+	- don't save channelc, don't let undo/redo manipulate the channel index
 
-- sample gain
-	- LOT of range, esp. upwards (~10x or so)
-	- show gain on the waveform view?
-	- gain/pan: [80][80]
+- bind to set the octave of the hovered note and NOT the default octave?
+	- maybe inc/dec by octaves? ctrl+shft+a/x or smth
+- portamento to note off should act like a tape stop
+- rx0 reaching the beginning of the sample cuts the note
+- Qxx can swap to qxx but not the other way round
 
-lookback:
-	- bpm macros
-	- portamento masks(?) the starting note
+lookback needs testing, some macros are probably inexplicably broken for no apparent reason

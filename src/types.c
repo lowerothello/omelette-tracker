@@ -1,5 +1,5 @@
 #define MAX_VALUE_LEN 128
-#define MAX_CHANNELS 33 /* TODO: index 0 is unused */
+#define MAX_CHANNELS 32
 
 typedef struct
 {
@@ -9,49 +9,62 @@ typedef struct
 #define NOTE_VOID 255
 #define NOTE_OFF 254
 #define NOTE_UNUSED 253 /* explicitly unused */
-#define C5 60   /* centre note */
-#define A10 120 /* first out of range note */
+#define NOTE_C5 60   /* centre note */
+#define NOTE_A10 120 /* first out of range note */
 #define INST_VOID 255
 typedef struct
 {
-	uint8_t note; /* 0-127: MIDI compatible, 255: void, 254: note off */
-	uint8_t inst;
-	macro   macro[8];
+	uint8_t note;     /* 0-127: MIDI compatible | >127: NOTE_* declares */
+	uint8_t inst;     /* INST_* declares */
+	macro   macro[8]; /* up to 8 macro columns */
 } row;
+#define PATTERN_VOID 255
+#define ROW_MAX 256
 typedef struct Pattern
 {
 	uint8_t         rowc;
-	uint8_t         rowcc[MAX_CHANNELS];     /* rowc per-channel */
-	row             rowv[MAX_CHANNELS][256]; /* MAX_CHANNELS channels, each with 256 rows */
+	uint8_t         rowcc[MAX_CHANNELS];         /* rowc per-channel */
+	row             rowv[MAX_CHANNELS][ROW_MAX]; /* MAX_CHANNELS channels, each with ROW_MAX rows */
 
-	struct Pattern *history[128];            /* pattern snapshots */
+	struct Pattern *history[128];                /* pattern snapshots */
 	uint8_t         historychannel[128];
 	short           historyfy[128], historyfx[128];
-	uint8_t         historyptr;              /* highest bit is effectively an overflow bit */
-	uint8_t         historybehind;           /* tracks how many less than 128 safe indices there are */
-	uint8_t         historyahead;            /* tracks how many times it's safe to redo */
+	uint8_t         historyptr;                  /* highest bit is effectively an overflow bit */
+	uint8_t         historybehind;               /* tracks how many less than 128 safe indices there are */
+	uint8_t         historyahead;                /* tracks how many times it's safe to redo */
 } pattern;
 
+#define C_FLAG_MUTE        0b00000001
+#define C_FLAG_REVERSE     0b00000010
+#define C_FLAG_RELEASE     0b00000100
+#define C_FLAG_RTRIG_REV   0b00001000
+#define C_FLAG_TARGET_RAND 0b00010000
 typedef struct
 {
-	char        mute;                         /* saved to disk */
+	uint8_t     flags;
 	uint8_t     macroc;                       /* macro count */
 
-	char        reverse;                      /* decrement pointer instead of incrementing it */
-	uint32_t    pointer;                      /* progress through the sound */
-	uint32_t    pointeroffset;                /* where to base pointer off of */
-	uint32_t    releasepointer;               /* 0 for no release, where releasing started */
-	short       gain;                         /* unsigned nibble per-channel, -1 for unset */
+	uint32_t    pointer;                      /* clock */
+	uint32_t    pitchedpointer;               /* sample to play */
+	uint8_t     gain;                         /* unsigned nibble per-channel */
+	uint8_t     randgain;                     /* gain override for the Ixy macro */
 	short       targetgain;                   /* smooth gain target */
 	row         r;
-	float       finetune;                     /* calculated fine tune, should be between -0.5 and +0.5 */
-	float       portamentofinetune;           /* used by portamento, clamped between -2/+2 for midi */
+	uint8_t     samplernote, samplerinst;
+	float       finetune;                     /* calculated fine tune, clamped between -2/+2 for midi */
+
+	float       portamentofinetune;           /* portamento fine tune */
+	float       targetportamentofinetune;     /* cv->portamentofinetune destination */
+	float       startportamentofinetune;      /* cv->portamentofinetune start       */
+	uint32_t    portamentosamples;            /* portamento length   */
+	uint32_t    portamentosamplepointer;      /* portamento progress */
+
 	float       microtonalfinetune;           /* used by the local microtonal macro */
-	uint8_t     portamento;                   /* portamento target, 255 for off */
-	short       portamentospeed;              /* portamento m */
 	uint16_t    rtrigsamples;                 /* samples per retrigger */
-	uint32_t    rtrigpointer;                 /* sample ptr to ratchet back to */
-	uint8_t     rtrigblocksize;               /* number of rows block extends to */
+	uint32_t    rtrigpointer;                 /* clock reference */
+	uint32_t    rtrigpitchedpointer;          /* pitchedpointer to ratchet back to */
+	uint32_t    rtrigcurrentpitchedpointer;   /* pitchedpointer the current retrig started at */
+	int8_t      rtrigblocksize;               /* number of rows block extends to */
 	uint16_t    cutsamples;                   /* samples into the row to cut, 0 for no cut */
 	uint16_t    delaysamples;                 /* samples into the row to delay, 0 for no delay */
 	uint8_t     delaynote;
@@ -62,49 +75,59 @@ typedef struct
 
 	short       localenvelope;
 	short       localpitchshift;
-	short       localcyclelength;
+	int         localcyclelength;
 
 	short       midiccindex;
 	uint8_t     midicc;
 	short       targetmidicc;
 
+	int8_t      sendgroup;
+	int8_t      sendgain;
+	int8_t      targetsendgain;
+
+	float       envgain;
+
 	/* waveshaper */
-	char        waveshaper;                   /* which waveshaper to use */
-	uint8_t     waveshaperstrength;           /* mix / input gain */
-	short       targetwaveshaperstrength;     /* mix / input gain target */
+	char        waveshaper;                 /* which waveshaper to use */
+	uint8_t     waveshaperstrength;         /* mix / input gain */
+	short       targetwaveshaperstrength;   /* mix / input gain target */
 
 	/* filter */
-	SVFilter    fl, fr;
+	SVFilter    fl[2], fr[2];
+	SVFilter    rampfl[2], rampfr[2];
 	char        filtermode;
+	int8_t      targetfiltermode;
 	uint8_t     filtercut;
 	short       targetfiltercut;
-	signed char filterres, targetfilterres;
+	int8_t      filterres, targetfilterres;
 
 	/* ramping */
-	uint16_t    rampindex;                    /* progress through the ramp buffer, rampmax if not ramping */
-	short      *rampbuffer;                   /* samples to ramp out */
-	uint8_t     rampgain;                     /* raw gain m for the ramp buffer */
+	uint16_t    rampindex;                  /* progress through the ramp buffer, rampmax if not ramping */
+	short      *rampbuffer;                 /* samples to ramp out */
+	uint8_t     rampgain;                   /* raw gain m for the ramp buffer */
+	uint8_t     rampinst;                   /* real index, needed to determine the output group */
 
-	uint16_t    stretchrampindex;             /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
-	uint16_t    localstretchrampmax;          /* actual stretchrampmax used, to allow for tiny buffer sizes */
+	uint16_t    stretchrampindex;           /* progress through the stretch ramp buffer, >=localstretchrampmax if not ramping */
+	uint16_t    localstretchrampmax;        /* actual stretchrampmax used, to allow for tiny buffer sizes */
 } channel;
 
 typedef struct Instrument
 {
-	short              *sampledata;                   /* variable size, persists between types */
-	uint32_t            samplelength;                 /* raw samples allocated for sampledata */
+	short              *sampledata;        /* variable size, persists between types */
+	uint32_t            samplelength;      /* raw samples allocated for sampledata */
 
 	uint32_t            length;
 	uint8_t             channels;
 	uint32_t            c5rate;
-	uint8_t             samplerate;                   /* percent of c5rate to actually use */
+	uint8_t             samplerate;        /* percent of c5rate to actually use */
 	uint8_t             bitdepth;
 	uint16_t            cyclelength;
 	uint8_t             pitchshift;
 	uint32_t            trim[2];
-	uint32_t            loop[2];
+	uint32_t            loop;
 	uint8_t             envelope;
 	uint8_t             gain;
+	uint8_t             outputgroup;
 	uint8_t             channelmode;
 	uint8_t             flags;
 	uint8_t             loopramp;
@@ -112,41 +135,50 @@ typedef struct Instrument
 
 	uint32_t            triggerflash;
 
-	struct Instrument  *history[128];                 /* instrument snapshots */
-	short               historyindex[128];            /* cursor positions for instrument snapshots */
-	uint8_t             historyptr;                   /* highest bit is an overflow bit */
-	uint8_t             historybehind;                /* tracks how many less than 128 safe indices there are */
-	uint8_t             historyahead;                 /* tracks how many times it's safe to redo */
+	struct Instrument  *history[128];      /* instrument snapshots */
+	short               historyindex[128]; /* cursor positions for instrument snapshots */
+	uint8_t             historyptr;        /* highest bit is an overflow bit */
+	uint8_t             historybehind;     /* tracks how many less than 128 safe indices there are */
+	uint8_t             historyahead;      /* tracks how many times it's safe to redo */
 } instrument;
 
+#define SONG_MAX 256
+#define PATTERN_MAX 256
+#define INSTRUMENT_MAX 255
 #define PLAYING_STOP 0
 #define PLAYING_START 1
 #define PLAYING_CONT 2
 #define PLAYING_PREP_STOP 3
 typedef struct
 {
-	uint8_t         patternc;                /* pattern count */
-	uint8_t         patterni[256];           /* pattern backref */
-	pattern        *patternv[256];           /* pattern values */
+	/* patterns */
+	uint8_t         patternc;                    /* pattern count */
+	uint8_t         patterni[PATTERN_MAX];       /* pattern backref */
+	pattern        *patternv[PATTERN_MAX];       /* pattern values */
 
-	uint8_t         instrumentc;             /* instrument count */
-	uint8_t         instrumenti[256];        /* instrument backref */
-	instrument     *instrumentv[256];        /* instrument values */
+	/* instruments */
+	uint8_t         instrumentc;                 /* instrument count */
+	uint8_t         instrumenti[INSTRUMENT_MAX]; /* instrument backref */
+	instrument     *instrumentv[INSTRUMENT_MAX]; /* instrument values */
 
-	uint8_t         channelc;                /* channel count */
-	channel         channelv[32];            /* channel values */
+	/* channels */
+	uint8_t         channelc;                    /* channel count */
+	channel         channelv[32];                /* channel values */
 
-	uint8_t         songi[256];              /* song list backref, links to patterns */
-	uint8_t         songf[256];              /* song list flags */
+	/* playlist */
+	uint8_t         songi[SONG_MAX];             /* song list backref, links to patterns */
+	uint8_t         songf[SONG_MAX];             /* song list flags */
 
-	uint8_t         songp;                   /* song pos, analogous to window->songfy */
-	short           songr;                   /* song row, analogous to window->trackerfy */
+	/* playback pointer */
+	uint8_t         songp;                       /* song pos, analogous to window->songfy */
+	short           songr;                       /* song row, analogous to window->trackerfy */
 
+	/* misc. state */
 	uint8_t         rowhighlight;
 	uint8_t         bpm;
-	uint8_t         songbpm;                 /* to store the song's bpm through bpm change macros */
-	uint16_t        spr;                     /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
-	uint16_t        sprp;                    /* samples per row progress */
+	uint8_t         songbpm;                     /* to store the song's bpm through bpm change macros */
+	uint16_t        spr;                         /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
+	uint16_t        sprp;                        /* samples per row progress */
 	char            playing;
 } song;
 song *s;
@@ -172,6 +204,8 @@ song *s;
 #define INST_REC_LOCK_PREP_CANCEL 7 /* start cancelling recording            */
 #define INST_REC_LOCK_CANCEL 8      /* cancelling recording has finished     */
 
+#define W_FLAG_FOLLOW 0b00000001
+
 #define REQ_OK 0  /* do nothing / done */
 #define REQ_BPM 1 /* re-apply the song bpm */
 typedef struct
@@ -184,8 +218,8 @@ typedef struct
 	instrument     instrumentbuffer;             /* instrument paste buffer */
 	uint8_t        defpatternlength;
 
-	uint8_t        songibuffer[256];             /* song list paste buffer */
-	uint8_t        songfbuffer[256];             /* song list flags paste buffer */
+	uint8_t        songibuffer[PATTERN_MAX];    /* song list paste buffer */
+	uint8_t        songfbuffer[PATTERN_MAX];    /* song list flags paste buffer */
 	uint8_t        songbufferlen;                /* how much of song[i,f]buffer has meaningful data */
 
 	char           filepath[COMMAND_LENGTH];
@@ -197,8 +231,7 @@ typedef struct
 	unsigned short centre;
 	uint8_t        pattern;                      /* focused pattern */
 	uint8_t        channel;                      /* focused channel */
-	uint8_t        channeloffset, visiblechannels;
-	row            channelbufferrowv[256];
+	row            channelbufferrowv[ROW_MAX];
 	uint8_t        channelbufferrowcc;
 	uint8_t        channelbuffermacroc;
 
@@ -217,7 +250,7 @@ typedef struct
 	short          fyoffset;
 	signed char    fieldpointer;
 
-	char           dirpath[NAME_MAX + 1];
+	char           dirpath[NAME_MAX+1];
 	unsigned int   dirc;
 	unsigned short dirmaxwidth;
 	unsigned char  dircols;
@@ -272,18 +305,23 @@ typedef struct
 	sample_t *l;
 	sample_t *r;
 } portbufferpair;
+#define OUTPUT_GROUPS 16
 typedef struct
 {
 	portbufferpair in;
-	portbufferpair out;
+	portbufferpair out[OUTPUT_GROUPS];
 	void *midiout;
 } portbuffers;
+portbuffers pb;
 
+#define PLAY_LOCK_OK 0    /* p->s and p->w are safe */
+#define PLAY_LOCK_START 1 /* p->s and p->w want to be unsafe */
+#define PLAY_LOCK_CONT 2  /* p->s and p->w are unsafe */
 typedef struct
 {
 	song        *s;
 	window      *w;
-	portpair     in, out;
+	portpair     in, out[OUTPUT_GROUPS];
 	jack_port_t *midiout;
 	char         dirty;
 	char         lock;  /* PLAY_LOCK */
@@ -318,14 +356,20 @@ void _addChannel(song *cs, channel *cv)
 	cv->rampindex = rampmax;
 	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
 	cv->stretchrampindex = stretchrampmax;
-	cv->filtercut = 1.0f;
+	cv->gain = 0x88;
+	cv->targetgain = -1;
+	cv->waveshaperstrength = 0; cv->targetwaveshaperstrength = -1;
+	cv->filtercut = 255; cv->targetfiltercut = -1;
+	cv->filterres = 0; cv->targetfilterres = -1;
 	cv->targetmidicc = -1;
-	cv->r.note = NOTE_VOID;
+	cv->targetsendgain = -1;
+	cv->r.note = cv->samplernote = NOTE_VOID;
+	cv->r.inst = cv->samplerinst = INST_VOID;
 }
 void clearPatternChannel(song *cs, uint8_t rawpattern, uint8_t channel)
 {
-	memset(cs->patternv[rawpattern]->rowv[channel], 0, sizeof(row) * 256);
-	for (short r = 0; r < 256; r++)
+	memset(cs->patternv[rawpattern]->rowv[channel], 0, sizeof(row) * ROW_MAX);
+	for (short r = 0; r < ROW_MAX; r++)
 	{
 		cs->patternv[rawpattern]->rowv[channel][r].note = NOTE_VOID;
 		cs->patternv[rawpattern]->rowv[channel][r].inst = INST_VOID;
@@ -333,83 +377,75 @@ void clearPatternChannel(song *cs, uint8_t rawpattern, uint8_t channel)
 }
 int addChannel(song *cs, uint8_t index)
 {
-	if (cs->channelc >= MAX_CHANNELS - 1) return 1;
-	_addChannel(cs, &cs->channelv[cs->channelc]); /* allocate memory */
-	if (cs->channelc > 0) /* contiguity */
-		for (uint8_t i = cs->channelc; i >= index; i--)
+	if (cs->channelc >= MAX_CHANNELS) return 1;
+	if (cs->channelc > 1) /* contiguity */
+		for (int i = cs->channelc-1; i >= index; i--)
 		{
 			for (uint8_t p = 1; p < cs->patternc; p++)
 			{
 				memcpy(cs->patternv[p]->rowv[i+1],
 					cs->patternv[p]->rowv[i],
-					sizeof(row) * 256);
+					sizeof(row) * ROW_MAX);
 				cs->patternv[p]->rowcc[i+1] = cs->patternv[p]->rowcc[i];
 			}
-			cs->channelv[i + 1].mute = cs->channelv[i].mute;
-			cs->channelv[i + 1].macroc = cs->channelv[i].macroc;
+			memcpy(&cs->channelv[i + 1], &cs->channelv[i], sizeof(channel));
 		}
 
-	cs->channelv[index].mute = 0;
-	cs->channelv[index].macroc = 2;
-
+	/* init new channel */
 	for (uint8_t p = 1; p < cs->patternc; p++)
 		clearPatternChannel(cs, p, index);
+	memset(&cs->channelv[index], 0, sizeof(channel));
+	_addChannel(cs, &cs->channelv[index]); /* allocate memory */
+	cs->channelv[index].macroc = 1;
 
 	cs->channelc++;
+DEBUG=cs->channelc;
 	return 0;
 }
 void _delChannel(song *cs, uint8_t index)
 {
-	free(cs->channelv[index].rampbuffer); cs->channelv[index].rampbuffer = NULL;
+	if (cs->channelv[index].rampbuffer != NULL)
+	{
+		free(cs->channelv[index].rampbuffer);
+		cs->channelv[index].rampbuffer = NULL;
+	}
 }
 int delChannel(uint8_t index)
 {
-	uint8_t i, j;
+	uint8_t j;
 	/* if there's only one channel then clear it */
 	if (s->channelc == 1)
 	{
 		for (j = 1; j < s->patternc; j++)
 		{
 			memset(s->patternv[j]->rowv,
-				0, sizeof(row) * 256);
-			for (short r = 0; r < 256; r++)
+				0, sizeof(row) * ROW_MAX);
+			for (short r = 0; r < ROW_MAX; r++)
 			{
 				s->patternv[j]->rowv[0][r].note = NOTE_VOID;
 				s->patternv[j]->rowv[0][r].inst = INST_VOID;
 			}
 			s->patternv[j]->rowcc[0] = s->patternv[j]->rowc;
 		}
-		s->channelv[s->channelc].mute = 0;
-		s->channelv[s->channelc].macroc = 2;
+		s->channelv[s->channelc].flags = C_FLAG_MUTE;
+		s->channelv[s->channelc].macroc = 1;
 		return 1;
 	} else
 	{
 		_delChannel(s, index);
-
-		for (i = index; i < s->channelc; i++)
+		for (int i = index; i < s->channelc-1; i++)
 		{
 			for (j = 1; j < s->patternc; j++)
 			{
 				memcpy(s->patternv[j]->rowv[i],
 					s->patternv[j]->rowv[i+1],
-					sizeof(row) * 256);
+					sizeof(row) * ROW_MAX);
 				s->patternv[j]->rowcc[i] = s->patternv[j]->rowcc[i+1];
 			}
 			memcpy(&s->channelv[i],
 				&s->channelv[i + 1],
 				sizeof(channel));
-		}
-		s->channelc--;
-
-		// jack_deactivate(client);
-		/* jack_port_unregister(client, p->cin[s->channelc].l);
-		jack_port_unregister(client, p->cin[s->channelc].r);
-		jack_port_unregister(client, p->cout[s->channelc].l);
-		jack_port_unregister(client, p->cout[s->channelc].r); */
-		// jack_activate(client);
-
-		if (w->channeloffset)
-			w->channeloffset--;
+		} s->channelc--;
 		return 0;
 	}
 }
@@ -417,7 +453,7 @@ void yankChannel(uint8_t pattern, uint8_t channel)
 {
 	memcpy(&w->channelbufferrowv,
 		s->patternv[s->patterni[pattern]]->rowv[channel],
-		sizeof(row) * 256);
+		sizeof(row) * ROW_MAX);
 	w->channelbufferrowcc = s->patternv[s->patterni[pattern]]->rowcc[channel];
 	w->channelbuffermacroc = s->channelv[channel].macroc;
 }
@@ -425,7 +461,7 @@ void putChannel(uint8_t pattern, uint8_t channel)
 {
 	memcpy(s->patternv[s->patterni[pattern]]->rowv[channel],
 		&w->channelbufferrowv,
-		sizeof(row) * 256);
+		sizeof(row) * ROW_MAX);
 	s->patternv[s->patterni[pattern]]->rowcc[channel] = w->channelbufferrowcc;
 	s->channelv[channel].macroc = MAX(s->channelv[channel].macroc, w->channelbuffermacroc);
 }
@@ -433,7 +469,7 @@ void mixPutChannel(uint8_t pattern, uint8_t channel) /* TODO */
 {
 	memcpy(s->patternv[s->patterni[pattern]]->rowv[channel],
 		&w->channelbufferrowv,
-		sizeof(row) * 256);
+		sizeof(row) * ROW_MAX);
 
 	/* TODO: should render polyrhythms */
 	s->patternv[s->patterni[pattern]]->rowcc[channel] =
@@ -450,7 +486,7 @@ int _addPattern(song *cs, uint8_t realindex)
 	if (!cs->patternv[realindex]) return 1;
 
 	for (short c = 0; c < MAX_CHANNELS; c++)
-		for (short r = 0; r < 256; r++)
+		for (short r = 0; r < ROW_MAX; r++)
 		{
 			cs->patternv[realindex]->rowv[c][r].note = NOTE_VOID;
 			cs->patternv[realindex]->rowv[c][r].inst = INST_VOID;
@@ -461,14 +497,17 @@ void copyPattern(pattern *dest, pattern *src)
 {
 	dest->rowc = src->rowc;
 	memcpy(dest->rowcc, src->rowcc, sizeof(uint8_t) * MAX_CHANNELS);
-	memcpy(dest->rowv, src->rowv, sizeof(row) * MAX_CHANNELS * 256);
+	memcpy(dest->rowv, src->rowv, sizeof(row) * MAX_CHANNELS * ROW_MAX);
 }
 void _delPattern(pattern *pv)
 {
 	for (int i = 0; i < 128; i++)
 	{
-		if (pv->history[i]) free(pv->history[i]);
-		pv->history[i] = NULL;
+		if (pv->history[i])
+		{
+			free(pv->history[i]);
+			pv->history[i] = NULL;
+		}
 	}
 }
 void pushPatternHistory(pattern *pv)
@@ -479,11 +518,14 @@ void pushPatternHistory(pattern *pv)
 	else                       pv->historyptr++;
 
 	if (pv->historybehind) pv->historybehind--;
-	if (pv->historyahead)  pv->historyahead = 0;
+	if (pv->historyahead) pv->historyahead = 0;
 
 	if (pv->history[pv->historyptr%128])
+	{
 		_delPattern(pv->history[pv->historyptr%128]);
-	free(pv->history[pv->historyptr%128]);
+		free(pv->history[pv->historyptr%128]);
+		pv->history[pv->historyptr%128] = NULL;
+	}
 	pv->history[pv->historyptr%128] = calloc(1, sizeof(pattern));
 	copyPattern(pv->history[pv->historyptr%128], pv);
 
@@ -494,16 +536,12 @@ void pushPatternHistory(pattern *pv)
 void pushPatternHistoryIfNew(pattern *pv)
 {
 	if (!pv) return;
-
 	pattern *pvh = pv->history[pv->historyptr%128];
 	if (!pvh) return;
 
-	/* dest->rowc = src->rowc;
-	memcpy(dest->rowcc, src->rowcc, sizeof(uint8_t) * MAX_CHANNELS);
-	memcpy(dest->rowv, src->rowv, sizeof(row) * MAX_CHANNELS * 256); */
 	if (pvh->rowc != pv->rowc
 			|| memcmp(pvh->rowcc, pv->rowcc, sizeof(uint8_t) * MAX_CHANNELS)
-			|| memcmp(pvh->rowv, pv->rowv, sizeof(row) * MAX_CHANNELS * 256))
+			|| memcmp(pvh->rowv, pv->rowv, sizeof(row) * MAX_CHANNELS * ROW_MAX))
 		pushPatternHistory(pv);
 }
 
@@ -549,9 +587,9 @@ void unpopPatternHistory(uint8_t realindex) /* redo */
 	pv->historyahead--;
 }
 /* length 0 for the default */
-int addPattern(uint8_t index, uint8_t length)
+int addPattern(uint8_t index)
 {
-	if (index == 255) return 1; /* index invalid */
+	if (index == PATTERN_VOID) return 1; /* index invalid */
 	if (s->patterni[index] > 0) return 1; /* index occupied */
 
 	if (_addPattern(s, s->patternc))
@@ -560,8 +598,7 @@ int addPattern(uint8_t index, uint8_t length)
 		return 1;
 	}
 
-	if (length > 0) s->patternv[s->patternc]->rowc = length;
-	else            s->patternv[s->patternc]->rowc = w->defpatternlength;
+	s->patternv[s->patternc]->rowc = w->defpatternlength;
 	for (short c = 0; c < MAX_CHANNELS; c++)
 		s->patternv[s->patternc]->rowcc[c] = s->patternv[s->patternc]->rowc;
 
@@ -573,21 +610,31 @@ int addPattern(uint8_t index, uint8_t length)
 }
 uint8_t emptySongIndex(uint8_t oldindex)
 {
-	for (int i = 0; i < 255; i++)
+	for (int i = 0; i < PATTERN_MAX-1; i++) /* TODO: is the -1 correct? */
 		if (!s->patterni[i])
 			return i;
 	return oldindex; /* no free slots */
 }
 int duplicatePattern(uint8_t oldindex)
 {
-	uint8_t index = emptySongIndex(oldindex);
-	if (index != oldindex)
+	uint8_t index;
+	int i;
+	if ((index = emptySongIndex(oldindex)) != oldindex)
 	{
-		addPattern(index, 0);
+		_addPattern(s, s->patternc);
+		s->patterni[index] = s->patternc;
+		s->patternc++;
 		memcpy(s->patternv[s->patterni[index]],
 				s->patternv[s->patterni[oldindex]],
 				sizeof(pattern));
-		return index;
+		for (i = 0; i < 128; i++)
+		{
+			if (s->patternv[s->patterni[oldindex]]->history[i])
+			{
+				s->patternv[s->patterni[index]]->history[i] = calloc(1, sizeof(pattern));
+				copyPattern(s->patternv[s->patterni[oldindex]]->history[i], s->patternv[s->patterni[index]]->history[i]);
+			}
+		} return index;
 	} else return oldindex;
 }
 int yankPattern(uint8_t index)
@@ -602,7 +649,7 @@ int yankPattern(uint8_t index)
 int putPattern(uint8_t index)
 {
 	if (!s->patterni[index])
-		if (addPattern(index, 0)) return 1; /* allocate memory */
+		if (addPattern(index)) return 1; /* allocate memory */
 
 	memcpy(s->patternv[s->patterni[index]],
 			&w->songbuffer,
@@ -618,25 +665,44 @@ int putPattern(uint8_t index)
 }
 int delPattern(uint8_t index)
 {
-	if (s->patternc <= 1) return 1; /* no patterns to remove */
-	if (!s->patterni[index]) return 1; /* pattern doesn't exist */
-	uint8_t cutIndex = s->patterni[index];
+	if (s->patterni[index] == PATTERN_VOID) return 1; /* pattern doesn't exist */
+	uint8_t cutindex = s->patterni[index];
 
-	free(s->patternv[cutIndex]); s->patternv[cutIndex] = NULL;
+	_delPattern(s->patternv[cutindex]);
+	free(s->patternv[cutindex]); s->patternv[cutindex] = NULL;
 
 	s->patterni[index] = 0;
 
 	/* enforce contiguity */
 	unsigned short i;
-	for (i = cutIndex; i < s->patternc - 1; i++)
+	for (i = cutindex; i < s->patternc - 1; i++)
 		s->patternv[i] = s->patternv[i + 1];
 
-	for (i = 0; i < 256; i++) // for every backref index
-		if (s->patterni[i] > cutIndex && s->patterni[i] != 0)
+	for (i = 0; i < PATTERN_MAX; i++) // for every backref index
+		if (s->patterni[i] > cutindex && s->patterni[i] != 0)
 			s->patterni[i]--;
 
 	s->patternc--;
 	return 0;
+}
+
+void renderPatternChannel(pattern *pv, uint8_t channel, uint16_t count)
+{
+	int max = pv->rowcc[channel];
+	if (count) pv->rowcc[channel] = count - 1;
+	else       pv->rowcc[channel] = pv->rowc;
+	while (max < pv->rowcc[channel])
+		if (max < (ROW_MAX>>1)-1)
+		{
+			memcpy(&pv->rowv[channel][max + 1], pv->rowv[channel],
+					sizeof(row) * (max + 1));
+			max = (max + 1) * 2 - 1;
+		} else
+		{
+			memcpy(&pv->rowv[channel][max + 1], pv->rowv[channel],
+					sizeof(row) * ((ROW_MAX-1) - max));
+			max = (ROW_MAX-1); break;
+		}
 }
 
 short tfxToVfx(short trackerfx)
@@ -653,16 +719,11 @@ short vfxToTfx(short visualfx)
 }
 void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	w->pbfx[0] = x1;
-	w->pbfx[1] = x2;
-	w->pbfy[0] = y1;
-	w->pbfy[1] = y2;
-	w->pbchannel[0] = c1;
-	w->pbchannel[1] = c2;
+	w->pbfx[0] = x1; w->pbfy[0] = y1; w->pbchannel[0] = c1;
+	w->pbfx[1] = x2; w->pbfy[1] = y2; w->pbchannel[1] = c2;
 	w->pbpopulated = 1;
 
 	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
-	// uint8_t row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[channel]+1);
 	memcpy(&w->patternbuffer, destpattern, sizeof(pattern));
 	for (uint8_t i = c1; i <= c2; i++)
 		for (uint8_t j = 1; j < ((unsigned short)destpattern->rowc+1) / ((unsigned short)destpattern->rowcc[i]+1); j++)
@@ -677,16 +738,16 @@ void putPartPattern(void)
 	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
 	if (w->pbchannel[0] == w->pbchannel[1]) /* only one channel */
 	{
-		if ((w->pbfx[0] == 2 && w->pbfx[1] == 2) || (w->pbfx[0] == 3 && w->pbfx[1] == 3)) /* just one macro column */
+		if (w->pbfx[0] > 1 && w->pbfx[0] == w->pbfx[1]) /* just one macro column */
 		{
 			unsigned char targetmacro;
 			if (w->trackerfx < 2) targetmacro = 0;
-			else targetmacro = tfxToVfx(w->trackerfx) - 2;
+			else targetmacro = tfxToVfx(w->trackerfx)-2;
 			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
-				uint8_t row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
-				destpattern->rowv[w->channel][row].macro[targetmacro].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0] - 2].c;
-				destpattern->rowv[w->channel][row].macro[targetmacro].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0] - 2].v;
+				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
+				destpattern->rowv[w->channel][row].macro[targetmacro].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].c;
+				destpattern->rowv[w->channel][row].macro[targetmacro].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].v;
 			}
 			w->trackerfx = vfxToTfx(targetmacro + 2);
 		} else
@@ -696,14 +757,13 @@ void putPartPattern(void)
 				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0) destpattern->rowv[w->channel][row].note = w->patternbuffer.rowv[w->pbchannel[0]][j].note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
-				for (k = 0; k < s->channelv[w->channel].macroc; k++)
+				for (k = 0; k <= s->channelv[w->channel].macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2)
 					{
 						destpattern->rowv[w->channel][row].macro[k].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[k].c;
 						destpattern->rowv[w->channel][row].macro[k].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[k].v;
 					}
-			}
-			w->trackerfx = vfxToTfx(w->pbfx[0]);
+			} w->trackerfx = vfxToTfx(w->pbfx[0]);
 		}
 	} else
 	{
@@ -718,7 +778,7 @@ void putPartPattern(void)
 					{
 						if (w->pbfx[0] <= 0) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
 						if (w->pbfx[0] <= 1) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
-						for (k = 0; k < s->channelv[channel].macroc; k++)
+						for (k = 0; k <= s->channelv[channel].macroc; k++)
 							if (w->pbfx[0] <= k+2)
 							{
 								destpattern->rowv[channel][row].macro[k].c = w->patternbuffer.rowv[i][j].macro[k].c;
@@ -728,7 +788,7 @@ void putPartPattern(void)
 					{
 						if (w->pbfx[1] >= 0) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
 						if (w->pbfx[1] >= 1) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
-						for (k = 0; k < s->channelv[channel].macroc; k++)
+						for (k = 0; k <= s->channelv[channel].macroc; k++)
 							if (w->pbfx[1] >= k+2)
 							{
 								destpattern->rowv[channel][row].macro[k].c = w->patternbuffer.rowv[i][j].macro[k].c;
@@ -738,8 +798,90 @@ void putPartPattern(void)
 						destpattern->rowv[channel][row] = w->patternbuffer.rowv[i][j];
 				}
 			else break;
+		} w->trackerfx = vfxToTfx(w->pbfx[0]);
+	}
+}
+void mixPutPartPattern(void)
+{
+	uint8_t i, j, row, channel;
+	int k;
+	if (!w->pbpopulated) return;
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
+	if (w->pbchannel[0] == w->pbchannel[1]) /* only one channel */
+	{
+		if (w->pbfx[0] > 1 && w->pbfx[0] == w->pbfx[1]) /* just one macro column */
+		{
+			unsigned char targetmacro;
+			if (w->trackerfx < 2) targetmacro = 0;
+			else targetmacro = tfxToVfx(w->trackerfx)-2;
+			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
+			{
+				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
+				if (w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].c)
+				{
+					destpattern->rowv[w->channel][row].macro[targetmacro].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].c;
+					destpattern->rowv[w->channel][row].macro[targetmacro].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].v;
+				}
+			}
+			w->trackerfx = vfxToTfx(targetmacro + 2);
+		} else
+		{
+			for (j = w->pbfy[0]; j <= w->pbfy[1]; j++)
+			{
+				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
+				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0 && w->patternbuffer.rowv[w->pbchannel[0]][j].note != NOTE_VOID) destpattern->rowv[w->channel][row].note = w->patternbuffer.rowv[w->pbchannel[0]][j].note;
+				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1 && w->patternbuffer.rowv[w->pbchannel[0]][j].inst != INST_VOID) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
+				for (k = 0; k <= s->channelv[w->channel].macroc; k++)
+					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2 && w->patternbuffer.rowv[w->pbchannel[0]][j].macro[k].c)
+					{
+						destpattern->rowv[w->channel][row].macro[k].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[k].c;
+						destpattern->rowv[w->channel][row].macro[k].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[k].v;
+					}
+			} w->trackerfx = vfxToTfx(w->pbfx[0]);
 		}
-		w->trackerfx = vfxToTfx(w->pbfx[0]);
+	} else
+	{
+		for (i = w->pbchannel[0]; i <= w->pbchannel[1]; i++)
+		{
+			channel = w->channel + i - w->pbchannel[0];
+			if (channel < s->channelc)
+				for (j = w->pbfy[0]; j <= w->pbfy[1]; j++)
+				{
+					row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[channel]+1);
+					if (i == w->pbchannel[0]) /* first channel */
+					{
+						if (w->pbfx[0] <= 0 && w->patternbuffer.rowv[i][j].note != NOTE_VOID) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
+						if (w->pbfx[0] <= 1 && w->patternbuffer.rowv[i][j].inst != INST_VOID) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
+						for (k = 0; k <= s->channelv[channel].macroc; k++)
+							if (w->pbfx[0] <= k+2 && w->patternbuffer.rowv[i][j].macro[k].c)
+							{
+								destpattern->rowv[channel][row].macro[k].c = w->patternbuffer.rowv[i][j].macro[k].c;
+								destpattern->rowv[channel][row].macro[k].v = w->patternbuffer.rowv[i][j].macro[k].v;
+							}
+					} else if (i == w->pbchannel[1]) /* last channel */
+					{
+						if (w->pbfx[1] >= 0 && w->patternbuffer.rowv[i][j].note != NOTE_VOID) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
+						if (w->pbfx[1] >= 1 && w->patternbuffer.rowv[i][j].inst != INST_VOID) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
+						for (k = 0; k <= s->channelv[channel].macroc; k++)
+							if (w->pbfx[1] >= k+2 && w->patternbuffer.rowv[i][j].macro[k].c)
+							{
+								destpattern->rowv[channel][row].macro[k].c = w->patternbuffer.rowv[i][j].macro[k].c;
+								destpattern->rowv[channel][row].macro[k].v = w->patternbuffer.rowv[i][j].macro[k].v;
+							}
+					} else /* middle channel */
+					{
+						if (w->patternbuffer.rowv[i][j].note != NOTE_VOID) destpattern->rowv[channel][row].note = w->patternbuffer.rowv[i][j].note;
+						if (w->patternbuffer.rowv[i][j].inst != INST_VOID) destpattern->rowv[channel][row].inst = w->patternbuffer.rowv[i][j].inst;
+						for (k = 0; k <= s->channelv[channel].macroc; k++)
+							if (w->patternbuffer.rowv[i][j].macro[k].c)
+							{
+								destpattern->rowv[channel][row].macro[k].c = w->patternbuffer.rowv[i][j].macro[k].c;
+								destpattern->rowv[channel][row].macro[k].v = w->patternbuffer.rowv[i][j].macro[k].v;
+							}
+					}
+				}
+			else break;
+		} w->trackerfx = vfxToTfx(w->pbfx[0]);
 	}
 }
 void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
@@ -751,10 +893,10 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			row = (y1 + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
+			row = (y1 + j - w->pbfy[0]) % (destpattern->rowcc[c1]+1);
 			if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][row].note = NOTE_VOID;
 			if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][row].inst = INST_VOID;
-			for (k = 0; k < s->channelv[c1].macroc; k++)
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					destpattern->rowv[c1][row].macro[k].c = 0;
@@ -771,7 +913,7 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 					{
 						if (x1 <= 0) destpattern->rowv[i][row].note = NOTE_VOID;
 						if (x1 <= 1) destpattern->rowv[i][row].inst = INST_VOID;
-						for (k = 0; k < s->channelv[i].macroc; k++)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
 							if (x1 <= k+2)
 							{
 								destpattern->rowv[i][row].macro[k].c = 0;
@@ -781,8 +923,8 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 					{
 						if (x2 >= 0) destpattern->rowv[i][row].note = NOTE_VOID;
 						if (x2 >= 1) destpattern->rowv[i][row].inst = INST_VOID;
-						for (k = 0; k < s->channelv[i].macroc; k++)
-							if (x1 >= k+2)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
+							if (x2 >= k+2)
 							{
 								destpattern->rowv[i][row].macro[k].c = 0;
 								destpattern->rowv[i][row].macro[k].v = 0;
@@ -806,10 +948,10 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			row = j % (destpattern->rowcc[w->channel]+1);
+			row = j % (destpattern->rowcc[c1]+1);
 			if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][row].note += value;
 			if (x1 <= 1 && x2 >= 1) destpattern->rowv[c1][row].inst += value;
-			for (k = 0; k < s->channelv[c1].macroc; k++)
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 					switch (destpattern->rowv[c1][row].macro[k].c)
 					{
@@ -827,7 +969,7 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 					{
 						if (x1 <= 0) destpattern->rowv[i][row].note += value;
 						if (x1 <= 1) destpattern->rowv[i][row].inst += value;
-						for (k = 0; k < s->channelv[i].macroc; k++)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
 							if (x1 <= k+2)
 								switch (destpattern->rowv[i][row].macro[k].c)
 								{
@@ -838,8 +980,8 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 					{
 						if (x2 >= 0) destpattern->rowv[i][row].note += value;
 						if (x2 >= 1) destpattern->rowv[i][row].inst += value;
-						for (k = 0; k < s->channelv[i].macroc; k++)
-							if (x1 >= k+2)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
+							if (x2 >= k+2)
 								switch (destpattern->rowv[i][row].macro[k].c)
 								{
 									case 'G': destpattern->rowv[i][row].macro[k].v += value*16;
@@ -849,7 +991,7 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 					{
 						destpattern->rowv[i][row].note += value;
 						destpattern->rowv[i][row].inst += value;
-						for (k = 0; k < s->channelv[i].macroc; k++)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
 							switch (destpattern->rowv[i][row].macro[k].c)
 							{
 								case 'G': destpattern->rowv[i][row].macro[k].v += value*16;
@@ -869,8 +1011,8 @@ void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			row = j % (destpattern->rowcc[w->channel]+1);
-			for (k = 0; k < s->channelv[c1].macroc; k++)
+			row = j % (destpattern->rowcc[c1]+1);
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					if      (isupper(destpattern->rowv[c1][row].macro[k].c))
@@ -888,8 +1030,7 @@ void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_
 				{
 					row = j % (destpattern->rowcc[i]+1);
 					if (i == c1) /* first channel */
-						for (k = 0; k < s->channelv[i].macroc; k++)
-						{
+						for (k = 0; k <= s->channelv[i].macroc; k++) {
 							if (x1 <= k+2)
 							{
 								if      (isupper(destpattern->rowv[i][row].macro[k].c))
@@ -898,12 +1039,10 @@ void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_
 								else if (islower(destpattern->rowv[i][row].macro[k].c))
 									changeMacro(destpattern->rowv[i][row].macro[k].c,
 											&destpattern->rowv[i][row].macro[k].c);
-							}
-						}
+							}}
 					else if (i == c2) /* last channel */
-						for (k = 0; k < s->channelv[i].macroc; k++)
-						{
-							if (x1 >= k+2)
+						for (k = 0; k <= s->channelv[i].macroc; k++) {
+							if (x2 >= k+2)
 							{
 								if      (isupper(destpattern->rowv[i][row].macro[k].c))
 									changeMacro(destpattern->rowv[i][row].macro[k].c,
@@ -911,10 +1050,9 @@ void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_
 								else if (islower(destpattern->rowv[i][row].macro[k].c))
 									changeMacro(destpattern->rowv[i][row].macro[k].c,
 											&destpattern->rowv[i][row].macro[k].c);
-							}
-						}
+							}}
 					else /* middle channel */
-						for (k = 0; k < s->channelv[i].macroc; k++)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
 						{
 							if      (isupper(destpattern->rowv[i][row].macro[k].c))
 								changeMacro(destpattern->rowv[i][row].macro[k].c,
@@ -926,8 +1064,84 @@ void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_
 				}
 			else break;
 }
+/* block interpolate */
+void interpolatePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	uint8_t i, j, row;
+	short row1, row2;
+	int k;
+	pattern *pv = s->patternv[s->patterni[s->songi[w->songfy]]];
+	if (c1 == c2) /* only one channel */
+	{
+		row1 = y1 % (pv->rowcc[c1]+1);
+		row2 = y2 % (pv->rowcc[c1]+1);
+		for (j = y1; j <= y2; j++)
+		{
+			row = j % (pv->rowcc[c1]+1);
+			if (x1 <= 0 && x2 >= 0)
+			{
+				if      (pv->rowv[c1][row1].note == NOTE_VOID) pv->rowv[c1][row].note = pv->rowv[c1][row2].note;
+				else if (pv->rowv[c1][row2].note == NOTE_VOID) pv->rowv[c1][row].note = pv->rowv[c1][row1].note;
+				else pv->rowv[c1][row].note = pv->rowv[c1][row1].note + ((pv->rowv[c1][row2].note - pv->rowv[c1][row1].note) / (float)(y2-y1)) * (j-y1);
+			}
+			if (x1 <= 1 && x2 >= 1)
+			{
+				if      (pv->rowv[c1][row1].inst == INST_VOID) pv->rowv[c1][row].inst = pv->rowv[c1][row2].inst;
+				else if (pv->rowv[c1][row2].inst == INST_VOID) pv->rowv[c1][row].inst = pv->rowv[c1][row1].inst;
+				else pv->rowv[c1][row].inst = pv->rowv[c1][row1].inst + ((pv->rowv[c1][row2].inst - pv->rowv[c1][row1].inst) / (float)(y2-y1)) * (j-y1);
+			}
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
+				if (x1 <= k+2 && x2 >= k+2)
+				{
+					pv->rowv[c1][row].macro[k].c = (pv->rowv[c1][row1].macro[k].c) ? pv->rowv[c1][row1].macro[k].c : pv->rowv[c1][row2].macro[k].c;
+					pv->rowv[c1][row].macro[k].v = pv->rowv[c1][row1].macro[k].v + ((pv->rowv[c1][row2].macro[k].v - pv->rowv[c1][row1].macro[k].v) / (float)(y2-y1)) * (j-y1);
+				}
+		}
+	} else
+		for (i = c1; i <= c2; i++)
+			if (i < s->channelc) {
+				row1 = y1 % (pv->rowcc[i]+1);
+				row2 = y2 % (pv->rowcc[i]+1);
+				for (j = y1; j <= y2; j++)
+				{
+					row = j % (pv->rowcc[i]+1);
+					if (i == c1) /* first channel */
+					{
+						if (x1 <= 0) pv->rowv[i][row].note = pv->rowv[i][row1].note + ((pv->rowv[i][row2].note - pv->rowv[i][row1].note) / (float)(y2-y1)) * (j-y1);
+						if (x1 <= 1) pv->rowv[i][row].inst = pv->rowv[i][row1].inst + ((pv->rowv[i][row2].inst - pv->rowv[i][row1].inst) / (float)(y2-y1)) * (j-y1);
+						for (k = 0; k <= s->channelv[i].macroc; k++)
+							if (x1 <= k+2)
+							{
+								pv->rowv[i][row].macro[k].c = (pv->rowv[i][row1].macro[k].c) ? pv->rowv[i][row1].macro[k].c : pv->rowv[i][row2].macro[k].c;
+								pv->rowv[i][row].macro[k].v = pv->rowv[i][row1].macro[k].v + ((pv->rowv[i][row2].macro[k].v - pv->rowv[i][row1].macro[k].v) / (float)(y2-y1)) * (j-y1);
+							}
+					}
+					else if (i == c2) /* last channel */
+					{
+						if (x2 >= 0) pv->rowv[i][row].note = pv->rowv[i][row1].note + ((pv->rowv[i][row2].note - pv->rowv[i][row1].note) / (float)(y2-y1)) * (j-y1);
+						if (x2 >= 1) pv->rowv[i][row].inst = pv->rowv[i][row1].inst + ((pv->rowv[i][row2].inst - pv->rowv[i][row1].inst) / (float)(y2-y1)) * (j-y1);
+						for (k = 0; k <= s->channelv[i].macroc; k++)
+							if (x2 >= k+2)
+							{
+								pv->rowv[i][row].macro[k].c = (pv->rowv[i][row1].macro[k].c) ? pv->rowv[i][row1].macro[k].c : pv->rowv[i][row2].macro[k].c;
+								pv->rowv[i][row].macro[k].v = pv->rowv[i][row1].macro[k].v + ((pv->rowv[i][row2].macro[k].v - pv->rowv[i][row1].macro[k].v) / (float)(y2-y1)) * (j-y1);
+							}
+					}
+					else /* middle channel */
+					{
+						pv->rowv[i][row].note = pv->rowv[i][row1].note + ((pv->rowv[i][row2].note - pv->rowv[i][row1].note) / (float)(y2-y1)) * (j-y1);
+						pv->rowv[i][row].inst = pv->rowv[i][row1].inst + ((pv->rowv[i][row2].inst - pv->rowv[i][row1].inst) / (float)(y2-y1)) * (j-y1);
+						for (k = 0; k <= s->channelv[i].macroc; k++)
+						{
+							pv->rowv[i][row].macro[k].c = (pv->rowv[i][row1].macro[k].c) ? pv->rowv[i][row1].macro[k].c : pv->rowv[i][row2].macro[k].c;
+							pv->rowv[i][row].macro[k].v = pv->rowv[i][row1].macro[k].v + ((pv->rowv[i][row2].macro[k].v - pv->rowv[i][row1].macro[k].v) / (float)(y2-y1)) * (j-y1);
+						}
+					}
+				}
+			} else break;
+}
 /* block randomize */
-void randPartPattern(signed char value, short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+void randPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	uint8_t i, j, row, randinst;
 	int k;
@@ -936,17 +1150,17 @@ void randPartPattern(signed char value, short x1, short x2, short y1, short y2, 
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			row = j % (destpattern->rowcc[w->channel]+1);
-			if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][row].note = MIN(A10-1, rand()%36 +MIN(7, w->octave)*12);
+			row = j % (destpattern->rowcc[c1]+1);
+			if (x1 <= 0 && x2 >= 0) destpattern->rowv[c1][row].note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
 			if (x1 <= 1 && x2 >= 1 && destpattern->rowv[c1][row].note != NOTE_VOID)
 			{
 				destpattern->rowv[c1][row].inst = NOTE_VOID;
 				randinst = rand()%(s->instrumentc-1) + 1;
-				for (k = 0; k < 255; k++)
+				for (k = 0; k < INSTRUMENT_MAX; k++)
 					if (s->instrumenti[k] == randinst)
 					{ destpattern->rowv[c1][row].inst = k; break; }
 			}
-			for (k = 0; k < s->channelv[c1].macroc; k++)
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && destpattern->rowv[c1][row].macro[k].c)
 					destpattern->rowv[c1][row].macro[k].v = rand()%256;
 		}
@@ -959,49 +1173,251 @@ void randPartPattern(signed char value, short x1, short x2, short y1, short y2, 
 					row = j % (destpattern->rowcc[i]+1);
 					if (i == c1) /* first channel */
 					{
-						if (x1 <= 0) destpattern->rowv[i][row].note = MIN(A10-1, rand()%36 +MIN(7, w->octave)*12);
-						if (x1 <= 1 && destpattern->rowv[i][row].note)
+						if (x1 <= 0) destpattern->rowv[i][row].note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
+						if (x1 <= 1 && destpattern->rowv[i][row].note != NOTE_VOID)
 						{
 							destpattern->rowv[i][row].inst = NOTE_VOID;
 							randinst = rand()%(s->instrumentc-1) + 1;
-							for (k = 0; k < 255; k++)
+							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrumenti[k] == randinst)
 								{ destpattern->rowv[i][row].inst = k; break; }
 						}
-						for (k = 0; k < s->channelv[i].macroc; k++)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
 							if (x1 <= k+2 && destpattern->rowv[i][row].macro[k].c)
 								destpattern->rowv[i][row].macro[k].v = rand()%256;
 					} else if (i == c2) /* last channel */
 					{
-						if (x2 >= 0) destpattern->rowv[i][row].note = MIN(A10-1, rand()%36 +MIN(7, w->octave)*12);
-						if (x2 >= 1 && destpattern->rowv[i][row].note)
+						if (x2 >= 0) destpattern->rowv[i][row].note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
+						if (x2 >= 1 && destpattern->rowv[i][row].note != NOTE_VOID)
 						{
 							destpattern->rowv[i][row].inst = NOTE_VOID;
 							randinst = rand()%(s->instrumentc-1) + 1;
-							for (k = 0; k < 255; k++)
+							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrumenti[k] == randinst)
 								{ destpattern->rowv[i][row].inst = k; break; }
 						}
-						for (k = 0; k < s->channelv[i].macroc; k++)
-							if (x1 >= k+2 && destpattern->rowv[i][row].macro[k].c)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
+							if (x2 >= k+2 && destpattern->rowv[i][row].macro[k].c)
 								destpattern->rowv[i][row].macro[k].v = rand()%256;
 					} else /* middle channel */
 					{
-						destpattern->rowv[i][row].note = MIN(A10-1, rand()%36 +MIN(7, w->octave)*12);
-						if (destpattern->rowv[i][row].note)
+						destpattern->rowv[i][row].note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
+						if (destpattern->rowv[i][row].note != NOTE_VOID)
 						{
 							destpattern->rowv[i][row].inst = NOTE_VOID;
 							randinst = rand()%(s->instrumentc-1) + 1;
-							for (k = 0; k < 255; k++)
+							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrumenti[k] == randinst)
 								{ destpattern->rowv[i][row].inst = k; break; }
 						}
-						for (k = 0; k < s->channelv[i].macroc; k++)
+						for (k = 0; k <= s->channelv[i].macroc; k++)
 							if (destpattern->rowv[i][row].macro[k].c)
 								destpattern->rowv[i][row].macro[k].v = rand()%256;
 					}
 				}
 			else break;
+	}
+}
+void cycleUpPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	if (s->songi[w->songfy] == PATTERN_VOID) return;
+
+	uint8_t i;
+	int j, k, l;
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
+	row hold;
+	if (c1 == c2) /* only one channel */
+	{
+		for (l = 0; l < MAX(1, w->count); l++)
+		{
+			hold = destpattern->rowv[c1][y1];
+			if (x1 <= 0 && x2 >= 0)
+			{
+				for (j = y1; j < y2; j++) destpattern->rowv[c1][j].note = destpattern->rowv[c1][j+1].note;
+				destpattern->rowv[c1][y2].note = hold.note;
+			}
+			if (x1 <= 1 && x2 >= 1)
+			{
+				for (j = y1; j < y2; j++) destpattern->rowv[c1][j].inst = destpattern->rowv[c1][j+1].inst;
+				destpattern->rowv[c1][y2].inst = hold.inst;
+			}
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
+				if (x1 <= k+2 && x2 >= k+2)
+				{
+					for (j = y1; j < y2; j++)
+					{
+						destpattern->rowv[c1][j].macro[k].c = destpattern->rowv[c1][j+1].macro[k].c;
+						destpattern->rowv[c1][j].macro[k].v = destpattern->rowv[c1][j+1].macro[k].v;
+					}
+					destpattern->rowv[c1][y2].macro[k].c = hold.macro[k].c;
+					destpattern->rowv[c1][y2].macro[k].v = hold.macro[k].v;
+				}
+		}
+	} else
+	{
+		for (i = c1; i <= c2; i++)
+			if (i < s->channelc) {
+				if (i == c1) /* first channel */
+					for (l = 0; l < MAX(1, w->count); l++)
+					{
+						hold = destpattern->rowv[c1][y1];
+						if (x1 <= 0)
+						{
+							for (j = y1; j < y2; j++) destpattern->rowv[c1][j].note = destpattern->rowv[c1][j+1].note;
+							destpattern->rowv[c1][y2].note = hold.note;
+						}
+						if (x1 <= 1)
+						{
+							for (j = y1; j < y2; j++) destpattern->rowv[c1][j].inst = destpattern->rowv[c1][j+1].inst;
+							destpattern->rowv[c1][y2].inst = hold.inst;
+						}
+						for (k = 0; k <= s->channelv[c1].macroc; k++)
+							if (x1 <= k+2)
+							{
+								for (j = y1; j < y2; j++)
+								{
+									destpattern->rowv[c1][j].macro[k].c = destpattern->rowv[c1][j+1].macro[k].c;
+									destpattern->rowv[c1][j].macro[k].v = destpattern->rowv[c1][j+1].macro[k].v;
+								}
+								destpattern->rowv[c1][y2].macro[k].c = hold.macro[k].c;
+								destpattern->rowv[c1][y2].macro[k].v = hold.macro[k].v;
+							}
+					}
+				else if (i == c2) /* last channel */
+					for (l = 0; l < MAX(1, w->count); l++)
+					{
+						hold = destpattern->rowv[c2][y1];
+						if (x2 >= 0)
+						{
+							for (j = y1; j < y2; j++) destpattern->rowv[c2][j].note = destpattern->rowv[c2][j+1].note;
+							destpattern->rowv[c2][y2].note = hold.note;
+						}
+						if (x2 >= 1)
+						{
+							for (j = y1; j < y2; j++) destpattern->rowv[c2][j].inst = destpattern->rowv[c2][j+1].inst;
+							destpattern->rowv[c2][y2].inst = hold.inst;
+						}
+						for (k = 0; k <= s->channelv[c2].macroc; k++)
+							if (x2 >= k+2)
+							{
+								for (j = y1; j < y2; j++)
+								{
+									destpattern->rowv[c2][j].macro[k].c = destpattern->rowv[c2][j+1].macro[k].c;
+									destpattern->rowv[c2][j].macro[k].v = destpattern->rowv[c2][j+1].macro[k].v;
+								}
+								destpattern->rowv[c2][y2].macro[k].c = hold.macro[k].c;
+								destpattern->rowv[c2][y2].macro[k].v = hold.macro[k].v;
+							}
+					}
+				else /* middle channel */
+					for (l = 0; l < MAX(1, w->count); l++)
+					{
+						hold = destpattern->rowv[i][y1];
+						for (j = y1; j < y2; j++) destpattern->rowv[i][j] = destpattern->rowv[i][j+1];
+						destpattern->rowv[i][y2] = hold;
+					}
+			} else break;
+	}
+}
+void cycleDownPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	if (s->songi[w->songfy] == PATTERN_VOID) return;
+
+	uint8_t i;
+	int j, k, l;
+	pattern *destpattern = s->patternv[s->patterni[s->songi[w->songfy]]];
+	row hold;
+	if (c1 == c2) /* only one channel */
+	{
+		for (l = 0; l < MAX(1, w->count); l++)
+		{
+			hold = destpattern->rowv[c1][y2];
+			if (x1 <= 0 && x2 >= 0)
+			{
+				for (j = y2-1; j >= y1; j--) destpattern->rowv[c1][j+1].note = destpattern->rowv[c1][j].note;
+				destpattern->rowv[c1][y1].note = hold.note;
+			}
+			if (x1 <= 1 && x2 >= 1)
+			{
+				for (j = y2-1; j >= y1; j--) destpattern->rowv[c1][j+1].inst = destpattern->rowv[c1][j].inst;
+				destpattern->rowv[c1][y1].inst = hold.inst;
+			}
+			for (k = 0; k <= s->channelv[c1].macroc; k++)
+				if (x1 <= k+2 && x2 >= k+2)
+				{
+					for (j = y2-1; j >= y1; j--)
+					{
+						destpattern->rowv[c1][j+1].macro[k].c = destpattern->rowv[c1][j].macro[k].c;
+						destpattern->rowv[c1][j+1].macro[k].v = destpattern->rowv[c1][j].macro[k].v;
+					}
+					destpattern->rowv[c1][y1].macro[k].c = hold.macro[k].c;
+					destpattern->rowv[c1][y1].macro[k].v = hold.macro[k].v;
+				}
+		}
+	} else
+	{
+		for (i = c1; i <= c2; i++)
+			if (i < s->channelc) {
+				if (i == c1) /* first channel */
+					for (l = 0; l < MAX(1, w->count); l++)
+					{
+						hold = destpattern->rowv[c1][y2];
+						if (x1 <= 0)
+						{
+							for (j = y2-1; j >= y1; j--) destpattern->rowv[c1][j+1].note = destpattern->rowv[c1][j].note;
+							destpattern->rowv[c1][y1].note = hold.note;
+						}
+						if (x1 <= 1)
+						{
+							for (j = y2-1; j >= y1; j--) destpattern->rowv[c1][j+1].inst = destpattern->rowv[c1][j].inst;
+							destpattern->rowv[c1][y1].inst = hold.inst;
+						}
+						for (k = 0; k <= s->channelv[c1].macroc; k++)
+							if (x1 <= k+2)
+							{
+								for (j = y2-1; j >= y1; j--)
+								{
+									destpattern->rowv[c1][j+1].macro[k].c = destpattern->rowv[c1][j].macro[k].c;
+									destpattern->rowv[c1][j+1].macro[k].v = destpattern->rowv[c1][j].macro[k].v;
+								}
+								destpattern->rowv[c1][y1].macro[k].c = hold.macro[k].c;
+								destpattern->rowv[c1][y1].macro[k].v = hold.macro[k].v;
+							}
+					}
+				else if (i == c2) /* last channel */
+					for (l = 0; l < MAX(1, w->count); l++)
+					{
+						hold = destpattern->rowv[c2][y2];
+						if (x2 >= 0)
+						{
+							for (j = y2-1; j >= y1; j--) destpattern->rowv[c2][j+1].note = destpattern->rowv[c2][j].note;
+							destpattern->rowv[c2][y1].note = hold.note;
+						}
+						if (x2 >= 1)
+						{
+							for (j = y2-1; j >= y1; j--) destpattern->rowv[c2][j+1].inst = destpattern->rowv[c2][j].inst;
+							destpattern->rowv[c2][y1].inst = hold.inst;
+						}
+						for (k = 0; k <= s->channelv[c2].macroc; k++)
+							if (x2 >= k+2)
+							{
+								for (j = y2-1; j >= y1; j--)
+								{
+									destpattern->rowv[c2][j+1].macro[k].c = destpattern->rowv[c2][j].macro[k].c;
+									destpattern->rowv[c2][j+1].macro[k].v = destpattern->rowv[c2][j].macro[k].v;
+								}
+								destpattern->rowv[c2][y1].macro[k].c = hold.macro[k].c;
+								destpattern->rowv[c2][y1].macro[k].v = hold.macro[k].v;
+							}
+					}
+				else /* middle channel */
+					for (l = 0; l < MAX(1, w->count); l++)
+					{
+						hold = destpattern->rowv[i][y2];
+						for (j = y2-1; j >= y1; j--) destpattern->rowv[i][j+1] = destpattern->rowv[i][j];
+						destpattern->rowv[i][y1] = hold;
+					}
+			} else break;
 	}
 }
 
@@ -1017,7 +1433,7 @@ void copyInstrument(instrument *dest, instrument *src)
 	dest->cyclelength = src->cyclelength;
 	dest->pitchshift = src->pitchshift;
 	dest->trim[0] = src->trim[0]; dest->trim[1] = src->trim[1];
-	dest->loop[0] = src->loop[0]; dest->loop[1] = src->loop[1];
+	dest->loop = src->loop;
 	dest->envelope = src->envelope;
 	dest->gain = src->gain;
 	dest->flags = src->flags;
@@ -1069,8 +1485,12 @@ void _delInstrument(instrument *iv)
 	{
 		if (!iv->history[i]) continue;
 		if (iv->history[i]->sampledata)
-		{ free(iv->history[i]->sampledata); iv->history[i]->sampledata = NULL; }
-		free(iv->history[i]); iv->history[i] = NULL;
+		{
+			free(iv->history[i]->sampledata);
+			iv->history[i]->sampledata = NULL;
+		}
+		free(iv->history[i]);
+		iv->history[i] = NULL;
 	}
 }
 void pushInstrumentHistory(instrument *iv)
@@ -1084,8 +1504,10 @@ void pushInstrumentHistory(instrument *iv)
 	if (iv->historyahead)  iv->historyahead = 0;
 
 	if (iv->history[iv->historyptr%128])
+	{
 		_delInstrument(iv->history[iv->historyptr%128]);
-	free(iv->history[iv->historyptr%128]);
+		free(iv->history[iv->historyptr%128]);
+	}
 	iv->history[iv->historyptr%128] = calloc(1, sizeof(instrument));
 	copyInstrument(iv->history[iv->historyptr%128], iv);
 
@@ -1108,7 +1530,7 @@ void pushInstrumentHistoryIfNew(instrument *iv)
 			|| ivh->cyclelength != iv->cyclelength
 			|| ivh->pitchshift != iv->pitchshift
 			|| ivh->trim[0] != iv->trim[0] || ivh->trim[1] != iv->trim[1]
-			|| ivh->loop[0] != iv->loop[0] || ivh->loop[1] != iv->loop[1]
+			|| ivh->loop != iv->loop
 			|| ivh->envelope != iv->envelope
 			|| ivh->gain != iv->gain
 			|| ivh->flags != iv->flags
@@ -1144,13 +1566,14 @@ void unpopInstrumentHistory(uint8_t realindex) /* redo */
 	instrument *iv = s->instrumentv[realindex];
 	if (!iv) return;
 	if (iv->historyahead == 0)
-	{ strcpy(w->command.error, "already at newest change"); return; }
+	{
+		strcpy(w->command.error, "already at newest change");
+		return;
+	}
 	pushInstrumentHistoryIfNew(iv);
 
-	if (iv->historyptr == 255)
-		iv->historyptr = 128;
-	else
-		iv->historyptr++;
+	if (iv->historyptr == 255) iv->historyptr = 128;
+	else                       iv->historyptr++;
 
 	_popInstrumentHistory(realindex);
 
@@ -1167,7 +1590,7 @@ int addInstrument(uint8_t index)
 		strcpy(w->command.error, "failed to add instrument, out of memory");
 		return 1;
 	}
-	s->instrumentv[s->instrumentc]->gain = 0xff;
+	s->instrumentv[s->instrumentc]->gain = 0x20;
 	s->instrumentv[s->instrumentc]->samplerate = 0xff;
 	s->instrumentv[s->instrumentc]->bitdepth = 0xf;
 	s->instrumentv[s->instrumentc]->loopramp = 0xff;
@@ -1235,7 +1658,7 @@ void recordBinds(short instrument, int input)
 {
 	switch (input)
 	{
-		case 'S': case 's': /* start/stop */
+		case 'R': case 'r': /* start/stop */
 			if (w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci != instrument)
 			{ /* stop whichever instrument is already recording */
 				toggleRecording(w->instrumentreci, 0);
@@ -1253,7 +1676,7 @@ void recordBinds(short instrument, int input)
 				if (!s->instrumenti[instrument]) addInstrument(instrument);
 				toggleRecording(instrument, 1);
 			} break;
-		case 'C': case 'c': /* cancel     */
+		case 'C': case 'c': /* cancel */
 			if (w->instrumentrecv != INST_REC_LOCK_OK)
 				w->instrumentrecv = INST_REC_LOCK_PREP_CANCEL;
 			break;
@@ -1336,8 +1759,7 @@ void loadSample(uint8_t index, char *path)
 	iv->c5rate = sfinfo.samplerate;
 	iv->trim[0] = 0;
 	iv->trim[1] = sfinfo.frames-1;
-	iv->loop[0] = 0;
-	iv->loop[1] = 0;
+	iv->loop = sfinfo.frames-1;
 	iv->samplerate = 0xff;
 	iv->bitdepth = 0xf;
 }
@@ -1354,7 +1776,7 @@ song *_addSong(void)
 	cs->songbpm = DEF_BPM;
 	w->request = REQ_BPM;
 
-	memset(cs->songi, 255, sizeof(uint8_t) * 256);
+	memset(cs->songi, PATTERN_VOID, sizeof(uint8_t) * SONG_MAX);
 
 	return cs;
 }
@@ -1402,8 +1824,7 @@ char *fileExtension(char *path, char *ext)
 	{
 		ret = malloc(strlen(path) + 1);
 		strcpy(ret, path);
-	}
-	return ret;
+	} return ret;
 }
 
 int writeSong(char *path)
@@ -1426,13 +1847,10 @@ int writeSong(char *path)
 	int i, j, k, l;
 
 	/* egg, for each and every trying time (the most important) */
-	fputc('e', fp);
-	fputc('g', fp);
-	fputc('g', fp);
+	fputc('e', fp); fputc('g', fp); fputc('g', fp);
 
 	/* version */
-	fputc(MAJOR, fp);
-	fputc(MINOR, fp);
+	fputc(MAJOR, fp); fputc(MINOR, fp);
 
 	/* counts */
 	fputc(s->songbpm, fp);
@@ -1446,31 +1864,23 @@ int writeSong(char *path)
 	for (i = 0; i < 4; i++)
 	{
 		byte = 0b00000000;
-		if (s->channelv[i * 8 + 0].mute) byte |= 0b10000000;
-		if (s->channelv[i * 8 + 1].mute) byte |= 0b01000000;
-		if (s->channelv[i * 8 + 2].mute) byte |= 0b00100000;
-		if (s->channelv[i * 8 + 3].mute) byte |= 0b00010000;
-		if (s->channelv[i * 8 + 4].mute) byte |= 0b00001000;
-		if (s->channelv[i * 8 + 5].mute) byte |= 0b00000100;
-		if (s->channelv[i * 8 + 6].mute) byte |= 0b00000010;
-		if (s->channelv[i * 8 + 7].mute) byte |= 0b00000001;
+		if (s->channelv[i * 8 + 0].flags&C_FLAG_MUTE) byte |= 0b10000000;
+		if (s->channelv[i * 8 + 1].flags&C_FLAG_MUTE) byte |= 0b01000000;
+		if (s->channelv[i * 8 + 2].flags&C_FLAG_MUTE) byte |= 0b00100000;
+		if (s->channelv[i * 8 + 3].flags&C_FLAG_MUTE) byte |= 0b00010000;
+		if (s->channelv[i * 8 + 4].flags&C_FLAG_MUTE) byte |= 0b00001000;
+		if (s->channelv[i * 8 + 5].flags&C_FLAG_MUTE) byte |= 0b00000100;
+		if (s->channelv[i * 8 + 6].flags&C_FLAG_MUTE) byte |= 0b00000010;
+		if (s->channelv[i * 8 + 7].flags&C_FLAG_MUTE) byte |= 0b00000001;
 		fputc(byte, fp);
 	}
 	for (i = 0; i < s->channelc; i++)
 		fputc(s->channelv[i].macroc, fp);
 
-	/* songi */
-	for (i = 0; i < 256; i++)
-		fputc(s->songi[i], fp);
-	/* songf */
-	for (i = 0; i < 256; i++)
-		fputc(s->songf[i], fp);
-	/* patterni */
-	for (i = 0; i < 256; i++)
-		fputc(s->patterni[i], fp);
-	/* instrumenti */
-	for (i = 0; i < 256; i++)
-		fputc(s->instrumenti[i], fp);
+	/* songi       */ for (i = 0; i < SONG_MAX; i++) fputc(s->songi[i], fp);
+	/* songf       */ for (i = 0; i < SONG_MAX; i++) fputc(s->songf[i], fp);
+	/* patterni    */ for (i = 0; i < PATTERN_MAX; i++) fputc(s->patterni[i], fp);
+	/* instrumenti */ for (i = 0; i < INSTRUMENT_MAX; i++) fputc(s->instrumenti[i], fp);
 
 	/* patternv */
 	for (i = 1; i < s->patternc; i++)
@@ -1484,7 +1894,7 @@ int writeSong(char *path)
 			{
 				fputc(s->patternv[i]->rowv[j][k].note, fp);
 				fputc(s->patternv[i]->rowv[j][k].inst, fp);
-				for (l = 0; l < macroc; l++)
+				for (l = 0; l <= macroc; l++)
 				{
 					fputc(s->patternv[i]->rowv[j][k].macro[l].c, fp);
 					fputc(s->patternv[i]->rowv[j][k].macro[l].v, fp);
@@ -1506,8 +1916,9 @@ int writeSong(char *path)
 		fwrite(&iv->cyclelength, sizeof(uint16_t), 1, fp);
 		fwrite(&iv->pitchshift, sizeof(uint8_t), 1, fp);
 		fwrite(iv->trim, sizeof(uint32_t), 2, fp);
-		fwrite(iv->loop, sizeof(uint32_t), 2, fp);
+		fwrite(&iv->loop, sizeof(uint32_t), 1, fp);
 		fwrite(&iv->envelope, sizeof(uint8_t), 1, fp);
+		fwrite(&iv->outputgroup, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->gain, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->channelmode, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->flags, sizeof(uint8_t), 1, fp);
@@ -1531,18 +1942,15 @@ song *readSong(char *path)
 	if (!fp) // file doesn't exist, or fopen otherwise failed
 	{
 		strcpy(w->filepath, path);
-		redraw();
-		return NULL;
+		redraw(); return NULL;
 	}
 	DIR *dp = opendir(path);
 	if (dp) // file is a directory
 	{
-		closedir(dp);
-		fclose(fp);
+		closedir(dp); fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' is a directory", path);
-		redraw();
-		return NULL;
+		redraw(); return NULL;
 	}
 
 	int i, j, k, l;
@@ -1554,8 +1962,7 @@ song *readSong(char *path)
 		fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' isn't valid", path);
-		redraw();
-		return NULL;
+		redraw(); return NULL;
 	}
 
 	/* version */
@@ -1565,9 +1972,8 @@ song *readSong(char *path)
 	{
 		fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK);
-		strcpy(w->command.error, "failed to read song, file uses removed features");
-		redraw();
-		return NULL;
+		strcpy(w->command.error, "failed to read song, file is FAR too old");
+		redraw(); return NULL;
 	}
 
 	song *cs = _addSong();
@@ -1576,8 +1982,7 @@ song *readSong(char *path)
 		fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		strcpy(w->command.error, "failed to read song, out of memory");
-		redraw();
-		return NULL;
+		redraw(); return NULL;
 	}
 
 	/* assume the rest of the file is valid */
@@ -1591,8 +1996,7 @@ song *readSong(char *path)
 	cs->patternc = fgetc(fp);
 	cs->instrumentc = fgetc(fp);
 	cs->channelc = fgetc(fp);
-	for (int i = 0; i < cs->channelc; i++)
-		_addChannel(cs, &cs->channelv[i]);
+	for (i = 0; i < cs->channelc; i++) _addChannel(cs, &cs->channelv[i]);
 	cs->rowhighlight = fgetc(fp);
 
 	/* mutes */
@@ -1600,30 +2004,27 @@ song *readSong(char *path)
 	for (i = 0; i < 4; i++)
 	{
 		byte = fgetc(fp);
-		if (byte & 0b10000000) cs->channelv[i * 8 + 0].mute = 1;
-		if (byte & 0b01000000) cs->channelv[i * 8 + 1].mute = 1;
-		if (byte & 0b00100000) cs->channelv[i * 8 + 2].mute = 1;
-		if (byte & 0b00010000) cs->channelv[i * 8 + 3].mute = 1;
-		if (byte & 0b00001000) cs->channelv[i * 8 + 4].mute = 1;
-		if (byte & 0b00000100) cs->channelv[i * 8 + 5].mute = 1;
-		if (byte & 0b00000010) cs->channelv[i * 8 + 6].mute = 1;
-		if (byte & 0b00000001) cs->channelv[i * 8 + 7].mute = 1;
+		if (byte & 0b10000000) cs->channelv[i * 8 + 0].flags = C_FLAG_MUTE;
+		if (byte & 0b01000000) cs->channelv[i * 8 + 1].flags = C_FLAG_MUTE;
+		if (byte & 0b00100000) cs->channelv[i * 8 + 2].flags = C_FLAG_MUTE;
+		if (byte & 0b00010000) cs->channelv[i * 8 + 3].flags = C_FLAG_MUTE;
+		if (byte & 0b00001000) cs->channelv[i * 8 + 4].flags = C_FLAG_MUTE;
+		if (byte & 0b00000100) cs->channelv[i * 8 + 5].flags = C_FLAG_MUTE;
+		if (byte & 0b00000010) cs->channelv[i * 8 + 6].flags = C_FLAG_MUTE;
+		if (byte & 0b00000001) cs->channelv[i * 8 + 7].flags = C_FLAG_MUTE;
 	}
 	for (i = 0; i < cs->channelc; i++)
+	{
 		cs->channelv[i].macroc = fgetc(fp);
+		if (filemajor == 0 && fileminor < 94) cs->channelv[i].macroc--;
+	}
 
-	/* songi */
-	for (i = 0; i < 256; i++)
-		cs->songi[i] = fgetc(fp);
-	/* songf */
-	for (i = 0; i < 256; i++)
-		cs->songf[i] = fgetc(fp);
-	/* patterni */
-	for (i = 0; i < 256; i++)
-		cs->patterni[i] = fgetc(fp);
+	/* songi    */ for (i = 0; i < SONG_MAX; i++) cs->songi[i] = fgetc(fp);
+	/* songf    */ for (i = 0; i < SONG_MAX; i++) cs->songf[i] = fgetc(fp);
+	/* patterni */ for (i = 0; i < PATTERN_MAX; i++) cs->patterni[i] = fgetc(fp);
 	/* instrumenti */
-	for (i = 0; i < 256; i++)
-		cs->instrumenti[i] = fgetc(fp);
+	for (i = 0; i < INSTRUMENT_MAX; i++) cs->instrumenti[i] = fgetc(fp);
+	if (filemajor == 0 && fileminor < 93) fgetc(fp);
 
 	/* patternv */
 	for (i = 1; i < cs->patternc; i++)
@@ -1632,15 +2033,14 @@ song *readSong(char *path)
 		cs->patternv[i]->rowc = fgetc(fp);
 		for (j = 0; j < cs->channelc; j++)
 		{
-			if (!(filemajor == 0 && fileminor < 85))
-				cs->patternv[i]->rowcc[j] = fgetc(fp);
+			if (!(filemajor == 0 && fileminor < 85)) cs->patternv[i]->rowcc[j] = fgetc(fp);
 			char macroc = cs->channelv[j].macroc;
 			for (k = 0; k < cs->patternv[i]->rowcc[j] + 1; k++)
 			{
 				cs->patternv[i]->rowv[j][k].note = fgetc(fp);
 				if (filemajor == 0 && fileminor < 88) cs->patternv[i]->rowv[j][k].note--;
 				cs->patternv[i]->rowv[j][k].inst = fgetc(fp);
-				for (l = 0; l < macroc; l++)
+				for (l = 0; l <= macroc; l++)
 				{
 					cs->patternv[i]->rowv[j][k].macro[l].c = fgetc(fp);
 					cs->patternv[i]->rowv[j][k].macro[l].v = fgetc(fp);
@@ -1666,9 +2066,12 @@ song *readSong(char *path)
 		fread(&iv->pitchshift, sizeof(uint8_t), 1, fp);
 		if (filemajor == 0 && fileminor < 83) fseek(fp, sizeof(uint16_t), SEEK_CUR);
 		fread(iv->trim, sizeof(uint32_t), 2, fp);
-		fread(iv->loop, sizeof(uint32_t), 2, fp);
-		if (filemajor == 0 && fileminor < 89) fseek(fp, sizeof(uint8_t)*4, SEEK_CUR);
+		fread(&iv->loop, sizeof(uint32_t), 1, fp);
+		if (filemajor == 0 && fileminor < 92) fseek(fp, sizeof(uint32_t), SEEK_CUR);
+		if (filemajor == 0 && fileminor < 89) fseek(fp, sizeof(uint8_t), SEEK_CUR);
 		else fread(&iv->envelope, sizeof(uint8_t), 1, fp);
+		if (filemajor == 0 && fileminor < 91) fseek(fp, sizeof(uint8_t), SEEK_CUR);
+		else fread(&iv->outputgroup, sizeof(uint8_t), 1, fp);
 		fread(&iv->gain, sizeof(uint8_t), 1, fp);
 		if (!(filemajor == 0 && fileminor < 89)) fread(&iv->channelmode, sizeof(uint8_t), 1, fp);
 		fread(&iv->flags, sizeof(uint8_t), 1, fp);
@@ -1684,14 +2087,10 @@ song *readSong(char *path)
 		{
 			iv->sampledata = malloc(sizeof(short) * iv->samplelength);
 			fread(iv->sampledata, sizeof(short), iv->samplelength, fp);
-		}
-
-		pushInstrumentHistory(cs->instrumentv[i]);
+		} pushInstrumentHistory(cs->instrumentv[i]);
 	}
-
 
 	fclose(fp);
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-	redraw();
-	return cs;
+	redraw(); return cs;
 }

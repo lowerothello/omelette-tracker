@@ -26,22 +26,23 @@ typedef jack_default_audio_sample_t sample_t;
 
 uint32_t pow32(uint32_t a, uint32_t b)
 {
-	if (b == 0) return 1;
+	if (!b) return 1;
+
 	uint32_t c = a;
 	for (uint32_t i = 1; i < b; i++)
 		c = c * a;
+
 	return c;
 }
 
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 90;
+const unsigned char MINOR = 94;
 
 
-jack_nframes_t samplerate;
+jack_nframes_t samplerate, buffersize;
 jack_nframes_t rampmax, stretchrampmax;
-jack_nframes_t buffersize;
 jack_client_t *client;
 struct winsize ws;
 struct termios term, origterm;
@@ -78,9 +79,10 @@ void changeMacro(int, char *);
 
 #include "command.c"
 #include "dsp.c"
-#include "structures.c"
+#include "types.c"
 
 #include "input.c"
+#include "sampler.c"
 #include "instrument.c"
 #include "filebrowser.c"
 #include "waveform.c"
@@ -113,10 +115,10 @@ void drawRuler(void)
 		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
 
 		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 24);
-		if (w->flags & 0b1) printf(">"); else printf(" ");
+		if (w->flags&W_FLAG_FOLLOW) printf(">"); else printf(" ");
 		if (s->playing == PLAYING_STOP) printf("STOP");
 		else                            printf("PLAY");
-		if (w->flags & 0b1) printf(">"); else printf(" ");
+		if (w->flags&W_FLAG_FOLLOW) printf(">"); else printf(" ");
 		printf(" &%d +%x  ", w->octave, w->step);
 		if (w->keyboardmacro) printf("%cxx  ", w->keyboardmacro);
 		else                  printf("     ");
@@ -202,7 +204,7 @@ void startPlayback(void)
 	{
 		s->songp = w->songfy;
 		s->songr = 0;
-		if (w->flags & 0b1)
+		if (w->flags&W_FLAG_FOLLOW)
 			w->trackerfy = 0;
 		s->playing = PLAYING_START;
 	} else strcpy(w->command.error, "failed to start playback, invalid pattern selected");
@@ -252,6 +254,22 @@ int input(void)
 					setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
 					// setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
 					w->oldmode = w->mode;
+					if (w->popup == 0)
+						switch (w->mode)
+						{
+							case T_MODE_VISUAL:
+							case T_MODE_VISUALLINE:
+							case T_MODE_VISUALREPLACE:
+							case T_MODE_INSERT:
+							case T_MODE_MOUSEADJUST:
+								w->oldmode = T_MODE_NORMAL;
+								break;
+							case T_MODE_SONG_INSERT:
+							case T_MODE_SONG_VISUAL:
+							case T_MODE_SONG_MOUSEADJUST:
+								w->oldmode = T_MODE_SONG;
+								break;
+						}
 					w->mode = 255;
 					redraw();
 					break;
@@ -352,17 +370,19 @@ void common_cleanup(int ret)
 }
 void cleanup(int ret)
 {
+	struct timespec req;
+
 	if (w->dir) closedir(w->dir);
 	stopPlayback();
-	struct timespec req;
 	while (s->playing)
 	{ /* wait until stopPlayback() finishes fully */
-		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
+		req.tv_sec = 0;
 		req.tv_nsec = UPDATE_DELAY;
 		nanosleep(&req, &req);
 	}
 
 	jack_deactivate(client);
+	jack_client_close(client);
 
 	_delInstrument(&w->instrumentbuffer);
 
@@ -375,7 +395,6 @@ void cleanup(int ret)
 	delSong(s);
 	free(p);
 	freeBackground();
-	jack_client_close(client);
 
 	common_cleanup(ret);
 }
@@ -412,26 +431,30 @@ int main(int argc, char **argv)
 	{
 		puts("out of memory");
 		common_cleanup(1);
-	}
-	memset(p, 0, sizeof(playbackinfo));
+	} memset(p, 0, sizeof(playbackinfo));
+
 	client = jack_client_open("omelette", JackNullOption, NULL);
-	if (client == NULL)
+	if (!client)
 	{
 		puts("failed to init the jack client");
 		free(p);
 		common_cleanup(1);
 	}
 
-	p->in.l =    jack_port_register(client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput|JackPortIsTerminal, 0);
-	p->in.r =    jack_port_register(client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput|JackPortIsTerminal, 0);
-	p->out.l =   jack_port_register(client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
-	p->out.r =   jack_port_register(client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
+	p->in.l = jack_port_register(client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput|JackPortIsTerminal, 0);
+	p->in.r = jack_port_register(client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput|JackPortIsTerminal, 0);
+	char *buffer = malloc(9);
+	for (short i = 0; i < OUTPUT_GROUPS; i++)
+	{
+		snprintf(buffer, 9, "out_%d_l", i); p->out[i].l = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
+		snprintf(buffer, 9, "out_%d_r", i); p->out[i].r = jack_port_register(client, buffer, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
+	} free(buffer);
 	p->midiout = jack_port_register(client, "out_midi", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput|JackPortIsTerminal, 0);
 
 	samplerate = jack_get_sample_rate(client);
+	buffersize = jack_get_buffer_size(client);
 	rampmax = samplerate / 1000 * RAMP_MS;
 	stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
-	buffersize = jack_get_buffer_size(client);
 
 	w = calloc(1, sizeof(window));
 	if (w == NULL)
@@ -457,14 +480,15 @@ int main(int argc, char **argv)
 
 	initBackground(); /* needs to be before jack_activate */
 
-	w->previewchannel.r.note = NOTE_VOID;
+	w->previewchannel.r.note = w->previewchannel.samplernote = NOTE_VOID;
+	w->previewchannel.r.inst = w->previewchannel.samplerinst = INST_VOID;
 	w->previewchannel.filtercut = 1.0f;
 
 
 	jack_set_process_callback(client, process, p);
 	jack_activate(client);
 
-	addPattern(0, 0);
+	addPattern(0);
 	s->songi[0] = 0;
 
 
@@ -486,7 +510,7 @@ int main(int argc, char **argv)
 	/* loop over input */
 	struct timespec req;
 	int running = 0;
-	while(!running)
+	while (!running)
 	{
 		if (p->lock == PLAY_LOCK_CONT)
 		{
@@ -529,8 +553,7 @@ int main(int argc, char **argv)
 					iv->c5rate = samplerate;
 					iv->trim[0] = 0;
 					iv->trim[1] = w->recptr-1;
-					iv->loop[0] = 0;
-					iv->loop[1] = 0;
+					iv->loop = w->recptr-1;
 				}
 				resetWaveform();
 			}

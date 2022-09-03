@@ -1,5 +1,7 @@
+# compiler/similar output
 omelette
-testmods
 valgrind.log
 gmon.out
-pretrained_models
+
+# test .omlm files, contain dmca-able samples (direct spotify recordings) so excluded
+testmods

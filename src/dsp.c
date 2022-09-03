@@ -6,10 +6,10 @@
 #define FM_DEPTH 0.005
 
 /* <seconds> */
-#define ENVELOPE_ATTACK 0.1
-#define ENVELOPE_ATTACK_MIN 0
-#define ENVELOPE_DECAY 0.1
-#define ENVELOPE_DECAY_MIN 0
+#define ENVELOPE_A_STEP 0.1
+#define ENVELOPE_A_MIN 0
+#define ENVELOPE_D_STEP 0.1
+#define ENVELOPE_D_MIN 0
 #define LFO_MIN 2.00
 #define LFO_MAX 0.001
 /* </seconds> */
@@ -31,15 +31,12 @@
 #define DIV16    0.0625
 #define DIV8     0.125
 #define DIV255   0.00392156862745098
-#define DIV64ALT 0.01568627450980392 /* DIV63.75 to be exact */
 #define DIV15    0.06666666666666667
 #define DIV1000  0.001
 const double DIVSHRT = 1.0 / SHRT_MAX;
 const double DIVCHAR = 1.0 / SCHAR_MAX;
 
-
 #define M_12_ROOT_2 1.0594630943592953
-
 
 /* https://www.musicdsp.org/en/latest/Synthesis/216-fast-whitenoise-generator.html */
 const float wnoisescale = 2.0f / 0xffffffff;
@@ -147,26 +144,6 @@ void drawChannels(uint8_t mode, unsigned short y, unsigned short x, char adjust)
 	}
 }
 
-
-float envelope(uint8_t env, uint32_t pointer, uint32_t releasepointer, char sustain)
-{
-	uint32_t attacklength = ((env>>4)+ENVELOPE_ATTACK_MIN) * ENVELOPE_ATTACK * samplerate;
-	uint32_t decaylength = ((env%16)+ENVELOPE_DECAY_MIN) * ENVELOPE_DECAY * samplerate;
-
-	if (!pointer || (!sustain && pointer > attacklength + decaylength) || (sustain && releasepointer && pointer > releasepointer + decaylength))
-		return 0.0f;
-	else if (sustain && releasepointer && pointer > releasepointer)
-		return 1.0f - MIN(1.0f, (float)(pointer - releasepointer) / (float)decaylength);
-	else
-	{
-		if (pointer < attacklength)
-			return (float)pointer / (float)attacklength;
-		else if (!sustain && pointer < attacklength + decaylength)
-			return 1.0f - (float)(pointer - attacklength) / (float)decaylength;
-		else
-			return 1.0f;
-	}
-}
 
 /* typedef struct
 {

@@ -1,11 +1,16 @@
 omelette tracker
 ----------------
+
+omelette is a modern tracker for the terminal. it should compile and run on any
+POSIX compilant system, but i've only tested linux.
+
+
 features aren't set in stone, expect mods to be broken on new versions!
 from version 1.0 i'll try not to make as many breaking changes, but until then
 treat this as alpha software!
 
 doc/ has some documentation but it's very unfinished and not kept up to date
-very well, the only up-to-date source of info is the source code itself.
+very well, the only up-to-date source of info is the source code itself rn.
 
 src/lib/libdrawille: https://github.com/huulivoide/libdrawille
 
@@ -15,13 +20,9 @@ DEPENDS:
 - libdrawille (included as a submodule) - waveform drawing
 
 BUILD:
-$ git submodule init
-$ git submodule update # fetch libdrawille
-$ cd src/lib/libdrawille; cmake .; make; cd ../../.. # build libdrawille
+$ git submodule init ; git submodule update # fetch libdrawille
+$ ( cd src/lib/libdrawille; cmake .; make; ) # build libdrawille
 $ ./make.sh 3 # build with -O3 (system CFLAGS aren't read currently)
 
 INSTALL: (no proper install script yet)
 $ su -c "install -Dm755 omelette '/usr/bin/omelette'"
-
-
-vim: wrap

@@ -2,7 +2,7 @@
 
 run() {
 	echo "$@"
-	time "$@" 2>&1 # easy piping into a pager for bad programs like gcc that error to stderr
+	time "$@" 2>&1
 }
 
 [ "$1" = "pg" ] && {
@@ -22,11 +22,12 @@ run() {
 		$(pkg-config --libs --cflags sndfile) \
 		-lm -Wall -g \
 		src/main.c src/lib/libdrawille/src/liblibdrawille.a
-} || {
-	echo -e "\033[7m dev build (${CC:-tcc}) \033[27m"
-	run ${CC:-tcc} -o omelette -O0 \
-		$(pkg-config --libs --cflags jack) \
-		$(pkg-config --libs --cflags sndfile) \
-		-lm -Wall -g \
-		src/main.c src/lib/libdrawille/src/liblibdrawille.a
+	return
 }
+
+echo -e "\033[7m dev build (${CC:-tcc}) \033[27m"
+run ${CC:-tcc} -o omelette -O0 \
+	$(pkg-config --libs --cflags jack) \
+	$(pkg-config --libs --cflags sndfile) \
+	-lm -Wall -g \
+	src/main.c src/lib/libdrawille/src/liblibdrawille.a
