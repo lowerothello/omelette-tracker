@@ -558,9 +558,9 @@ void popPatternHistory(uint8_t realindex) /* undo */
 	else                       pv->historyptr--;
 
 	copyPattern(pv, pv->history[pv->historyptr%128]);
-	w->channel = pv->historychannel[(pv->historyptr+1)%128];
-	w->trackerfy = pv->historyfy[(pv->historyptr+1)%128];
-	w->trackerfx = pv->historyfx[(pv->historyptr+1)%128];
+	w->channel = pv->historychannel[pv->historyptr%128];
+	w->trackerfy = pv->historyfy[pv->historyptr%128];
+	w->trackerfx = pv->historyfx[pv->historyptr%128];
 
 	pv->historybehind++;
 	pv->historyahead++;
@@ -745,6 +745,7 @@ void putPartPattern(void)
 			else targetmacro = tfxToVfx(w->trackerfx)-2;
 			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
+				if (w->trackerfy + j - w->pbfy[0] > destpattern->rowc) break;
 				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
 				destpattern->rowv[w->channel][row].macro[targetmacro].c = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].c;
 				destpattern->rowv[w->channel][row].macro[targetmacro].v = w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].v;
@@ -754,6 +755,7 @@ void putPartPattern(void)
 		{
 			for (j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
+				if (w->trackerfy + j - w->pbfy[0] > destpattern->rowc) break;
 				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0) destpattern->rowv[w->channel][row].note = w->patternbuffer.rowv[w->pbchannel[0]][j].note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
@@ -773,6 +775,7 @@ void putPartPattern(void)
 			if (channel < s->channelc)
 				for (j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 				{
+					if (w->trackerfy + j - w->pbfy[0] > destpattern->rowc) break;
 					row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[channel]+1);
 					if (i == w->pbchannel[0]) /* first channel */
 					{
@@ -816,6 +819,7 @@ void mixPutPartPattern(void)
 			else targetmacro = tfxToVfx(w->trackerfx)-2;
 			for (uint8_t j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
+				if (w->trackerfy + j - w->pbfy[0] > destpattern->rowc) break;
 				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
 				if (w->patternbuffer.rowv[w->pbchannel[0]][j].macro[w->pbfx[0]-2].c)
 				{
@@ -828,6 +832,7 @@ void mixPutPartPattern(void)
 		{
 			for (j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 			{
+				if (w->trackerfy + j - w->pbfy[0] > destpattern->rowc) break;
 				row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[w->channel]+1);
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0 && w->patternbuffer.rowv[w->pbchannel[0]][j].note != NOTE_VOID) destpattern->rowv[w->channel][row].note = w->patternbuffer.rowv[w->pbchannel[0]][j].note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1 && w->patternbuffer.rowv[w->pbchannel[0]][j].inst != INST_VOID) destpattern->rowv[w->channel][row].inst = w->patternbuffer.rowv[w->pbchannel[0]][j].inst;
@@ -847,6 +852,7 @@ void mixPutPartPattern(void)
 			if (channel < s->channelc)
 				for (j = w->pbfy[0]; j <= w->pbfy[1]; j++)
 				{
+					if (w->trackerfy + j - w->pbfy[0] > destpattern->rowc) break;
 					row = (w->trackerfy + j - w->pbfy[0]) % (destpattern->rowcc[channel]+1);
 					if (i == w->pbchannel[0]) /* first channel */
 					{
