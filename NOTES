@@ -15,12 +15,15 @@
 - tracker binds are organised really REALLY badly in the code, they're really awkward to maintain
 - pattern history doesn't save channelc properly, causing zombie channels
 	- don't save channelc, don't let undo/redo manipulate the channel index
-- visual bug is still present lol
+- show the next song index indicator on the left only
+- remove song index loop, have a song loop toggle instead, similar to song follow
 
 - bind to set the octave of the hovered note and NOT the default octave?
 	- maybe inc/dec by octaves? ctrl+shft+a/x or smth
 - portamento to note off should act like a tape stop
 - rx0 reaching the beginning of the sample cuts the note
 - Qxx can swap to qxx but not the other way round
+# - hard to tell where patterns start and stop
+- hard to tell which song index is selected/playing
 
 lookback needs testing, some macros are probably inexplicably broken for no apparent reason

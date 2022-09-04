@@ -117,7 +117,7 @@ void drawSongList(void)
 		{
 			printf("\033[%d;%dH", w->centre - w->songfy + i, 1);
 			if (w->songnext-1 == i) printf(">");
-			else if (s->songf[i])   printf("v");
+			else if (s->songf[i])   printf("l");
 			else                    printf(" ");
 
 			switch (w->mode)
@@ -150,10 +150,6 @@ void drawSongList(void)
 					else                                                    printf("%02x", s->songi[i]);
 					break;
 			}
-
-			if (w->songnext-1 == i) printf(">");
-			else if (s->songf[i])   printf("^");
-			else                    printf(" ");
 		}
 	}
 }
@@ -207,16 +203,10 @@ void stopVisual(uint8_t channel, int i, signed char fieldpointer)
 				{
 					if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 							&& fieldpointer == tfxToVfx(w->trackerfx))
-					{
-						printf("\033[27m");
-						if (!s->channelv[channel].flags&C_FLAG_MUTE) printf("\033[22m");
-					}
+						printf("\033[22;27m");
 				} else if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 						&& fieldpointer == tfxToVfx(w->trackerfx))
-				{
-					printf("\033[27m");
-					if (!s->channelv[channel].flags&C_FLAG_MUTE) printf("\033[22m");
-				}
+					printf("\033[22;27m");
 			} break;
 		case T_MODE_VISUAL:
 			if (channel == MAX(w->visualchannel, w->channel))
@@ -225,16 +215,10 @@ void stopVisual(uint8_t channel, int i, signed char fieldpointer)
 				{
 					if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 							&& fieldpointer == MAX(w->visualfx, tfxToVfx(w->trackerfx)))
-					{
-						printf("\033[27m");
-						if (!s->channelv[channel].flags&C_FLAG_MUTE) printf("\033[22m");
-					}
+						printf("\033[22;27m");
 				} else if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset) && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
 						&& fieldpointer == (w->visualchannel >= w->channel ? w->visualfx : tfxToVfx(w->trackerfx)))
-				{
-					printf("\033[27m");
-					if (!s->channelv[channel].flags&C_FLAG_MUTE) printf("\033[22m");
-				}
+					printf("\033[22;27m");
 			} break;
 	}
 }
@@ -293,7 +277,7 @@ void drawStarColumn(uint8_t pattern, unsigned short x)
 			if (c > s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc) break;
 			printf("\033[%d;%dH\033[2m", i, x);
 			if (s->playing == PLAYING_CONT && s->songp == w->songfy-1 && s->songr == s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) printf(" - ");
-			else if (s->rowhighlight && !((s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) % s->rowhighlight))                       printf(" * ");
+			// else if (s->rowhighlight && !((s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) % s->rowhighlight))                       printf(" * ");
 			else                                                                                                                                printf("   ");
 			printf("\033[m");
 			c++;
@@ -308,7 +292,7 @@ void drawStarColumn(uint8_t pattern, unsigned short x)
 			if (c > s->patternv[s->patterni[s->songi[w->songfy+1]]]->rowc) break;
 			printf("\033[%d;%dH\033[2m", i, x);
 			if (s->playing == PLAYING_CONT && s->songp == w->songfy + 1 && s->songr == c) printf(" - ");
-			else if (s->rowhighlight && !(c % s->rowhighlight))                           printf(" * ");
+			// else if (s->rowhighlight && !(c % s->rowhighlight))                           printf(" * ");
 			else                                                                          printf("   ");
 			printf("\033[m");
 			c++;
@@ -531,10 +515,10 @@ short drawChannel(uint8_t channel, short x)
 					{
 						if (x+7 + 4*(s->channelv[channel].macroc+1)-1 < llimit) { if (x+7 + 4*(s->channelv[channel].macroc+1)-1 > llimit - 2) printf("%s", " - "+(llimit - (x+7 + 4*(s->channelv[channel].macroc+1)-1))); }
 						else                                                                                                          printf("%.*s", ws.ws_col - (x+7 + 4*(s->channelv[channel].macroc+1) -1), " - ");
-					} else if (s->rowhighlight && !((s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) % s->rowhighlight))
+					/* } else if (s->rowhighlight && !((s->patternv[s->patterni[s->songi[w->songfy-1]]]->rowc - c) % s->rowhighlight))
 					{
 						if (x+7 + 4*(s->channelv[channel].macroc+1)-1 < llimit) { if (x+7 + 4*(s->channelv[channel].macroc+1)-1 > llimit - 2) printf("%s", " * "+(llimit - (x+7 + 4*(s->channelv[channel].macroc+1)-1))); }
-						else                                                                                                          printf("%.*s", ws.ws_col - (x+7 + 4*(s->channelv[channel].macroc+1) -1), " * ");
+						else                                                                                                          printf("%.*s", ws.ws_col - (x+7 + 4*(s->channelv[channel].macroc+1) -1), " * "); */
 					} else
 					{
 						if (x+7 + 4*(s->channelv[channel].macroc+1)-1 < llimit) { if (x+7 + 4*(s->channelv[channel].macroc+1)-1 > llimit - 2) printf("%s", "   "+(llimit - (x+7 + 4*(s->channelv[channel].macroc+1)-1))); }
@@ -606,10 +590,10 @@ short drawChannel(uint8_t channel, short x)
 					{
 						if (x+7 + 4*(s->channelv[channel].macroc+1)-1 < llimit) { if (x+7 + 4*(s->channelv[channel].macroc+1)-1 > llimit - 2) printf("%s", " - "+(llimit - (x+7 + 4*(s->channelv[channel].macroc+1)-1))); }
 						else                                                                                                          printf("%.*s", ws.ws_col - (x+7 + 4*(s->channelv[channel].macroc+1) -1), " - ");
-					} else if (s->rowhighlight && !(c % s->rowhighlight))
+					/* } else if (s->rowhighlight && !(c % s->rowhighlight))
 					{
 						if (x+7 + 4*(s->channelv[channel].macroc+1)-1 < llimit) { if (x+7 + 4*(s->channelv[channel].macroc+1)-1 > llimit - 2) printf("%s", " * "+(llimit - (x+7 + 4*(s->channelv[channel].macroc+1)-1))); }
-						else                                                                                                          printf("%.*s", ws.ws_col - (x+7 + 4*(s->channelv[channel].macroc+1) -1), " * ");
+						else                                                                                                          printf("%.*s", ws.ws_col - (x+7 + 4*(s->channelv[channel].macroc+1) -1), " * "); */
 					} else
 					{
 						if (x+7 + 4*(s->channelv[channel].macroc+1)-1 < llimit) { if (x+7 + 4*(s->channelv[channel].macroc+1)-1 > llimit - 2) printf("%s", "   "+(llimit - (x+7 + 4*(s->channelv[channel].macroc+1)-1))); }
@@ -688,7 +672,10 @@ void drawTracker(void)
 		case T_MODE_VISUALLINE:                      printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
 		case T_MODE_VISUALREPLACE:                   printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
 		case T_MODE_MOUSEADJUST:                     printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_INSERT: case T_MODE_SONG_INSERT: printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+		case T_MODE_INSERT: case T_MODE_SONG_INSERT:
+			if (w->keyboardmacro) printf("\033[%d;0H\033[1m-- INSERT (%cxx) --\033[m", ws.ws_row, w->keyboardmacro);
+			else                  printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
+			w->command.error[0] = '\0'; break;
 	}
 
 	if (w->mode == T_MODE_SONG || w->mode == T_MODE_SONG_INSERT || w->mode == T_MODE_SONG_VISUAL)

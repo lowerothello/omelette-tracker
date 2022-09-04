@@ -114,15 +114,12 @@ void drawRuler(void)
 		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
 		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
 
-		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 24);
+		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 19);
 		if (w->flags&W_FLAG_FOLLOW) printf(">"); else printf(" ");
 		if (s->playing == PLAYING_STOP) printf("STOP");
 		else                            printf("PLAY");
 		if (w->flags&W_FLAG_FOLLOW) printf(">"); else printf(" ");
-		printf(" &%d +%x  ", w->octave, w->step);
-		if (w->keyboardmacro) printf("%cxx  ", w->keyboardmacro);
-		else                  printf("     ");
-		printf("\033[1m%3dBPM\033[m", s->songbpm);
+		printf(" &%d +%x  \033[1m%3dBPM\033[m", w->octave, w->step, s->songbpm);
 	}
 }
 void redraw(void)

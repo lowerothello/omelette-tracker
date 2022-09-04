@@ -823,7 +823,7 @@ void trackerInput(int input)
 
 											if (button == BUTTON1 || button == BUTTON1_CTRL)
 											{
-												if (w->mode != T_MODE_INSERT) /* suggest mode 0, but allow insert */
+												if (w->mode != T_MODE_INSERT) /* suggest normal mode, but allow insert */
 													w->mode = T_MODE_NORMAL;
 												toggleChannelMute(oldchannel);
 											}
@@ -833,7 +833,7 @@ void trackerInput(int input)
 											switch (button)
 											{
 												case BUTTON1:
-													if (w->mode != T_MODE_INSERT) /* suggest mode 0, but allow insert */
+													if (w->mode != T_MODE_INSERT) /* suggest normal mode, but allow insert */
 														w->mode = T_MODE_NORMAL;
 													break;
 												case BUTTON3: case BUTTON3_CTRL:
@@ -927,7 +927,7 @@ void trackerInput(int input)
 						case T_MODE_VISUAL: case T_MODE_VISUALLINE: w->mode = T_MODE_NORMAL; break;
 						case T_MODE_SONG_INSERT: case T_MODE_SONG_VISUAL: w->mode = T_MODE_SONG; break;
 						case T_MODE_SONG: break;
-						default: w->mode = T_MODE_NORMAL; break;
+						default: w->keyboardmacro = '\0'; w->mode = T_MODE_NORMAL; break;
 					} redraw(); break;
 			} break;
 		default:
@@ -977,20 +977,7 @@ void trackerInput(int input)
 									{
 										modulorow = i % (s->patternv[s->patterni[s->songi[w->songfy]]]->rowcc[w->channel]+1);
 										r = &s->patternv[s->patterni[s->songi[w->songfy]]]->rowv[w->channel][modulorow];
-										if (w->keyboardmacro)
-											switch (r->macro[macro].c ? r->macro[macro].c : w->keyboardmacro)
-											{
-												case 0: insertMacrov(r, macro, input); break;
-												case 'G':
-													if (charToKmode(input, 1, &r->macro[macro].v, NULL) && !r->macro[macro].c)
-														r->macro[macro].c = w->keyboardmacro;
-													break;
-												default:
-													if (charToKmode(input, 0, &r->macro[macro].v, NULL) && !r->macro[macro].c)
-														r->macro[macro].c = w->keyboardmacro;
-													break;
-											}
-										else insertMacrov(r, macro, input);
+										insertMacrov(r, macro, input);
 									}
 								} break;
 						} redraw(); break;
@@ -1100,21 +1087,17 @@ void trackerInput(int input)
 								w->count = MIN(256, w->count);
 								switch (w->chord)
 								{
-									case 'K': /* keyboard modes */
-										w->keyboardmacro = '\0';
-										if (input != 'k' && input != 'K') changeMacro(input, &w->keyboardmacro);
-										break;
+									case 'I': /* macro insert */ changeMacro(input, &w->keyboardmacro); w->mode = T_MODE_INSERT; break;
 								} w->count = 0; redraw();
 							} else
 								switch (input)
 								{
 									case '\t': /* leave song mode    */ w->mode = T_MODE_NORMAL; redraw(); break;
 									case 'f':  /* toggle song follow */ w->flags ^= W_FLAG_FOLLOW; redraw(); break;
-									case 'K':  /* keyboard macro     */ w->chord = 'K'; redraw(); return;
 									case 'k':  /* up arrow           */ trackerUpArrow(); redraw(); break;
 									case 'j':  /* down arrow         */ trackerDownArrow(); redraw(); break;
-									case 'h':  /* left arrow         */ trackerLeftArrow(); redraw(); break;
-									case 'l':  /* right arrow        */ trackerRightArrow(); redraw(); break;
+									// case 'h':  /* left arrow         */ trackerLeftArrow(); redraw(); break;
+									// case 'l':  /* right arrow        */ trackerRightArrow(); redraw(); break;
 									case '[':  /* chnl left          */ channelLeft(); redraw(); break;
 									case ']':  /* chnl right         */ channelRight(); redraw(); break;
 									case '{':  /* cycle up           */ cycleUp(); redraw(); break;
@@ -1123,6 +1106,7 @@ void trackerInput(int input)
 									case 't':  /* row highlight      */ if (w->count) s->rowhighlight = MIN(16, w->count); redraw(); break;
 									case 's':  /* step               */ w->step = MIN(15, w->count); redraw(); break;
 									case 'o':  /* octave             */ w->octave = MIN(9, w->count); redraw(); break;
+									case 'I':          /* macro insert mode */ w->chord = 'I'; redraw(); return;
 									case 'i':          /* enter insert mode */ w->mode = T_MODE_SONG_INSERT; redraw(); break;
 									case 'v': case 22: /* enter visual mode */
 										w->visualfy = w->songfy;
@@ -1144,7 +1128,7 @@ void trackerInput(int input)
 										if (s->songi[w->songfy] == PATTERN_VOID && w->songnext == w->songfy + 1)
 											w->songnext = 0;
 										redraw(); break;
-									case '?': /* loop */ if (s->songi[w->songfy] != PATTERN_VOID) s->songf[w->songfy] = !s->songf[w->songfy]; redraw(); break;
+									case 'l': /* loop */ if (s->songi[w->songfy] != PATTERN_VOID) s->songf[w->songfy] = !s->songf[w->songfy]; redraw(); break;
 									case '>': /* next */
 										if (s->songi[w->songfy] != PATTERN_VOID)
 										{
@@ -1341,10 +1325,7 @@ void trackerInput(int input)
 												else s->channelv[w->channel].macroc = 1;
 												resize(0); break;
 										} break;
-									case 'K': /* keyboard mode */ /* ignores w->count */
-										w->keyboardmacro = '\0';
-										if (input != 'k' && input != 'K') changeMacro(input, &w->keyboardmacro);
-										redraw(); break;
+									case 'I': /* macro insert */ changeMacro(input, &w->keyboardmacro); w->mode = T_MODE_INSERT; redraw(); break;
 									case 'g': /* graphic */ if (input == 'g') w->trackerfy = 0; redraw(); break;
 									case 'r': /* row */
 										pv = s->patternv[s->patterni[s->songi[w->songfy]]];
@@ -1535,6 +1516,7 @@ void trackerInput(int input)
 								{
 									case '\n': case '\r': toggleChannelMute(w->channel); redraw(); break;
 									case 'f': /* toggle song follow */ w->flags ^= W_FLAG_FOLLOW; redraw(); break;
+									case 'I': /* macro insert mode  */ w->chord = 'I'; redraw(); return;
 									case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; redraw(); break;
 									case 'k': /* up arrow           */ trackerUpArrow(); redraw(); break;
 									case 'u': /* undo               */ popPatternHistory(s->patterni[s->songi[w->songfy]]); redraw(); break;
@@ -1563,7 +1545,6 @@ void trackerInput(int input)
 									case 'd':  /* pattern cut     */ w->chord = 'd'; redraw(); return;
 									case 'c':  /* channel         */ w->chord = 'c'; redraw(); return;
 									case 'm':  /* macro           */ w->chord = 'm'; redraw(); return;
-									case 'K':  /* keyboard macro  */ w->chord = 'K'; redraw(); return;
 									case 'r':  /* row             */ w->chord = 'r'; redraw(); return;
 									case 'R':  /* global row      */ w->chord = 'R'; redraw(); return;
 									case 'g':  /* graphic misc    */ w->chord = 'g'; redraw(); return;
@@ -1651,8 +1632,8 @@ void trackerInput(int input)
 						case 'v': case 22: w->mode = T_MODE_SONG; redraw(); break;
 						case 'k': /* up arrow    */ trackerUpArrow(); redraw(); break;
 						case 'j': /* down arrow  */ trackerDownArrow(); redraw(); break;
-						case 'h': /* left arrow  */ trackerLeftArrow(); redraw(); break;
-						case 'l': /* right arrow */ trackerRightArrow(); redraw(); break;
+						// case 'h': /* left arrow  */ trackerLeftArrow(); redraw(); break;
+						// case 'l': /* right arrow */ trackerRightArrow(); redraw(); break;
 						case '[': /* chnl left   */ channelLeft(); redraw(); break;
 						case ']': /* chnl right  */ channelRight(); redraw(); break;
 						case '{': /* cycle up    */ cycleUp(); redraw(); break;
@@ -1684,7 +1665,7 @@ void trackerInput(int input)
 							w->songfy = MIN(w->songfy, w->visualfy);
 							w->mode = T_MODE_SONG;
 							redraw(); break;
-						case '?': /* block loop */
+						case 'l': /* block loop */
 							for (i = 0; i < MAX(w->songfy, w->visualfy) - MIN(w->songfy, w->visualfy) +1; i++)
 								if (s->songi[MIN(w->songfy, w->visualfy)+i] != PATTERN_VOID)
 									s->songf[MIN(w->songfy, w->visualfy)+i] = !s->songf[MIN(w->songfy, w->visualfy)+i];
@@ -1778,21 +1759,7 @@ void trackerInput(int input)
 										break;
 									default:
 										if (!(w->trackerfx%2)) insertMacroc(r, macro, input);
-										else
-											if (w->keyboardmacro)
-												switch (r->macro[macro].c ? r->macro[macro].c : w->keyboardmacro)
-												{
-													case 0: insertMacrov(r, macro, input); break;
-													case 'G':
-														if (charToKmode(input, 1, &r->macro[macro].v, NULL) && !r->macro[macro].c)
-															r->macro[macro].c = w->keyboardmacro;
-														break;
-													default:
-														if (charToKmode(input, 0, &r->macro[macro].v, NULL) && !r->macro[macro].c)
-															r->macro[macro].c = w->keyboardmacro;
-														break;
-												}
-											else insertMacrov(r, macro, input);
+										else                   insertMacrov(r, macro, input);
 										break;
 								} break;
 						} redraw(); break;

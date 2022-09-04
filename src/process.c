@@ -46,8 +46,8 @@ void ramp(channel *cv, uint8_t realinstrument, uint32_t pointeroffset, uint32_t 
 		cv->rampinst = realinstrument;
 
 		/* consistant filters */ /* TODO: seems to be broken and causing clicks */
-		memcpy(&cv->rampfl, &cv->fl, sizeof(SVFilter) * 2);
-		memcpy(&cv->rampfr, &cv->fr, sizeof(SVFilter) * 2);
+		memcpy(cv->rampfl, cv->fl, sizeof(SVFilter) * 2);
+		memcpy(cv->rampfr, cv->fr, sizeof(SVFilter) * 2);
 
 		if (iv)
 		{
@@ -528,7 +528,8 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	ifMacro(fptr, cv, r, 'L', &Lc);             /* local cyclelength  */
 }
 
-void postSampler(jack_nframes_t fptr, int outputgroup, channel *cv, float rp,
+void postSampler(jack_nframes_t fptr, int outputgroup, channel *cv,
+		float rp, float rampgain,
 		float lf, float rf,
 		SVFilter fl[2], SVFilter fr[2],
 		uint8_t gain, short targetgain)
@@ -659,6 +660,10 @@ void postSampler(jack_nframes_t fptr, int outputgroup, channel *cv, float rp,
 		lf *= (gain>>4)*DIV16;
 		rf *= (gain%16)*DIV16;
 	}
+
+	/* apply ramping gain */
+	lf *= rampgain;
+	rf *= rampgain;
 
 	if (!(cv->flags&C_FLAG_MUTE))
 	{
@@ -895,23 +900,23 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 
 	float rowprogress = (float)sprp / (float)p->s->spr;
 	if (cv->rampbuffer && cv->rampindex < rampmax)
-	{ /* ramping */
+	{ // ramping
 		float gain = (float)cv->rampindex / (float)rampmax;
 
 		if (iv)
-			postSampler(fptr, iv->outputgroup, cv, rowprogress,
-					hardclip(lf * iv->gain*DIV32) * gain, hardclip(rf * iv->gain*DIV32) * gain,
+			postSampler(fptr, iv->outputgroup, cv, rowprogress, gain,
+					hardclip(lf * iv->gain*DIV32), hardclip(rf * iv->gain*DIV32),
 					cv->fl, cv->fr, cv->randgain, cv->targetgain);
 
 		if (p->s->instrumentv[cv->rampinst])
-			postSampler(fptr, p->s->instrumentv[cv->rampinst]->outputgroup, cv, rowprogress,
-					hardclip(((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT) * p->s->instrumentv[cv->rampinst]->gain*DIV32) * (1.0f - gain),
-					hardclip(((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT) * p->s->instrumentv[cv->rampinst]->gain*DIV32) * (1.0f - gain),
+			postSampler(fptr, p->s->instrumentv[cv->rampinst]->outputgroup, cv, rowprogress, 1.0f - gain,
+					hardclip(((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT) * p->s->instrumentv[cv->rampinst]->gain*DIV32),
+					hardclip(((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT) * p->s->instrumentv[cv->rampinst]->gain*DIV32),
 					cv->rampfl, cv->rampfr, cv->rampgain, -1);
 
 		cv->rampindex++;
 	} else if (iv)
-		postSampler(fptr, iv->outputgroup, cv, rowprogress,
+		postSampler(fptr, iv->outputgroup, cv, rowprogress, 1.0f,
 				hardclip(lf * iv->gain*DIV32), hardclip(rf * iv->gain*DIV32),
 				cv->fl, cv->fr, cv->randgain, cv->targetgain);
 }

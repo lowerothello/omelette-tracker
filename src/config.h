@@ -14,11 +14,12 @@
 /* how long it takes for notes to fade in/out                 */
 /* anything above ~300 risks overflowing at high sample rates */
 /* retrigger never has any ramping cos it causes artifacts    */
-#define RAMP_MS 3 /* usual ramp time */
+#define RAMP_MS 10 /* usual ramp time */
 #define LOOP_RAMP_MS 80 /* loop crossfade time, will auto-lower to half the loop range */
 #define TIMESTRETCH_RAMP_MS 15 /* timestretch ramp time */
 
 /* real length of an iv->cyclelength unit */
+/* I think this is actually in seconds, too lazy to check though */
 #define TIMESTRETCH_CYCLE_UNIT_MS 0.005f
 
 /* how many lines the mouse wheel should scroll */

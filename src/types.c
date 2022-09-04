@@ -170,11 +170,11 @@ typedef struct
 	channel channelv[32]; /* channel values */
 
 	/* effect state */
-	struct
+	/* struct
 	{
 		uint8_t mix;
 		uint8_t feedback;
-	} reverb;
+	} reverb; */
 	float compressorcoef;
 	float compressorsidechain;
 
