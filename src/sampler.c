@@ -1,10 +1,3 @@
-#define S_FLAG_TTEMPO  0b00000001 /* timestretch     */
-#define S_FLAG_PHASE   0b00000010 /* invert phase    */
-#define S_FLAG_SUSTAIN 0b00000100 /* inverse sustain */
-#define S_FLAG_MIDI    0b00001000 /* midi output     */
-// #define S_FLAG_RPLAY   0b00010000 /*   deprecated    */
-#define S_FLAG_PPLOOP  0b00100000 /* ping-pong loop  */
-
 void getSample(uint32_t p, instrument *iv, short *l, short *r)
 {
 	uint8_t shift = 15 - iv->bitdepth;
@@ -29,7 +22,7 @@ void trimloop(uint32_t p, uint8_t localenvelope,
 
 	if (iv->loop < iv->trim[1])
 	{ /* if there is a loop range */
-		if (iv->flags&S_FLAG_PPLOOP)
+		if (iv->pingpong)
 		{ /* ping-pong loop */
 			uint32_t looplength = iv->trim[1] - iv->loop;
 			if (p > iv->trim[1])
@@ -72,8 +65,32 @@ uint32_t calcDecimate(instrument *iv, uint8_t decimate, uint32_t pointer)
 	else                       return (uint32_t)(pointer/d)*d;
 }
 
-void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+int envelope(instrument *iv, channel *cv, uint32_t pointer)
 {
+	uint8_t env;
+	if (cv->localenvelope != -1) env = cv->localenvelope;
+	else                         env = iv->envelope;
+
+	uint32_t alen = ((env>>4)+ENVELOPE_A_MIN) * ENVELOPE_A_STEP * samplerate;
+	uint32_t dlen = ((env%16)+ENVELOPE_D_MIN) * ENVELOPE_D_STEP * samplerate;
+
+	if (cv->data.flags&C_FLAG_RELEASE || (!iv->sustain && pointer > alen))
+	     { if (dlen) cv->envgain = MAX(cv->envgain - (1.0f/dlen), 0.0f); else cv->envgain = 0.0f; }
+	else { if (alen) cv->envgain = MIN(cv->envgain + (1.0f/alen), 1.0f); else cv->envgain = 1.0f; }
+
+	if (pointer > alen && cv->envgain < NOISE_GATE)
+		return 0;
+	return 1;
+}
+
+void samplerProcess(uint8_t realinst, channel *cv, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+{
+	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE && p->w->instrumentlocki == realinst) return;
+
+	instrument *iv = &p->s->instrumentv[realinst];
+	/* TODO: this call failing should stop the trigger fully instead of just looping up to this point */
+	if (!envelope(iv, cv, pointer)) return;
+
 	uint32_t ramppos, pointersnap;
 	short hold;
 	float gain;
@@ -91,8 +108,8 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 	uint16_t cyclelength = MAX(1, samplerate*DIV1000 * TIMESTRETCH_CYCLE_UNIT_MS * MAX(1, localcyclelength));
 	pointersnap = pointer % cyclelength;
 
-	if (cv->flags&C_FLAG_REVERSE) ramppos = cyclelength;
-	else                          ramppos = 0;
+	if (cv->data.flags&C_FLAG_REVERSE) ramppos = cyclelength;
+	else                               ramppos = 0;
 
 	if (pointersnap == ramppos)
 	{ // first sample of a cycle
@@ -104,7 +121,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 	float calcshift = powf(2, localpitchshift*DIV64 - 2.0f);
 	float calcrate = (float)iv->c5rate / (float)samplerate;
 	float calcpitch = (float)pitchedpointer / (float)pointer;
-	if (iv->flags&S_FLAG_TTEMPO)
+	if (iv->timestretch)
 	{ /* time stretch */
 		trimloop(calcDecimate(iv, iv->samplerate,
 				((pointer - pointersnap) * calcrate) + (pointersnap * calcpitch * calcshift) * calcrate),
@@ -142,7 +159,7 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 		}
 	}
 
-	switch (iv->channelmode)
+	switch (iv->channels)
 	{
 		case 1: *r = *l; break;                       /* mono left    */
 		case 2: *l = *r; break;                       /* mono right   */
@@ -150,6 +167,6 @@ void samplerProcess(instrument *iv, channel *cv, uint32_t pointer, uint32_t pitc
 		case 4: hold = *l; *l = *r; *r = hold; break; /* channel swap */
 	}
 
-	if (iv->flags&S_FLAG_PHASE) { *l *= -1; *r *= -1; }
+	if (iv->invert) { *l *= -1; *r *= -1; }
 	*l *= cv->envgain; *r *= cv->envgain;
 }

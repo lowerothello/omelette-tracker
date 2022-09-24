@@ -1,29 +1,28 @@
 - make modes clearer in general, it's too easy to get lost
 	- change the cursor shape to help
-- use set_pixel_unsafe
-- dynamically set WAVEFORM_LAZY_BLOCK_SIZE?
+- dynamically set WAVEFORM_LAZY_BLOCK_SIZE
 	- how?
-- instrument midi channel value sometimes jumps really high, idk why
-	- either some weird memory corruption or i'm big dumb (probably the latter)
 - waveform visual bug when opening files
-- clear the bottom line and leave the cursor at the beginning of it when quitting
-- smooth midi cc loses track of the correct old cc value when midiccindex is changed
+- clear the bottom line and leave the cursor at the beginning of it when
+  quitting
+- smooth midi cc loses track of the correct old cc value when midiccindex is
+  changed
 	- need to remember state for all midi ccs?
 	- might cut smooth midi cc from scope
-- ramping causes clicks, think it's from the filter? not sure
-- tracker binds when the pattern is null are too restrictive, only tab is allowed
-- tracker binds are organised really REALLY badly in the code, they're really awkward to maintain
-- pattern history doesn't save channelc properly, causing zombie channels
-	- don't save channelc, don't let undo/redo manipulate the channel index
-- show the next song index indicator on the left only
-- remove song index loop, have a song loop toggle instead, similar to song follow
+- tracker binds are organised pretty badly in the code, they're really awkward
+  to maintain
+- Ixy isn't always smoothed properly over trigs
+	- should be fixed by Gxx-like slew
+- instruments can get stuck in the trigger animation
+	- seems to happen randomly when triggering with the a key
+- redo I_MODE_ADJUST in the new format
 
 - bind to set the octave of the hovered note and NOT the default octave?
-	- maybe inc/dec by octaves? ctrl+shft+a/x or smth
+	- maybe inc/dec by octaves? ctrl+alt+a/x or smth
 - portamento to note off should act like a tape stop
 - rx0 reaching the beginning of the sample cuts the note
 - Qxx can swap to qxx but not the other way round
-# - hard to tell where patterns start and stop
-- hard to tell which song index is selected/playing
 
-lookback needs testing, some macros are probably inexplicably broken for no apparent reason
+lookback needs testing, some macros are probably inexplicably broken for no
+apparent reason
+	- also lookback performs too badly

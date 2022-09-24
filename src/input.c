@@ -116,33 +116,3 @@ void previewNote(int key, uint8_t inst, uint8_t channel)
 			break;
 	} w->previewtrigger = 1;
 }
-
-void incField(signed char fieldpointer, uint32_t *value, uint32_t max)
-{
-	uint32_t oldval = *value;
-	*value = MIN(*value + pow32(16, fieldpointer), max);
-	if (oldval > *value) *value = max;
-}
-
-void decField(signed char fieldpointer, uint32_t *value)
-{
-	uint32_t oldval = *value;
-	*value -= pow32(16, fieldpointer);
-	if (oldval < *value) *value = 0;
-}
-
-void updateField(signed char fieldpointer, uint32_t *value, char modifier)
-{
-	uint32_t oldDigit, newDigit;
-	if (*value > 0)
-		oldDigit = pow32(16, fieldpointer) * hexDigit32(*value, fieldpointer);
-	else
-		oldDigit = 0;
-	newDigit = pow32(16, fieldpointer) * modifier;
-	*value = *value - oldDigit + newDigit;
-}
-void updateFieldPush(uint8_t *field, char value)
-{
-	*field<<=4;
-	*field+=value;
-}

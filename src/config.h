@@ -1,8 +1,14 @@
+/* debugging symbols */
+// #define DEBUG_DISABLE_AUDIO_THREAD
+
 /* filebrowser starting dir */
 #define SAMPLES_DIR "/media/prod"
 
+/* file extension used when writing omelette modules */
+#define MODULE_EXTENSION ".egg"
+
 /* draw the samples being output to the background */
-#define ENABLE_BACKGROUND 0
+// #define ENABLE_BACKGROUND
 
 /* in nanoseconds, one million nanoseconds per milisecond */
 #define UPDATE_DELAY 10000000
@@ -37,9 +43,3 @@
 
 /* approximately how many samples to wait between pitch wheel events */
 #define PITCH_WHEEL_SAMPLES 500
-
-
-/* hardcoded compressor state */
-#define COMPRESSOR_ATTACK_S 0.00007f
-#define COMPRESSOR_RELEASE_S 0.00014f
-#define COMPRESSOR_THRESHOLD 10.0f

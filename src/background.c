@@ -13,33 +13,33 @@ void initBackground(void)
 	b = calloc(1, sizeof(backgroundstate));
 }
 
-void resizeBackground(void)
+void resizeBackground(backgroundstate *cb)
 {
-	b->width = ws.ws_col * 2;
-	b->height = (ws.ws_row - 2) * 4;
+	cb->width = ws.ws_col * 2;
+	cb->height = (ws.ws_row - 2) * 4;
 
-	if (b->samples) { free(b->samples); b->samples = NULL; }
-	b->samples = calloc(b->width, sizeof(sample_t));
+	if (cb->samples) { free(cb->samples); cb->samples = NULL; }
+	cb->samples = calloc(cb->width, sizeof(sample_t));
 
-	if (b->canvas) { free_canvas(b->canvas); b->canvas = NULL; }
-	if (b->buffer) { free_buffer(b->buffer); b->buffer = NULL; }
-	b->canvas = new_canvas(b->width, b->height);
-	b->buffer = new_buffer(b->canvas);
+	if (cb->canvas) { free_canvas(cb->canvas); cb->canvas = NULL; }
+	if (cb->buffer) { free_buffer(cb->buffer); cb->buffer = NULL; }
+	cb->canvas = new_canvas(cb->width, cb->height);
+	cb->buffer = new_buffer(cb->canvas);
 
-	b->pointer = 0;
+	cb->pointer = 0;
 }
 
-void freeBackground(void)
+void freeBackground(backgroundstate *cb)
 {
-	if (b->samples) { free(b->samples); b->samples = NULL; }
-	if (b->canvas) { free_canvas(b->canvas); b->canvas = NULL; }
-	if (b->buffer) { free_buffer(b->buffer); b->buffer = NULL; }
-	free(b);
+	if (cb->samples) { free(cb->samples); cb->samples = NULL; }
+	if (cb->canvas) { free_canvas(cb->canvas); cb->canvas = NULL; }
+	if (cb->buffer) { free_buffer(cb->buffer); cb->buffer = NULL; }
+	free(cb);
 }
 
 void updateBackground(jack_nframes_t nfptr, portbufferpair out)
 {
-	if (b->samples) /* protect against freak segfault */
+	if (b->samples) /* segfault protection, TODO: shouldn't be needed */
 		for (jack_nframes_t i = 0; i < nfptr; i++)
 		{
 			b->samples[b->pointer] = out.l[i];
@@ -55,20 +55,13 @@ void drawBackground(void)
 		fill(b->canvas, 0);
 		size_t halfheight = b->height / 2;
 		for (size_t i = 0; i < b->width; i++)
-		{
+			/* TODO: use set_pixel_unsafe */
 			set_pixel(b->canvas, 1, i,
 					b->samples[(i+b->pointer) % b->width] * halfheight + halfheight);
-		}
 
 		draw(b->canvas, b->buffer);
 		printf("\033[2;0H");
 		for (size_t i = 0; b->buffer[i] != NULL; i++)
 			if (b->buffer[i]) printf("%s\n", b->buffer[i]);
 	}
-
-	/* puts("\033[7m");
-	for (unsigned short y = 1; y <= ws.ws_row; y++)
-		for (unsigned short x = 1; x <= ws.ws_col; x++)
-			printf("\033[%d;%dH ", y, x);
-	puts("\033[27m"); */
 }

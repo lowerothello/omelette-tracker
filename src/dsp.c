@@ -81,12 +81,6 @@ void runSVFilter(SVFilter *s, double input, double cutoff, double q)
 	s->n = s->h + s->l;
 }
 
-
-void drawBit(char a)
-{
-	if (a) printf("[X]");
-	else   printf("[ ]");
-}
 void drawChannels(uint8_t mode, unsigned short y, unsigned short x, char adjust)
 {
 	switch (mode)
@@ -192,7 +186,8 @@ void genOscillator(void)
 	}
 } */
 
-float triosc(float phase) { return (fabsf(fmodf(phase + 0.75f, 1.0f) - 0.5f) * 4.0f) - 1.0f; }
+float triosc(float phase)
+{ return (fabsf(fmodf(phase + 0.75f, 1.0f) - 0.5f) * 4.0f) - 1.0f; }
 
 /* waveshaper threshold */
 float wavefolder(float input)
@@ -229,6 +224,4 @@ float rectify(float input) /* TODO: clicky */
 	return input;
 }
 float thirddegreepolynomial(float input)
-{
-	return hardclip(1.5f*input - 0.5f*input*input*input);
-}
+{ return hardclip(1.5f*input - 0.5f*input*input*input); }

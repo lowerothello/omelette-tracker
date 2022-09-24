@@ -1,3 +1,45 @@
+/* window->dirpath should be set to the path */
+int changeDirectory(void)
+{
+	if (w->dir != NULL) { closedir(w->dir); w->dir = NULL; }
+
+	/* avoid paths that start with "//" */
+	if (w->dirpath[1] == '/')
+	{
+		char tmp[NAME_MAX];
+		memcpy(tmp, w->dirpath+1, NAME_MAX);
+		memcpy(w->dirpath, tmp, NAME_MAX);
+	}
+
+	w->dir = opendir(w->dirpath);
+	if (w->dir == NULL)
+	{
+		strcpy(w->command.error, "failed to open directory");
+		return 1; /* failed, probably because window->dir doesn't point to a dir */
+	}
+
+	struct dirent *dirent = readdir(w->dir);
+	w->dirc = 0;
+	w->dirmaxwidth = 1;
+	while (dirent != NULL)
+	{
+		if (
+				   strcmp(dirent->d_name, ".")
+				&& strcmp(dirent->d_name, "..")
+				&& strcmp(dirent->d_name, "lost+found"))
+		{
+			if (strlen(dirent->d_name)+2 > w->dirmaxwidth)
+				w->dirmaxwidth = strlen(dirent->d_name)+2;
+			w->dirc++;
+		}
+		dirent = readdir(w->dir);
+	}
+	rewinddir(w->dir);
+	w->dirmaxwidth = MIN(w->dirmaxwidth, ws.ws_col - 4);
+	w->dircols = MAX(MIN((ws.ws_col - 8) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
+	return 0;
+}
+
 void drawFilebrowser(void)
 {
 	printf("\033[%d;%dH\033[1mFILEBROWSER\033[m", CHANNEL_ROW-2, (ws.ws_col-11) / 2);
@@ -16,7 +58,7 @@ void drawFilebrowser(void)
 	else
 		printf("\033[%d;%dH%.*s", CHANNEL_ROW, (ws.ws_col - (unsigned short)strlen(w->dirpath)) / 2, ws.ws_col-4, w->dirpath);
 
-	dirc = 0; /* gcc makes this var static, even with -O0. thanks stallman very cool (tcc does not do this) */
+	dirc = 0; /* gcc makes this var static, even with -O0. thanks stallman very cool (tcc handles this correctly, literally a gcc bug) */
 	while (dirent)
 	{
 		for (unsigned char wcol = 0; wcol < w->dircols; wcol++)

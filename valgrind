@@ -1,6 +1,7 @@
 #!/bin/sh -e
 
 ./make.sh 0 # ensure the latest gcc debug build
+# ./make.sh pg # ensure the latest gcc debug build
 
 valgrind \
 	--log-file=valgrind.log \
