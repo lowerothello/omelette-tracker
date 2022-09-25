@@ -15,8 +15,9 @@ void trackerInput(int input)
 					{
 						case 'P': /* xterm f1 */ showTracker(); break;
 						case 'Q': /* xterm f2 */ showInstrument(); break;
+						case 'S': /* xterm f4 */ showMaster(); break;
 					} redraw(); break;
-				case '[':
+				case '[': /* CSI */
 					previewNote(' ', INST_VOID, w->channel);
 					switch (getchar())
 					{
@@ -25,6 +26,7 @@ void trackerInput(int input)
 							{
 								case 'A': /* linux f1 */ showTracker(); break;
 								case 'B': /* linux f2 */ showInstrument(); break;
+								case 'D': /* linux f4 */ showMaster(); break;
 								case 'E': /* linux f5 */ leaveSpecialModes(); startPlayback(); break;
 							} redraw(); break;
 						case 'A': /* up arrow    */ trackerUpArrow(1); redraw(); break;
@@ -450,8 +452,8 @@ void trackerInput(int input)
 											redraw();
 										} break;
 									case 'g': /* graphic */ if (input == 'g') w->trackerfy = 0; redraw(); break;
-									case 'r': /* row     */ chordRow(cd, input); regenGlobalRowc(s); redraw(); break;
-									case ';': /* loop    */ chordLoop(cd, input); redraw(); break;
+									case 'r': /* row     */ inputTooltip(&tt, input); regenGlobalRowc(s); redraw(); break;
+									case ';': /* loop    */ inputTooltip(&tt, input); redraw(); break;
 								} w->count = 0; redraw();
 							} else
 								switch (input)
@@ -470,8 +472,8 @@ void trackerInput(int input)
 									case 't':  /* row highlight      */ if (w->count) s->rowhighlight = MIN(16, w->count); regenGlobalRowc(s); redraw(); break;
 									case 's':  /* step               */ w->step = MIN(15, w->count); redraw(); break;
 									case 'o':  /* octave             */ w->octave = MIN(9, w->count); redraw(); break;
-									case 'r':  /* row                */ w->chord = 'r'; redraw(); return;
-									case ';':  /* loop               */ w->chord = ';'; redraw(); return;
+									case 'r':  /* row                */ setChordRow(); redraw(); return;
+									case ';':  /* loop               */ setChordLoop(); redraw(); return;
 									case 'g':  /* graphic misc       */ w->chord = 'g'; redraw(); return;
 									case 'G':  /* graphic end        */ trackerEnd(); redraw(); break;
 									case 'y':  /* copy               */ w->chord = 'y'; redraw(); return;
@@ -539,12 +541,12 @@ void trackerInput(int input)
 											trackerDownArrow(MAX(1, w->count));
 											redraw();
 										} break;
-									case 'c': /* channel      */ chordChannel(cd, input); regenGlobalRowc(s); resize(0); break;
-									case 'm': /* macro        */ chordMacro(cd, input); regenGlobalRowc(s); resize(0); break;
+									case 'c': /* channel      */ inputTooltip(&tt, input); regenGlobalRowc(s); resize(0); break;
+									case 'm': /* macro        */ inputTooltip(&tt, input); regenGlobalRowc(s); resize(0); break;
 									case 'I': /* macro insert */ changeMacro(input, &w->keyboardmacro); w->mode = T_MODE_INSERT; redraw(); break;
 									case 'g': /* graphic      */ if (input == 'g') w->trackerfy = 0; redraw(); break;
-									case 'r': /* row          */ chordRow(cd, input); regenGlobalRowc(s); redraw(); break;
-									case ';': /* loop         */ chordLoop(cd, input); redraw(); break;
+									case 'r': /* row          */ inputTooltip(&tt, input); regenGlobalRowc(s); redraw(); break;
+									case ';': /* loop         */ inputTooltip(&tt, input); redraw(); break;
 								} w->count = 0;
 							} else
 							{
@@ -580,10 +582,10 @@ void trackerInput(int input)
 									case '\t': /* enter vtrig mode */ w->mode = T_MODE_VTRIG; redraw(); break;
 									case 'y':  /* pattern copy     */ w->chord = 'y'; redraw(); return;
 									case 'd':  /* pattern cut      */ w->chord = 'd'; redraw(); return;
-									case 'c':  /* channel          */ w->chord = 'c'; redraw(); return;
-									case 'm':  /* macro            */ w->chord = 'm'; redraw(); return;
-									case 'r':  /* row              */ w->chord = 'r'; redraw(); return;
-									case ';':  /* loop             */ w->chord = ';'; redraw(); return;
+									case 'c':  /* channel          */ setChordChannel(); redraw(); return;
+									case 'm':  /* macro            */ setChordMacro(); redraw(); return;
+									case 'r':  /* row              */ setChordRow(); redraw(); return;
+									case ';':  /* loop             */ setChordLoop(); redraw(); return;
 									case 'g':  /* graphic misc     */ w->chord = 'g'; redraw(); return;
 									case 'G':  /* graphic end      */ trackerEnd(); redraw(); break;
 									case 'b':  /* bpm              */ if (w->count) s->songbpm = MIN(255, MAX(32, w->count)); w->request = REQ_BPM; redraw(); break;
@@ -766,6 +768,6 @@ void trackerInput(int input)
 			} break;
 	}
 	if (w->count) { w->count = 0; redraw(); }
-	if (w->chord) { w->chord = '\0'; redraw(); }
+	if (w->chord) { w->chord = '\0'; clearTooltip(&tt); redraw(); }
 	// pushPatternHistoryIfNew(s->patternv[s->patterni[s->trig[w-> songfy].index]]);
 }

@@ -1,3 +1,5 @@
+#define FILEBROWSER_PAGE_HEIGHT 18
+
 /* window->dirpath should be set to the path */
 int changeDirectory(void)
 {
@@ -221,12 +223,12 @@ void filebrowserInput(int input)
 							} break;
 						case '5': /* page up */
 							getchar();
-							w->filebrowserindex -= w->dircols * (INSTRUMENT_BODY_ROWS - 2);
+							w->filebrowserindex -= w->dircols * FILEBROWSER_PAGE_HEIGHT;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
 							redraw(); break;
 						case '6': /* page down */
 							getchar();
-							w->filebrowserindex += w->dircols * (INSTRUMENT_BODY_ROWS - 2);
+							w->filebrowserindex += w->dircols * FILEBROWSER_PAGE_HEIGHT;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
 							redraw(); break;
 						case '1': /* mod+arrow / f5 - f8 */

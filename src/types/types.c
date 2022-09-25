@@ -35,11 +35,6 @@ typedef struct
 #define STATE_ROWS 4
 
 #define CHANNEL_MAX 32
-#define C_FLAG_MUTE        0b00000001
-#define C_FLAG_REVERSE     0b00000010
-#define C_FLAG_RELEASE     0b00000100
-#define C_FLAG_RTRIG_REV   0b00001000
-#define C_FLAG_TARGET_RAND 0b00010000
 typedef struct
 {
 	uint8_t  varianti[VARIANT_MAX]; /* variant index/backref   */
@@ -49,7 +44,13 @@ typedef struct
 	vtrig   *trig;  /* variant triggers */
 	variant *songv; /* main fallback variant  */
 
-	uint8_t flags;
+	/* flags */
+	bool mute;
+	bool reverse;
+	bool release;
+	bool rtrig_rev;
+	bool target_rand;
+
 	uint8_t macroc; /* macro count */
 } channeldata; /* raw sequence data */
 typedef struct
@@ -107,7 +108,6 @@ typedef struct
 
 	/* filter */
 	SVFilter fl[2], fr[2];
-	SVFilter rampfl[2], rampfr[2];
 	char     filtermode;
 	int8_t   targetfiltermode;
 	uint8_t  filtercut;
@@ -117,7 +117,6 @@ typedef struct
 	/* ramping */
 	uint16_t rampindex;        /* progress through the ramp buffer, rampmax if not ramping */
 	short   *rampbuffer;       /* samples to ramp out */
-	uint8_t  rampgain;         /* raw gain m for the ramp buffer */
 	uint8_t  rampinst;         /* real index, needed to determine the output group */
 
 	uint16_t stretchrampindex; /* progress through the stretch ramp buffer, >=cv->stretchrampmax if not ramping */
@@ -126,13 +125,14 @@ typedef struct
 
 #define INSTRUMENT_VOID 255
 #define INSTRUMENT_MAX 255
-typedef struct Instrument
+typedef struct
 {
 	short    *sampledata;   /* variable size, persists between types */
 	uint32_t  samplelength; /* raw samples allocated for sampledata */
 
 	uint32_t length;
-	int8_t   channels;
+	uint8_t  channels;
+	int8_t   channelmode;
 	uint32_t c5rate;
 	uint8_t  samplerate;  /* percent of c5rate to actually use */
 	int8_t   bitdepth;
@@ -150,13 +150,16 @@ typedef struct Instrument
 	int8_t   midichannel;
 
 	uint32_t triggerflash;
-
-	struct Instrument *history[128]; /* instrument snapshots */
-	short         historyindex[128]; /* cursor positions for instrument snapshots */
-	uint8_t              historyptr; /* highest bit is an overflow bit */
-	uint8_t           historybehind; /* tracks how many less than 128 safe indices there are */
-	uint8_t            historyahead; /* tracks how many times it's safe to redo */
 } instrument;
+
+
+#define EFFECT_CHAIN_LEN 16
+typedef struct
+{
+	uint8_t type;
+	void   *state;
+} Effect;
+
 
 #define PLAYING_STOP 0
 #define PLAYING_START 1
@@ -178,6 +181,10 @@ typedef struct
 	uint16_t songlen; /* how long the global variant is */
 	uint16_t loop[2]; /* loop range pointers */
 
+	/* mastering chain */
+	uint8_t effectc;
+	Effect *effectv;
+
 	/* misc. state */
 	uint8_t rowhighlight;
 	uint8_t          bpm;
@@ -190,14 +197,8 @@ song *s;
 
 
 #define INST_GLOBAL_LOCK_OK 0        /* playback and most memory ops are safe */
-#define INST_GLOBAL_LOCK_PREP_FREE 1 /* playback unsafe, preparing to free the state */
-#define INST_GLOBAL_LOCK_FREE 2      /* playback has stopped, safe to free the state */
-#define INST_GLOBAL_LOCK_PREP_HIST 3 /* playback unsafe, preparing to restore history */
-#define INST_GLOBAL_LOCK_HIST 4      /* playback has stopped, restoring history */
-#define INST_GLOBAL_LOCK_PREP_PUT 5  /* playback unsafe, preparing to overwrite state */
-#define INST_GLOBAL_LOCK_PUT 6       /* playback has stopped, overwriting state */
 #define INST_GLOBAL_INST_MUTE 7      /* force stop midi for instrument locki */
-#define INST_GLOBAL_CHANNEL_MUTE 8   /* like INST_MUTE but locki contains a channel index */
+#define INST_GLOBAL_CHANNEL_MUTE 8   /* one or more channels have changed mute state */
 
 #define INST_REC_LOCK_OK 0          /* playback and most memory ops are safe */
 #define INST_REC_LOCK_START 1       /* want to be unsafe                     */

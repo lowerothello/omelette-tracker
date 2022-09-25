@@ -57,6 +57,7 @@ void startPlayback(void);
 void stopPlayback(void);
 void showTracker(void);
 void showInstrument(void);
+void showMaster(void);
 
 void changeMacro(int, char *);
 
@@ -80,12 +81,18 @@ void changeMacro(int, char *);
 #include "input.c"
 
 #include "control.c"
-#include "effect/effect.c"
+#include "types/effect.c"
 ControlState cc;
+#include "tooltip.c"
+TooltipState tt;
 
-#include "instrument.c"
+#include "master.c"
 #include "filebrowser.c"
 #include "waveform.c"
+
+#include "instrument/instrument.c"
+#include "instrument/input.c"
+#include "instrument/draw.c"
 
 #include "tracker/visual.c"
 #include "tracker/tracker.c"
@@ -147,10 +154,13 @@ void redraw(void)
 		{
 			case 0: drawTracker(); break;
 			case 1: drawInstrument(); break;
-			case 2: drawFilebrowser(); break;
+			case 3: drawMaster(); break;
+			case 15: drawFilebrowser(); break;
 		}
 		drawCommand(&w->command, w->mode);
 	}
+
+	drawTooltip(&tt);
 
 	fflush(stdout);
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
@@ -184,7 +194,7 @@ int commandCallback(char *command, unsigned char *mode)
 		wordSplit(buffer, command, 1);
 		if (!strcmp(buffer, ""))
 		{
-			w->popup = 2;
+			w->popup = 15;
 			w->filebrowserCallback = &filebrowserEditCallback;
 			redraw();
 		} else
@@ -231,6 +241,11 @@ void showInstrument(void)
 	if (s->instrumenti[w->instrument] != INSTRUMENT_VOID)
 		resetWaveform();
 }
+void showMaster(void)
+{
+	w->mode = 0;
+	w->popup = 3;
+}
 
 int input(void)
 {
@@ -248,6 +263,8 @@ int input(void)
 		} else switch (input)
 			{
 				case ':': /* enter command mode */
+					if (w->count) { w->count = 0;  }
+					if (w->chord) { w->chord = '\0'; clearTooltip(&tt); }
 					setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
 					// setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
 					w->oldmode = w->mode;
@@ -282,7 +299,8 @@ int input(void)
 					{
 						case 0: trackerInput(input); break;
 						case 1: instrumentInput(input); break;
-						case 2: filebrowserInput(input); break;
+						case 3: masterInput(input); break;
+						case 15: filebrowserInput(input); break;
 					}
 					break;
 			}
@@ -345,9 +363,6 @@ int main(int argc, char **argv)
 #else
 		if (p->dirty) { p->dirty = 0; redraw(); }
 #endif
-
-		/* perform any pending instrument actions */
-		asyncInstrumentUpdate(s);
 
 		/* finish freeing the record buffer */
 		if (w->instrumentrecv == INST_REC_LOCK_CANCEL)

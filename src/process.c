@@ -22,12 +22,7 @@ void ramp(channel *cv, uint8_t realinstrument)
 		memset(cv->rampbuffer, 0, sizeof(short) * rampmax * 2);
 
 		/* save state */
-		cv->rampgain = cv->randgain;
 		cv->rampinst = realinstrument;
-
-		/* consistant filters */
-		memcpy(cv->rampfl, cv->fl, sizeof(SVFilter) * 2);
-		memcpy(cv->rampfr, cv->fr, sizeof(SVFilter) * 2);
 
 		uint32_t pointeroffset = cv->pointer;
 		uint32_t pitchedpointeroffset = cv->pitchedpointer;
@@ -36,7 +31,7 @@ void ramp(channel *cv, uint8_t realinstrument)
 			float multiplier = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
 			pitchedpointeroffset += (int)((pointeroffset+1)*multiplier) - (int)(pointeroffset*multiplier);
 			float oldenvgain = cv->envgain;
-			if (cv->data.flags&C_FLAG_REVERSE)
+			if (cv->data.reverse)
 			{
 				jack_nframes_t localrampmax;
 				if (pointeroffset < rampmax)
@@ -49,15 +44,15 @@ void ramp(channel *cv, uint8_t realinstrument)
 					delta = (int)((pointeroffset+i+1)*multiplier) - (int)((pointeroffset+i)*multiplier);
 					if (pitchedpointeroffset > delta) pitchedpointeroffset -= delta;
 					else                              pitchedpointeroffset = 0;
-					/* samplerProcess(realinstrument, cv, pointeroffset+i, pitchedpointeroffset,
-							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]); */
+					samplerProcess(realinstrument, cv, pointeroffset+i, pitchedpointeroffset,
+							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]);
 				}
 			} else
 				for (uint16_t i = 0; i < rampmax; i++)
 				{
 					pitchedpointeroffset += (int)((pointeroffset+i+1)*multiplier) - (int)((pointeroffset+i)*multiplier);
-					/* samplerProcess(realinstrument, cv, pointeroffset+i, pitchedpointeroffset,
-							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]); */
+					samplerProcess(realinstrument, cv, pointeroffset+i, pitchedpointeroffset,
+							&cv->rampbuffer[i*2 + 0], &cv->rampbuffer[i*2 + 1]);
 				}
 			cv->envgain = oldenvgain;
 		}
@@ -69,7 +64,7 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 	if (note == NOTE_VOID) return;
 	if (note == NOTE_OFF)
 	{
-		if (!(cv->data.flags&C_FLAG_RELEASE)) cv->data.flags ^= C_FLAG_RELEASE;
+		cv->data.release = 1;
 		cv->r.inst = inst;
 		cv->r.note = note;
 	} else
@@ -77,8 +72,8 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		cv->r.inst = cv->samplerinst = inst;
 		cv->r.note = cv->samplernote = note;
 		cv->pointer = cv->pitchedpointer = 0;
-		if (cv->data.flags&C_FLAG_REVERSE) cv->data.flags ^= C_FLAG_REVERSE;
-		if (cv->data.flags&C_FLAG_RELEASE) cv->data.flags ^= C_FLAG_RELEASE;
+		cv->data.reverse = 0;
+		cv->data.release = 0;
 		cv->portamentosamples = 0; cv->portamentosamplepointer = 1;
 		cv->startportamentofinetune = cv->targetportamentofinetune = cv->portamentofinetune = 0.0f;
 		cv->microtonalfinetune = 0.0f;
@@ -89,10 +84,10 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		
 		/* must stop retriggers cos pointers are no longer guaranteed to be valid */
 		cv->rtrigblocksize = 0;
-		if (cv->data.flags&C_FLAG_RTRIG_REV) cv->data.flags ^= C_FLAG_RTRIG_REV;
+		cv->data.rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 
-		if (!(cv->data.flags&C_FLAG_MUTE) && p->s->instrumenti[inst] < p->s->instrumentc)
+		if (!cv->data.mute && p->s->instrumenti[inst] < p->s->instrumentc)
 		{
 			p->s->instrumentv[p->s->instrumenti[inst]].triggerflash = samplerate / buffersize *DIV1000 * INSTRUMENT_TRIGGER_FLASH_MS;
 			p->dirty = 1;
@@ -130,7 +125,7 @@ void midiCC(jack_nframes_t fptr, uint8_t midichannel, uint8_t controller, uint8_
 
 char triggerMidi(jack_nframes_t fptr, channel *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
-	if (note != NOTE_VOID && !(cv->data.flags&C_FLAG_MUTE) && p->s->instrumenti[inst] < p->s->instrumentc)
+	if (note != NOTE_VOID && !cv->data.mute && p->s->instrumenti[inst] < p->s->instrumentc)
 	{
 		instrument *iv = &p->s->instrumentv[p->s->instrumenti[inst]];
 		if (iv->midichannel != -1)
@@ -155,10 +150,10 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	/* end interpolation */
 	if (cv->targetgain != -1)
 	{
-		if (cv->data.flags&C_FLAG_TARGET_RAND)
+		if (cv->data.target_rand)
 		{
 			cv->randgain = cv->targetgain;
-			cv->data.flags ^= C_FLAG_TARGET_RAND;
+			cv->data.target_rand = 0;
 		} else cv->gain = cv->randgain = cv->targetgain;
 		cv->targetgain = -1;
 	}
@@ -170,7 +165,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 		if (cv->rtrigblocksize > 0 || cv->rtrigblocksize == -1) cv->rtrigblocksize--;
 		else
 		{
-			if (cv->data.flags&C_FLAG_RTRIG_REV) cv->data.flags ^= C_FLAG_RTRIG_REV;
+			cv->data.rtrig_rev = 0;
 			cv->rtrigsamples = 0;
 		}
 	}
@@ -259,7 +254,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 		ifMacro(fptr, cv, r, 'R', &Rc);         /* block retrigger    */
 	if (cv->rtrigsamples && cv->rtrigblocksize < -1)
 	{ /* clean up if the last row had a [Q,q]xx and this row doesn't */
-		if (cv->data.flags&C_FLAG_RTRIG_REV) cv->data.flags ^= C_FLAG_RTRIG_REV;
+		cv->data.rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 	}
 
@@ -268,8 +263,7 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 }
 
 void postSampler(jack_nframes_t fptr, channel *cv,
-		float rp, float rampgain,
-		float lf, float rf,
+		float rp, float lf, float rf,
 		SVFilter fl[2], SVFilter fr[2],
 		uint8_t gain, short targetgain)
 {
@@ -281,7 +275,7 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 		{
 			case 0: /* hard clip */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = 1.0f + (cv->waveshaperstrength<<1) + ((cv->targetwaveshaperstrength - cv->waveshaperstrength)<<1) * rp;
+				     strength = 1.0f + (cv->waveshaperstrength<<1) + ((cv->targetwaveshaperstrength - cv->waveshaperstrength)<<1) * rp;
 				else strength = 1.0f + (cv->waveshaperstrength<<1);
 				hold = 1.0f / sqrtf(strength);
 				lf = hardclip(lf*strength)*hold;
@@ -289,7 +283,7 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 				break;
 			case 1: /* soft clip */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = 1.0f + cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp;
+				     strength = 1.0f + cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp;
 				else strength = 1.0f + cv->waveshaperstrength;
 				hold = 1.0f / sqrtf(strength);
 				lf = thirddegreepolynomial(lf*strength)*hold;
@@ -297,14 +291,14 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 				break;
 			case 2: /* rectify */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV15;
+				     strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV15;
 				else strength = cv->waveshaperstrength*DIV15;
 				lf = rectify(lf) * (MIN(strength, 0.5f) * 2) + lf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				rf = rectify(rf) * (MIN(strength, 0.5f) * 2) + rf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				break;
 			case 3: /* rectify x2 */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV15;
+				     strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV15;
 				else strength = cv->waveshaperstrength*DIV15;
 				lf = rectify(lf) * (MIN(strength, 0.5f) * 2) + lf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				rf = rectify(rf) * (MIN(strength, 0.5f) * 2) + rf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
@@ -313,7 +307,7 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 				break;
 			case 4: /* wavefold */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = 1.0f + cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp;
+				     strength = 1.0f + cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp;
 				else strength = 1.0f + cv->waveshaperstrength;
 				hold = 1.0f / sqrtf(strength);
 				lf = wavefolder(lf*strength)*hold;
@@ -321,7 +315,7 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 				break;
 			case 5: /* wavewrap */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = 1.0f + cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp;
+				     strength = 1.0f + cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp;
 				else strength = 1.0f + cv->waveshaperstrength;
 				hold = 1.0f / sqrtf(strength);
 				lf = wavewrapper(lf*strength)*hold;
@@ -329,14 +323,14 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 				break;
 			case 6: /* sign conversion */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV15;
+				     strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV15;
 				else strength = cv->waveshaperstrength*DIV15;
 				lf = signedunsigned(lf) * (MIN(strength, 0.5f) * 2) + lf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				rf = signedunsigned(rf) * (MIN(strength, 0.5f) * 2) + rf * (1.0f - (MAX(strength, 0.5f) - 0.5f) * 2);
 				break;
 			case 7: /* hard gate */
 				if (cv->targetwaveshaperstrength != -1)
-					 strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV64;
+				     strength = (cv->waveshaperstrength + (cv->targetwaveshaperstrength - cv->waveshaperstrength) * rp)*DIV64;
 				else strength = cv->waveshaperstrength*DIV64;
 				if (fabsf(lf) < strength) lf = 0.0f;
 				if (fabsf(rf) < strength) rf = 0.0f;
@@ -387,7 +381,8 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 			case 3: /* notch     */ lf += (fl[1].n - lf) * rp; rf += (fr[1].n - rf) * rp; break;
 		}
 
-	lf = hardclip(lf); rf = hardclip(rf);
+	lf = hardclip(lf);
+	rf = hardclip(rf);
 
 	/* apply gain */
 	if (targetgain != -1)
@@ -400,23 +395,16 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 		rf *= (gain%16)*DIV16;
 	}
 
-	/* apply ramping gain */
-	lf *= rampgain;
-	rf *= rampgain;
-
-	if (!(cv->data.flags&C_FLAG_MUTE))
+	pb.out.l[fptr] += lf;
+	pb.out.r[fptr] += rf;
+	if (cv->targetsendgain != -1)
 	{
-		pb.out.l[fptr] += lf;
-		pb.out.r[fptr] += rf;
-		if (cv->targetsendgain != -1)
-		{
-			pb.out.l[fptr] += lf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
-			pb.out.r[fptr] += rf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
-		} else if (cv->sendgain)
-		{
-			pb.out.l[fptr] += lf * cv->sendgain*DIV15;
-			pb.out.r[fptr] += rf * cv->sendgain*DIV15;
-		}
+		pb.out.l[fptr] += lf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
+		pb.out.r[fptr] += rf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
+	} else if (cv->sendgain)
+	{
+		pb.out.l[fptr] += lf * cv->sendgain*DIV15;
+		pb.out.r[fptr] += rf * cv->sendgain*DIV15;
 	}
 }
 
@@ -466,7 +454,7 @@ void playChannelLookback(jack_nframes_t fptr, channel *cv)
 
 			multiplier = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
 
-			if (cv->data.flags&C_FLAG_REVERSE)
+			if (cv->data.reverse)
 			{
 				delta = (int)((cv->portamentosamplepointer+1)*multiplier) - (int)(cv->portamentosamplepointer*multiplier);
 				if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
@@ -479,9 +467,7 @@ void playChannelLookback(jack_nframes_t fptr, channel *cv)
 
 	/* process the sampler */
 	if (p->s->instrumenti[cv->samplerinst] < p->s->instrumentc && cv->samplernote != NOTE_VOID
-			&& cv->samplernote != NOTE_OFF && cv->samplerinst != INST_VOID
-			&& !(p->w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-			&& p->w->instrumentlocki == p->s->instrumenti[cv->samplerinst]))
+			&& cv->samplernote != NOTE_OFF && cv->samplerinst != INST_VOID)
 	{
 		instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
 		for (sprp = 0; sprp < p->s->spr - sprs; sprp++)
@@ -490,7 +476,7 @@ void playChannelLookback(jack_nframes_t fptr, channel *cv)
 		if (cv->portamentosamplepointer >= cv->portamentosamples)
 		{ /* only walk pitchedpointer if not pitch sliding */
 			multiplier = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
-			if (cv->data.flags&C_FLAG_REVERSE)
+			if (cv->data.reverse)
 			{
 				delta = (int)((cv->pointer+(sprp - sprs))*multiplier) - (int)(cv->pointer*multiplier);
 				if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
@@ -548,7 +534,7 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 
 		multiplier = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune + cv->portamentofinetune);
 
-		if (cv->data.flags&C_FLAG_REVERSE)
+		if (cv->data.reverse)
 		{
 			delta = (int)((cv->portamentosamplepointer+1)*multiplier) - (int)(cv->portamentosamplepointer*multiplier);
 			if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
@@ -577,13 +563,12 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 	{
 		instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
 
-		if (!(cv->data.flags&C_FLAG_MUTE) && !(sprp%PITCH_WHEEL_SAMPLES) && iv->midichannel != -1)
+		if (!cv->data.mute && !(sprp%PITCH_WHEEL_SAMPLES) && iv->midichannel != -1)
 		{
 			if (cv->finetune != 0.0f) midiPitchWheel(fptr, iv->midichannel, MIN(2.0f, MAX(-2.0f, cv->finetune + cv->portamentofinetune)));
 			if (cv->targetmidicc != -1) midiCC(fptr, iv->midichannel, cv->midiccindex, cv->midicc + (cv->targetmidicc - cv->midicc) * (float)sprp/(float)p->s->spr);
 		}
 
-/* the sampler stripping first pass has gotten to about here (my neck hurts so i'm stopping) */
 		/* process the sampler */
 		if (cv->samplerinst != INST_VOID && cv->samplernote != NOTE_VOID && cv->samplernote != NOTE_OFF)
 		{
@@ -600,14 +585,14 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 					if (cv->pointer > cv->rtrigpointer) /* first sample of any retrigger but the first */
 						cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
 				}
-				if (cv->data.flags&C_FLAG_RTRIG_REV) samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
-				else                                 samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
+				if (cv->data.rtrig_rev) samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
+				else                    samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
 			} else samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->pitchedpointer, &li, &ri);
 
 			if (cv->portamentosamplepointer >= cv->portamentosamples)
 			{ /* only walk pitchedpointer if not pitch sliding */
 				multiplier = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
-				if (cv->data.flags&C_FLAG_REVERSE)
+				if (cv->data.reverse)
 				{
 					delta = (int)((cv->pointer+1)*multiplier) - (int)(cv->pointer*multiplier);
 					if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
@@ -623,25 +608,33 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 	float rowprogress = (float)sprp / (float)p->s->spr;
 	if (cv->rampbuffer && cv->rampindex < rampmax)
 	{ // ramping
-		float gain = (float)cv->rampindex / (float)rampmax;
+		if (!cv->data.mute)
+		{
+			float gain = (float)cv->rampindex / (float)rampmax;
 
-		if (cv->samplerinst != INST_VOID && p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
-			postSampler(fptr, cv, rowprogress, gain,
-					hardclip(lf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32),
-					hardclip(rf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32),
+			float lbuf = 0.0f;
+			float rbuf = 0.0f;
+			if (cv->samplerinst != INST_VOID && p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
+			{
+				lbuf += lf*p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32 * gain;
+				rbuf += rf*p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32 * gain;
+			}
+
+			if (cv->rampinst < p->s->instrumentc)
+			{
+				lbuf += ((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT) * p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV32 * (1.0f - gain);
+				rbuf += ((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT) * p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV32 * (1.0f - gain);
+			}
+
+			postSampler(fptr, cv, rowprogress, lbuf, rbuf,
 					cv->fl, cv->fr, cv->randgain, cv->targetgain);
-
-		if (cv->rampinst < p->s->instrumentc)
-			postSampler(fptr, cv, rowprogress, 1.0f - gain,
-					hardclip(((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT) * p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV32),
-					hardclip(((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT) * p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV32),
-					cv->rampfl, cv->rampfr, cv->rampgain, -1);
+		}
 
 		cv->rampindex++;
-	} else if (cv->samplerinst != INST_VOID && p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
-		postSampler(fptr, cv, rowprogress, 1.0f,
-				hardclip(lf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32),
-				hardclip(rf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32),
+	} else if (!cv->data.mute && cv->samplerinst != INST_VOID && p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
+		postSampler(fptr, cv, rowprogress,
+				lf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32,
+				rf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32,
 				cv->fl, cv->fr, cv->randgain, cv->targetgain);
 }
 
@@ -680,13 +673,8 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->instrumentrecv = INST_REC_LOCK_CONT;
 		p->dirty = 1;
 	}
-	/* will no longer access the instrument state */
-	if (p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_FREE
-			|| p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_HIST
-			|| p->w->instrumentlockv == INST_GLOBAL_LOCK_PREP_PUT)
-		p->w->instrumentlockv++;
 	/* force stop midi for every channel playing this instrument */
-	if (p->w->instrumentlockv == INST_GLOBAL_INST_MUTE)
+	/* if (p->w->instrumentlockv == INST_GLOBAL_INST_MUTE)
 	{
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
@@ -697,20 +685,26 @@ int process(jack_nframes_t nfptr, void *arg)
 				cv->r.note = NOTE_VOID;
 			}
 		} p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
-	}
-	/* force stop midi data when a channel is muted */
+	} */
+
+	/* force stop midi data when a channels are muted */
 	if (p->w->instrumentlockv == INST_GLOBAL_CHANNEL_MUTE)
 	{
-		cv = &p->s->channelv[p->w->instrumentlocki];
-		if (p->s->instrumenti[cv->r.inst] < p->s->instrumentc && p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel != -1)
+		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
-			midiNoteOff(0, p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
-			cv->r.note = NOTE_VOID;
-		} p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
+			cv = &p->s->channelv[c];
+			if (cv->data.mute && p->s->instrumenti[cv->r.inst] < p->s->instrumentc && p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel != -1)
+			{
+				midiNoteOff(0, p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
+				cv->r.note = NOTE_VOID;
+			}
+		}
+
+		p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
 	}
 
 	row holdr;
-	uint32_t holdptr, holdpitchedptr, holdflags;
+	uint32_t holdptr, holdpitchedptr;
 	uint8_t holdnote, holdinst;
 	if (p->w->previewtrigger)
 		switch (p->w->previewtrigger)
@@ -720,14 +714,12 @@ int process(jack_nframes_t nfptr, void *arg)
 				if (!p->s->playing)
 				{
 					holdr = p->w->previewchannel.r;
-					holdflags = p->w->previewchannel.data.flags;
 					holdptr = p->w->previewchannel.pointer;
 					holdpitchedptr = p->w->previewchannel.pitchedpointer;
 					holdnote = p->w->previewchannel.samplernote;
 					holdinst = p->w->previewchannel.samplerinst;
 					clearChannelRuntime(&p->w->previewchannel);
 					p->w->previewchannel.r = holdr; /* don't clear out cv->r, for midi */
-					p->w->previewchannel.data.flags = holdflags;
 					p->w->previewchannel.samplernote = holdnote;
 					p->w->previewchannel.samplerinst = holdinst;
 					p->w->previewchannel.pointer = holdptr;
@@ -753,7 +745,7 @@ int process(jack_nframes_t nfptr, void *arg)
 		{
 			cv = &p->s->channelv[c];
 
-			if (!(cv->data.flags&C_FLAG_MUTE) && p->s->instrumenti[cv->r.inst] < p->s->instrumentc)
+			if (!cv->data.mute && p->s->instrumenti[cv->r.inst] < p->s->instrumentc)
 			{
 				iv = &p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 				if (iv->midichannel != -1) midiNoteOff(0, iv->midichannel, cv->r.note, (cv->randgain>>4)<<3);
@@ -822,6 +814,7 @@ int process(jack_nframes_t nfptr, void *arg)
 					lookback(fptr);
 					
 					/* handle record cue */
+					/* TODO: how to do record cue with the new sequencing approach? */
 					/* if (p->w->instrumentrecv == INST_REC_LOCK_CUE_CONT) p->w->instrumentrecv = INST_REC_LOCK_END;
 					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START) p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT; */
 				}
@@ -863,7 +856,7 @@ int process(jack_nframes_t nfptr, void *arg)
 #ifdef ENABLE_BACKGROUND
 	updateBackground(nfptr, pb.out);
 #endif
-	for (int i = 1; i < p->s->instrumentc; i++)
+	for (int i = 0; i < p->s->instrumentc; i++)
 		if (p->s->instrumentv[i].triggerflash)
 		{
 			if (p->s->instrumentv[i].triggerflash == 1) p->dirty = 1;

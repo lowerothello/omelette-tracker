@@ -64,7 +64,7 @@ int writeSong(char *path)
 	/* channels */
 	for (i = 0; i < s->channelc; i++)
 	{
-		fputc(s->channelv[i].data.flags, fp);
+		fputc(s->channelv[i].data.mute, fp);
 		fputc(s->channelv[i].data.macroc, fp);
 		for (j = 0; j < VARIANT_MAX; j++)
 			fputc(s->channelv[i].data.varianti[j], fp);
@@ -86,7 +86,8 @@ int writeSong(char *path)
 		iv = &s->instrumentv[i];
 		fwrite(&iv->samplelength, sizeof(uint32_t), 1, fp);
 		fwrite(&iv->length, sizeof(uint32_t), 1, fp);
-		fwrite(&iv->channels, sizeof(int8_t), 1, fp);
+		fwrite(&iv->channels, sizeof(uint8_t), 1, fp);
+		fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
 		fwrite(&iv->c5rate, sizeof(uint32_t), 1, fp);
 		fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
 		fwrite(&iv->bitdepth, sizeof(uint8_t), 1, fp);
@@ -184,7 +185,7 @@ song *readSong(char *path)
 	for (i = 0; i < cs->channelc; i++)
 	{
 		_addChannel(cs, &cs->channelv[i]);
-		cs->channelv[i].data.flags = fgetc(fp);
+		cs->channelv[i].data.mute = fgetc(fp);
 		cs->channelv[i].data.macroc = fgetc(fp);
 		for (j = 0; j < VARIANT_MAX; j++)
 			cs->channelv[i].data.varianti[j] = fgetc(fp);
@@ -207,7 +208,8 @@ song *readSong(char *path)
 		iv = &cs->instrumentv[i];
 		fread(&iv->samplelength, sizeof(uint32_t), 1, fp);
 		fread(&iv->length, sizeof(uint32_t), 1, fp);
-		fread(&iv->channels, sizeof(int8_t), 1, fp);
+		fread(&iv->channels, sizeof(uint8_t), 1, fp);
+		fread(&iv->channelmode, sizeof(int8_t), 1, fp);
 		fread(&iv->c5rate, sizeof(uint32_t), 1, fp);
 		fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
 		fread(&iv->bitdepth, sizeof(uint8_t), 1, fp);
@@ -227,7 +229,7 @@ song *readSong(char *path)
 		{
 			iv->sampledata = malloc(sizeof(short) * iv->samplelength);
 			fread(iv->sampledata, sizeof(short), iv->samplelength, fp);
-		} pushInstrumentHistory(&cs->instrumentv[i]);
+		}
 	}
 
 	fclose(fp);

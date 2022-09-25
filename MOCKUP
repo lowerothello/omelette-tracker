@@ -34,13 +34,13 @@ timestretch/pitchshift short:
 
 |                                    |
 
-|   DISTORTION        +  emphasis  + |
-| drive:    [+00]     pitch:    [80] |
-| bias:  [+00][ ]     gain:    [+00] |
-| cutoff:   [+00]     width:    [00] |
+|    DISTORTION       +  emphasis  + |
+| drive:      [+00]   pitch:    [80] |
+| bias:    [+00][ ]   gain:    [+00] |
+| parallel:   [+00]   width:    [00] |
 |        algorithm [HARDCLIP]        |
 
-| < [00]      EQUALIZER       [00] > |
+|             EQUALIZER       > [00] |
 |          *  visualizer  *          |
 |          *      goes    *          |
 |          *        here  *          |
@@ -50,16 +50,10 @@ timestretch/pitchshift short:
 | G:[+00]  G:[+00]  G:[+00]  G:[+00] |
 | Q: [00]  Q: [00]  Q: [00]  Q: [00] |
 
-|              DYNAMICS              |
-| attack:   [00]    threshold: [+00] | <- negative number for expansion
-| release:  [00]    ratio:     [1]:1 |
-| cutoff:  [+00]    makeup:    [+00] |
-|         detection [PEAK]           |
-
-|     CHORUS       +      lfo      + |
-| delay:    [00]   speed:       [00] |
-| taps:      [1]   stereo:  [+00][ ] |
-| cutoff:  [+00]   depth:       [00] |
+|     CHORUS        +     lfo      + |
+| delay:     [00]   speed:      [00] |
+| taps:       [1]   stereo: [+00][ ] |
+| parallel: [+00]   depth:      [00] |
 
 |   PITCH SHIFTER     +  autotune  + |
 |   *HAS LATENCY*     strength: [00] |
@@ -70,6 +64,15 @@ timestretch/pitchshift short:
 |      DELAY        +   feedback   + |
 | panning:  [+00]   mix:        [00] |
 | ping-pong:  [ ]   reapply pan: [ ] |
-| tempo sync: [ ]                    |
-| time:      [00]    *free space :)* |
+| tempo sync: [ ]   tape:       [00] | <- noise + saturation + warble
+| time:      [00]   filter: [00][00] |
+
+|    ENVELOPE       +  filter [LP] + |
+|    FOLLOWER       freq:  [00][+00] |
+|                   Q:     [00][+00] |
+| threshold: [00]                    |
+| ratio:     [00]   +     gain     + |
+| speed: [00][00]   gain:  [ff][+00] |
+| mode:    [PEAK]   parallel:  [+00] |
+
 

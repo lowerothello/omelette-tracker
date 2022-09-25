@@ -61,6 +61,8 @@ void descMacro(char c, uint8_t v)
 		case 'H': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL PITCH SHIFT")) / 2, "LOCAL PITCH SHIFT"); break;
 		case 'I': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("CHANCE GAIN")) / 2, "CHANCE GAIN"); break;
 		case 'i': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH CHANCE GAIN")) / 2, "SMOOTH CHANCE GAIN"); break;
+		case 'K': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("COMPRESSOR COEFFICIENTS")) / 2, "COMPRESSOR COEFFICIENTS"); break;
+		case 'k': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("SMOOTH COMPRESSOR COEF.")) / 2, "SMOOTH COMPRESSOR COEF."); break;
 		case 'L': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL CYCLELENGTH HIGH BYTE")) / 2, "LOCAL CYCLELENGTH HIGH BYTE"); break;
 		case 'l': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("LOCAL CYCLELENGTH LOW BYTE")) / 2, "LOCAL CYCLELENGTH LOW BYTE"); break;
 		case 'M': printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen("MICROTONAL OFFSET")) / 2, "MICROTONAL OFFSET"); break;
@@ -180,7 +182,7 @@ char Ic(jack_nframes_t fptr, int m, channel *cv, row r)
 }
 char ic(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	if (!(cv->data.flags&C_FLAG_TARGET_RAND)) cv->data.flags ^= C_FLAG_TARGET_RAND;
+	cv->data.target_rand = 1;
 	signed char stereo = rand()%((m>>4)+1);
 	cv->targetgain =
 		 (MAX(0, (cv->gain>>4) - stereo - rand()%((m%16)+1))<<4)
@@ -206,7 +208,7 @@ char qc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	if (m)
 	{
-		if (!(cv->data.flags&C_FLAG_RTRIG_REV)) cv->data.flags ^= C_FLAG_RTRIG_REV;
+		cv->data.rtrig_rev = 1;
 		return Qc(fptr, m, cv, r);
 	} return 0;
 }
@@ -221,7 +223,7 @@ char Rc(jack_nframes_t fptr, int m, channel *cv, row r)
 }
 char rc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	if (!(cv->data.flags&C_FLAG_RTRIG_REV)) cv->data.flags ^= C_FLAG_RTRIG_REV;
+	cv->data.rtrig_rev = 1;
 	return Rc(fptr, m, cv, r);
 }
 
@@ -240,12 +242,12 @@ char percentc(jack_nframes_t fptr, int m, channel *cv, row r) /* returns true to
 char Sc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	cv->sendgroup = m>>4;
-	cv->sendgain = m%16;
+	cv->sendgain =  m%16;
 	return 1;
 }
 char sc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->sendgroup = m>>4;
+	cv->sendgroup =      m>>4;
 	cv->targetsendgain = m%16;
 	return 1;
 }
@@ -253,7 +255,7 @@ char sc(jack_nframes_t fptr, int m, channel *cv, row r)
 char midicctargetc(jack_nframes_t fptr, int m, channel *cv, row r) { cv->midiccindex = m%128; return 1; }
 char midipcc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	if (!(cv->data.flags&C_FLAG_MUTE) && p->s->instrumenti[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrumentc)
+	if (!cv->data.mute && p->s->instrumenti[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrumentc)
 	{
 		instrument *iv = &p->s->instrumentv[p->s->instrumenti[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
 		if (iv->midichannel != -1) midiPC(fptr, iv->midichannel, m%128);
@@ -262,7 +264,7 @@ char midipcc(jack_nframes_t fptr, int m, channel *cv, row r)
 char midiccc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
 	cv->midicc = m%128;
-	if (cv->midiccindex != -1 && !(cv->data.flags&C_FLAG_MUTE) && p->s->instrumenti[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrumentc)
+	if (cv->midiccindex != -1 && !cv->data.mute && p->s->instrumenti[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrumentc)
 	{
 		instrument *iv = &p->s->instrumentv[p->s->instrumenti[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
 		if (iv->midichannel != -1) midiCC(fptr, iv->midichannel, cv->midiccindex, cv->midicc);
@@ -286,7 +288,7 @@ char Oc(jack_nframes_t fptr, int m, channel *cv, row r)
 }
 char oc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->data.flags ^= C_FLAG_REVERSE;
+	cv->data.reverse = !cv->data.reverse;
 	if (m) return Oc(fptr, m, cv, r);
 	return 0;
 }
@@ -300,7 +302,7 @@ char Uc(jack_nframes_t fptr, int m, channel *cv, row r)
 			if (r.note == NOTE_VOID) /* if not changing note, explicit ramping needed */
 				ramp(cv, p->s->instrumenti[cv->samplerinst]);
 			if (m>>4 == m%16) /* both nibbles are the same */
-				cv->pitchedpointer = ((((m>>4)<<4) + rand()%16)*DIV255) * (iv->trim[1] - iv->trim[0]);
+				cv->pitchedpointer = ((m%16 + rand()%16)*DIV255) * (iv->trim[1] - iv->trim[0]);
 			else
 			{
 				int min = MIN(m>>4, m%16);
@@ -313,7 +315,7 @@ char Uc(jack_nframes_t fptr, int m, channel *cv, row r)
 /* TODO: should never reverse in place, kinda important cos this case ramps wrongly */
 char uc(jack_nframes_t fptr, int m, channel *cv, row r)
 {
-	cv->data.flags ^= C_FLAG_REVERSE;
+	cv->data.reverse = !cv->data.reverse;
 	return Uc(fptr, m, cv, r);
 }
 

@@ -1,6 +1,7 @@
 void common_cleanup(int ret)
 {
 	clearControls(&cc);
+	clearTooltip(&tt);
 
 	if (w) { free(w); w = NULL; }
 	if (s) { delSong(s); s = NULL; }

@@ -3,6 +3,7 @@ void copyInstrument(instrument *dest, instrument *src)
 	dest->samplelength = src->samplelength;
 	dest->length = src->length;
 	dest->channels = src->channels;
+	dest->channelmode = src->channelmode;
 	dest->c5rate = src->c5rate;
 	dest->samplerate = src->samplerate;
 	dest->bitdepth = src->bitdepth;
@@ -29,34 +30,6 @@ void copyInstrument(instrument *dest, instrument *src)
 	}
 }
 
-void asyncInstrumentUpdate(song *cs)
-{
-	uint8_t i;
-	if (w->instrumentlockv == INST_GLOBAL_LOCK_FREE
-			|| w->instrumentlockv == INST_GLOBAL_LOCK_HIST
-			|| w->instrumentlockv == INST_GLOBAL_LOCK_PUT)
-		i = w->instrumentlocki;
-	else return;
-
-	if (cs->instrumentv)
-	{
-		instrument iv = cs->instrumentv[i];
-		switch (w->instrumentlockv)
-		{
-			case INST_GLOBAL_LOCK_HIST:
-				copyInstrument(&iv, iv.history[iv.historyptr%128]);
-				w->instrumentindex = iv.historyindex[iv.historyptr%128];
-				break;
-			case INST_GLOBAL_LOCK_PUT:
-				copyInstrument(&iv, &w->instrumentbuffer);
-				break;
-		}
-	}
-
-	w->instrumentlockv = INST_GLOBAL_LOCK_OK; /* mark as free to use */
-	redraw();
-}
-
 void _delInstrument(instrument *iv)
 {
 	if (iv->sampledata)
@@ -64,100 +37,8 @@ void _delInstrument(instrument *iv)
 		free(iv->sampledata);
 		iv->sampledata = NULL;
 	}
-	for (int i = 0; i < 128; i++)
-	{
-		if (!iv->history[i]) continue;
-		if (iv->history[i]->sampledata)
-		{
-			free(iv->history[i]->sampledata);
-			iv->history[i]->sampledata = NULL;
-		}
-		free(iv->history[i]);
-		iv->history[i] = NULL;
-	}
-}
-void pushInstrumentHistory(instrument *iv)
-{
-	return; /* TODO: redo history properly, temporarily a stub function */
-	if (iv->historyptr == 255) iv->historyptr = 128;
-	else                       iv->historyptr++;
-
-	if (iv->historybehind) iv->historybehind--;
-	if (iv->historyahead)  iv->historyahead = 0;
-
-	if (iv->history[iv->historyptr%128])
-	{
-		_delInstrument(iv->history[iv->historyptr%128]);
-		free(iv->history[iv->historyptr%128]);
-	}
-	iv->history[iv->historyptr%128] = calloc(1, sizeof(instrument));
-	copyInstrument(iv->history[iv->historyptr%128], iv);
-
-	iv->historyindex[iv->historyptr%128] = w->instrumentindex;
-}
-void pushInstrumentHistoryIfNew(instrument *iv)
-{
-	instrument *ivh = iv->history[iv->historyptr%128];
-	if (!ivh) return;
-
-	/* TODO: maybe check sampledata for changes too, or have a way to force a push if sampledata has been changed */
-	if (ivh->samplelength != iv->samplelength
-			|| ivh->length != iv->length
-			|| ivh->channels != iv->channels
-			|| ivh->c5rate != iv->c5rate
-			|| ivh->samplerate != iv->samplerate
-			|| ivh->bitdepth != iv->bitdepth
-			|| ivh->cyclelength != iv->cyclelength
-			|| ivh->pitchshift != iv->pitchshift
-			|| ivh->timestretch != iv->timestretch
-			|| ivh->trim[0] != iv->trim[0] || ivh->trim[1] != iv->trim[1]
-			|| ivh->loop != iv->loop
-			|| ivh->envelope != iv->envelope
-			|| ivh->sustain != iv->sustain
-			|| ivh->gain != iv->gain
-			|| ivh->invert != iv->invert
-			|| ivh->pingpong != iv->pingpong
-			|| ivh->loopramp != iv->loopramp
-			|| ivh->midichannel != iv->midichannel)
-		pushInstrumentHistory(iv);
 }
 
-void _popInstrumentHistory(uint8_t realindex)
-{
-	w->instrumentlocki = realindex;
-	w->instrumentlockv = INST_GLOBAL_LOCK_PREP_HIST;
-}
-void popInstrumentHistory(instrument *iv, uint8_t realindex) /* undo */
-{
-	if (iv->historyptr <= 1 || iv->historybehind >= 127)
-	{ strcpy(w->command.error, "already at oldest change"); return; }
-	pushInstrumentHistoryIfNew(iv);
-
-	if (iv->historyptr == 128) iv->historyptr = 255;
-	else                       iv->historyptr--;
-
-	_popInstrumentHistory(realindex);
-
-	iv->historybehind++;
-	iv->historyahead++;
-}
-void unpopInstrumentHistory(instrument *iv, uint8_t realindex) /* redo */
-{
-	if (iv->historyahead == 0)
-	{
-		strcpy(w->command.error, "already at newest change");
-		return;
-	}
-	pushInstrumentHistoryIfNew(iv);
-
-	if (iv->historyptr == 255) iv->historyptr = 128;
-	else                       iv->historyptr++;
-
-	_popInstrumentHistory(realindex);
-
-	iv->historybehind--;
-	iv->historyahead--;
-}
 int addInstrument(uint8_t index)
 {
 	if (s->instrumenti[index] < s->instrumentc) return 1; /* index occupied */
@@ -180,16 +61,23 @@ int addInstrument(uint8_t index)
 	s->instrumentv[s->instrumentc].sustain = 1;
 	s->instrumenti[index] = s->instrumentc;
 
-	pushInstrumentHistory(&s->instrumentv[s->instrumentc]);
 	s->instrumentc++;
 	return 0;
 }
-int yankInstrument(uint8_t index)
+void yankInstrument(uint8_t index)
 {
-	if (s->instrumenti[index] >= s->instrumentc) return 1; /* nothing to yank */
+	if (!s->instrumentv) return;
+	if (s->instrumenti[index] >= s->instrumentc) return; /* nothing to yank */
+
 	_delInstrument(&w->instrumentbuffer);
 	copyInstrument(&w->instrumentbuffer, &s->instrumentv[s->instrumenti[index]]);
-	return 0;
+}
+void putInstrument(uint8_t index)
+{
+	if (!s->instrumentv) return;
+	if (s->instrumenti[index] >= s->instrumentc) addInstrument(index);
+
+	copyInstrument(&s->instrumentv[s->instrumenti[index]], &w->instrumentbuffer);
 }
 int delInstrument(uint8_t index)
 {

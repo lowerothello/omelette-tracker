@@ -4,8 +4,8 @@ void clearChannelRuntime(channel *cv)
 	cv->r.note = cv->samplernote = NOTE_VOID;
 	cv->r.inst = cv->samplerinst = INST_VOID;
 	cv->rtrigsamples = 0;
-	if (cv->data.flags&C_FLAG_RTRIG_REV) cv->data.flags ^= C_FLAG_RTRIG_REV;
-	if (cv->data.flags&C_FLAG_TARGET_RAND) cv->data.flags ^= C_FLAG_TARGET_RAND;
+	cv->data.rtrig_rev = 0;
+	cv->data.target_rand = 0;
 	cv->waveshaperstrength = 0; cv->targetwaveshaperstrength = -1;
 	cv->gain = cv->randgain = 0x88; cv->targetgain = -1;
 	cv->filtermode = 0; cv->targetfiltermode = -1;
@@ -68,7 +68,7 @@ void clearChanneldata(song *cs, channeldata *cd)
 	{ free(cd->variantv[i]); cd->variantv[i] = NULL; }
 	cd->variantc = 0;
 
-	cd->flags = 0; /* ensure no flags are set */
+	cd->mute = 0;
 	cd->macroc = 1;
 }
 void _addChannel(song *cs, channel *cv)
@@ -93,12 +93,12 @@ int addChannel(song *cs, uint8_t index)
 	if (index > 0)
 		memcpy(&newchannelv[0],
 				&cs->channelv[0],
-				sizeof(channel) * index);
+				index * sizeof(channel));
 
 	if (index < cs->channelc)
 		memcpy(&newchannelv[index+1],
 				&cs->channelv[index],
-				sizeof(channel) * (cs->channelc-index));
+				(cs->channelc-index) * sizeof(channel));
 
 	/* init new channel */
 	_addChannel(cs, &newchannelv[index]); /* allocate memory */

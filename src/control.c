@@ -8,16 +8,18 @@
  * nibbles:
  *   sets how many cells wide the control should be (drawn in hex)
  *
- *   cases:
- *     0: boolean control, value should be a bool
- *     2: input shifts up, no fieldpointer handling
+ *   input cases:
+ *     0:    click/return to toggle, ignores other input
+ *     2:    input shifts up, no fieldpointer handling
+ *     3:    input shifts up, no fieldpointer handling, +/- to set the sign
  *     else: input sets the cell under fieldpointer and walks fieldpointer
  *   types:
- *     0: (bool)
- *     1: (int8_t)
- *     2: (uint8_t)
- *     4: (uint16_t)
- *     8: (uint32_t)
+ *     0: (bool)       shows either "X" or " ", (uint8_t)min should not equal max
+ *     1: (int8_t)     shows -1 to 15, reads pretty names
+ *     2: (uint8_t)    shows 0 to 0xff
+ *     3: (int8_t)     shows 0 to 0x3f/0x40 and the sign bit, min/max are hardcoded
+ *     4: (uint16_t)   shows 0 to 0xffff
+ *     8: (uint32_t)   shows 0 to 0xffffffff
  *     else: undefined
  */
 typedef struct
@@ -49,11 +51,8 @@ uint32_t _pow32(uint32_t a, uint32_t b)
 {
 	if (!b) return 1;
 	uint32_t c = a;
-	while (b)
-	{
-		b--;
+	for (uint32_t i = 1; i < b; i++)
 		c *= a;
-	}
 	return c;
 }
 
@@ -125,6 +124,10 @@ void drawControls(ControlState *cc)
 				else                                               printf("%x", *(int8_t *)(c->value));
 				break;
 			case 2: printf("%02x", *(uint8_t *)(c->value)); break;
+			case 3:
+				if (*(int8_t *)(c->value) < 0) printf("-%02x", (short)(*(int8_t *)(c->value)) * -1);
+				else                           printf("+%02x", *(int8_t *)(c->value));
+				break;
 			case 4: printf("%04x", *(uint16_t *)(c->value)); break;
 			case 8: printf("%08x", *(uint32_t *)(c->value)); break;
 		}
@@ -155,6 +158,10 @@ void incControlValue(ControlState *cc)
 			if ((*(uint8_t *)(c->value)) + delta > c->max) (*(uint8_t *)(c->value)) = c->max;
 			else                                           (*(uint8_t *)(c->value)) += delta;
 			break;
+		case 3:
+			if ((*(int8_t *)(c->value)) + delta > 127) (*(int8_t *)(c->value)) = 127;
+			else                                       (*(int8_t *)(c->value)) += delta;
+			break;
 		case 4:
 			if ((*(uint16_t *)(c->value)) + delta > c->max) (*(uint16_t *)(c->value)) = c->max;
 			else                                            (*(uint16_t *)(c->value)) += delta;
@@ -181,6 +188,10 @@ void decControlValue(ControlState *cc)
 		case 2:
 			if (c->min + delta < (*(uint8_t *)(c->value))) (*(uint8_t *)(c->value)) -= delta;
 			else                                           (*(uint8_t *)(c->value)) = c->min;
+			break;
+		case 3:
+			if (-128 + delta < (*(int8_t *)(c->value))) (*(int8_t *)(c->value)) -= delta;
+			else                                        (*(int8_t *)(c->value)) = -128;
 			break;
 		case 4:
 			if (c->min + delta < (*(uint16_t *)(c->value))) (*(uint16_t *)(c->value)) -= delta;
@@ -227,9 +238,9 @@ void incControlFieldpointer(ControlState *cc)
 	switch (c->nibbles)
 	{
 		case 0: case 1: cc->fieldpointer = 0; break;
-		case 2: cc->fieldpointer = 1; break;
-		case 4: cc->fieldpointer++; if (w->fieldpointer > 3) w->fieldpointer = 0; break;
-		case 8: cc->fieldpointer++; if (w->fieldpointer > 7) w->fieldpointer = 0; break;
+		case 2: case 3: cc->fieldpointer = 1; break;
+		case 4: cc->fieldpointer++; if (cc->fieldpointer > 3) cc->fieldpointer = 0; break;
+		case 8: cc->fieldpointer++; if (cc->fieldpointer > 7) cc->fieldpointer = 0; break;
 	}
 }
 void decControlFieldpointer(ControlState *cc)
@@ -238,9 +249,9 @@ void decControlFieldpointer(ControlState *cc)
 	switch (c->nibbles)
 	{
 		case 0: case 1: cc->fieldpointer = 0; break;
-		case 2: cc->fieldpointer = 0; break;
-		case 4: cc->fieldpointer--; if (w->fieldpointer < 0) w->fieldpointer = 3; break;
-		case 8: cc->fieldpointer--; if (w->fieldpointer < 0) w->fieldpointer = 7; break;
+		case 2: case 3: cc->fieldpointer = 0; break;
+		case 4: cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = 3; break;
+		case 8: cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = 7; break;
 	}
 }
 
@@ -252,21 +263,40 @@ void hexControlValue(ControlState *cc, char value)
 	switch (c->nibbles)
 	{
 		case 0: (*(bool *)(c->value)) = value; break;
-		case 1: (*(int8_t *)(c->value)) = value; break;
+		case 1:
+			(*(int8_t *)(c->value)) = value;
+			(*(int8_t *)(c->value)) = MIN((int8_t)c->max, *(int8_t *)(c->value));
+			(*(int8_t *)(c->value)) = MAX((int8_t)c->min, *(int8_t *)(c->value));
+			break;
 		case 2:
 			(*(uint8_t *)(c->value)) <<= 4;
 			(*(uint8_t *)(c->value)) += value;
+			(*(uint8_t *)(c->value)) = MIN(c->max, *(uint8_t *)(c->value));
+			(*(uint8_t *)(c->value)) = MAX(c->min, *(uint8_t *)(c->value));
 			break;
+		case 3:
+			if (*(int8_t *)(c->value) < 0)
+			{
+				(*(int8_t *)(c->value)) <<= 4;
+				(*(int8_t *)(c->value)) -= value;
+			} else
+			{
+				(*(int8_t *)(c->value)) <<= 4;
+				(*(int8_t *)(c->value)) += value;
+			} break;
 		case 4:
 			(*(uint16_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * ((*(uint16_t *)(c->value)) / _pow32(16, cc->fieldpointer)%16);
 			(*(uint16_t *)(c->value)) += _pow32(16, cc->fieldpointer) * value;
+			(*(uint16_t *)(c->value)) = MIN(c->max, *(uint16_t *)(c->value));
+			(*(uint16_t *)(c->value)) = MAX(c->min, *(uint16_t *)(c->value));
 			break;
 		case 8:
 			(*(uint32_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * ((*(uint32_t *)(c->value)) / _pow32(16, cc->fieldpointer)%16);
 			(*(uint32_t *)(c->value)) += _pow32(16, cc->fieldpointer) * value;
+			(*(uint32_t *)(c->value)) = MIN(c->max, *(uint32_t *)(c->value));
+			(*(uint32_t *)(c->value)) = MAX(c->min, *(uint32_t *)(c->value));
 			break;
-	}
-	decControlFieldpointer(cc);
+	} decControlFieldpointer(cc);
 }
 void toggleKeyControl(ControlState *cc)
 {
@@ -303,12 +333,22 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 				if (y == c->y && x >= c->x -1 && x <= c->x + MAX(1, c->nibbles) + (MAX(1, c->prettynamelen)-1))
 				{
 					cc->cursor = i;
-					if (x < c->x)                            cc->fieldpointer = MAX(1, c->nibbles)-1;
-					else if (x >= c->x + MAX(1, c->nibbles)) cc->fieldpointer = 0;
-					else                                     cc->fieldpointer = (MAX(1, c->nibbles)-1) - (x - c->x);
 					cc->prevmousex = x;
 					cc->mouseadjust = 1;
-					break;
+					switch (c->nibbles)
+					{
+						case 0: cc->fieldpointer = 1; break;
+						case 3: /* hardcode (c->nibbles = 2) for this block */
+							if      (x <  c->x)     cc->fieldpointer = 1;
+							else if (x >= c->x + 2) cc->fieldpointer = 0;
+							else                    cc->fieldpointer = 1 - (x - c->x);
+							break;
+						default:
+							if      (x < c->x)               cc->fieldpointer = c->nibbles-1;
+							else if (x >= c->x + c->nibbles) cc->fieldpointer = 0;
+							else                             cc->fieldpointer = (c->nibbles-1) - (x - c->x);
+							break;
+					} break;
 				}
 			} break;
 	}
