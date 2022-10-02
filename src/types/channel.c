@@ -1,5 +1,5 @@
 /* clears the playback state of a channel */
-void clearChannelRuntime(channel *cv)
+void clearChannelRuntime(Channel *cv)
 {
 	cv->r.note = cv->samplernote = NOTE_VOID;
 	cv->r.inst = cv->samplerinst = INST_VOID;
@@ -11,16 +11,16 @@ void clearChannelRuntime(channel *cv)
 	cv->filtermode = 0; cv->targetfiltermode = -1;
 	cv->filtercut = 255; cv->targetfiltercut = -1;
 	cv->filterres = 0; cv->targetfilterres = -1;
-	cv->midiccindex = -1; cv->midicc = 0; cv->targetmidicc = -1;
+	cv->midiccindex = -1; cv->midicc = 0;
 	cv->sendgroup = 0; cv->sendgain = 0; cv->targetsendgain = -1;
 }
 
-variant *_copyVariant(variant *oldvariant, uint16_t newlen)
+Variant *_copyVariant(Variant *oldvariant, uint16_t newlen)
 {
-	variant *ret = malloc(sizeof(uint16_t) + (newlen+1) * sizeof(row));
+	Variant *ret = malloc(sizeof(uint16_t) + (newlen+1) * sizeof(Row));
 
 	/* properly zero out the new variant */
-	memset(ret->rowv, 0, (newlen+1) * sizeof(row));
+	memset(ret->rowv, 0, (newlen+1) * sizeof(Row));
 	for (uint32_t i = 0; i <= newlen; i++)
 	{
 		ret->rowv[i].note = NOTE_VOID;
@@ -30,31 +30,31 @@ variant *_copyVariant(variant *oldvariant, uint16_t newlen)
 	ret->rowc = newlen;
 
 	if (oldvariant)
-		memcpy(ret->rowv, oldvariant->rowv, (MIN(oldvariant->rowc, newlen)+1) * sizeof(row));
+		memcpy(ret->rowv, oldvariant->rowv, (MIN(oldvariant->rowc, newlen)+1) * sizeof(Row));
 
 	return ret;
 }
 
-void resizeChanneldataGlobalVariant(channeldata *cd, uint16_t newlen)
+void resizeChanneldataGlobalVariant(ChannelData *cd, uint16_t newlen)
 {
-	vtrig *newtrig = calloc(newlen, sizeof(vtrig));
+	Vtrig *newtrig = calloc(newlen, sizeof(Vtrig));
 
-	memset(newtrig, VARIANT_VOID, newlen * sizeof(vtrig));
+	memset(newtrig, VARIANT_VOID, newlen * sizeof(Vtrig));
 	if (cd->songv) /* depends on songv->rowc */
-		if (cd->trig) memcpy(newtrig, cd->trig, MIN(cd->songv->rowc, newlen) * sizeof(vtrig));
+		if (cd->trig) memcpy(newtrig, cd->trig, MIN(cd->songv->rowc, newlen) * sizeof(Vtrig));
 
 	if (cd->trig) free(cd->trig);
 	cd->trig = newtrig;
 
-	variant *temp = _copyVariant(cd->songv, newlen);
+	Variant *temp = _copyVariant(cd->songv, newlen);
 	free(cd->songv); cd->songv = temp;
 }
 
 /* clears the global variant and frees all local variants */
-void clearChanneldata(song *cs, channeldata *cd)
+void clearChanneldata(Song *cs, ChannelData *cd)
 {
 	/* resizing NULL will give a zero'ed out variant of size newlen */
-	variant *newsongv = _copyVariant(NULL, cs->songlen);
+	Variant *newsongv = _copyVariant(NULL, cs->songlen);
 	free(cd->songv);
 	cd->songv = newsongv;
 	for (int i = 0; i < cs->songlen; i++)
@@ -71,34 +71,42 @@ void clearChanneldata(song *cs, channeldata *cd)
 	cd->mute = 0;
 	cd->macroc = 1;
 }
-void _addChannel(song *cs, channel *cv)
+
+/* extra layer of abstraction for initializing the previewchannel, ugly */
+void __addChannel(Channel *cv) /* TODO: should be part of process-only channel state */
+{
+	cv->rampindex = rampmax;
+	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
+	cv->outputl = calloc(buffersize, sizeof(float));
+	cv->outputr = calloc(buffersize, sizeof(float));
+	cv->grainrampindex = grainrampmax;
+	clearChannelRuntime(cv);
+}
+void _addChannel(Song *cs, Channel *cv) /* TODO: take a channeldata instead of a channel? */
 {
 	memset(cv->data.varianti, VARIANT_VOID, VARIANT_MAX);
 	resizeChanneldataGlobalVariant(&cv->data, cs->songlen);
 
-	cv->rampindex = rampmax;
-	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
-	cv->stretchrampindex = stretchrampmax;
+	__addChannel(cv);
 
 	clearChanneldata(cs, &cv->data);
-	clearChannelRuntime(cv);
 }
 
-int addChannel(song *cs, uint8_t index)
+int addChannel(Song *cs, uint8_t index)
 {
 	if (cs->channelc >= CHANNEL_MAX) return 1;
 
-	channel *newchannelv = calloc(cs->channelc+1, sizeof(channel));
+	Channel *newchannelv = calloc(cs->channelc+1, sizeof(Channel));
 
 	if (index > 0)
 		memcpy(&newchannelv[0],
 				&cs->channelv[0],
-				index * sizeof(channel));
+				index * sizeof(Channel));
 
 	if (index < cs->channelc)
 		memcpy(&newchannelv[index+1],
 				&cs->channelv[index],
-				(cs->channelc-index) * sizeof(channel));
+				(cs->channelc-index) * sizeof(Channel));
 
 	/* init new channel */
 	_addChannel(cs, &newchannelv[index]); /* allocate memory */
@@ -110,12 +118,24 @@ int addChannel(song *cs, uint8_t index)
 	return 0;
 }
 
-void _delChannel(channel *cv)
+/* extra layer of abstraction for the previewchannel, ugly */
+void __delChannel(Channel *cv)
+{
+	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
+	if (cv->outputl) { free(cv->outputl); cv->outputl = NULL; }
+	if (cv->outputr) { free(cv->outputr); cv->outputr = NULL; }
+}
+void _delChannel(Channel *cv)
 {
 	clearChanneldata(s, &cv->data);
 	free(cv->data.trig); cv->data.trig = NULL;
 	free(cv->data.songv); cv->data.songv = NULL;
-	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
+
+	for (uint8_t i = 0; i < cv->data.effect.c; i++)
+		freeEffect(&cv->data.effect.v[i]);
+	cv->data.effect.c = 0;
+
+	__delChannel(cv);
 }
 
 void delChannel(uint8_t index)
@@ -127,17 +147,17 @@ void delChannel(uint8_t index)
 	{
 		_delChannel(&s->channelv[index]);
 
-		channel *newchannelv = calloc(s->channelc-1, sizeof(channel));
+		Channel *newchannelv = calloc(s->channelc-1, sizeof(Channel));
 
 		if (index > 0)
 			memcpy(&newchannelv[0],
 					&s->channelv[0],
-					sizeof(channel)*index);
+					sizeof(Channel)*index);
 
 		if (index < s->channelc)
 			memcpy(&newchannelv[index],
 					&s->channelv[index+1],
-					sizeof(channel)*(s->channelc-index-1));
+					sizeof(Channel)*(s->channelc-index-1));
 
 		if (s->channelv) free(s->channelv);
 		s->channelv = newchannelv;
@@ -146,7 +166,7 @@ void delChannel(uint8_t index)
 	}
 }
 
-void copyChanneldata(channeldata *dest, channeldata *src)
+void copyChanneldata(ChannelData *dest, ChannelData *src)
 {
 	memcpy(&dest->varianti, &src->varianti, sizeof(uint8_t) * VARIANT_MAX);
 	dest->variantc = src->variantc;
@@ -160,14 +180,14 @@ void copyChanneldata(channeldata *dest, channeldata *src)
 	dest->songv = _copyVariant(src->songv, s->songlen);
 
 	if (dest->trig) free(dest->trig);
-	dest->trig = calloc(s->songlen, sizeof(vtrig));
-	if (src->trig) memcpy(dest->trig, src->trig,    s->songlen * sizeof(vtrig));
-	else           memset(dest->trig, VARIANT_VOID, s->songlen * sizeof(vtrig));
+	dest->trig = calloc(s->songlen, sizeof(Vtrig));
+	if (src->trig) memcpy(dest->trig, src->trig,    s->songlen * sizeof(Vtrig));
+	else           memset(dest->trig, VARIANT_VOID, s->songlen * sizeof(Vtrig));
 
 	dest->macroc = src->macroc;
 }
 
-int addVariant(channeldata *cd, uint8_t index)
+int addVariant(ChannelData *cd, uint8_t index)
 {
 	if (index == VARIANT_VOID || cd->varianti[index] != VARIANT_VOID) return 1;
 
@@ -176,14 +196,14 @@ int addVariant(channeldata *cd, uint8_t index)
 	cd->variantc++;
 	return 0;
 }
-uint8_t _getEmptyVariantIndex(channeldata *cd, uint8_t fallbackindex)
+uint8_t _getEmptyVariantIndex(ChannelData *cd, uint8_t fallbackindex)
 {
 	for (short i = 0; i < VARIANT_MAX; i++)
 		if (cd->varianti[i] == VARIANT_VOID)
 			return i;
 	return fallbackindex;
 }
-uint8_t duplicateVariant(channeldata *cd, uint8_t oldindex)
+uint8_t duplicateVariant(ChannelData *cd, uint8_t oldindex)
 {
 	uint8_t index;
 	if ((index = _getEmptyVariantIndex(cd, oldindex)) != oldindex)
@@ -196,7 +216,7 @@ uint8_t duplicateVariant(channeldata *cd, uint8_t oldindex)
 		return index;
 	} return oldindex;
 }
-int delVariant(channeldata *cd, uint8_t index)
+int delVariant(ChannelData *cd, uint8_t index)
 {
 	if (cd->varianti[index] == VARIANT_VOID) return 1; /* index not occupied */
 	uint8_t cutindex = cd->varianti[index];
@@ -218,7 +238,7 @@ int delVariant(channeldata *cd, uint8_t index)
 	return 0;
 }
 /* remove variant if it's empty */
-void pruneVariant(channeldata *cd, uint8_t index)
+void pruneVariant(ChannelData *cd, uint8_t index)
 {
 // DEBUG=0;
 	if (index == VARIANT_VOID || cd->varianti[index] == VARIANT_VOID) return;
@@ -230,10 +250,10 @@ void pruneVariant(channeldata *cd, uint8_t index)
 
 // DEBUG=2;
 	/* fail if variant if populated */
-	variant *vv = cd->variantv[cd->varianti[index]];
+	Variant *vv = cd->variantv[cd->varianti[index]];
 	for (int i = 0; i < vv->rowc; i++)
 	{
-		row r = vv->rowv[i];
+		Row r = vv->rowv[i];
 		if (r.note != NOTE_VOID) return;
 		for (short j = 0; j < cd->macroc+1; j++)
 			if (r.macro[j].c) return;
@@ -243,7 +263,7 @@ void pruneVariant(channeldata *cd, uint8_t index)
 // DEBUG=4;
 }
 
-void inputChannelTrig(channeldata *cd, uint16_t index, char value)
+void inputChannelTrig(ChannelData *cd, uint16_t index, char value)
 {
 	uint8_t oldvariant = cd->trig[index].index;
 	if (cd->trig[index].index == VARIANT_VOID)
@@ -254,7 +274,7 @@ void inputChannelTrig(channeldata *cd, uint16_t index, char value)
 	pruneVariant(cd, oldvariant);
 	addVariant(cd, cd->trig[index].index);
 }
-void setChannelTrig(channeldata *cd, uint16_t index, uint8_t value)
+void setChannelTrig(ChannelData *cd, uint16_t index, uint8_t value)
 {
 	uint8_t oldvariant = cd->trig[index].index;
 	cd->trig[index].index = value;
@@ -264,31 +284,31 @@ void setChannelTrig(channeldata *cd, uint16_t index, uint8_t value)
 	addVariant(cd, cd->trig[index].index);
 }
 
-void cycleVariantUp(variant *v, uint16_t bound)
+void cycleVariantUp(Variant *v, uint16_t bound)
 {
 	bound = bound%(v->rowc+1); /* ensure bound is in range */
-	row hold = v->rowv[bound]; /* hold the first row */
+	Row hold = v->rowv[bound]; /* hold the first row */
 	for (uint16_t i = bound; i < v->rowc; i++)
 		v->rowv[i] = v->rowv[i+1];
 	v->rowv[v->rowc] = hold;
 }
-void cycleVariantDown(variant *v, uint16_t bound)
+void cycleVariantDown(Variant *v, uint16_t bound)
 {
 	bound = bound%(v->rowc+1); /* ensure bound is in range */
-	row hold = v->rowv[v->rowc]; /* hold the last row */
+	Row hold = v->rowv[v->rowc]; /* hold the last row */
 	for (int i = v->rowc - 1; i >= bound; i--)
 		v->rowv[i+1] = v->rowv[i];
 	v->rowv[bound] = hold;
 }
 
-row *getVariantRow(variant *v, uint16_t row)
+Row *getVariantRow(Variant *v, uint16_t row)
 { return &v->rowv[row%(v->rowc+1)]; }
 
 /*
  * returns the last (if any) variant trigger
  * returns -1 if no vtrig is within range
  */
-int getPrevVtrig(channeldata *cd, uint16_t index)
+int getPrevVtrig(ChannelData *cd, uint16_t index)
 {
 	/* walk through 0, expect underflow */
 	uint16_t iterstop = USHRT_MAX;
@@ -299,7 +319,7 @@ int getPrevVtrig(channeldata *cd, uint16_t index)
 	return -1;
 }
 
-row *getChannelRow(channeldata *cd, uint16_t index)
+Row *getChannelRow(ChannelData *cd, uint16_t index)
 {
 	int i = getPrevVtrig(cd, index);
 	if (i != -1 && cd->trig[i].index != VARIANT_OFF
@@ -311,7 +331,7 @@ row *getChannelRow(channeldata *cd, uint16_t index)
 /* returns the index within the variant, writes the variant pointer to **output */
 /* **output == NULL is allowed */
 /* returns -1 if not in a variant */
-int getChannelVariant(variant **output, channeldata *cd, uint16_t index)
+int getChannelVariant(Variant **output, ChannelData *cd, uint16_t index)
 {
 	int i = getPrevVtrig(cd, index);
 	if (i != -1 && cd->trig[i].index != VARIANT_OFF
@@ -325,7 +345,7 @@ int getChannelVariant(variant **output, channeldata *cd, uint16_t index)
 }
 
 /* the effective rowc, how many rows are actually used */
-uint16_t getSignificantRowc(channeldata *cd)
+uint16_t getSignificantRowc(ChannelData *cd)
 {
 	/* get the length if only the variant triggers */
 	/* walk through 0, expect overflow */
@@ -350,7 +370,7 @@ uint16_t getSignificantRowc(channeldata *cd)
 	return lvtrig+1;
 }
 
-void regenGlobalRowc(song *cs)
+void regenGlobalRowc(Song *cs)
 {
 	uint16_t oldsonglen = cs->songlen;
 	cs->songlen = STATE_ROWS;
@@ -369,4 +389,56 @@ void regenGlobalRowc(song *cs)
 
 	if (cs->loop[1] > cs->songlen-1 || cs->loop[1] == oldsonglen-1)
 		cs->loop[1] = cs->songlen-1;
+}
+
+void serializeVariant(Variant *v, FILE *fp)
+{
+	fwrite(&v->rowc, sizeof(uint16_t), 1, fp);
+	fwrite(v->rowv, sizeof(Row), v->rowc, fp);
+}
+void deserializeVariant(Variant **v, FILE *fp)
+{
+	uint16_t rowc;
+	fread(&rowc, sizeof(uint16_t), 1, fp);
+	*v = _copyVariant(NULL, rowc);
+	fread((*v)->rowv, sizeof(Row), rowc, fp);
+}
+
+void serializeChannel(Song *cs, Channel *cv, FILE *fp)
+{
+	fputc(cv->data.mute, fp);
+	fputc(cv->data.macroc, fp);
+	for (int i = 0; i < VARIANT_MAX; i++)
+		fputc(cv->data.varianti[i], fp);
+	fputc(cv->data.variantc, fp);
+	for (int i = 0; i < cv->data.variantc; i++)
+		serializeVariant(cv->data.variantv[i], fp);
+
+	fwrite(cv->data.trig, sizeof(Vtrig), cs->songlen, fp);
+	fwrite(cv->data.songv->rowv, sizeof(Row), cs->songlen, fp);
+
+	fwrite(&cv->data.effect.c, sizeof(uint8_t), 1, fp);
+	for (int i = 0; i < cv->data.effect.c; i++)
+		serializeEffect(&cv->data.effect.v[i], fp);
+}
+void deserializeChannel(Song *cs, Channel *cv, FILE *fp, uint8_t major, uint8_t minor)
+{
+	_addChannel(cs, cv);
+	cv->data.mute = fgetc(fp);
+	cv->data.macroc = fgetc(fp);
+	for (int i = 0; i < VARIANT_MAX; i++)
+		cv->data.varianti[i] = fgetc(fp);
+	cv->data.variantc = fgetc(fp);
+	for (int i = 0; i < cv->data.variantc; i++)
+		deserializeVariant(&cv->data.variantv[i], fp);
+
+	fread(cv->data.trig, sizeof(Vtrig), cs->songlen, fp);
+	fread(cv->data.songv->rowv, sizeof(Row), cs->songlen, fp);
+
+	if (!(major == 1 && minor < 97))
+	{
+		fread(&cv->data.effect.c, sizeof(uint8_t), 1, fp);
+		for (int i = 0; i < cv->data.effect.c; i++)
+			deserializeEffect(&cv->data.effect.v[i], fp, major, minor);
+	}
 }

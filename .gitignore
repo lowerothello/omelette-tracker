@@ -3,5 +3,10 @@ omelette
 valgrind.log
 gmon.out
 
-# test .omlm files, contain dmca-able samples (direct spotify recordings) so excluded
+# test mod files, some contain dmca-able samples (direct spotify recordings) so excluded
 testmods
+*.omlm
+*.egg
+
+# files omelette spits out for debugging
+.save_debug

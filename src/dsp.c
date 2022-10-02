@@ -13,15 +13,17 @@
 
 
 /* premultiplied divisions */
-#define DIV256   0.00390625f
-#define DIV128   0.0078125f
-#define DIV64    0.015625f
-#define DIV32    0.03125f
-#define DIV16    0.0625f
-#define DIV8     0.125f
-#define DIV255   0.00392156862745098
-#define DIV15    0.06666666666666667
-#define DIV1000  0.001f
+#define DIV4096 0.000244140625f
+#define DIV1024 0.0009765625f
+#define DIV256  0.00390625f
+#define DIV128  0.0078125f
+#define DIV64   0.015625f
+#define DIV32   0.03125f
+#define DIV16   0.0625f
+#define DIV8    0.125f
+#define DIV255  0.00392156862745098
+#define DIV15   0.06666666666666667
+#define DIV1000 0.001f
 const double DIVSHRT = 1.0 / SHRT_MAX;
 const double DIVCHAR = 1.0 / SCHAR_MAX;
 

@@ -1,13 +1,6 @@
-short tfxToVfx(short tfx)
-{
-	if (tfx > 1) return 2 + (tfx - 2) / 2;
-	return tfx;
-}
-short vfxToTfx(short vfx)
-{
-	if (vfx > 1) return 2 + (vfx - 2) * 2;
-	return vfx;
-}
+short tfxToVfx(short tfx) { if (tfx > 1) return 2 + (tfx - 2) / 2; return tfx; }
+short vfxToTfx(short vfx) { if (vfx > 1) return 2 + (vfx - 2) * 2; return vfx; }
+
 void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	/* walk over allocated channels and free them */
@@ -18,7 +11,7 @@ void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 	w->pbfx[1] = x2;
 	w->pbchannelc = c2-c1 + 1;
 
-	channeldata *cd;
+	ChannelData *cd;
 	for (uint8_t i = 0; i <= c2-c1; i++)
 	{
 		cd = &s->channelv[c1+i].data;
@@ -29,21 +22,24 @@ void yankPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 }
 void putPartPattern(void)
 {
-	uint8_t i;
+	uint8_t i, j;
 	int k;
-	row *dest, *src;
+	Row *dest, *src;
+	unsigned char targetmacro;
+	ChannelData *cd = &s->channelv[w->channel].data;
+
 	if (!w->pbchannelc) return;
 	if (w->pbchannelc == 1) // only one channel
 	{
 		if (w->pbfx[0] > 1 && w->pbfx[0] == w->pbfx[1]) // just one macro column
 		{
-			unsigned char targetmacro;
 			if (w->trackerfx < 2) targetmacro = 0;
 			else targetmacro = tfxToVfx(w->trackerfx)-2;
-			for (uint8_t j = 0; j < w->pbvariantv[0]->rowc; j++)
+
+			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(&s->channelv[w->channel].data, w->trackerfy+j);
+				dest = getChannelRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				dest->macro[targetmacro].c = src->macro[w->pbfx[0]-2].c;
 				dest->macro[targetmacro].v = src->macro[w->pbfx[0]-2].v;
@@ -51,14 +47,14 @@ void putPartPattern(void)
 			w->trackerfx = vfxToTfx(targetmacro + 2);
 		} else
 		{
-			for (uint8_t j = 0; j < w->pbvariantv[0]->rowc; j++)
+			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(&s->channelv[w->channel].data, w->trackerfy+j);
+				dest = getChannelRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0) dest->note = src->note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) dest->inst = src->inst;
-				for (k = 0; k <= s->channelv[w->channel].data.macroc; k++)
+				for (k = 0; k <= cd->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2)
 					{
 						dest->macro[k].c = src->macro[k].c;
@@ -71,17 +67,17 @@ void putPartPattern(void)
 		for (i = 0; i < w->pbchannelc; i++)
 		{
 			if (w->channel+i < s->channelc)
-				for (uint8_t j = 0; j < w->pbvariantv[i]->rowc; j++)
+				for (j = 0; j < w->pbvariantv[i]->rowc; j++)
 				{
 					if (w->trackerfy + j >= s->songlen) break;
-					dest = getChannelRow(&s->channelv[w->channel+i].data, w->trackerfy+j);
+					dest = getChannelRow(cd, w->trackerfy+j);
 					src = getVariantRow(w->pbvariantv[i], j);
 
 					if (i == 0) // first channel
 					{
 						if (w->pbfx[0] <= 0) dest->note = src->note;
 						if (w->pbfx[0] <= 1) dest->inst = src->inst;
-						for (k = 0; k <= s->channelv[w->channel+i].data.macroc; k++)
+						for (k = 0; k <= cd->macroc; k++)
 							if (w->pbfx[0] <= k+2)
 							{
 								dest->macro[k].c = src->macro[k].c;
@@ -91,7 +87,7 @@ void putPartPattern(void)
 					{
 						if (w->pbfx[1] >= 0) dest->note = src->note;
 						if (w->pbfx[1] >= 1) dest->inst = src->inst;
-						for (k = 0; k <= s->channelv[w->channel+i].data.macroc; k++)
+						for (k = 0; k <= cd->macroc; k++)
 							if (w->pbfx[1] >= k+2)
 							{
 								dest->macro[k].c = src->macro[k].c;
@@ -113,7 +109,7 @@ void yankPartVtrig(short y1, short y2, uint8_t c1, uint8_t c2)
 
 	for (uint8_t i = 0; i <= c2-c1; i++)
 	{
-		w->vbtrig[i] = calloc(y2-y1 + 1, sizeof(vtrig));
+		w->vbtrig[i] = calloc(y2-y1 + 1, sizeof(Vtrig));
 		for (uint16_t j = 0; j <= y2-y1; j++)
 			w->vbtrig[i][j] = s->channelv[c1+i].data.trig[y1+j];
 	}
@@ -145,7 +141,7 @@ void mixPutPartPattern(void)
 {
 	uint8_t i;
 	int k;
-	row *dest, *src;
+	Row *dest, *src;
 	if (!w->pbchannelc) return;
 	if (w->pbchannelc == 1) // only one channel
 	{
@@ -234,7 +230,7 @@ void mixPutPartPattern(void)
 void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	uint8_t i, j;
-	row *r;
+	Row *r;
 	int k;
 	if (c1 == c2) /* only one channel */
 	{
@@ -278,7 +274,7 @@ void delPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t 
 							}
 					} else /* middle channel */
 					{
-						memset(r, 0, sizeof(row));
+						memset(r, 0, sizeof(Row));
 						r->note = NOTE_VOID;
 						r->inst = INST_VOID;
 					}
@@ -309,7 +305,7 @@ void addPartPattern(signed char value, short x1, short x2, short y1, short y2, u
 {
 	uint8_t i, j;
 	int k;
-	row *r;
+	Row *r;
 	if (c1 == c2) /* only one channel */
 	{
 		for (j = y1; j <= y2; j++)
@@ -372,7 +368,7 @@ void tildePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_
 {
 	uint8_t i, j;
 	int k;
-	row *r;
+	Row *r;
 	if (c1 == c2) /* only one channel */
 	{
 		for (j = y1; j <= y2; j++)
@@ -419,7 +415,7 @@ void interpolatePartPattern(short x1, short x2, short y1, short y2, uint8_t c1, 
 {
 	uint8_t i, j;
 	int k;
-	row *r, *r1, *r2;
+	Row *r, *r1, *r2;
 	if (c1 == c2) /* only one channel */
 	{
 		r1 = getChannelRow(&s->channelv[c1].data, y1);
@@ -520,7 +516,7 @@ void randPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 {
 	uint8_t i, j, randinst;
 	int k;
-	row *r;
+	Row *r;
 	if (c1 == c2) /* only one channel */
 	{
 		for (j = y1; j <= y2; j++)
@@ -594,7 +590,7 @@ void cycleUpPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint
 {
 	uint8_t i;
 	int j, k, l;
-	row hold, *r0, *r1, *r2;
+	Row hold, *r0, *r1, *r2;
 	if (c1 == c2) /* only one channel */
 	{
 		for (l = 0; l < MAX(1, w->count); l++)
@@ -697,7 +693,7 @@ void cycleDownPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, ui
 {
 	uint8_t i;
 	int j, k, l;
-	row hold, *r0, *r1, *r2;
+	Row hold, *r0, *r1, *r2;
 	if (c1 == c2) /* only one channel */
 	{
 		for (l = 0; l < MAX(1, w->count); l++)

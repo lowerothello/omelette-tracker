@@ -47,6 +47,7 @@ void cleanup(int ret)
 		if (w->recbuffer) free(w->recbuffer);
 		if (w->waveformcanvas) free_canvas(w->waveformcanvas);
 		if (w->waveformbuffer) free_buffer(w->waveformbuffer);
+		__delChannel(&w->previewchannel);
 
 		for (short i = 0; i < w->vbchannelc; i++)
 			free(w->vbtrig[i]);
@@ -77,9 +78,9 @@ void init(int argc, char **argv)
 	signal(SIGTERM, &cleanup);
 
 	/* jack stuffs */
-	p = malloc(sizeof(playbackinfo));
+	p = malloc(sizeof(PlaybackInfo));
 	if (!p) { puts("out of memory"); common_cleanup(1); }
-	memset(p, 0, sizeof(playbackinfo));
+	memset(p, 0, sizeof(PlaybackInfo));
 
 #ifndef DEBUG_DISABLE_AUDIO_THREAD
 	client = jack_client_open("omelette", JackNullOption, NULL);
@@ -93,11 +94,12 @@ void init(int argc, char **argv)
 
 	samplerate = jack_get_sample_rate(client);
 	buffersize = jack_get_buffer_size(client);
-	rampmax = samplerate / 1000 * RAMP_MS;
-	stretchrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
+
+	rampmax =      samplerate / 1000 * RAMP_MS;
+	grainrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
 #endif
 
-	w = calloc(1, sizeof(window));
+	w = calloc(1, sizeof(Window));
 	if (!w) { puts("out of memory"); common_cleanup(1); }
 	w->octave = 4;
 	w->defvariantlength = 0x7;
@@ -121,11 +123,9 @@ void init(int argc, char **argv)
 	p->s = s;
 	p->w = w;
 
-	initBackground(); /* needs to be before jack_activate */
-
-	w->previewchannel.r.note = w->previewchannel.samplernote = NOTE_VOID;
-	w->previewchannel.r.inst = w->previewchannel.samplerinst = INST_VOID;
-	w->previewchannel.filtercut = 1.0f;
+	/* need to be called before the jack client is activated */
+	initBackground();
+	__addChannel(&w->previewchannel);
 
 
 #ifndef DEBUG_DISABLE_AUDIO_THREAD
@@ -145,7 +145,7 @@ void init(int argc, char **argv)
 	if (argc > 1)
 	{
 		strcpy(w->newfilename, argv[1]);
-		p->lock = PLAY_LOCK_START;
+		p->sem = M_SEM_RELOAD_REQ;
 	}
 
 	resize(0);

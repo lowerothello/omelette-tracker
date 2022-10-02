@@ -23,8 +23,12 @@ void resizeBackground(backgroundstate *cb)
 
 	if (cb->canvas) { free_canvas(cb->canvas); cb->canvas = NULL; }
 	if (cb->buffer) { free_buffer(cb->buffer); cb->buffer = NULL; }
-	cb->canvas = new_canvas(cb->width, cb->height);
-	cb->buffer = new_buffer(cb->canvas);
+
+	if (cb->width > 0 && cb->height > 0)
+		cb->canvas = new_canvas(cb->width, cb->height);
+
+	if (cb->canvas)
+		cb->buffer = new_buffer(cb->canvas);
 
 	cb->pointer = 0;
 }
@@ -37,12 +41,12 @@ void freeBackground(backgroundstate *cb)
 	free(cb);
 }
 
-void updateBackground(jack_nframes_t nfptr, portbufferpair out)
+void updateBackground(jack_nframes_t nfptr, sample_t *outl, sample_t *outr)
 {
 	if (b->samples) /* segfault protection, TODO: shouldn't be needed */
 		for (jack_nframes_t i = 0; i < nfptr; i++)
 		{
-			b->samples[b->pointer] = out.l[i];
+			b->samples[b->pointer] = (outl[i] + outr[i])*0.5f;
 			b->pointer++;
 			b->pointer = b->pointer%b->width;
 		}

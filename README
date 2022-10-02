@@ -18,6 +18,7 @@ DEPENDS:
 - JACK2                                 - audio input/output
 - libsndfile                            - file loading
 - libdrawille (included as a submodule) - waveform drawing
+- valgrind                              - set NO_VALGRIND in config.h to remove
 
 BUILD:
 $ git submodule init ; git submodule update # fetch libdrawille

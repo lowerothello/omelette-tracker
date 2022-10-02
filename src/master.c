@@ -25,7 +25,7 @@ void masterInput(int input)
 						case 'P': /* xterm f1 */ showTracker(); break;
 						case 'Q': /* xterm f2 */ showInstrument(); break;
 						case 'S': /* xterm f4 */ showMaster(); break;
-					} redraw(); break;
+					} p->dirty = 1; break;
 				case '[': /* CSI */
 					switch (getchar())
 					{
@@ -36,11 +36,11 @@ void masterInput(int input)
 								case 'B': /* linux f2 */ showInstrument(); break;
 								case 'D': /* linux f4 */ showMaster(); break;
 								case 'E': /* linux f5 */ startPlayback(); break;
-							} redraw(); break;
-						case 'A': /* up arrow    */ masterUpArrow(1); redraw(); break;
-						case 'B': /* down arrow  */ masterDownArrow(1); redraw(); break;
-						case 'D': /* left arrow  */ masterLeftArrow(); redraw(); break;
-						case 'C': /* right arrow */ masterRightArrow(); redraw(); break;
+							} p->dirty = 1; break;
+						case 'A': /* up arrow    */ masterUpArrow  (1); p->dirty = 1; break;
+						case 'B': /* down arrow  */ masterDownArrow(1); p->dirty = 1; break;
+						case 'D': /* left arrow  */ masterLeftArrow (); p->dirty = 1; break;
+						case 'C': /* right arrow */ masterRightArrow(); p->dirty = 1; break;
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
@@ -52,19 +52,17 @@ void masterInput(int input)
 										case '5': /* ctrl+arrow */
 											switch (getchar())
 											{
-												// case 'D': /* left  */ channelLeft(); redraw(); break;
-												// case 'C': /* right */ channelRight(); redraw(); break;
-												// case 'A': /* up    */ cycleUp(); redraw(); break;
-												// case 'B': /* down  */ cycleDown(); redraw(); break;
+												// case 'A': /* up    */ cycleUp  (); p->dirty = 1; break;
+												// case 'B': /* down  */ cycleDown(); p->dirty = 1; break;
 											} break;
 										default: getchar(); break;
 									} break;
-								case '~': /* linux home */ masterHome(); redraw(); break;
+								case '~': /* linux home */ masterHome(); p->dirty = 1; break;
 							} break;
-						case 'H': /* xterm home */ masterHome(); redraw(); break;
-						case '4': /* end        */ if (getchar() == '~') { masterEnd(); redraw(); } break;
-						// case '5': /* page up    */ trackerUpArrow(s->rowhighlight); getchar(); redraw(); break;
-						// case '6': /* page down  */ trackerDownArrow(s->rowhighlight); getchar(); redraw(); break;
+						case 'H': /* xterm home */ masterHome(); p->dirty = 1; break;
+						case '4': /* end        */ if (getchar() == '~') { masterEnd(); p->dirty = 1; } break;
+						// case '5': /* page up    */ trackerUpArrow  (s->rowhighlight); getchar(); p->dirty = 1; break;
+						// case '6': /* page down  */ trackerDownArrow(s->rowhighlight); getchar(); p->dirty = 1; break;
 					} break;
 			}
 	}

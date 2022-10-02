@@ -1,4 +1,5 @@
-#define PLAYHEAD_BGCOL 2
+#define CHANNEL_TRIG_COLS 4
+#define CHANNEL_LINENO_COLS (LINENO_COLS - 3)
 
 /* will populate buffer, buffer should be at least length 4 */
 void noteToString(uint8_t note, char *buffer)
@@ -85,7 +86,7 @@ void noteToString(uint8_t note, char *buffer)
 		}
 } */
 
-short drawGlobalLineNumbers(unsigned short x)
+void drawGlobalLineNumbers(unsigned short x)
 {
 	for (int i = 0; i < s->songlen; i++)
 		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
@@ -97,7 +98,6 @@ short drawGlobalLineNumbers(unsigned short x)
 			else                printf("%04x",  i - STATE_ROWS);
 			printf("\033[m");
 		}
-	return (LINENO_COLS-3);
 }
 
 void startVisual(uint8_t channel, int i, signed char fieldpointer)
@@ -196,9 +196,9 @@ int ifVisual(uint8_t channel, int i, signed char fieldpointer)
 	} return 0;
 }
 
-short drawChannelTrigs(uint8_t channel, short x)
+void drawChannelTrigs(uint8_t channel, short x)
 {
-	channeldata *cd = &s->channelv[channel].data;
+	ChannelData *cd = &s->channelv[channel].data;
 	char buffer[5];
 
 	for (int i = 0; i < s->songlen; i++)
@@ -230,7 +230,6 @@ short drawChannelTrigs(uint8_t channel, short x)
 			} else printf("%.*s", MAX(0, ws.ws_col - x), buffer);
 			printf("\033[m");
 		}
-	return 4;
 }
 
 void drawStarColumn(unsigned short x)
@@ -246,20 +245,16 @@ void drawStarColumn(unsigned short x)
 		}
 }
 
-short drawChannel(uint8_t channel, short x)
+short _drawChannelHeader(uint8_t channel, short x)
 {
 	if (channel >= s->channelc) return 0;
-
-	row *r; int c;
 	char buffer[16];
 
-	channeldata *cd = &s->channelv[channel].data;
-
-	variant *v;
-	int gcvret;
+	ChannelData *cd = &s->channelv[channel].data;
 
 	snprintf(buffer, 11, "CHANNEL %02x", channel);
-	c = x + (6 + 4*(cd->macroc+1) - 10)/2;
+
+	int c = x + (6 + 4*(cd->macroc+1) - 10)/2;
 	if (c <= ws.ws_col)
 	{
 		/* TODO: channel line underline is more complicated than this, not sure how to approach it */
@@ -272,9 +267,25 @@ short drawChannel(uint8_t channel, short x)
 		} */
 		if (cd->mute) printf("\033[2m");
 		else          printf("\033[1m");
-		if (x < LINENO_COLS - 2) { if (x > LINENO_COLS - 12) printf("\033[%d;%dH\033[2m%s\033[m", CHANNEL_ROW, LINENO_COLS, buffer+(LINENO_COLS - x - 2)); }
-		else                                                 printf("\033[%d;%dH\033[2m%.*s\033[m", CHANNEL_ROW, c, ws.ws_col - c, buffer);
-	}
+		if (channel == w->channel + w->channeloffset) printf("\033[7m");
+		if (x < LINENO_COLS - 2) { if (x > LINENO_COLS - 12) printf("\033[%d;%dH%s", CHANNEL_ROW, LINENO_COLS, buffer+(LINENO_COLS - x - 2)); }
+		else                                                 printf("\033[%d;%dH%.*s", CHANNEL_ROW, c, ws.ws_col - c, buffer);
+		printf("\033[m");
+	} return 8 + 4*(cd->macroc+1);
+}
+short drawChannel(uint8_t channel, short x)
+{
+	if (channel >= s->channelc) return 0;
+
+	Row *r;
+	char buffer[16];
+
+	Variant *v;
+	int gcvret;
+	ChannelData *cd = &s->channelv[channel].data;
+
+	_drawChannelHeader(channel, x);
+
 
 	if (x <= ws.ws_col && x + 3 + 7 + 4*(cd->macroc+1) -1 > LINENO_COLS)
 	{
@@ -436,89 +447,125 @@ short drawChannel(uint8_t channel, short x)
 	} return 8 + 4*(cd->macroc+1);
 }
 
-void drawTracker(void)
+short genSfx(void)
 {
 	short x = 0;
-	short sx = 0;
-	short sfx = 0;
-	short y, macro;
-
-	printf("\033[%d;%dH\033[1mPATTERN\033[m \033[2mINSTRUMENT\033[m", CHANNEL_ROW-2, (ws.ws_col-18) / 2);
+	short ret = 0;
 
 	for (int i = 0; i < s->channelc; i++)
 	{
 		x += 3 + 9 + 4*(s->channelv[i].data.macroc+1);
-		if (i == w->channel)
-		{
-			sfx = x;
+		if (i == w->channel) ret = x; /* should only be set once */
+		/* keep iterating so x is the full width of all channels */
+	}
+	if (x > (ws.ws_col-LINENO_COLS))
+	{
+		ret = (ws.ws_col>>1) - ret;
+		ret = MIN(ret, 0);
+		ret = MAX(ret, -(x - (ws.ws_col-LINENO_COLS)));
+	} else
+		ret = (((ws.ws_col-LINENO_COLS) - x)>>1);
+	return ret;
+}
+
+void drawTracker(void)
+{
+	short x = 1;
+	short sx = 0;
+	short sfx = 0;
+	short y, macro;
+
+	printf("\033[%d;%dH\033[1mCHANNEL\033[m \033[2mINSTRUMENT\033[m", 2, (ws.ws_col-18)>>1);
+
+	sfx = genSfx();
+
+	switch (w->page)
+	{
+		case PAGE_CHANNEL_VARIANT:
+			printf("\033[%d;%dH\033[3mvariant\033[m \033[3;2meffect\033[m", 3, (ws.ws_col-14)>>1);
+
+			drawGlobalLineNumbers(x + MAX(sfx, 0));
+			x += CHANNEL_LINENO_COLS;
+			if (sfx >= 0) drawStarColumn(x + MAX(sfx, 0));
+			x += 2;
+
+			for (int i = 0; i < s->channelc; i++)
+			{
+				drawChannelTrigs(i, x+sfx);
+				x += CHANNEL_TRIG_COLS;
+
+				if (i == w->channel + w->channeloffset)
+					sx = x;
+
+				x += drawChannel(i, x+sfx);
+			}
+			if (sfx < 0)
+			{
+				printf("\033[%d;%dH^", CHANNEL_ROW, LINENO_COLS - 1);
+				for (int i = 0; i < s->songlen; i++)
+					if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
+						printf("\033[%d;%dH^", w->centre - w->trackerfy + i, LINENO_COLS - 1);
+			}
+			if (x + sfx > ws.ws_col)
+			{
+				printf("\033[%d;%dH$", CHANNEL_ROW, ws.ws_col);
+				for (int i = 0; i < s->songlen; i++)
+					if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
+						printf("\033[%d;%dH$", w->centre - w->trackerfy + i, ws.ws_col);
+			}
+
+			y = w->centre + w->fyoffset;
+
+			if (w->trackerfx > 1 && w->mode == T_MODE_INSERT)
+			{
+				Row *r = getChannelRow(&s->channelv[w->channel].data, w->trackerfy);
+				short macro = (w->trackerfx - 2)>>1;
+				descMacro(r->macro[macro].c, r->macro[macro].v);
+			}
+
+			switch (w->mode)
+			{
+				case T_MODE_VISUAL: case T_MODE_VTRIG_VISUAL:           printf("\033[%d;0H\033[1m-- VISUAL --\033[m",         ws.ws_row); w->command.error[0] = '\0'; break;
+				case T_MODE_VISUALLINE:                                 printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m",    ws.ws_row); w->command.error[0] = '\0'; break;
+				case T_MODE_VISUALREPLACE:                              printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
+				case T_MODE_MOUSEADJUST: case T_MODE_VTRIG_MOUSEADJUST: printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m",   ws.ws_row); w->command.error[0] = '\0'; break;
+				case T_MODE_INSERT: case T_MODE_VTRIG_INSERT:
+					if (w->keyboardmacro) printf("\033[%d;0H\033[1m-- INSERT (%cxx) --\033[m", ws.ws_row, w->keyboardmacro);
+					else                  printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
+					w->command.error[0] = '\0'; break;
+			}
+
+			/* cursor position */
+			if (w->mode == T_MODE_VTRIG || w->mode == T_MODE_VTRIG_INSERT || w->mode == T_MODE_VTRIG_VISUAL || w->mode == T_MODE_VTRIG_MOUSEADJUST)
+				printf("\033[%d;%dH", y, sx - 2 - w->fieldpointer + sfx);
+			else
+			{
+				switch (w->trackerfx)
+				{
+					case 0: printf("\033[%d;%dH", y, sx + 0 + sfx);                   break;
+					case 1: printf("\033[%d;%dH", y, sx + 5 - w->fieldpointer + sfx); break;
+					default: /* macro columns */
+						macro = (w->trackerfx - 2)>>1;
+						if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx + 7 + macro*4 + sfx);
+						else printf("\033[%d;%dH", y, sx + 9 + macro*4 - w->fieldpointer + sfx);
+						break;
+				}
+			} break;
+		case PAGE_CHANNEL_EFFECT:
+			printf("\033[%d;%dH\033[3;2mvariant\033[m \033[3meffect\033[m", 3, (ws.ws_col-14)>>1);
+
+			x += CHANNEL_LINENO_COLS + 2;
+
+			for (int i = 0; i < s->channelc; i++)
+			{
+				x += CHANNEL_TRIG_COLS;
+				x += _drawChannelHeader(i, x+sfx);
+			}
+			if (sfx < 0)             printf("\033[%d;%dH^", CHANNEL_ROW, LINENO_COLS - 1);
+			if (x + sfx > ws.ws_col) printf("\033[%d;%dH$", CHANNEL_ROW, ws.ws_col);
+
+			drawEffects(&s->channelv[w->channel].data.effect, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW + 2); break;
 			break;
-		}
-	} sfx = MIN(0, (ws.ws_col>>1) - sfx);
-
-	x = 1;
-	x += drawGlobalLineNumbers(x);
-	if (!sfx) drawStarColumn(x);
-	x += 2;
-
-	for (int i = 0; i < s->channelc; i++)
-	{
-		x += drawChannelTrigs(i, x+sfx);
-
-		if (i == w->channel + w->channeloffset)
-			sx = x;
-
-		x += drawChannel(i, x+sfx);
-	}
-	if (sfx != 0)
-	{
-		printf("\033[%d;%dH^", CHANNEL_ROW, LINENO_COLS - 1);
-		for (int i = 0; i < s->songlen; i++)
-			if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
-				printf("\033[%d;%dH^", w->centre - w->trackerfy + i, LINENO_COLS - 1);
-	}
-	if (x + sfx > ws.ws_col)
-	{
-		printf("\033[%d;%dH$", CHANNEL_ROW, ws.ws_col);
-		for (int i = 0; i < s->songlen; i++)
-			if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
-				printf("\033[%d;%dH$", w->centre - w->trackerfy + i, ws.ws_col);
 	}
 
-	y = w->centre + w->fyoffset;
-
-	if (w->trackerfx > 1 && w->mode == T_MODE_INSERT)
-	{
-		row *r = getChannelRow(&s->channelv[w->channel].data, w->trackerfy);
-		short macro = (w->trackerfx - 2) / 2;
-		descMacro(r->macro[macro].c, r->macro[macro].v);
-	}
-
-	switch (w->mode)
-	{
-		case T_MODE_VISUAL: case T_MODE_VTRIG_VISUAL:           printf("\033[%d;0H\033[1m-- VISUAL --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_VISUALLINE:                                printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_VISUALREPLACE:                             printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_MOUSEADJUST: case T_MODE_VTRIG_MOUSEADJUST: printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m", ws.ws_row); w->command.error[0] = '\0'; break;
-		case T_MODE_INSERT: case T_MODE_VTRIG_INSERT:
-			if (w->keyboardmacro) printf("\033[%d;0H\033[1m-- INSERT (%cxx) --\033[m", ws.ws_row, w->keyboardmacro);
-			else                  printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
-			w->command.error[0] = '\0'; break;
-	}
-
-	/* cursor position */
-	if (w->mode == T_MODE_VTRIG || w->mode == T_MODE_VTRIG_INSERT || w->mode == T_MODE_VTRIG_VISUAL || w->mode == T_MODE_VTRIG_MOUSEADJUST)
-		printf("\033[%d;%dH", y, sx - 2 - w->fieldpointer + sfx);
-	else
-	{
-		switch (w->trackerfx)
-		{
-			case 0: printf("\033[%d;%dH", y, sx + 0 + sfx);                   break;
-			case 1: printf("\033[%d;%dH", y, sx + 5 - w->fieldpointer + sfx); break;
-			default: /* macro columns */
-				macro = (w->trackerfx - 2) / 2;
-				if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx + 7 + macro*4 + sfx);
-				else printf("\033[%d;%dH", y, sx + 9 + macro*4 - w->fieldpointer + sfx);
-				break;
-		}
-	}
 }

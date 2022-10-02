@@ -37,13 +37,13 @@ int changeDirectory(void)
 		dirent = readdir(w->dir);
 	}
 	rewinddir(w->dir);
-	w->dirmaxwidth = MIN(w->dirmaxwidth, ws.ws_col - 4);
+	w->dirmaxwidth = MIN(w->dirmaxwidth, MAX(1, ws.ws_col - 4));
 	w->dircols = MAX(MIN((ws.ws_col - 8) / w->dirmaxwidth, (w->dirc - 1) / 4), 1);
 	return 0;
 }
 
 void drawFilebrowser(void)
-{
+{ /* this function can smash the stack sometimes */
 	printf("\033[%d;%dH\033[1mFILEBROWSER\033[m", CHANNEL_ROW-2, (ws.ws_col-11) / 2);
 
 	struct dirent *dirent = readdir(w->dir);
@@ -122,7 +122,7 @@ int getSubdir(char *newpath)
 				rewinddir(w->dir);
 				if (testdir == NULL) return 1; /* file */
 				else { closedir(testdir); return 2; /* directory */ }
-				redraw(); break;
+				p->dirty = 1; break;
 			} dirc++;
 		} dirent = readdir(w->dir);
 	}
@@ -142,7 +142,6 @@ void filebrowserInput(int input)
 			switch (getSubdir(newpath))
 			{
 				case 1: /* file */
-					w->popup = 0;
 					w->filebrowserCallback(newpath);
 					break;
 				case 2: /* directory */
@@ -154,13 +153,13 @@ void filebrowserInput(int input)
 					} else w->filebrowserindex = 0;
 					break;
 			}
-			redraw();
+			p->dirty = 1;
 			break;
 		case 127: case '\b': /* backspace */
 			dirname(w->dirpath);
 			changeDirectory();
 			w->filebrowserindex = 0;
-			redraw(); break;
+			p->dirty = 1; break;
 		case '\033':
 			switch (getchar())
 			{
@@ -179,13 +178,13 @@ void filebrowserInput(int input)
 								changeDirectory();
 							} else w->filebrowserindex = 0;
 							break;
-					} redraw(); break;
+					} p->dirty = 1; break;
 				case 'O':
 					switch (getchar())
 					{
 						case 'P': /* xterm f1 */ showTracker(); break;
 						case 'Q': /* xterm f2 */ showInstrument(); break;
-					} redraw(); break;
+					} p->dirty = 1; break;
 				case '[':
 					switch (getchar())
 					{
@@ -195,49 +194,49 @@ void filebrowserInput(int input)
 								case 'A': /* linux f1 */ showTracker(); break;
 								case 'B': /* linux f2 */ showInstrument(); break;
 								case 'E': /* linux f5 */ startPlayback(); break;
-							} redraw(); break;
+							} p->dirty = 1; break;
 						case 'A': /* up arrow */
 							w->filebrowserindex -= w->dircols;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
-							redraw(); break;
+							p->dirty = 1; break;
 						case 'B': /* down arrow */
 							w->filebrowserindex += w->dircols;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
-							redraw(); break;
+							p->dirty = 1; break;
 						case 'D': /* left arrow */
 							w->filebrowserindex--;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
-							redraw(); break;
+							p->dirty = 1; break;
 						case 'C': /* right arrow */
 							w->filebrowserindex++;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
-							redraw(); break;
+							p->dirty = 1; break;
 						case 'H': /* xterm home */
 							w->filebrowserindex = 0;
-							redraw(); break;
+							p->dirty = 1; break;
 						case '4': /* end */
 							if (getchar() == '~')
 							{
 								w->filebrowserindex = w->dirc - 1;
-								redraw();
+								p->dirty = 1;
 							} break;
 						case '5': /* page up */
 							getchar();
 							w->filebrowserindex -= w->dircols * FILEBROWSER_PAGE_HEIGHT;
 							if (w->filebrowserindex < 0) w->filebrowserindex = 0;
-							redraw(); break;
+							p->dirty = 1; break;
 						case '6': /* page down */
 							getchar();
 							w->filebrowserindex += w->dircols * FILEBROWSER_PAGE_HEIGHT;
 							if (w->filebrowserindex > w->dirc - 1) w->filebrowserindex = w->dirc - 1;
-							redraw(); break;
+							p->dirty = 1; break;
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
 								case '5': /* xterm f5, play  */ getchar(); startPlayback(); break;
 								case '7': /* f6, stop        */ getchar(); stopPlayback(); break;
 								case ';': /* mod+arrow       */ getchar(); break;
-								case '~': /* linux home      */ w->filebrowserindex = 0; redraw(); break;
+								case '~': /* linux home      */ w->filebrowserindex = 0; p->dirty = 1; break;
 							} break;
 						case 'M': /* mouse */
 							button = getchar();
@@ -290,7 +289,7 @@ void filebrowserInput(int input)
 										switch (getSubdir(newpath))
 										{
 											case 1: /* file */
-												w->popup = 0;
+												w->page = 0;
 												w->filebrowserindex = 0;
 												w->filebrowserCallback(newpath);
 												break;
@@ -304,15 +303,12 @@ void filebrowserInput(int input)
 												break;
 										}
 									} break;
-							} redraw(); break;
+							} p->dirty = 1; break;
 					} break;
 				default:
-					switch (w->mode)
-					{
-						case 0: /* leave the popup */
-							w->popup = 1;
-							break;
-					} redraw(); break;
+					/* leave the filebrowser */
+					w->filebrowserCallback(NULL);
+					p->dirty = 1; break;
 			} break;
 	}
 }

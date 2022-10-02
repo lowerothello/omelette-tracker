@@ -1,6 +1,6 @@
-song *_addSong(void)
+Song *_addSong(void)
 {
-	song *cs = calloc(1, sizeof(song));
+	Song *cs = calloc(1, sizeof(Song));
 	if (!cs) return NULL;
 
 	cs->instrumentc = 0;
@@ -14,7 +14,7 @@ song *_addSong(void)
 	return cs;
 }
 
-void delSong(song *cs)
+void delSong(Song *cs)
 {
 	for (int i = 0; i < cs->channelc; i++)
 		_delChannel(&cs->channelv[i]);

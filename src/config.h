@@ -1,5 +1,7 @@
 /* debugging symbols */
-// #define DEBUG_DISABLE_AUDIO_THREAD
+#define DEBUG_DISABLE_AUDIO_THREAD
+// #define NO_VALGRIND
+#define NO_MULTITHREADING
 
 /* filebrowser starting dir */
 #define SAMPLES_DIR "/media/prod"

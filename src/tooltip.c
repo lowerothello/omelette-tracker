@@ -2,7 +2,8 @@ typedef struct
 {
 	char  *prettyname;
 	int    keybind;
-	void (*callback)(void);
+	void (*callback)(void *);
+	void  *arg; /* arg passed to callback */
 } TooltipEntry;
 
 typedef struct
@@ -47,7 +48,7 @@ void setTooltipTitle(TooltipState *tt, char *prettytitle)
 	strcpy(tt->prettytitle, prettytitle);
 }
 
-void addTooltipBind(TooltipState *tt, char *prettyname, int keybind, void (*callback)(void))
+void addTooltipBind(TooltipState *tt, char *prettyname, int keybind, void (*callback)(void *), void *arg)
 {
 	TooltipEntry *newentryv = calloc(tt->entryc+1, sizeof(TooltipEntry));
 
@@ -60,6 +61,7 @@ void addTooltipBind(TooltipState *tt, char *prettyname, int keybind, void (*call
 	strcpy(newentryv[tt->entryc].prettyname, prettyname);
 	newentryv[tt->entryc].keybind = keybind;
 	newentryv[tt->entryc].callback = callback;
+	newentryv[tt->entryc].arg = arg;
 
 	tt->maxprettynamelen = MAX(tt->maxprettynamelen, strlen(prettyname));
 	tt->entryv = newentryv;
@@ -73,7 +75,7 @@ void inputTooltip(TooltipState *tt, int input)
 		if (tt->entryv[i].keybind == input)
 		{
 			if (tt->entryv[i].callback)
-				tt->entryv[i].callback();
+				tt->entryv[i].callback(tt->entryv[i].arg);
 			break;
 		}
 	}

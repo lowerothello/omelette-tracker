@@ -1,46 +1,98 @@
-| omelette tracker                                   v0.94  0        |
-|                 PATTERN INSTRUMENT SEND MASTERING                  |
-|                                                                    |
-|                                   WAVEFORM EFFECTS                 |
-|                    *reserved*  *reserved*  *reserved*  *reserved*  |
-|                    *  *reserved*  *reserved*  *reserved*  *reserve |
-|                    ved*  *reserved*  *reserved*  *reserved*  *rese |
-|                    served*  *reserved*  *reserved*  *reserved*  *r |
-|                                                                    |
-|                    C-5 rate: [00000000]  +       range       +     |
-|  00 00 [00000000]  channels:   [stereo]  start:     [00000000]     |
-|  01 ff  ........   bitrate:         [f]  length:    [00000000]     |
-|  02 ff  ........   samplerate:     [ff]  loop:      [00000000]     |
-|  03 ff  ........   enevlope:    [00][X]  bidi/ramp:    [ ][00]     |
-|  04 ff  ........   MIDI/gain:   [=][20]                            |
-|  05 ff  ........                          +       granular       + |
-|  06 ff  ........                          grain size:       [3fff] |
-|  07 ff  ........                          rearrange:          [00] |
-|  08 ff  ........                          direction:    [forwards] |
-|  09 ff  ........                          timestretch:   [8000][ ] |
-|  0a ff  ........                          pitch shift: [8000][+00] |
-|                                                STOP  &4 +0  125BPM |
+| omelette tracker                                                        v0.96  0        |
+|                            PATTERN INSTRUMENT SEND MASTERING                            |
+|                                                                                         |
+|             CHANNEL 00          CHANNEL 01          CHANNEL 02          CHANNEL 03      |
+|                                                                                         |
+|                                                                                         |
+|   -4   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+|   -3   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+|   -2   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+|   -1   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0000 * .. ... .. ... ... * .. ... .. ... ... * .. ... .. ... ... * .. ... .. ... ... *  |
+| 0001   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0002   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0003   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0004 * .. ... .. ... ... * .. ... .. ... ... * .. ... .. ... ... * .. ... .. ... ... *  |
+| 0005   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0006   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0007   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...   .. ... .. ... ...    |
+| 0008 * .. ... .. ... ... * .. ... .. ... ... * .. ... .. ... ... * .. ... .. ... ... *  |
+|                                                                     STOP  &4 +0  255BPM |
+
+- inc/dec/set chords for adjusting the selected instrument index
+
+
+|                                                                                         |
+
+| omelette tracker                        v0.97  27       |
+|                  CHANNEL INSTRUMENT                     |
+|                     sample effect                       |
+|                                             [ GRANULAR] |
+|                  ⡢⡄⢌⣠⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢐ |
+|                  ⣺⣿⣿⣿⣿⣿⣿⣾⣷⣾⣶⣶⣾⣴⣧⣶⣴⣦⣴⣤⣤⣤⣤⣤⣄⣀⣠⣤⣀⣀⣀⣀⣀⣀⣀⣀⣀⣐ |
+|                  ⣺⣿⣿⣿⡿⡿⡿⠿⠿⣿⠿⠿⢿⢿⡟⡿⢛⠟⠻⠛⠛⠛⠋⠋⠛⠙⠛⠛⠉⠉⠉⠉⠉⠉⠉⠉⠉⢑ |
+|                  ⠒⠃⢙⠛⠈⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐ |
+|                  C5rate: [0000ac44]  channels: [STEREO] |
+| 00 00 <00003862> decimate:  [f][ff]  MIDI channel:  [=] |
+| 01 ff  ........  env:    [00][  AR]  gain:     [ ][+00] |
+| 02 ff  ........                                         |
+| 03 ff  ........   +  trim range  +    +   granular   +  |
+| 04 ff  ........  offset: [00000000]  grain size: [3fff] |
+| 05 ff  ........  length: [00003861]  rearrange:    [00] |
+| 06 ff  ........  loop:   [00000000]  reverse:       [ ] |
+| 07 ff  ........  pingpong loop: [ ]  time:   [ ][+0000] |
+| 08 ff  ........  loop ramping: [00]  pitch:[+0000][+00] |
+|                                     STOP  &4 +0  125BPM |
+| omelette tracker                        v0.97  27       |
+|                  CHANNEL INSTRUMENT                     |
+|                     sample effect                       |
+|                  2s                         [WAVETABLE] |
+|                  ⡢⡄⢌⣠⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢐ |
+|                  ⣺⣿⣿⣿⣿⣿⣿⣾⣷⣾⣶⣶⣾⣴⣧⣶⣴⣦⣴⣤⣤⣤⣤⣤⣄⣀⣠⣤⣀⣀⣀⣀⣀⣀⣀⣀⣀⣐ |
+|                  ⣺⣿⣿⣿⡿⡿⡿⠿⠿⣿⠿⠿⢿⢿⡟⡿⢛⠟⠻⠛⠛⠛⠋⠋⠛⠙⠛⠛⠉⠉⠉⠉⠉⠉⠉⠉⠉⢑ |
+|                  ⠒⠃⢙⠛⠈⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐ |
+|                  C5rate: [0000ac44]  channels: [STEREO] | shared controls
+| 00 00 <00003862> decimate:  [f][ff]  MIDI channel:  [=] | shared controls
+| 01 ff  ........  env:    [00][  AR]  gain:     [ ][+00] | shared controls
+| 02 ff  ........                                         |
+| 03 ff  ........   +   trim range   +    + modulation +  |
+| 04 ff  ........  offset:   [00000000]  sync:   [00][00] | windowed sync?
+| 05 ff  ........  frame len:[00003861]  am/pm:  [00][00] |
+| 06 ff  ........  wavetable pos:  [00]  lfo speed:  [00] | 0x10 multiples are tempo synced
+| 07 ff  ........  frame ramping:  [00]  wave: [    SINE] | interpolated lookup tables
+| 08 ff  ........                                         |
+|                                     STOP  &4 +0  125BPM |
+
+
+C5rate: [00000000]   +    range     +    +   granular   +
+decimate:  [f][ff]  offset: [00000000]  grain size: [3fff]
+enevlope:  [00][X]  length: [00000000]  rearrange: [0][00]
+channels: [STEREO]  loop:   [00000000]  reverse:       [ ]
+MIDI channel:  [=]  ping-pong:     [ ]  time:   [+0000][ ]
+gain:     [ ][+00]  loop ramping: [00]  pitch:[+0000][+00]
+
 
 timestretch/pitchshift short:
 4th digit doubles/halves
 3rd digit is base 12 (semitone-wise)
 
-|                    rate:   [00000000]                     +      granular      +
-|                    decimate:  [f][ff]                     grain size:     [3fff]
-|                    channels: [stereo] MIDI channel:  [=]  time(jitter):  [ ][00]
-|                    envelope:  [00][X] loop pingpong: [ ]  pitch(width): [80][80]
-|                    gain:      [ ][20] loop ramping: [00]  direction: [ forwards]
-
-
 |                                    |
 
-|    DISTORTION       +  emphasis  + |
-| drive:      [+00]   pitch:    [80] |
-| bias:    [+00][ ]   gain:    [+00] |
-| parallel:   [+00]   width:    [00] |
-|        algorithm [HARDCLIP]        |
+|  #   DISTORTION   #   + emphasis + |
+| gain/tone: [+00][00]  pitch:  [80] |
+| algorithm [HARDCLIP]  gain:  [+00] |
+| bias:       [+00][ ]  width:  [00] |
+| parallel:      [+00]  noise:  [00] |
 
-|             EQUALIZER       > [00] |
+|  #           DISTORTION            #    +      emphasis      +  |
+| gain/tone: [+00][00]  bias:  [+00][ ]  pitch: [80]  width: [00] |
+| algorithm [HARDCLIP]  parallel: [+00]  gain: [+00]  noise: [00] |
+
+|  #                              DISTORTION                               #    +                   emphasis                   +  |
+| gain/tone: [+00][00]  algorithm [HARDCLIP]  bias: [+00][ ]  parallel: [+00]  pitch: [80]  gain: [+00]  width: [00]  noise: [00] |
+
+
+|           # EQUALIZER #            |
 |          *  visualizer  *          |
 |          *      goes    *          |
 |          *        here  *          |
@@ -50,29 +102,90 @@ timestretch/pitchshift short:
 | G:[+00]  G:[+00]  G:[+00]  G:[+00] |
 | Q: [00]  Q: [00]  Q: [00]  Q: [00] |
 
-|     CHORUS        +     lfo      + |
-| delay:     [00]   speed:      [00] |
-| taps:       [1]   stereo: [+00][ ] |
-| parallel: [+00]   depth:      [00] |
 
-|   PITCH SHIFTER     +  autotune  + |
-|   *HAS LATENCY*     strength: [00] |
+|  #    CHORUS    #     +   lfo   +  |
+| delay:        [00]   speed:   [00] |
+| taps/mix:  [1][80]   depth:   [00] |
+| parallel:    [+00]   stereo:   [ ] |
+
+|  #              CHORUS              #       +          lfo           +  |
+| delay:        [00]  parallel:    [+00]     speed:   [00]  stereo:   [ ] |
+| taps/mix:  [1][80]                         depth:   [00]                |
+
+
+|  # PITCH SHIFT #     + autotune +  |
+|  #  *LATENCY*  #    strength: [00] |
 | offset:     [+00]   slew:     [00] |
 | stereo:     [+00]   tuning:   [00] |
 | buffer size: [80]   scale: [CHROM] |
 
-|      DELAY        +   feedback   + |
+
+|  #   DELAY   #     +  feedback  +  |
 | panning:  [+00]   mix:        [00] |
-| ping-pong:  [ ]   reapply pan: [ ] |
+| ping-pong:  [ ]   widen:       [ ] | <- reapply initial panning
 | tempo sync: [ ]   tape:       [00] | <- noise + saturation + warble
 | time:      [00]   filter: [00][00] |
 
-|    ENVELOPE       +  filter [LP] + |
-|    FOLLOWER       freq:  [00][+00] |
+|  #           DELAY            #       +           feedback           +  |
+| panning:  [+00]  tempo sync: [ ]     mix:        [00]  tape:       [00] |
+| ping-pong:  [ ]  time:      [00]     widen:       [ ]  filter: [00][00] |
+
+
+|  #  ENVELOPE  #    + filter[LP] +  |
+|  #  FOLLOWER  #   freq:  [00][+00] |
 |                   Q:     [00][+00] |
-| threshold: [00]                    |
-| ratio:     [00]   +     gain     + |
-| speed: [00][00]   gain:  [ff][+00] |
-| mode:    [PEAK]   parallel:  [+00] |
+| threshold:  [00]                   |
+| ratio:      [00]   +    gain    +  |
+| speed:  [00][00]  gain:  [ff][+00] |
+| mode:     [PEAK]  parallel:  [+00] |
+
+|  #     ENVELOPE FOLLOWER      #       + filter[LP] +    +    gain    +  |
+| threshold: [00]  speed: [00][00]     freq:  [00][+00]  gain:  [ff][+00] |
+| ratio:     [00]  mode:    [PEAK]     Q:     [00][+00]  parallel:  [+00] |
 
 
+
+
+
+| omelette tracker                                                                v0.96  27      |
+|                                      PATTERN INSTRUMENT                                        |
+|                                                                                                |
+|                                                 SAMPLE EFFECTS                                 |
+|                                                                                                |
+|                  ┌────────────────────────────────────┒                                        |
+|                  │  #   DISTORTION   #   + emphasis + ┃                                        |
+|                  │ gain/tone: [+00][00]  pitch:  [80] ┃                                        |
+|                  │ bias:       [+00][ ]  gain:  [+00] ┃                                        |
+|                  │ parallel:      [+00]  width:  [00] ┃                                        |
+|                  │ algorithm [HARDCLIP]  noise:  [00] ┃                                        |
+|                  ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                        |
+|                  ┌───────────────────────────────────────────────────────────────────────────┒ |
+|                  │   #              DISTORTION              #       +      emphasis      +   ┃ |
+|                  │  gain/tone: [+00][00]  parallel:      [+00]     pitch: [80]  width: [00]  ┃ |
+|                  │  bias:       [+00][ ]  algorithm [HARDCLIP]     gain: [+00]  noise: [00]  ┃ |
+|                  ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ |
+| 00 00 <00000000>                                                                               |
+| 01 ff  ........                                                                                |
+| 02 ff  ........                                                                                |
+| 03 ff  ........                                                                                |
+| 04 ff  ........                                                                                |
+| 05 ff  ........                                                                                |
+| 06 ff  ........                                                                                |
+| 07 ff  ........                                                                                |
+| 08 ff  ........                                                                                |
+| 09 ff  ........                                                                                |
+| 0a ff  ........                                                                                |
+| 0b ff  ........                                                                                |
+| 0c ff  ........                                                                                |
+| 0d ff  ........                                                                                |
+| 0e ff  ........                                                                                |
+| 0f ff  ........                                                                                |
+| 10 ff  ........                                                                                |
+| 11 ff  ........                                                                                |
+|                                                                            STOP  &4 +0  125BPM |
+|                                                         STOP  &4 +0  125BPM |
+
+
+08 ff  ........  gain:     [ ][+00]  loop ramping: [00]  pitch:[+0000][+00]
+
+                 ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

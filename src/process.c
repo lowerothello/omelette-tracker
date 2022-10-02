@@ -1,4 +1,4 @@
-char ifMacro(jack_nframes_t fptr, channel *cv, row r, char m, char (*callback)(jack_nframes_t, int, channel *, row))
+char ifMacro(jack_nframes_t fptr, Channel *cv, Row r, char m, char (*callback)(jack_nframes_t, int, Channel *, Row))
 {
 	char ret = 0;
 	for (int i = 0; i <= cv->data.macroc; i++)
@@ -7,14 +7,14 @@ char ifMacro(jack_nframes_t fptr, channel *cv, row r, char m, char (*callback)(j
 	return ret;
 }
 
-void changeBpm(song *s, uint8_t newbpm)
+void changeBpm(Song *cs, uint8_t newbpm)
 {
-	s->bpm = newbpm;
-	s->spr = samplerate * (60.0 / newbpm) / s->rowhighlight;
+	cs->bpm = newbpm;
+	cs->spr = samplerate * (60.0 / newbpm) / cs->rowhighlight;
 }
 
 /* freewheel to fill up the ramp buffer */
-void ramp(channel *cv, uint8_t realinstrument)
+void ramp(Channel *cv, uint8_t realinstrument)
 {
 	if (cv->rampbuffer)
 	{
@@ -59,7 +59,7 @@ void ramp(channel *cv, uint8_t realinstrument)
 	} cv->rampindex = 0;
 }
 
-void triggerNote(channel *cv, uint8_t note, uint8_t inst)
+void triggerNote(Channel *cv, uint8_t note, uint8_t inst)
 {
 	if (note == NOTE_VOID) return;
 	if (note == NOTE_OFF)
@@ -87,7 +87,7 @@ void triggerNote(channel *cv, uint8_t note, uint8_t inst)
 		cv->data.rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 
-		if (!cv->data.mute && p->s->instrumenti[inst] < p->s->instrumentc)
+		if (!cv->data.mute && instrumentSafe(p->s, inst))
 		{
 			p->s->instrumentv[p->s->instrumenti[inst]].triggerflash = samplerate / buffersize *DIV1000 * INSTRUMENT_TRIGGER_FLASH_MS;
 			p->dirty = 1;
@@ -123,11 +123,11 @@ void midiPC(jack_nframes_t fptr, uint8_t midichannel, uint8_t program)
 void midiCC(jack_nframes_t fptr, uint8_t midichannel, uint8_t controller, uint8_t value)
 { jack_midi_data_t event[3] = {0b10110000 | midichannel, controller, value}; jack_midi_event_write(pb.midiout, fptr, event, 3); }
 
-char triggerMidi(jack_nframes_t fptr, channel *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
+char triggerMidi(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
-	if (note != NOTE_VOID && !cv->data.mute && p->s->instrumenti[inst] < p->s->instrumentc)
+	if (note != NOTE_VOID && !cv->data.mute && instrumentSafe(p->s, inst))
 	{
-		instrument *iv = &p->s->instrumentv[p->s->instrumenti[inst]];
+		Instrument *iv = &p->s->instrumentv[p->s->instrumenti[inst]];
 		if (iv->midichannel != -1)
 		{
 			/* always stop the prev. note */
@@ -139,7 +139,7 @@ char triggerMidi(jack_nframes_t fptr, channel *cv, uint8_t oldnote, uint8_t note
 }
 
 
-void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
+void preprocessRow(jack_nframes_t fptr, char midi, Channel *cv, Row r)
 {
 	char ret;
 	uint8_t oldnote = NOTE_UNUSED;
@@ -158,7 +158,6 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 		cv->targetgain = -1;
 	}
 	if (cv->targetwaveshaperstrength != -1) { cv->waveshaperstrength = cv->targetwaveshaperstrength; cv->targetwaveshaperstrength = -1; }
-	if (cv->targetmidicc != -1) { cv->midicc = cv->targetmidicc; cv->targetmidicc = -1; }
 	if (cv->targetsendgain != -1) { cv->sendgain = cv->targetsendgain; cv->targetsendgain = -1; }
 	if (cv->rtrigsamples)
 	{
@@ -199,21 +198,23 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 			if (!ret)
 			{
 				oldnote = cv->r.note;
+				/* TODO: not sure what this conditional is here for tbh */
 				if (r.inst == INST_VOID)
 				{
-					ramp(cv, p->s->instrumenti[cv->samplerinst]);
+					if (instrumentSafe(p->s, cv->samplerinst))
+						ramp(cv, p->s->instrumenti[cv->samplerinst]);
 					triggerNote(cv, r.note, cv->r.inst);
 				} else
 				{
-					/* TODO: not sure why this references cv->r.inst instead of cv->samplerinst */
-					ramp(cv, p->s->instrumenti[cv->r.inst]);
+					if (instrumentSafe(p->s, cv->r.inst))
+						ramp(cv, p->s->instrumenti[cv->r.inst]);
 					triggerNote(cv, r.note, r.inst);
 				}
 			}
 		}
 	}
 
-	if (cv->pointer
+	if (cv->pointer && instrumentSafe(p->s, cv->samplerinst)
 			&&(ifMacro(fptr, cv, r, 'F', &DUMMY)
 			|| ifMacro(fptr, cv, r, 'Z', &DUMMY)
 			|| ifMacro(fptr, cv, r, 'O', &DUMMY)
@@ -243,7 +244,6 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	ifMacro(fptr, cv, r, ';', &midicctargetc);
 	ifMacro(fptr, cv, r, '@', &midipcc);
 	ifMacro(fptr, cv, r, '.', &midiccc);
-	ifMacro(fptr, cv, r, ',', &smoothmidiccc);
 
 	ifMacro(fptr, cv, r, 'M', &Mc);             /* microtonal offset  */
 
@@ -262,9 +262,8 @@ void preprocessRow(jack_nframes_t fptr, char midi, channel *cv, row r)
 	ifMacro(fptr, cv, r, 'w', &wc); /* smooth waveshaper  */
 }
 
-void postSampler(jack_nframes_t fptr, channel *cv,
-		float rp, float lf, float rf,
-		SVFilter fl[2], SVFilter fr[2],
+void postSampler(jack_nframes_t fptr, Channel *cv, float rp,
+		float lf, float rf, SVFilter fl[2], SVFilter fr[2],
 		uint8_t gain, short targetgain)
 {
 	/* waveshapers */
@@ -395,20 +394,24 @@ void postSampler(jack_nframes_t fptr, channel *cv,
 		rf *= (gain%16)*DIV16;
 	}
 
-	pb.out.l[fptr] += lf;
-	pb.out.r[fptr] += rf;
-	if (cv->targetsendgain != -1)
+	if (cv->outputl && cv->outputr)
 	{
-		pb.out.l[fptr] += lf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
-		pb.out.r[fptr] += rf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
+		cv->outputl[fptr] = lf;
+		cv->outputr[fptr] = rf;
+	}
+
+	/* if (cv->targetsendgain != -1)
+	{
+		ls = lf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
+		rs = rf * cv->sendgain*DIV15 + (cv->targetsendgain - cv->sendgain)*DIV15 * rp;
 	} else if (cv->sendgain)
 	{
-		pb.out.l[fptr] += lf * cv->sendgain*DIV15;
-		pb.out.r[fptr] += rf * cv->sendgain*DIV15;
-	}
+		ls = lf * cv->sendgain*DIV15;
+		rs = rf * cv->sendgain*DIV15;
+	} */
 }
 
-void playChannelLookback(jack_nframes_t fptr, channel *cv)
+void playChannelLookback(jack_nframes_t fptr, Channel *cv)
 {
 	float multiplier;
 	uint32_t delta;
@@ -466,10 +469,10 @@ void playChannelLookback(jack_nframes_t fptr, channel *cv)
 	}
 
 	/* process the sampler */
-	if (p->s->instrumenti[cv->samplerinst] < p->s->instrumentc && cv->samplernote != NOTE_VOID
+	if (instrumentSafe(p->s, cv->samplerinst) && cv->samplernote != NOTE_VOID
 			&& cv->samplernote != NOTE_OFF && cv->samplerinst != INST_VOID)
 	{
-		instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
+		Instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
 		for (sprp = 0; sprp < p->s->spr - sprs; sprp++)
 			envelope(iv, cv, cv->pointer+sprp);
 
@@ -486,7 +489,7 @@ void playChannelLookback(jack_nframes_t fptr, channel *cv)
 		} cv->pointer += sprp - sprs;
 	}
 }
-void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
+void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 {
 	short li = 0;
 	short ri = 0;
@@ -559,15 +562,12 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 		}
 	}
 
-	if (p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
+	if (instrumentSafe(p->s, cv->samplerinst))
 	{
-		instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
+		Instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
 
-		if (!cv->data.mute && !(sprp%PITCH_WHEEL_SAMPLES) && iv->midichannel != -1)
-		{
-			if (cv->finetune != 0.0f) midiPitchWheel(fptr, iv->midichannel, MIN(2.0f, MAX(-2.0f, cv->finetune + cv->portamentofinetune)));
-			if (cv->targetmidicc != -1) midiCC(fptr, iv->midichannel, cv->midiccindex, cv->midicc + (cv->targetmidicc - cv->midicc) * (float)sprp/(float)p->s->spr);
-		}
+		if (!cv->data.mute && !(sprp%PITCH_WHEEL_SAMPLES) && iv->midichannel != -1 && cv->finetune != 0.0f)
+			midiPitchWheel(fptr, iv->midichannel, MIN(2.0f, MAX(-2.0f, cv->finetune + cv->portamentofinetune)));
 
 		/* process the sampler */
 		if (cv->samplerinst != INST_VOID && cv->samplernote != NOTE_VOID && cv->samplernote != NOTE_OFF)
@@ -605,6 +605,7 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 	float lf = (float)li*DIVSHRT;
 	float rf = (float)ri*DIVSHRT;
 
+	float samplegain;
 	float rowprogress = (float)sprp / (float)p->s->spr;
 	if (cv->rampbuffer && cv->rampindex < rampmax)
 	{ // ramping
@@ -612,30 +613,34 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, channel *cv)
 		{
 			float gain = (float)cv->rampindex / (float)rampmax;
 
-			float lbuf = 0.0f;
-			float rbuf = 0.0f;
-			if (cv->samplerinst != INST_VOID && p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
+			if (instrumentSafe(p->s, cv->samplerinst))
 			{
-				lbuf += lf*p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32 * gain;
-				rbuf += rf*p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32 * gain;
+				samplegain = powf(2, (float)p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV16);
+				lf *= samplegain * gain;
+				rf *= samplegain * gain;
 			}
 
 			if (cv->rampinst < p->s->instrumentc)
 			{
-				lbuf += ((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT) * p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV32 * (1.0f - gain);
-				rbuf += ((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT) * p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV32 * (1.0f - gain);
+				samplegain = powf(2, (float)p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV16);
+				lf += ((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT)*samplegain * (1.0f - gain);
+				rf += ((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT)*samplegain * (1.0f - gain);
 			}
 
-			postSampler(fptr, cv, rowprogress, lbuf, rbuf,
+			postSampler(fptr, cv, rowprogress, lf, rf,
 					cv->fl, cv->fr, cv->randgain, cv->targetgain);
 		}
 
 		cv->rampindex++;
-	} else if (!cv->data.mute && cv->samplerinst != INST_VOID && p->s->instrumenti[cv->samplerinst] < p->s->instrumentc)
-		postSampler(fptr, cv, rowprogress,
-				lf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32,
-				rf * p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV32,
+	} else if (!cv->data.mute && instrumentSafe(p->s, cv->samplerinst))
+	{
+		samplegain = powf(2, (float)p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV16);
+		lf *= samplegain;
+		rf *= samplegain;
+
+		postSampler(fptr, cv, rowprogress, lf, rf,
 				cv->fl, cv->fr, cv->randgain, cv->targetgain);
+	}
 }
 
 void lookback(jack_nframes_t fptr)
@@ -649,19 +654,35 @@ void lookback(jack_nframes_t fptr)
 		}
 }
 
+typedef struct
+{
+	jack_nframes_t iterations;
+	jack_nframes_t fptroffset;
+	Channel *cv;
+} ChannelThreadArg;
+
+void *channelThreadRoutine(void *arg)
+{
+	for (int i = 0; i < ((ChannelThreadArg *)arg)->iterations; i++)
+		playChannel(((ChannelThreadArg *)arg)->fptroffset + i,
+				p->s->sprp + i, ((ChannelThreadArg *)arg)->cv);
+	return NULL;
+}
+
 int process(jack_nframes_t nfptr, void *arg)
 {
-	playbackinfo *p = arg;
-	channel *cv; instrument *iv;
+	PlaybackInfo *p = arg;
+	Channel *cv;
+	Instrument *iv;
 
-	pb.in.l = jack_port_get_buffer(p->in.l, nfptr);
-	pb.in.r = jack_port_get_buffer(p->in.r, nfptr);
-	pb.out.l = jack_port_get_buffer(p->out.l, nfptr); memset(pb.out.l, 0, nfptr * sizeof(sample_t));
-	pb.out.r = jack_port_get_buffer(p->out.r, nfptr); memset(pb.out.r, 0, nfptr * sizeof(sample_t));
+	pb.in.l =    jack_port_get_buffer(p->in.l,    nfptr);
+	pb.in.r =    jack_port_get_buffer(p->in.r,    nfptr);
+	pb.out.l =   jack_port_get_buffer(p->out.l,   nfptr); memset(pb.out.l, 0, nfptr * sizeof(sample_t));
+	pb.out.r =   jack_port_get_buffer(p->out.r,   nfptr); memset(pb.out.r, 0, nfptr * sizeof(sample_t));
 	pb.midiout = jack_port_get_buffer(p->midiout, nfptr); jack_midi_clear_buffer(pb.midiout);
 
-	if (p->lock == PLAY_LOCK_START) p->lock = PLAY_LOCK_CONT;
-	if (p->lock == PLAY_LOCK_CONT) return 0;
+	if (p->sem == M_SEM_RELOAD_REQ) p->sem++;
+	if (p->sem != M_SEM_OK) return 0;
 
 
 	/* will no longer write to the record buffer */
@@ -693,7 +714,7 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
-			if (cv->data.mute && p->s->instrumenti[cv->r.inst] < p->s->instrumentc && p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel != -1)
+			if (cv->data.mute && instrumentSafe(p->s, cv->r.inst) && p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel != -1)
 			{
 				midiNoteOff(0, p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
 				cv->r.note = NOTE_VOID;
@@ -703,32 +724,24 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
 	}
 
-	row holdr;
-	uint32_t holdptr, holdpitchedptr;
+	Row holdr;
 	uint8_t holdnote, holdinst;
 	if (p->w->previewtrigger)
-		switch (p->w->previewtrigger)
+	{ // start instrument preview
+		if (!p->s->playing)
 		{
-			case 1: // start instrument preview
-				p->w->previewtrigger++;
-				if (!p->s->playing)
-				{
-					holdr = p->w->previewchannel.r;
-					holdptr = p->w->previewchannel.pointer;
-					holdpitchedptr = p->w->previewchannel.pitchedpointer;
-					holdnote = p->w->previewchannel.samplernote;
-					holdinst = p->w->previewchannel.samplerinst;
-					clearChannelRuntime(&p->w->previewchannel);
-					p->w->previewchannel.r = holdr; /* don't clear out cv->r, for midi */
-					p->w->previewchannel.samplernote = holdnote;
-					p->w->previewchannel.samplerinst = holdinst;
-					p->w->previewchannel.pointer = holdptr;
-					p->w->previewchannel.pitchedpointer = holdpitchedptr;
-					p->w->previewchannel.data.macroc = 0;
+			holdr = p->w->previewchannel.r;
+			holdnote = p->w->previewchannel.samplernote;
+			holdinst = p->w->previewchannel.samplerinst;
+			clearChannelRuntime(&p->w->previewchannel);
+			p->w->previewchannel.r = holdr; /* don't clear out cv->r, for midi */
+			p->w->previewchannel.samplernote = holdnote;
+			p->w->previewchannel.samplerinst = holdinst;
 
-					preprocessRow(0, 1, &p->w->previewchannel, p->w->previewrow);
-				} break;
+			preprocessRow(0, 1, &p->w->previewchannel, p->w->previewrow);
 		}
+		p->w->previewtrigger = 0;
+	}
 
 	/* start/stop playback */
 	if (p->s->playing == PLAYING_START)
@@ -739,18 +752,17 @@ int process(jack_nframes_t nfptr, void *arg)
 		/* stop preview */
 		p->w->previewchannel.r.note = p->w->previewchannel.samplernote = NOTE_VOID;
 		p->w->previewchannel.r.inst = p->w->previewchannel.samplerinst = INST_VOID;
+
 		/* TODO: also stop the sampler's follower note */
 		/* clear the channels */
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
-
-			if (!cv->data.mute && p->s->instrumenti[cv->r.inst] < p->s->instrumentc)
+			if (!cv->data.mute && instrumentSafe(p->s, cv->r.inst))
 			{
 				iv = &p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
 				if (iv->midichannel != -1) midiNoteOff(0, iv->midichannel, cv->r.note, (cv->randgain>>4)<<3);
-			}
-			clearChannelRuntime(cv);
+			} clearChannelRuntime(cv);
 		}
 
 		lookback(0);
@@ -764,7 +776,7 @@ int process(jack_nframes_t nfptr, void *arg)
 	} else if (p->s->playing == PLAYING_PREP_STOP)
 	{
 		/* stop channels */
-		channel *cv;
+		Channel *cv;
 		for (uint8_t i = 0; i < p->s->channelc; i++)
 		{
 			cv = &p->s->channelv[i];
@@ -785,28 +797,50 @@ int process(jack_nframes_t nfptr, void *arg)
 		p->w->request = REQ_OK;
 	}
 
-	/* loop over samples */
-	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+
+	/*                        MULTITHREADING                         */
+	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
+	/* honestly half this file probably isn't strictly realtime-safe */
+	jack_native_thread_t thread_ids[p->s->channelc]; /* index 0 is the preview channel */
+	ChannelThreadArg     thread_arg[p->s->channelc]; /* index 0 is the preview channel */
+	ChannelThreadArg main_arg; /* arg used for channel 0 */
+	jack_nframes_t fptr = 0;
+	jack_nframes_t iterations = 0;
+
+	/* handle the preview channel first in a thread */
+	if (p->w->previewchannel.samplernote != NOTE_VOID
+			&& p->w->previewchannel.samplerinst != INST_VOID)
 	{
-		/* preprocess the channel */
-		if (p->s->playing == PLAYING_CONT && p->s->sprp == 0)
-			for (uint8_t c = 0; c < p->s->channelc; c++)
-				preprocessRow(fptr, 1, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, p->s->playfy));
+		thread_arg[0].iterations = nfptr;
+		thread_arg[0].fptroffset = 0;
+		thread_arg[0].cv = &p->w->previewchannel;
+#ifdef NO_MULTITHREADING
+		channelThreadRoutine(&thread_arg[0]);
+#else
+#ifndef NO_VALGRIND
+		if (RUNNING_ON_VALGRIND)
+			channelThreadRoutine(&thread_arg[0]);
+		else
+#endif
+			jack_client_create_thread(client, &thread_ids[0],
+					jack_client_real_time_priority(client), jack_is_realtime(client),
+					channelThreadRoutine, &thread_arg[0]);
+#endif
+	}
 
-		for (uint8_t c = 0; c < p->s->channelc; c++)
-			playChannel(fptr, p->s->sprp, &p->s->channelv[c]);
-
-		/* play the preview */
-		if (p->w->previewchannel.samplernote != NOTE_VOID
-				&& p->w->previewchannel.samplerinst != INST_VOID)
-			playChannel(fptr, p->s->sprp, &p->w->previewchannel);
-
+	while (fptr < nfptr)
+	{
 		/* next row */
-		if (p->s->sprp++ > p->s->spr)
+		if (p->s->sprp > p->s->spr)
 		{
 			p->s->sprp = 0;
+
 			if (p->s->playing == PLAYING_CONT)
 			{
+				/* preprocess channels */
+				for (uint8_t c = 0; c < p->s->channelc; c++)
+					preprocessRow(fptr, 1, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, p->s->playfy));
+
 				/* loop at the end of the song */
 				if (p->s->playfy++ >= p->s->loop[1])
 				{
@@ -819,12 +853,83 @@ int process(jack_nframes_t nfptr, void *arg)
 					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START) p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT; */
 				}
 
-				if (w->flags&W_FLAG_FOLLOW)
+				if (p->w->follow)
 					p->w->trackerfy = p->s->playfy;
 				p->dirty = 1;
 			}
 		}
+
+		iterations = MIN(nfptr - fptr, p->s->spr - p->s->sprp);
+
+		/* spawn threads for each channel except for channel 0 */
+		for (uint8_t i = 1; i < p->s->channelc; i++)
+		{
+			thread_arg[i].iterations = iterations;
+			thread_arg[i].fptroffset = fptr;
+			thread_arg[i].cv = &p->s->channelv[i];
+#ifdef NO_MULTITHREADING
+			channelThreadRoutine(&thread_arg[i]);
+#else
+#ifndef NO_VALGRIND
+			if (RUNNING_ON_VALGRIND)
+				channelThreadRoutine(&thread_arg[i]);
+			else
+#endif
+				jack_client_create_thread(client, &thread_ids[i],
+						jack_client_real_time_priority(client), jack_is_realtime(client),
+						channelThreadRoutine, &thread_arg[i]);
+#endif
+		}
+
+		/* run channel 0 in this thread */
+		main_arg.iterations = iterations;
+		main_arg.fptroffset = fptr;
+		main_arg.cv = &p->s->channelv[0];
+		channelThreadRoutine(&main_arg);
+
+		/* join with the channel threads */
+#ifndef NO_MULTITHREADING
+#ifndef NO_VALGRIND
+		if (!RUNNING_ON_VALGRIND)
+#endif
+			for (uint8_t i = 1; i < p->s->channelc; i++)
+				pthread_join(thread_ids[i], NULL);
+#endif
+
+
+		fptr       += iterations + 1; /* TODO: is this +1 a hack? genuinely can't tell */
+		p->s->sprp += iterations + 1; /* TODO: is this +1 a hack? genuinely can't tell */
 	}
+	/* join with the prevew channel thread */
+#ifndef NO_MULTITHREADING
+#ifndef NO_VALGRIND
+	if (p->w->previewchannel.samplernote != NOTE_VOID
+			&& p->w->previewchannel.samplerinst != INST_VOID
+			&& !RUNNING_ON_VALGRIND)
+#else
+	if (p->w->previewchannel.samplernote != NOTE_VOID
+			&& p->w->previewchannel.samplerinst != INST_VOID)
+#endif
+		pthread_join(thread_ids[0], NULL);
+#endif
+
+
+	/* sum the output from each channel thread */
+	for (uint8_t c = 0; c < p->s->channelc; c++)
+		if (p->s->channelv[c].outputl && p->s->channelv[c].outputr)
+			for (fptr = 0; fptr < nfptr; fptr++)
+			{
+				pb.out.l[fptr] += p->s->channelv[c].outputl[fptr];
+				pb.out.r[fptr] += p->s->channelv[c].outputr[fptr];
+			}
+	if (p->w->previewchannel.samplernote != NOTE_VOID
+			&& p->w->previewchannel.samplerinst != INST_VOID)
+		for (fptr = 0; fptr < nfptr; fptr++)
+		{
+			pb.out.l[fptr] += p->w->previewchannel.outputl[fptr];
+			pb.out.r[fptr] += p->w->previewchannel.outputr[fptr];
+		}
+
 
 	/* record */
 	if (p->w->instrumentrecv == INST_REC_LOCK_CONT
@@ -853,9 +958,12 @@ int process(jack_nframes_t nfptr, void *arg)
 		}
 	}
 
+	/* background visualization */
 #ifdef ENABLE_BACKGROUND
-	updateBackground(nfptr, pb.out);
+	updateBackground(nfptr, pb.out.l, pb.out.r);
 #endif
+
+	/* instrument trigger animation */
 	for (int i = 0; i < p->s->instrumentc; i++)
 		if (p->s->instrumentv[i].triggerflash)
 		{

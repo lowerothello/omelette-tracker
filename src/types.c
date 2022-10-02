@@ -1,3 +1,7 @@
+/* currently a bunch of old functions, not even included */
+
+
+
 /* replace *find with *replace in *s */
 /* only replaces the first instance of *find */
 void strrep(char *string, char *find, char *replace)
@@ -25,7 +29,7 @@ void copyPattern(pattern *dest, pattern *src)
 {
 	dest->rowc = src->rowc;
 	memcpy(dest->rowcc, src->rowcc, sizeof(uint8_t) * CHANNEL_MAX);
-	memcpy(dest->rowv, src->rowv, sizeof(row) * CHANNEL_MAX * ROW_MAX);
+	memcpy(dest->rowv, src->rowv, sizeof(Row) * CHANNEL_MAX * ROW_MAX);
 }
 void _delPattern(pattern *pv)
 {
@@ -69,7 +73,7 @@ void pushPatternHistoryIfNew(pattern *pv)
 
 	if (pvh->rowc != pv->rowc
 			|| memcmp(pvh->rowcc, pv->rowcc, sizeof(uint8_t) * CHANNEL_MAX)
-			|| memcmp(pvh->rowv, pv->rowv, sizeof(row) * CHANNEL_MAX * ROW_MAX))
+			|| memcmp(pvh->rowv, pv->rowv, sizeof(Row) * CHANNEL_MAX * ROW_MAX))
 		pushPatternHistory(pv);
 }
 
@@ -124,12 +128,12 @@ void renderPatternChannel(pattern *pv, uint8_t channel, uint16_t count)
 		if (max < (ROW_MAX>>1)-1)
 		{
 			memcpy(&pv->rowv[channel][max + 1], pv->rowv[channel],
-					sizeof(row) * (max + 1));
+					sizeof(Row) * (max + 1));
 			max = (max + 1) * 2 - 1;
 		} else
 		{
 			memcpy(&pv->rowv[channel][max + 1], pv->rowv[channel],
-					sizeof(row) * ((ROW_MAX-1) - max));
+					sizeof(Row) * ((ROW_MAX-1) - max));
 			max = (ROW_MAX-1); break;
 		}
 }

@@ -1,4 +1,4 @@
-void copyInstrument(instrument *dest, instrument *src)
+void copyInstrument(Instrument *dest, Instrument *src)
 {
 	dest->samplelength = src->samplelength;
 	dest->length = src->length;
@@ -7,18 +7,24 @@ void copyInstrument(instrument *dest, instrument *src)
 	dest->c5rate = src->c5rate;
 	dest->samplerate = src->samplerate;
 	dest->bitdepth = src->bitdepth;
-	dest->cyclelength = src->cyclelength;
-	dest->pitchshift = src->pitchshift;
-	dest->timestretch = src->timestretch;
-	dest->trim[0] = src->trim[0]; dest->trim[1] = src->trim[1];
-	dest->loop = src->loop;
+	dest->trimstart = src->trimstart;
+	dest->trimlength = src->trimlength;
+	dest->looplength = src->looplength;
 	dest->envelope = src->envelope;
 	dest->sustain = src->sustain;
 	dest->gain = src->gain;
 	dest->invert = src->invert;
 	dest->pingpong = src->pingpong;
 	dest->loopramp = src->loopramp;
-	dest->midichannel = src->loopramp;
+	dest->midichannel = src->midichannel;
+
+	dest->cyclelength = src->cyclelength;
+	dest->rearrange = src->rearrange;
+	dest->reversegrains = src->reversegrains;
+	dest->timestretch = src->timestretch;
+	dest->notestretch = src->notestretch;
+	dest->pitchshift = src->pitchshift;
+	dest->pitchstereo = src->pitchstereo;
 
 	if (dest->sampledata)
 	{ free(dest->sampledata); dest->sampledata = NULL; }
@@ -28,82 +34,99 @@ void copyInstrument(instrument *dest, instrument *src)
 		dest->sampledata = malloc(sizeof(short) * src->samplelength);
 		memcpy(dest->sampledata, src->sampledata, sizeof(short) * src->samplelength);
 	}
+
+	for (uint8_t i = 0; i < dest->effect.c; i++)
+		freeEffect(&dest->effect.v[i]);
+
+	dest->effect.c = src->effect.c;
+	for (uint8_t i = 0; i < src->effect.c; i++)
+		copyEffect(&dest->effect.v[i], &src->effect.v[i]);
 }
 
-void _delInstrument(instrument *iv)
+/* frees the contents of an instrument */
+void _delInstrument(Instrument *iv)
 {
 	if (iv->sampledata)
 	{
 		free(iv->sampledata);
 		iv->sampledata = NULL;
 	}
+
+	for (uint8_t i = 0; i < iv->effect.c; i++)
+		freeEffect(&iv->effect.v[i]);
+	iv->effect.c = 0;
+}
+
+bool instrumentSafe(Song *cs, uint8_t index)
+{
+	if (index != INSTRUMENT_MAX && cs->instrumenti[index] < cs->instrumentc)
+		return 1;
+	return 0;
 }
 
 int addInstrument(uint8_t index)
 {
-	if (s->instrumenti[index] < s->instrumentc) return 1; /* index occupied */
+	if (instrumentSafe(s, index)) return 1; /* index occupied */
 
-	instrument *newinstrumentv = calloc(s->instrumentc+1, sizeof(instrument));
+	Instrument *newinstrumentv = calloc(s->instrumentc+1, sizeof(Instrument));
 	if (s->instrumentv)
 	{
-		memcpy(newinstrumentv, s->instrumentv, s->instrumentc * sizeof(instrument));
+		memcpy(newinstrumentv, s->instrumentv, s->instrumentc * sizeof(Instrument));
 		free(s->instrumentv);
 	}
 	s->instrumentv = newinstrumentv;
 
-	s->instrumentv[s->instrumentc].gain = 0x20;
 	s->instrumentv[s->instrumentc].samplerate = 0xff;
 	s->instrumentv[s->instrumentc].bitdepth = 0xf;
-	s->instrumentv[s->instrumentc].loopramp = 0x00;
-	s->instrumentv[s->instrumentc].cyclelength = 0x3fff;
-	s->instrumentv[s->instrumentc].pitchshift = 0x80;
-	s->instrumentv[s->instrumentc].midichannel = -1;
 	s->instrumentv[s->instrumentc].sustain = 1;
-	s->instrumenti[index] = s->instrumentc;
+	s->instrumentv[s->instrumentc].midichannel = -1;
 
+	s->instrumentv[s->instrumentc].cyclelength = 0x3fff;
+
+	s->instrumenti[index] = s->instrumentc;
 	s->instrumentc++;
 	return 0;
 }
+
 void yankInstrument(uint8_t index)
 {
-	if (!s->instrumentv) return;
-	if (s->instrumenti[index] >= s->instrumentc) return; /* nothing to yank */
-
+	if (!instrumentSafe(s, index)) return; /* nothing to copy */
 	_delInstrument(&w->instrumentbuffer);
 	copyInstrument(&w->instrumentbuffer, &s->instrumentv[s->instrumenti[index]]);
 }
+
 void putInstrument(uint8_t index)
 {
 	if (!s->instrumentv) return;
 	if (s->instrumenti[index] >= s->instrumentc) addInstrument(index);
-
 	copyInstrument(&s->instrumentv[s->instrumenti[index]], &w->instrumentbuffer);
 }
+
 int delInstrument(uint8_t index)
 {
-	if (!s->instrumentv) return 1;
-	if (s->instrumenti[index] >= s->instrumentc) return 1; /* instrument doesn't exist */
+	if (!instrumentSafe(s, index)) return 1; /* instrument doesn't exist */
 
 	uint8_t cutindex = s->instrumenti[index];
 	_delInstrument(&s->instrumentv[cutindex]);
 	s->instrumenti[index] = INSTRUMENT_VOID;
 
-	instrument *newinstrumentv = calloc(s->instrumentc+1, sizeof(instrument));
+	Instrument *newinstrumentv = calloc(s->instrumentc + 5, sizeof(Instrument));
 
 	if (cutindex > 0)
 		memcpy(newinstrumentv,
 				s->instrumentv,
-				sizeof(instrument)*cutindex);
+				sizeof(Instrument)*(cutindex+1));
 
 	if (cutindex < s->instrumentc-1)
-		memcpy(&newinstrumentv[cutindex-1],
-				&s->instrumentv[cutindex],
-				sizeof(instrument)*(s->instrumentc-cutindex));
+		memcpy(&newinstrumentv[cutindex],
+				&s->instrumentv[cutindex+1],
+				sizeof(Instrument)*(s->instrumentc-(cutindex+1)));
+
 	free(s->instrumentv);
 	s->instrumentv = newinstrumentv;
 
 	/* backref contiguity */
-	for (uint8_t i = 0; i < 255; i++) // for every backref index
+	for (uint8_t i = 0; i < 255; i++)
 		if (s->instrumenti[i] >= cutindex && s->instrumenti[i] < s->instrumentc)
 			s->instrumenti[i]--;
 
@@ -173,7 +196,7 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 void loadSample(uint8_t index, char *path)
 {
 	/* TODO: check the instrument is safe more aggressively? */
-	instrument *iv = &s->instrumentv[s->instrumenti[index]];
+	Instrument *iv = &s->instrumentv[s->instrumenti[index]];
 	SF_INFO sfinfo;
 	short *sampledata = _loadSample(path, &sfinfo);
 	if (!sampledata)
@@ -189,9 +212,86 @@ void loadSample(uint8_t index, char *path)
 	iv->channels = sfinfo.channels;
 	iv->length = sfinfo.frames;
 	iv->c5rate = sfinfo.samplerate;
-	iv->trim[0] = 0;
-	iv->trim[1] = sfinfo.frames-1;
-	iv->loop = sfinfo.frames-1;
+	iv->trimstart = 0;
+	iv->trimlength = sfinfo.frames-1;
+	iv->looplength = 0;
 	iv->samplerate = 0xff;
 	iv->bitdepth = 0xf;
+}
+
+void serializeInstrument(Instrument *iv, FILE *fp)
+{
+	fwrite(&iv->samplelength, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->length, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->channels, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
+	fwrite(&iv->c5rate, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->bitdepth, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->trimstart, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->trimlength, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->looplength, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->envelope, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->sustain, sizeof(bool), 1, fp);
+	fwrite(&iv->gain, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->invert, sizeof(bool), 1, fp);
+	fwrite(&iv->pingpong, sizeof(bool), 1, fp);
+	fwrite(&iv->loopramp, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->midichannel, sizeof(int8_t), 1, fp);
+
+	fwrite(&iv->cyclelength, sizeof(uint16_t), 1, fp);
+	fwrite(&iv->rearrange, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->reversegrains, sizeof(bool), 1, fp);
+	fwrite(&iv->timestretch, sizeof(int16_t), 1, fp);
+	fwrite(&iv->notestretch, sizeof(bool), 1, fp);
+	fwrite(&iv->pitchshift, sizeof(int16_t), 1, fp);
+	fwrite(&iv->pitchstereo, sizeof(int8_t), 1, fp);
+
+	if (iv->samplelength)
+		fwrite(iv->sampledata, sizeof(short), iv->samplelength, fp);
+
+	fwrite(&iv->effect.c, sizeof(uint8_t), 1, fp);
+	for (int i = 0; i < iv->effect.c; i++)
+		serializeEffect(&iv->effect.v[i], fp);
+}
+void deserializeInstrument(Instrument *iv, FILE *fp, uint8_t major, uint8_t minor)
+{
+	fread(&iv->samplelength, sizeof(uint32_t), 1, fp);
+	fread(&iv->length, sizeof(uint32_t), 1, fp);
+	fread(&iv->channels, sizeof(uint8_t), 1, fp);
+	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
+	fread(&iv->c5rate, sizeof(uint32_t), 1, fp);
+	fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
+	fread(&iv->bitdepth, sizeof(uint8_t), 1, fp);
+	fread(&iv->trimstart, sizeof(uint32_t), 1, fp);
+	fread(&iv->trimlength, sizeof(uint32_t), 1, fp);
+	fread(&iv->looplength, sizeof(uint32_t), 1, fp);
+	fread(&iv->envelope, sizeof(uint8_t), 1, fp);
+	fread(&iv->sustain, sizeof(bool), 1, fp);
+	fread(&iv->gain, sizeof(uint8_t), 1, fp);
+	fread(&iv->invert, sizeof(bool), 1, fp);
+	fread(&iv->pingpong, sizeof(bool), 1, fp);
+	fread(&iv->loopramp, sizeof(uint8_t), 1, fp);
+	fread(&iv->midichannel, sizeof(int8_t), 1, fp);
+
+	fread(&iv->cyclelength, sizeof(uint16_t), 1, fp);
+	fread(&iv->rearrange, sizeof(uint8_t), 1, fp);
+	fread(&iv->reversegrains, sizeof(bool), 1, fp);
+	fread(&iv->timestretch, sizeof(int16_t), 1, fp);
+	fread(&iv->notestretch, sizeof(bool), 1, fp);
+	fread(&iv->pitchshift, sizeof(int16_t), 1, fp);
+	fread(&iv->pitchstereo, sizeof(int8_t), 1, fp);
+
+	if (iv->samplelength)
+	{
+		iv->sampledata = malloc(sizeof(short) * iv->samplelength);
+		fread(iv->sampledata, sizeof(short), iv->samplelength, fp);
+	}
+
+	if (!(major == 1 && minor < 97))
+	{
+		fread(&iv->effect.c, sizeof(uint8_t), 1, fp);
+		for (int i = 0; i < iv->effect.c; i++)
+			deserializeEffect(&iv->effect.v[i], fp, major, minor);
+	}
 }

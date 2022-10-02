@@ -1,21 +1,26 @@
-- make modes clearer in general, it's too easy to get lost
-	- change the cursor shape to help
+- change the cursor shape to help differentiate modes
 - waveform visual bug when opening files
 - clear the bottom line and leave the cursor at the beginning of it when
   quitting
-- smooth midi cc loses track of the correct old cc value when midiccindex is
-  changed
-	- need to remember state for all midi ccs?
-	- might cut smooth midi cc from scope
-- Ixy isn't always smoothed properly over trigs
-	- should be fixed by Gxx-like slew
+- Ixy isn't always smoothed properly over trigs, should be fixed by Gxx-like slew
+
+- rx0 reaching the beginning of the sample cuts the note
+- Qxx can swap to qxx but not the other way round
+- Oxx gets fucked by notestretch
 
 - bind to set the octave of the hovered note and NOT the default octave?
 	- maybe inc/dec by octaves? ctrl+alt+a/x or smth
-- portamento to note off should act like a tape stop
-- rx0 reaching the beginning of the sample cuts the note
-- Qxx can swap to qxx but not the other way round
 
 lookback needs proper testing, some macros are probably inexplicably broken
 for no apparent reason
-	- also lookback performs too badly
+	- also lookback performs too badly, should be multithreaded
+
+
+- multithreading is currently broken
+- loop ramping should use data from outside the loop range instead of padding
+
+
+tracker channel header
+	- left click to focus
+	- right click to toggle mute
+	- middle click to toggle solo

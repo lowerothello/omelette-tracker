@@ -22,7 +22,7 @@
 
 /* *note is allowed to be null             */
 /* returns true if a valid pad was pressed */
-int charToKmode(int key, char GXXstyle, uint8_t *macrov, uint8_t *note)
+int charToKmode(int key, bool GXXstyle, uint8_t *macrov, uint8_t *note)
 {
 	if (note) *note = NOTE_C5;
 	switch (key)
@@ -97,11 +97,10 @@ int charToNote(int key, uint8_t *note)
 	}
 }
 
-void previewNote(int key, uint8_t inst, uint8_t channel)
+void previewNote(int key, uint8_t inst)
 {
 	w->previewrow.macro[0].c = '\0';
 	w->previewrow.inst = inst;
-	w->previewchannelsrc = channel;
 
 	switch (w->keyboardmacro)
 	{
