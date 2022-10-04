@@ -27,7 +27,7 @@ void sampleApplyTrimming(Instrument *iv)
 int sampleExportCallback(char *command, unsigned char *mode)
 {
 	if (!instrumentSafe(s, w->instrument)) return 1;
-	Instrument *iv = &s->instrumentv[s->instrumenti[w->instrument]];
+	Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
 
 	sampleApplyTrimming(iv);
 	if (!iv->sampledata) return 1;
@@ -56,10 +56,10 @@ int sampleExportCallback(char *command, unsigned char *mode)
 }
 void resetWaveform(void)
 {
-	// if (s->instrumenti[w->instrument] < s->instrument->c)
+	// if (s->instrument->i[w->instrument] < s->instrument->c)
 	if (instrumentSafe(s, w->instrument))
 	{
-		w->waveformwidth = s->instrumentv[s->instrumenti[w->instrument]].length;
+		w->waveformwidth = s->instrument->v[s->instrument->i[w->instrument]].length;
 		w->waveformcursor = 0;
 		w->waveformdrawpointer = 0;
 		p->dirty = 1;
@@ -151,7 +151,7 @@ void setChordRecord(void)
 {
 	if (instrumentSafe(s, w->instrument))
 	{
-		w->waveformwidth = s->instrumentv[s->instrumenti[w->instrument]].length;
+		w->waveformwidth = s->instrument->v[s->instrument->i[w->instrument]].length;
 		w->waveformdrawpointer = 0;
 	}
 }
@@ -169,7 +169,7 @@ void chordZoomOut(void *_)
 	if (instrumentSafe(s, w->instrument))
 	{
 		for (int i = MAX(1, w->count); i > 0; i--)
-			w->waveformwidth = MIN(s->instrumentv[s->instrumenti[w->instrument]].length, w->waveformwidth*2);
+			w->waveformwidth = MIN(s->instrument->v[s->instrument->i[w->instrument]].length, w->waveformwidth*2);
 		w->waveformdrawpointer = 0;
 	}
 }

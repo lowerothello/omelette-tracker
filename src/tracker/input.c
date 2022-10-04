@@ -334,6 +334,8 @@ void trackerInput(int input)
 				case '9': w->step = 9; p->dirty = 1; break;
 				default: /* escape */
 					previewNote(' ', INST_VOID);
+					cc.mouseadjust = cc.keyadjust = 0;
+					w->page = PAGE_CHANNEL_VARIANT;
 					switch (w->mode)
 					{
 						case T_MODE_VISUALREPLACE: w->mode = T_MODE_VISUAL; break;

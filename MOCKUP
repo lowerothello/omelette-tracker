@@ -56,8 +56,8 @@
 | 01 ff  ........  env:    [00][  AR]  gain:     [ ][+00] | shared controls
 | 02 ff  ........                                         |
 | 03 ff  ........   +   trim range   +    + modulation +  |
-| 04 ff  ........  offset:   [00000000]  sync:   [00][00] | windowed sync?
-| 05 ff  ........  frame len:[00003861]  am/pm:  [00][00] |
+| 04 ff  ........  offset:   [00000000]  sync:       [00] |
+| 05 ff  ........  frame len:[00003861]  pm/am:  [00][00] |
 | 06 ff  ........  wavetable pos:  [00]  lfo speed:  [00] | 0x10 multiples are tempo synced
 | 07 ff  ........  frame ramping:  [00]  wave: [    SINE] | interpolated lookup tables
 | 08 ff  ........                                         |
@@ -78,71 +78,55 @@ timestretch/pitchshift short:
 
 |                                    |
 
-|  #   DISTORTION   #   + emphasis + |
-| gain/tone: [+00][00]  pitch:  [80] |
-| algorithm [HARDCLIP]  gain:  [+00] |
-| bias:       [+00][ ]  width:  [00] |
-| parallel:      [+00]  noise:  [00] |
-
-|  #           DISTORTION            #    +      emphasis      +  |
-| gain/tone: [+00][00]  bias:  [+00][ ]  pitch: [80]  width: [00] |
-| algorithm [HARDCLIP]  parallel: [+00]  gain: [+00]  noise: [00] |
-
-|  #                              DISTORTION                               #    +                   emphasis                   +  |
-| gain/tone: [+00][00]  algorithm [HARDCLIP]  bias: [+00][ ]  parallel: [+00]  pitch: [80]  gain: [+00]  width: [00]  noise: [00] |
+|  #   DISTORTION   #                |
+| drive:          [00]               |
+| algorithm [HARDCLIP]               |
+| asym:  [+00][+00][ ]               |
+| mix:       [+00][ff]  gate:   [00] |
 
 
 |           # EQUALIZER #            |
-|          *  visualizer  *          |
-|          *      goes    *          |
-|          *        here  *          |
+|         *  visualizer   *          |
+|         *      goes     *          |
+|         *         here  *          |
 |                                    |
-| 0: [80]  1: [80]  2: [80]  3: [80] |
-| [ bell]  [ bell]  [ bell]  [ bell] |
+| 0: [20]  1: [60]  2: [a0]  3: [e0] |
+| M[PEAK]  M[PEAK]  M[PEAK]  M[PEAK] |
 | G:[+00]  G:[+00]  G:[+00]  G:[+00] |
 | Q: [00]  Q: [00]  Q: [00]  Q: [00] |
 
 
 |  #    CHORUS    #     +   lfo   +  |
 | delay:        [00]   speed:   [00] |
-| taps/mix:  [1][80]   depth:   [00] |
-| parallel:    [+00]   stereo:   [ ] |
+| taps/bal:  [1][80]   depth:   [00] |
+| mix:     [+00][ff]   stereo:   [ ] |
 
 |  #              CHORUS              #       +          lfo           +  |
-| delay:        [00]  parallel:    [+00]     speed:   [00]  stereo:   [ ] |
-| taps/mix:  [1][80]                         depth:   [00]                |
+| delay:        [00]  mix:     [+00][ff]     speed:   [00]  stereo:   [ ] |
+| taps/bal:  [1][80]                         depth:   [00]                |
 
 
 |  # PITCH SHIFT #     + autotune +  |
-|  #  *LATENCY*  #    strength: [00] |
-| offset:     [+00]   slew:     [00] |
-| stereo:     [+00]   tuning:   [00] |
-| buffer size: [80]   scale: [CHROM] |
+| offset:     [+00]   strength: [00] |
+| stereo:     [+00]   slew:     [00] |
+| buffer size: [80]   tuning:   [00] |
+| mix:    [+00][ff]   scale: [CHROM] |
 
 
 |  #   DELAY   #     +  feedback  +  |
 | panning:  [+00]   mix:        [00] |
 | ping-pong:  [ ]   widen:       [ ] | <- reapply initial panning
 | tempo sync: [ ]   tape:       [00] | <- noise + saturation + warble
-| time:      [00]   filter: [00][00] |
-
-|  #           DELAY            #       +           feedback           +  |
-| panning:  [+00]  tempo sync: [ ]     mix:        [00]  tape:       [00] |
-| ping-pong:  [ ]  time:      [00]     widen:       [ ]  filter: [00][00] |
+| time:      [00]   filter:[+00][00] |
 
 
-|  #  ENVELOPE  #    + filter[LP] +  |
+|  #  ENVELOPE  #    +   filter   +  |
 |  #  FOLLOWER  #   freq:  [00][+00] |
-|                   Q:     [00][+00] |
-| threshold:  [00]                   |
-| ratio:      [00]   +    gain    +  |
-| speed:  [00][00]  gain:  [ff][+00] |
-| mode:     [PEAK]  parallel:  [+00] |
-
-|  #     ENVELOPE FOLLOWER      #       + filter[LP] +    +    gain    +  |
-| threshold: [00]  speed: [00][00]     freq:  [00][+00]  gain:  [ff][+00] |
-| ratio:     [00]  mode:    [PEAK]     Q:     [00][+00]  parallel:  [+00] |
-
+| threshold:  [00]  Q:     [00][+00] |
+| ratio:      [00]  mode:       [LP] |
+| speed:  [00][00]                   |
+| mode:     [PEAK]   +    gain    +  |
+| mix:   [+00][ff]  gain:  [ff][+00] |
 
 
 

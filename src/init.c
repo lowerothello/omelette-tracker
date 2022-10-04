@@ -48,6 +48,8 @@ void cleanup(int ret)
 		if (w->waveformcanvas) free_canvas(w->waveformcanvas);
 		if (w->waveformbuffer) free_buffer(w->waveformbuffer);
 		__delChannel(&w->previewchannel);
+		if (w->previewchannel.data.trig) free(w->previewchannel.data.trig);
+		if (w->previewchannel.data.songv) free(w->previewchannel.data.songv);
 
 		for (short i = 0; i < w->vbchannelc; i++)
 			free(w->vbtrig[i]);
@@ -106,13 +108,10 @@ void init(int argc, char **argv)
 	w->channelbuffer.macroc = 1;
 	w->trackerfy = STATE_ROWS;
 
-	s = _addSong();
+	s = addSong();
 	if (!s) { puts("out of memory"); common_cleanup(1); }
 
 	regenGlobalRowc(s);
-
-	s->loop[0] = STATE_ROWS;
-	s->loop[1] = s->songlen-1;
 
 	/* 4 starting channels */
 	addChannel(s, s->channelc);

@@ -526,9 +526,9 @@ void randPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 			if (x1 <= 1 && x2 >= 1 && r->note != NOTE_VOID)
 			{
 				r->inst = NOTE_VOID;
-				randinst = rand()%(s->instrumentc-1) + 1;
+				randinst = rand()%(s->instrument->c-1) + 1;
 				for (k = 0; k < INSTRUMENT_MAX; k++)
-					if (s->instrumenti[k] == randinst) { r->inst = k; break; }
+					if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 			}
 			for (k = 0; k <= s->channelv[c1].data.macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && r->macro[k].c)
@@ -547,9 +547,9 @@ void randPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 						if (x1 <= 1 && r->note != NOTE_VOID)
 						{
 							r->inst = NOTE_VOID;
-							randinst = rand()%(s->instrumentc-1) + 1;
+							randinst = rand()%(s->instrument->c-1) + 1;
 							for (k = 0; k < INSTRUMENT_MAX; k++)
-								if (s->instrumenti[k] == randinst) { r->inst = k; break; }
+								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
 						for (k = 0; k <= s->channelv[i].data.macroc; k++)
 							if (x1 <= k+2 && r->macro[k].c)
@@ -560,9 +560,9 @@ void randPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 						if (x2 >= 1 && r->note != NOTE_VOID)
 						{
 							r->inst = NOTE_VOID;
-							randinst = rand()%(s->instrumentc-1) + 1;
+							randinst = rand()%(s->instrument->c-1) + 1;
 							for (k = 0; k < INSTRUMENT_MAX; k++)
-								if (s->instrumenti[k] == randinst)
+								if (s->instrument->i[k] == randinst)
 								{ r->inst = k; break; }
 						}
 						for (k = 0; k <= s->channelv[i].data.macroc; k++)
@@ -574,9 +574,9 @@ void randPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, uint8_t
 						if (r->note != NOTE_VOID)
 						{
 							r->inst = NOTE_VOID;
-							randinst = rand()%(s->instrumentc-1) + 1;
+							randinst = rand()%(s->instrument->c-1) + 1;
 							for (k = 0; k < INSTRUMENT_MAX; k++)
-								if (s->instrumenti[k] == randinst) { r->inst = k; break; }
+								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
 						for (k = 0; k <= s->channelv[i].data.macroc; k++)
 							if (r->macro[k].c)
@@ -793,4 +793,101 @@ void cycleDownPartPattern(short x1, short x2, short y1, short y2, uint8_t c1, ui
 					}
 			} else break;
 	}
+}
+
+void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	short inst = emptyInstrument(0);
+	if (inst == -1)
+	{
+		strcpy(w->command.error, "visual render failed, no empty instrument slot");
+		return;
+	}
+
+	uint16_t row;
+	uint8_t chnl;
+	jack_nframes_t buflen, bufptr, fptr;
+	uint16_t spr, sprp;
+
+	/* allocate temp channel state */
+	Channel *cv;
+	cv = calloc(c2-c1 + 1, sizeof(Channel));
+	for (chnl = 0; chnl <= c2-c1; chnl++)
+	{
+		_addChannel(s, &cv[chnl]);
+		copyChanneldata(&cv[chnl].data, &s->channelv[c1+chnl].data);
+	}
+
+	/* calculate the buffer length needed */
+	changeBpm(&spr, s->songbpm);
+	for (row = 0; row < y1; row++)
+		for (chnl = 0; chnl <= c2-c1; chnl++)
+			ifMacro(0, &spr, &cv[chnl], *getChannelRow(&cv[chnl].data, row), 'B', &Bc);
+	buflen = 0;
+	for (row = y1; row <= y2; row++)
+	{
+		for (chnl = 0; chnl <= c2-c1; chnl++)
+			ifMacro(0, &spr, &cv[chnl], *getChannelRow(&cv[chnl].data, row), 'B', &Bc);
+		buflen += spr;
+	}
+
+	/* allocate the sample buffer */
+	short *buffer = calloc((buflen<<1), sizeof(short));
+	/* for (uint32_t i = 0; i < buflen<<1; i++)
+		buffer[i] = rand()%USHRT_MAX - SHRT_MAX; */
+
+	/* lookback */
+	changeBpm(&spr, s->songbpm);
+	for (row = 0; row < y1; row++)
+		for (chnl = 0; chnl <= c2-c1; chnl++)
+		{
+			preprocessRow(0, &spr, 0, &cv[chnl], *getChannelRow(&cv[chnl].data, row));
+			playChannelLookback(0, &spr, &cv[chnl]);
+		}
+
+	FILE *debugfp = fopen(".bounce_debug", "w");
+	bufptr = 0;
+	Row *r;
+	for (row = y1; row <= y2; row++)
+	{
+		// fprintf(debugfp, "%02x |", row);
+		for (chnl = 0; chnl <= c2-c1; chnl++)
+		{
+			r = getChannelRow(&cv[chnl].data, row);
+			preprocessRow(0, &spr, 0, &cv[chnl], *r);
+			// fprintf(debugfp, " %02x %02x %08x |", r->note, r->inst, cv[chnl].pointer);
+		}
+		sprp = 0;
+		while (sprp < spr)
+		{
+			for (fptr = 0; fptr < buffersize; fptr++)
+			{
+				if (sprp >= spr) break;
+				for (chnl = 0; chnl <= c2-c1; chnl++)
+				{
+					playChannel(0, fptr, &spr, fptr, &cv[chnl]);
+					// fprintf(debugfp, "%02x %04xl %f\n", chnl, fptr, cv[chnl].outputl[fptr]);
+					// fprintf(debugfp, "%02x %04xr %f\n", chnl, fptr, cv[chnl].outputr[fptr]);
+					buffer[((bufptr+sprp)<<1)+0] += cv[chnl].outputl[fptr]*2.0f*SHRT_MAX;
+					buffer[((bufptr+sprp)<<1)+1] += cv[chnl].outputr[fptr]*2.0f*SHRT_MAX;
+				}
+				sprp++;
+			}
+		} bufptr += sprp;
+		// fprintf(debugfp, "\n");
+	}
+	/* for (uint32_t i = 0; i < buflen<<1; i++)
+		fprintf(debugfp, "%d\n", buffer[i]); */
+
+	fclose(debugfp);
+
+	/* free temp channel state */
+	for (chnl = 0; chnl <= c2-c1; chnl++)
+		_delChannel(&cv[chnl]);
+	free(cv);
+
+	/* init the instrument */
+	addReparentInstrument(inst, buffer, buflen);
+
+	w->instrument = inst;
 }

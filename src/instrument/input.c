@@ -36,7 +36,7 @@ void instrumentCtrlUpArrow(int count)
 		switch (w->page)
 		{
 			case PAGE_INSTRUMENT_SAMPLE: break;
-			case PAGE_INSTRUMENT_EFFECT: effectCtrlUpArrow(&s->instrumentv[s->instrumenti[w->instrument]].effect, count); break;
+			case PAGE_INSTRUMENT_EFFECT: effectCtrlUpArrow(&s->instrument->v[s->instrument->i[w->instrument]].effect, count); break;
 		}
 }
 void instrumentCtrlDownArrow(int count)
@@ -45,7 +45,7 @@ void instrumentCtrlDownArrow(int count)
 		switch (w->page)
 		{
 			case PAGE_INSTRUMENT_SAMPLE: break;
-			case PAGE_INSTRUMENT_EFFECT: effectCtrlDownArrow(&s->instrumentv[s->instrumenti[w->instrument]].effect, count); break;
+			case PAGE_INSTRUMENT_EFFECT: effectCtrlDownArrow(&s->instrument->v[s->instrument->i[w->instrument]].effect, count); break;
 		}
 }
 void instrumentLeftArrow(void)
@@ -65,6 +65,24 @@ void instrumentRightArrow(void)
 			case PAGE_INSTRUMENT_SAMPLE: instrumentSampleRightArrow(); break;
 			case PAGE_INSTRUMENT_EFFECT: effectRightArrow(); break;
 		}
+}
+void instrumentCtrlLeftArrow(int count)
+{
+	w->instrument -= count;
+	if (w->instrument < 0) w->instrument = 0;
+	w->effectscroll = 0;
+	if (!instrumentSafe(s, w->instrument))
+		w->mode = I_MODE_INDICES;
+	resetWaveform();
+}
+void instrumentCtrlRightArrow(int count)
+{
+	w->instrument += count;
+	if (w->instrument > 254) w->instrument = 254;
+	w->effectscroll = 0;
+	if (!instrumentSafe(s, w->instrument))
+		w->mode = I_MODE_INDICES;
+	resetWaveform();
 }
 void instrumentHome(void)
 {
@@ -141,8 +159,10 @@ void instrumentInput(int input)
 										case '5': /* ctrl+arrow */
 											switch (getchar())
 											{
-												case 'A': /* up   */ instrumentCtrlUpArrow  (1); p->dirty = 1; break;
-												case 'B': /* down */ instrumentCtrlDownArrow(1); p->dirty = 1; break;
+												case 'A': /* up    */ instrumentCtrlUpArrow   (1); p->dirty = 1; break;
+												case 'B': /* down  */ instrumentCtrlDownArrow (1); p->dirty = 1; break;
+												case 'C': /* right */ instrumentCtrlRightArrow(1); p->dirty = 1; break;
+												case 'D': /* left  */ instrumentCtrlLeftArrow (1); p->dirty = 1; break;
 											} break;
 										default: getchar(); break;
 									} break;
@@ -191,12 +211,12 @@ void instrumentInput(int input)
 											case WHEEL_UP: case WHEEL_UP_CTRL:
 												if (w->instrument > WHEEL_SPEED) w->instrument -= WHEEL_SPEED;
 												else                             w->instrument = 0;
-												w->effectscroll = 0;
+												w->effectscroll = 0; resetWaveform();
 												break;
 											case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 												if (w->instrument < 254 - WHEEL_SPEED) w->instrument += WHEEL_SPEED;
 												else                                   w->instrument = 254;
-												w->effectscroll = 0;
+												w->effectscroll = 0; resetWaveform();
 												break;
 											case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 												switch (w->mode)
@@ -205,7 +225,7 @@ void instrumentInput(int input)
 														if ((short)w->instrument + w->fyoffset < 0)        w->instrument = 0;
 														else if ((short)w->instrument + w->fyoffset > 254) w->instrument = 254;
 														else                                               w->instrument += w->fyoffset;
-														w->effectscroll = 0;
+														w->effectscroll = 0; resetWaveform();
 														w->fyoffset = 0;
 														break;
 												} break;
@@ -231,6 +251,7 @@ void instrumentInput(int input)
 														{
 															yankInstrument(w->instrument + y - w->centre);
 															delInstrument (w->instrument + y - w->centre);
+															w->effectscroll = 0; resetWaveform();
 														}
 													case BUTTON1: case BUTTON1_CTRL:
 														w->fyoffset = y - w->centre;
@@ -251,9 +272,10 @@ void instrumentInput(int input)
 									break;
 							}
 					} break;
-				default:
+				default: /* escape */
 					previewNote(' ', INST_VOID);
 					cc.mouseadjust = cc.keyadjust = 0;
+					w->page = PAGE_INSTRUMENT_SAMPLE;
 					/* NOTE: escape mode handling goes here */
 					p->dirty = 1; break;
 			} break;
@@ -313,7 +335,7 @@ void instrumentInput(int input)
 						switch (w->page)
 						{
 							case PAGE_INSTRUMENT_SAMPLE: if (inputInstrumentSample(input)) return; break;
-							case PAGE_INSTRUMENT_EFFECT: if (inputEffect(&s->instrumentv[s->instrumenti[w->instrument]].effect, input)) return; break;
+							case PAGE_INSTRUMENT_EFFECT: if (inputEffect(&s->instrument->v[s->instrument->i[w->instrument]].effect, input)) return; break;
 						}
 					break;
 			} break;

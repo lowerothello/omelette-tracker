@@ -59,78 +59,150 @@ void _delInstrument(Instrument *iv)
 
 bool instrumentSafe(Song *cs, uint8_t index)
 {
-	if (index != INSTRUMENT_MAX && cs->instrumenti[index] < cs->instrumentc)
+	if (index != INSTRUMENT_MAX && cs->instrument->i[index] < cs->instrument->c)
 		return 1;
 	return 0;
 }
 
-int addInstrument(uint8_t index)
+/* take a short* and reparent it under instrument iv               */
+/* bufferlen is how many stereo pairs of samples are in the buffer */
+void reparentSample(Instrument *iv, short *buffer, jack_nframes_t bufferlen)
 {
+	if (iv->sampledata) { free(iv->sampledata); iv->sampledata = NULL; }
+
+	iv->sampledata = buffer;
+
+	iv->samplelength = bufferlen<<1;
+	iv->channels = 2;
+	iv->length = bufferlen;
+	iv->c5rate = samplerate; /* assume the buffer is at the system sample rate */
+	iv->trimstart = 0;
+	iv->trimlength = bufferlen - 1;
+	iv->looplength = 0;
+}
+
+void cb_addInstrument(void *arg)
+{
+	free(p->semarg); p->semarg = NULL; p->dirty = 1;
+}
+InstrumentChain *_addInstrument(uint8_t index)
+{
+	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c+1) * sizeof(Instrument));
+	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain) + s->instrument->c * sizeof(Instrument));
+
+	newinstrument->v[newinstrument->c].samplerate = 0xff;
+	newinstrument->v[newinstrument->c].bitdepth = 0xf;
+	newinstrument->v[newinstrument->c].sustain = 1;
+	newinstrument->v[newinstrument->c].midichannel = -1;
+
+	newinstrument->v[newinstrument->c].cyclelength = 0x3fff;
+
+	newinstrument->i[index] = newinstrument->c;
+	newinstrument->c++;
+
+	return newinstrument;
+}
+int addInstrument(uint8_t index)
+{ /* fully atomic */
 	if (instrumentSafe(s, index)) return 1; /* index occupied */
+	if (p->sem != M_SEM_OK) return 1; /* semaphore is busy */
 
-	Instrument *newinstrumentv = calloc(s->instrumentc+1, sizeof(Instrument));
-	if (s->instrumentv)
-	{
-		memcpy(newinstrumentv, s->instrumentv, s->instrumentc * sizeof(Instrument));
-		free(s->instrumentv);
-	}
-	s->instrumentv = newinstrumentv;
-
-	s->instrumentv[s->instrumentc].samplerate = 0xff;
-	s->instrumentv[s->instrumentc].bitdepth = 0xf;
-	s->instrumentv[s->instrumentc].sustain = 1;
-	s->instrumentv[s->instrumentc].midichannel = -1;
-
-	s->instrumentv[s->instrumentc].cyclelength = 0x3fff;
-
-	s->instrumenti[index] = s->instrumentc;
-	s->instrumentc++;
+	p->semarg = _addInstrument(index);
+	p->semcallback = cb_addInstrument;
+	p->sem = M_SEM_SWAPINST_REQ;
 	return 0;
+}
+typedef struct
+{
+	short *buffer;
+	jack_nframes_t buflen;
+	uint8_t index;
+} InstrumentAddReparentArg;
+void cb_addReparentInstrument(void *arg)
+{
+	InstrumentAddReparentArg *castarg = arg;
+	free(p->semarg); p->semarg = NULL;
+	reparentSample(&s->instrument->v[s->instrument->i[castarg->index]], castarg->buffer, castarg->buflen);
+	free(arg); p->semcallbackarg = NULL;
+	p->dirty = 1;
+}
+int addReparentInstrument(uint8_t index, short *buffer, jack_nframes_t buflen)
+{ /* fully atomic */
+	if (instrumentSafe(s, index)) return 1; /* index occupied */
+	if (p->sem != M_SEM_OK) return 1; /* semaphore is busy */
+
+	p->semarg = _addInstrument(index);
+
+	p->semcallback = cb_addReparentInstrument;
+	InstrumentAddReparentArg *arg = malloc(sizeof(InstrumentAddReparentArg));
+	arg->buffer = buffer;
+	arg->buflen = buflen;
+	arg->index = index;
+
+	p->semcallbackarg = arg;
+	p->sem = M_SEM_SWAPINST_REQ;
+	return 0;
+}
+
+/* returns -1 if no instrument slots are free */
+short emptyInstrument(uint8_t min)
+{
+	for (int i = min; i < INSTRUMENT_MAX; i++)
+		if (!instrumentSafe(s, i)) return i;
+	return -1;
 }
 
 void yankInstrument(uint8_t index)
 {
 	if (!instrumentSafe(s, index)) return; /* nothing to copy */
 	_delInstrument(&w->instrumentbuffer);
-	copyInstrument(&w->instrumentbuffer, &s->instrumentv[s->instrumenti[index]]);
+	copyInstrument(&w->instrumentbuffer, &s->instrument->v[s->instrument->i[index]]);
 }
 
 void putInstrument(uint8_t index)
 {
-	if (!s->instrumentv) return;
-	if (s->instrumenti[index] >= s->instrumentc) addInstrument(index);
-	copyInstrument(&s->instrumentv[s->instrumenti[index]], &w->instrumentbuffer);
+	if (s->instrument->i[index] >= s->instrument->c) addInstrument(index);
+	copyInstrument(&s->instrument->v[s->instrument->i[index]], &w->instrumentbuffer);
 }
 
-int delInstrument(uint8_t index)
+void cb_delInstrument(void *arg)
 {
+	_delInstrument(&((InstrumentChain *)p->semarg)->v[(size_t)arg]);
+	free(p->semarg); p->semarg = NULL; p->dirty = 1;
+}
+int delInstrument(uint8_t index)
+{ /* fully atomic */
 	if (!instrumentSafe(s, index)) return 1; /* instrument doesn't exist */
+	if (p->sem != M_SEM_OK) return 1; /* semaphore is busy */
 
-	uint8_t cutindex = s->instrumenti[index];
-	_delInstrument(&s->instrumentv[cutindex]);
-	s->instrumenti[index] = INSTRUMENT_VOID;
+	size_t cutindex = s->instrument->i[index]; /* cast to void* later */
+	_delInstrument(&s->instrument->v[cutindex]);
 
-	Instrument *newinstrumentv = calloc(s->instrumentc + 5, sizeof(Instrument));
+	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + s->instrument->c * sizeof(Instrument));
+	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain)); /* copy just the header */
 
 	if (cutindex > 0)
-		memcpy(newinstrumentv,
-				s->instrumentv,
+		memcpy(newinstrument->v,
+				s->instrument->v,
 				sizeof(Instrument)*(cutindex+1));
 
-	if (cutindex < s->instrumentc-1)
-		memcpy(&newinstrumentv[cutindex],
-				&s->instrumentv[cutindex+1],
-				sizeof(Instrument)*(s->instrumentc-(cutindex+1)));
+	if (cutindex < s->instrument->c-1)
+		memcpy(&newinstrument->v[cutindex],
+				&s->instrument->v[cutindex+1],
+				sizeof(Instrument)*(s->instrument->c-(cutindex+1)));
 
-	free(s->instrumentv);
-	s->instrumentv = newinstrumentv;
-
+	newinstrument->i[index] = INSTRUMENT_VOID;
 	/* backref contiguity */
 	for (uint8_t i = 0; i < 255; i++)
-		if (s->instrumenti[i] >= cutindex && s->instrumenti[i] < s->instrumentc)
-			s->instrumenti[i]--;
+		if (newinstrument->i[i] >= cutindex && newinstrument->i[i] < newinstrument->c)
+			newinstrument->i[i]--;
 
-	s->instrumentc--;
+	newinstrument->c--;
+
+	p->semcallback = cb_delInstrument;
+	p->semcallbackarg = (void *)cutindex;
+	p->semarg = newinstrument;
+	p->sem = M_SEM_SWAPINST_REQ;
 	return 0;
 }
 
@@ -195,8 +267,8 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 }
 void loadSample(uint8_t index, char *path)
 {
-	/* TODO: check the instrument is safe more aggressively? */
-	Instrument *iv = &s->instrumentv[s->instrumenti[index]];
+	if (!instrumentSafe(s, index)) return; /* instrument doesn't exist */
+	Instrument *iv = &s->instrument->v[s->instrument->i[index]];
 	SF_INFO sfinfo;
 	short *sampledata = _loadSample(path, &sfinfo);
 	if (!sampledata)
@@ -254,13 +326,13 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	for (int i = 0; i < iv->effect.c; i++)
 		serializeEffect(&iv->effect.v[i], fp);
 }
-void deserializeInstrument(Instrument *iv, FILE *fp, uint8_t major, uint8_t minor)
+void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor)
 {
 	fread(&iv->samplelength, sizeof(uint32_t), 1, fp);
 	fread(&iv->length, sizeof(uint32_t), 1, fp);
 	fread(&iv->channels, sizeof(uint8_t), 1, fp);
 	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
-	fread(&iv->c5rate, sizeof(uint32_t), 1, fp);
+	fread(&iv->c5rate, sizeof(uint32_t), 1, fp); iv->c5rate *= ratemultiplier;
 	fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
 	fread(&iv->bitdepth, sizeof(uint8_t), 1, fp);
 	fread(&iv->trimstart, sizeof(uint32_t), 1, fp);

@@ -20,13 +20,15 @@ void effectAddTypeBefore(EffectChain *chain, uint8_t type)
 
 void effectAddDistortionAfter (void *chain) { effectAddTypeAfter ((EffectChain *)chain, 1); }
 void effectAddDistortionBefore(void *chain) { effectAddTypeBefore((EffectChain *)chain, 1); }
+void effectAddEqualizerAfter (void *chain) { effectAddTypeAfter ((EffectChain *)chain, 2); }
+void effectAddEqualizerBefore(void *chain) { effectAddTypeBefore((EffectChain *)chain, 2); }
 
 void setChordAddEffect(EffectChain *chain)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "add effect");
 	addTooltipBind(&tt,  "distortion  ", 'w', effectAddDistortionAfter, chain);
-	addTooltipBind(&tt,  "equalizer   ", 'e', NULL, chain);
+	addTooltipBind(&tt,  "equalizer   ", 'e', effectAddEqualizerAfter, chain);
 	addTooltipBind(&tt,  "chorus      ", 'c', NULL, chain);
 	addTooltipBind(&tt,  "pitch shift ", 'p', NULL, chain);
 	addTooltipBind(&tt,  "delay       ", 'd', NULL, chain);
@@ -38,7 +40,7 @@ void setChordAddEffectBefore(EffectChain *chain)
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "add before");
 	addTooltipBind(&tt,  "distortion  ", 'w', effectAddDistortionBefore, chain);
-	addTooltipBind(&tt,  "equalizer   ", 'e', NULL, chain);
+	addTooltipBind(&tt,  "equalizer   ", 'e', effectAddEqualizerBefore, chain);
 	addTooltipBind(&tt,  "chorus      ", 'c', NULL, chain);
 	addTooltipBind(&tt,  "pitch shift ", 'p', NULL, chain);
 	addTooltipBind(&tt,  "delay       ", 'd', NULL, chain);

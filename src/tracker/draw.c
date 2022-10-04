@@ -43,57 +43,14 @@ void noteToString(uint8_t note, char *buffer)
 	snprintf(buffer, 4, "%s%c", strnote, octave);
 }
 
-/* void drawSongList(void)
-{
-	for (int i = 0; i < SONG_MAX; i++) // reserve 0xff
-		if (w->centre - w->trackerfy + i > CHANNEL_ROW
-				&& w->centre - w->trackerfy + i < ws.ws_row)
-		{
-			printf("\033[%d;%dH", w->centre - w->trackerfy + i, 1);
-			if (s->trig[i].flags) printf("l");
-			else                  printf(" ");
-
-			switch (w->mode)
-			{
-				case T_MODE_VTRIG: case T_MODE_VTRIG_INSERT:
-					if (s->playing && s->songp == i)      printf("\033[1m%02x\033[m", s->trig[i].index);
-					else if (s->trig[i].index == PATTERN_VOID) printf("..");
-					else                                  printf("%02x", s->trig[i].index);
-					break;
-				case T_MODE_VTRIG_VISUAL:
-					if (
-							i >= MIN(w->visualfy, w->trackerfy) &&
-							i <= MAX(w->visualfy, w->trackerfy))
-					{
-						if (s->playing && s->songp == i)      printf("\033[2;7m%02x\033[m", s->trig[i].index);
-						else if (s->trig[i].index == PATTERN_VOID) printf("\033[2;7m..\033[m");
-						else                                  printf("\033[2;7m%02x\033[m", s->trig[i].index);
-					} else
-					{
-						if (s->playing && s->songp == i)      printf("\033[1m%02x\033[m", s->trig[i].index);
-						else if (s->trig[i].index == PATTERN_VOID) printf("..");
-						else                                  printf("%02x", s->trig[i].index);
-					} break;
-				default:
-					if (w->trackerfy == i && s->trig[i].index == PATTERN_VOID) printf("\033[7m..\033[m");
-					else if (s->playing && s->songp == i && w->trackerfy == i) printf("\033[1;7m%02x\033[m", s->trig[i].index);
-					else if (w->trackerfy == i)                                printf("\033[7m%02x\033[m",   s->trig[i].index);
-					else if (s->playing && s->songp == i)                      printf("\033[1m%02x\033[m",   s->trig[i].index);
-					else if (s->trig[i].index == PATTERN_VOID)                 printf("..");
-					else                                                       printf("%02x", s->trig[i].index);
-					break;
-			}
-		}
-} */
-
 void drawGlobalLineNumbers(unsigned short x)
 {
 	for (int i = 0; i < s->songlen; i++)
 		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
-			if (s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
-			else if (i < s->loop[0] || i > s->loop[1])        printf("\033[2m");
+			if (s->playing == PLAYING_CONT && s->playfy == i)                              printf("\033[1m");
+			else if (i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
 			if (i < STATE_ROWS) printf("  -%x", STATE_ROWS - i);
 			else                printf("%04x",  i - STATE_ROWS);
 			printf("\033[m");
@@ -196,6 +153,12 @@ int ifVisual(uint8_t channel, int i, signed char fieldpointer)
 	} return 0;
 }
 
+void setRowIntensity(ChannelData *cd, int i)
+{
+	if (cd->mute || i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
+	else if (s->playing == PLAYING_CONT && s->playfy == i)              printf("\033[1m");
+}
+
 void drawChannelTrigs(uint8_t channel, short x)
 {
 	ChannelData *cd = &s->channelv[channel].data;
@@ -265,6 +228,8 @@ short _drawChannelHeader(uint8_t channel, short x)
 					|| (gcvret != -1 && (gcvret%(v->rowc+1) == v->rowc)))
 				printf("\033[4m");
 		} */
+
+		if (s->channelv[channel].triggerflash) printf("\033[3%dm", channel%6 + 1);
 		if (cd->mute) printf("\033[2m");
 		else          printf("\033[1m");
 		if (channel == w->channel + w->channeloffset) printf("\033[7m");
@@ -297,8 +262,7 @@ short drawChannel(uint8_t channel, short x)
 
 				r = getChannelRow(cd, i);
 
-				if (cd->mute || i < STATE_ROWS)                        printf("\033[2m");
-				else if (s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+				setRowIntensity(cd, i);
 
 				gcvret = getChannelVariant(&v, cd, i);
 				if ((i < s->songlen-1 && (cd->trig[i+1].index < VARIANT_MAX || (cd->trig[i+1].index == VARIANT_OFF && gcvret != -1)))
@@ -339,7 +303,7 @@ short drawChannel(uint8_t channel, short x)
 					else                                            printf("%.*s", ws.ws_col - x, "...");
 				}
 				stopVisual(channel, i, 0);
-				if (!cd->mute && s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+				setRowIntensity(cd, i);
 
 				if (x+4 <= ws.ws_col)
 				{
@@ -353,10 +317,10 @@ short drawChannel(uint8_t channel, short x)
 							if (ifVisual(channel, i, 1))
 							{
 								printf("\033[22m");
-								if (s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+								setRowIntensity(cd, i);
 							}
-							if (s->instrumenti[r->inst] < s->instrumentc) printf("\033[3%dm", r->inst%6 + 1);
-							else                                          printf("\033[2;37m");
+							if (instrumentSafe(s, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
+							else                            printf("\033[37m");
 							if (x+4 < LINENO_COLS) { if (x+4 > LINENO_COLS - 2) printf("%s", buffer+(LINENO_COLS - (x+4))); }
 							else                                                printf("%.*s", ws.ws_col - (x+4), buffer);
 							printf("\033[22;37m");
@@ -372,7 +336,7 @@ short drawChannel(uint8_t channel, short x)
 						else                                                printf("%.*s", ws.ws_col - (x+4), "..");
 					}
 					stopVisual(channel, i, 1);
-					if (!cd->mute && s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+					setRowIntensity(cd, i);
 				}
 
 				for (int j = 0; j <= cd->macroc; j++)
@@ -394,7 +358,7 @@ short drawChannel(uint8_t channel, short x)
 								if (ifVisual(channel, i, 2+j))
 								{
 									printf("\033[22m");
-									if (s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+									setRowIntensity(cd, i);
 								}
 								if (isdigit(r->macro[j].c)) /* different colour for numerical macros */ /* TODO: more colour groups */
 								{
@@ -418,7 +382,7 @@ short drawChannel(uint8_t channel, short x)
 							else                                                            printf("%.*s", ws.ws_col - (x+7 + 4*j), "...");
 						}
 						stopVisual(channel, i, 2+j);
-						if (!cd->mute && s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+						setRowIntensity(cd, i);
 					}
 				}
 

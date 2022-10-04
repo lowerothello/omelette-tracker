@@ -68,33 +68,41 @@ int inputChannelVariant(int input)
 				case '~': /* vi tilde */
 					switch (w->mode)
 					{
-						case T_MODE_VISUAL:     tildePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-						case T_MODE_VISUALLINE: tildePartPattern(0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-					} break;
+						case T_MODE_VISUAL:     tildePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: tildePartPattern(0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+					} p->dirty = 1; break;
 				case 'i': /* interpolate */
 					switch (w->mode)
 					{
-						case T_MODE_VISUAL:     interpolatePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-						case T_MODE_VISUALLINE: interpolatePartPattern(0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-					} regenGlobalRowc(s); break;
+						case T_MODE_VISUAL:     interpolatePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: interpolatePartPattern(0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+					} regenGlobalRowc(s); p->dirty = 1; break;
 				case '%': /* random */
 					switch (w->mode)
 					{
-						case T_MODE_VISUAL:     randPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-						case T_MODE_VISUALLINE: randPartPattern(0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-					} regenGlobalRowc(s); break;
+						case T_MODE_VISUAL:     randPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: randPartPattern(0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+					} regenGlobalRowc(s); p->dirty = 1; break;
 				case 1: /* ^a */
 					switch (w->mode)
 					{
-						case T_MODE_VISUAL:     addPartPattern(MAX(1, w->count), MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-						case T_MODE_VISUALLINE: addPartPattern(MAX(1, w->count), 0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-					} regenGlobalRowc(s); break;
+						case T_MODE_VISUAL:     addPartPattern(MAX(1, w->count), MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: addPartPattern(MAX(1, w->count), 0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+					} regenGlobalRowc(s); p->dirty = 1; break;
 				case 24: /* ^x */
 					switch (w->mode)
 					{
-						case T_MODE_VISUAL:     addPartPattern(-MAX(1, w->count), MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-						case T_MODE_VISUALLINE: addPartPattern(-MAX(1, w->count), 0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); p->dirty = 1; break;
-					} regenGlobalRowc(s); break;
+						case T_MODE_VISUAL:     addPartPattern(-MAX(1, w->count), MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: addPartPattern(-MAX(1, w->count), 0, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+					} regenGlobalRowc(s); p->dirty = 1; break;
+				case 'b': /* bounce to sample, always acts like visual line */
+					bouncePartPattern(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
+							MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+					w->trackerfx = 0;
+					w->trackerfy = MIN(w->trackerfy, w->visualfy);
+					w->channel = MIN(w->channel, w->visualchannel);
+					w->mode = T_MODE_NORMAL;
+					regenGlobalRowc(s); p->dirty = 1; break;
 				case 'd': case 'x': case 127: case '\b': /* pattern cut */
 					switch (w->mode)
 					{

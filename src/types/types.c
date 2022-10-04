@@ -141,6 +141,8 @@ typedef struct
 	uint32_t oldgrainpitchedpointer, grainpitchedpointer;
 
 	float *outputl, *outputr;
+
+	uint32_t triggerflash;
 } Channel;
 
 
@@ -177,11 +179,18 @@ typedef struct
 	int16_t  pitchshift;
 	int8_t   pitchstereo;
 
-	uint32_t triggerflash;
-
 	/* effects */
 	EffectChain effect;
+
+	uint32_t triggerflash;
 } Instrument;
+
+typedef struct
+{
+	uint8_t    c;                 /* instrument count   */
+	uint8_t    i[INSTRUMENT_MAX]; /* instrument backref */
+	Instrument v[];               /* instrument values  */
+} InstrumentChain;
 
 
 #define PLAYING_STOP      0
@@ -191,9 +200,7 @@ typedef struct
 typedef struct
 {
 	/* instruments */
-	uint8_t     instrumentc;                 /* instrument count */
-	uint8_t     instrumenti[INSTRUMENT_MAX]; /* instrument backref */
-	Instrument *instrumentv;                 /* instrument values */
+	InstrumentChain *instrument;
 
 	/* channels */
 	uint8_t  channelc; /* channel count */
@@ -210,8 +217,7 @@ typedef struct
 
 	/* misc. state */
 	uint8_t  rowhighlight;
-	uint8_t  bpm;
-	uint8_t  songbpm; /* to store the song's bpm through bpm change macros */
+	uint8_t  songbpm;
 	uint16_t spr;     /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
 	uint16_t sprp;    /* samples per row progress */
 	char     playing;
@@ -321,7 +327,7 @@ Window *w;
 
 typedef struct
 {
-	struct { sample_t *l; sample_t *r; } in, out;
+	struct { sample_t *l, *r; } in, out;
 	void *midiout;
 } portbuffers;
 portbuffers pb;
@@ -333,7 +339,9 @@ typedef struct
 	struct { jack_port_t *l, *r; } in, out;
 	jack_port_t *midiout;
 	bool         dirty; /* request a screen redraw */
-	uint8_t      sem; /* M_SEM_* defines */
-	void *       semarg;
+	uint8_t      sem;   /* M_SEM_* defines */
+	void        *semarg;
+	void       (*semcallback)(void *);
+	void        *semcallbackarg;
 } PlaybackInfo;
 PlaybackInfo *p;

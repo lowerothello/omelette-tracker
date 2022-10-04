@@ -28,7 +28,7 @@ typedef jack_default_audio_sample_t sample_t;
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 97;
+const unsigned char MINOR = 98;
 
 #define LINENO_COLS 7
 
@@ -66,7 +66,7 @@ void changeMacro(int, char *);
 #include "command.c"
 #include "dsp.c"
 
-#include "signal.c"
+#include "signal.h" /* signal declares */
 
 #include "types/types.c"
 
@@ -82,6 +82,8 @@ TooltipState tt;
 #include "types/instrument.c"
 #include "types/song.c"
 #include "types/file.c"
+
+#include "signal.c" /* signal handlers */
 
 #include "background.c"
 #include "sampler.c"
@@ -224,7 +226,8 @@ int commandCallback(char *command, unsigned char *mode)
 
 void startPlayback(void)
 {
-	s->playfy = s->loop[0];
+	if (s->loop[1]) s->playfy = s->loop[0];
+	else            s->playfy = STATE_ROWS;
 	s->sprp = 0;
 	if (w->follow)
 		w->trackerfy = s->playfy;
@@ -275,7 +278,7 @@ void showInstrument(void)
 			w->mode = I_MODE_INDICES;
 			break;
 	}
-	if (s->instrumenti[w->instrument] != INSTRUMENT_VOID)
+	if (s->instrument->i[w->instrument] != INSTRUMENT_VOID)
 		resetWaveform();
 }
 void showMaster(void)
@@ -347,13 +350,13 @@ void resize(int _)
 {
 	signal(SIGWINCH, SIG_IGN); /* ignore the signal until it's finished */
 	ioctl(1, TIOCGWINSZ, &ws);
-	w->centre = ws.ws_row / 2 + 1;
+	w->centre = (ws.ws_row>>1) + 1;
 
-	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1) * 2;
+	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1)<<1;
 	if (ws.ws_col - INSTRUMENT_INDEX_COLS < 57)
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 10) * 4;
+		w->waveformh = (ws.ws_row - CHANNEL_ROW - 10)<<2;
 	else
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 6) * 4;
+		w->waveformh = (ws.ws_row - CHANNEL_ROW - 6)<<2;
 
 	if (w->waveformcanvas) { free_canvas(w->waveformcanvas); w->waveformcanvas = NULL; }
 	if (w->waveformbuffer) { free_buffer(w->waveformbuffer); w->waveformbuffer = NULL; }
@@ -386,61 +389,37 @@ int main(int argc, char **argv)
 	/* loop over input */
 	struct timespec req;
 	int running = 0;
-	Song *cs;
 	while (!running)
 	{
-		switch (p->sem)
+		if (!mainM_SEM())
 		{
-			case M_SEM_RELOAD:
-				cs = readSong(w->newfilename);
-				if (cs) { delSong(s); s = cs; }
-				p->s = s;
-				w->trackerfy = STATE_ROWS;
-				p->sem = M_SEM_OK;
-				break;
-		}
+			running = input();
 
-		running = input();
-
-		/* imply p->dirty if background is on */
+			/* imply p->dirty if background is on */
 #ifdef ENABLE_BACKGROUND
-		redraw();
+			redraw();
 #else
-		if (p->dirty) { p->dirty = 0; redraw(); }
+			if (p->dirty) { p->dirty = 0; redraw(); }
 #endif
 
-		/* finish freeing the record buffer */
-		if (w->instrumentrecv == INST_REC_LOCK_CANCEL)
-		{
-			free(w->recbuffer); w->recbuffer = NULL;
-			w->instrumentrecv = INST_REC_LOCK_OK;
-			p->dirty = 1;
-		} else if (w->instrumentrecv == INST_REC_LOCK_END)
-		{
-			if (w->recptr > 0)
+			/* finish freeing the record buffer */
+			if (w->instrumentrecv == INST_REC_LOCK_CANCEL)
 			{
-				Instrument *iv = &s->instrumentv[s->instrumenti[w->instrumentreci]];
-				if (iv->sampledata)
-				{ free(iv->sampledata); iv->sampledata = NULL; }
-				iv->sampledata = malloc(w->recptr * 2 * sizeof(short)); /* *2 for stereo */
-				if (!iv->sampledata) strcpy(w->command.error, "saving recording failed, out of memory");
-				else
+				free(w->recbuffer); w->recbuffer = NULL;
+				w->instrumentrecv = INST_REC_LOCK_OK;
+				p->dirty = 1;
+			} else if (w->instrumentrecv == INST_REC_LOCK_END)
+			{
+				if (w->recptr > 0)
 				{
-					memcpy(iv->sampledata, w->recbuffer, w->recptr * 2 * sizeof(short));
-					iv->samplelength = w->recptr * 2;
-					iv->channels = 2;
-					iv->length = w->recptr;
-					iv->c5rate = samplerate;
-					iv->trimstart = 0;
-					iv->trimlength = w->recptr-1;
-					iv->looplength = 0;
-				}
-				resetWaveform();
-			}
+					w->recbuffer = realloc(w->recbuffer, (w->recptr<<1) * sizeof(short));
+					reparentSample(&s->instrument->v[s->instrument->i[w->instrumentreci]], w->recbuffer, w->recptr);
+					resetWaveform();
+				} else { free(w->recbuffer); w->recbuffer = NULL; }
 
-			free(w->recbuffer); w->recbuffer = NULL;
-			w->instrumentrecv = INST_REC_LOCK_OK;
-			p->dirty = 1;
+				w->instrumentrecv = INST_REC_LOCK_OK;
+				p->dirty = 1;
+			}
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */

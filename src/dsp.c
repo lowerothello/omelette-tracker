@@ -15,6 +15,7 @@
 /* premultiplied divisions */
 #define DIV4096 0.000244140625f
 #define DIV1024 0.0009765625f
+#define DIV512  0.001953125f
 #define DIV256  0.00390625f
 #define DIV128  0.0078125f
 #define DIV64   0.015625f
@@ -78,7 +79,6 @@ float rectify(float input) /* TODO: clicky */
 		return 0.0f;
 	else
 		return hardclip(fabsf(input) * 2.0f - 1.0f);
-	return input;
 }
 float thirddegreepolynomial(float input)
-{ return hardclip(1.5f*input - 0.5f*input*input*input); }
+{ return 1.5f*input - 0.5f*input*input*input; }

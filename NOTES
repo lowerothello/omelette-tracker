@@ -20,7 +20,7 @@ for no apparent reason
 - loop ramping should use data from outside the loop range instead of padding
 
 
-tracker channel header
-	- left click to focus
-	- right click to toggle mute
-	- middle click to toggle solo
+tracker channel header middle click to toggle solo
+
+
+addVariant->_copyVariant->malloc memory leak

@@ -479,14 +479,14 @@ void setChordRow(void)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "variant rows");
-	addTooltipBind(&tt, "scale variant to cursor     ", 'c', chordRowScaleToCursor, NULL);
-	addTooltipBind(&tt, "set variant length to count ", 'r', chordRowLengthToCount, NULL);
-	addTooltipBind(&tt, "increment variant length    ", 'a', chordRowIncrementLength, NULL);
-	addTooltipBind(&tt, "decrement variant length    ", 'd', chordRowDecrementLength, NULL);
-	addTooltipBind(&tt, "copy whole variant down     ", '+', chordRowCopyDown, NULL);
-	addTooltipBind(&tt, "discard variant bottom half ", '-', chordRowDiscardHalf, NULL);
-	addTooltipBind(&tt, "add blank row after each row", '*', chordRowAddBlanks, NULL);
-	addTooltipBind(&tt, "discard every other row     ", '/', chordRowDiscardEveryOther, NULL);
+	addTooltipBind(&tt, "scale variant to cursor     ", 'c', chordRowScaleToCursor,     NULL);
+	addTooltipBind(&tt, "set variant length to count ", 'r', chordRowLengthToCount,     NULL);
+	addTooltipBind(&tt, "increment variant length    ", 'a', chordRowIncrementLength,   NULL);
+	addTooltipBind(&tt, "decrement variant length    ", 'd', chordRowDecrementLength,   NULL);
+	addTooltipBind(&tt, "double variant length       ", '+', chordRowCopyDown,          NULL);
+	addTooltipBind(&tt, "halve variant length        ", '-', chordRowDiscardHalf,       NULL);
+	addTooltipBind(&tt, "stretch variant length      ", '*', chordRowAddBlanks,         NULL);
+	addTooltipBind(&tt, "shrink variant length       ", '/', chordRowDiscardEveryOther, NULL);
 	w->chord = 'r';
 }
 
@@ -514,9 +514,9 @@ void setChordMacro(void)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "macro");
-	addTooltipBind(&tt, "increment macro columns   ", 'a', chordAddMacro, NULL);
+	addTooltipBind(&tt, "increment macro columns   ", 'a', chordAddMacro,    NULL);
 	addTooltipBind(&tt, "decrement macro columns   ", 'd', chordDeleteMacro, NULL);
-	addTooltipBind(&tt, "set macro columns to count", 'm', chordSetMacro, NULL);
+	addTooltipBind(&tt, "set macro columns to count", 'm', chordSetMacro,    NULL);
 	w->chord = 'm';
 }
 
@@ -569,60 +569,69 @@ void setChordChannel(void)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "channel");
-	addTooltipBind(&tt, "clear channel ", 'c', chordClearChannel, NULL);
-	addTooltipBind(&tt, "add channel   ", 'a', chordAddChannel, NULL);
-	addTooltipBind(&tt, "add before    ", 'A', chordAddBefore, NULL);
+	addTooltipBind(&tt, "clear channel ", 'c', chordClearChannel,  NULL);
+	addTooltipBind(&tt, "add channel   ", 'a', chordAddChannel,    NULL);
+	addTooltipBind(&tt, "add before    ", 'A', chordAddBefore,     NULL);
 	addTooltipBind(&tt, "delete channel", 'd', chordDeleteChannel, NULL);
-	addTooltipBind(&tt, "delete to end ", 'D', chordDeleteToEnd, NULL);
-	addTooltipBind(&tt, "copy channel  ", 'y', chordCopyChannel, NULL);
-	addTooltipBind(&tt, "paste channel ", 'p', chordPasteChannel, NULL);
+	addTooltipBind(&tt, "delete to end ", 'D', chordDeleteToEnd,   NULL);
+	addTooltipBind(&tt, "copy channel  ", 'y', chordCopyChannel,   NULL);
+	addTooltipBind(&tt, "paste channel ", 'p', chordPasteChannel,  NULL);
 	w->chord = 'c';
 }
 
 void chordLoopContext(void *_)
 {
 	Variant *v;
-	int gcvret = getChannelVariant(&v, &s->channelv[w->channel].data, w->trackerfy);
+	uint16_t ltrackerfy = MAX(w->trackerfy, STATE_ROWS);
+	int gcvret = getChannelVariant(&v, &s->channelv[w->channel].data, ltrackerfy);
 	if (gcvret == -1)
 	{ /* not in a variant */
-		if (s->loop[0] == w->trackerfy
-		 && s->loop[1] == MIN(s->songlen-1, w->trackerfy + 4*s->rowhighlight - 1))
+		// if (s->loop[0] == ltrackerfy && s->loop[1] == ltrackerfy + 4*s->rowhighlight - 1)
+		if (s->loop[0] == ltrackerfy)
+			s->loop[0] = s->loop[1] = 0;
+		else
 		{
-			s->loop[0] = STATE_ROWS;
-			s->loop[1] = s->songlen-1;
-		} else
-		{
-			s->loop[0] = w->trackerfy;
-			s->loop[1] = MIN(s->songlen-1, w->trackerfy + 4*s->rowhighlight - 1);
+			s->loop[0] = ltrackerfy;
+			s->loop[1] = ltrackerfy + 4*s->rowhighlight - 1;
 		}
 	} else
 	{ /* in a variant */
-		if (s->loop[0] == w->trackerfy - gcvret
-		 && s->loop[1] == MIN(s->songlen-1, w->trackerfy - gcvret + v->rowc))
+		if (s->loop[0] == ltrackerfy - gcvret
+		 && s->loop[1] == ltrackerfy - gcvret + v->rowc)
+			s->loop[0] = s->loop[1] = 0;
+		else
 		{
-			s->loop[0] = STATE_ROWS;
-			s->loop[1] = s->songlen-1;
-		} else
-		{
-			s->loop[0] = w->trackerfy - gcvret;
-			s->loop[1] = MIN(s->songlen-1, w->trackerfy - gcvret + v->rowc);
+			s->loop[0] = ltrackerfy - gcvret;
+			s->loop[1] = ltrackerfy - gcvret + v->rowc;
 		}
-	}
+	} regenGlobalRowc(s);
 }
-void chordDoubleLoopLength(void *_) { s->loop[1] = MIN(s->songlen-1, s->loop[0] + ((s->loop[1] - s->loop[0])<<1) + 1); }
-void chordHalveLoopLength (void *_) { s->loop[1] = s->loop[0] + ((s->loop[1] - s->loop[0])>>1);                        }
-void chordIncrementLoopLength(void *_) { s->loop[1] = MIN(s->songlen-1, s->loop[1] + MAX(1, w->count)); }
-void chordDecrementLoopLength(void *_) { s->loop[1] = MAX(s->loop[0], s->loop[1] - MAX(1, w->count));   }
+void chordDoubleLoopLength   (void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = s->loop[0] + ((s->loop[1] - s->loop[0])<<1) + 1; regenGlobalRowc(s); }
+void chordHalveLoopLength    (void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = s->loop[0] + ((s->loop[1] - s->loop[0])>>1); regenGlobalRowc(s);     }
+void chordIncrementLoopLength(void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = s->loop[1] + MAX(1, w->count); regenGlobalRowc(s);                   }
+void chordDecrementLoopLength(void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = MAX(s->loop[0], s->loop[1] - MAX(1, w->count)); regenGlobalRowc(s);  }
+void chordLoopScaleToCursor(void *_)
+{
+	if (!s->loop[1])
+	{
+		s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1;
+	}
+	if (w->trackerfy < s->loop[0]) s->loop[0] = MAX(w->trackerfy, STATE_ROWS);
+	else                           s->loop[1] = w->trackerfy;
+
+	regenGlobalRowc(s);
+}
 void setChordLoop(void)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "loop range");
-	addTooltipBind(&tt, "loop the current context ", ';', chordLoopContext, NULL);
-	addTooltipBind(&tt, "double the loop length   ", '+', chordDoubleLoopLength, NULL);
-	addTooltipBind(&tt, "double the loop length   ", '*', chordDoubleLoopLength, NULL);
-	addTooltipBind(&tt, "halve the loop length    ", '-', chordHalveLoopLength, NULL);
-	addTooltipBind(&tt, "halve the loop length    ", '/', chordHalveLoopLength, NULL);
+	addTooltipBind(&tt, "loop the current context ", ';', chordLoopContext,         NULL);
+	addTooltipBind(&tt, "double the loop length   ", '+', chordDoubleLoopLength,    NULL);
+	addTooltipBind(&tt, "double the loop length   ", '*', chordDoubleLoopLength,    NULL);
+	addTooltipBind(&tt, "halve the loop length    ", '-', chordHalveLoopLength,     NULL);
+	addTooltipBind(&tt, "halve the loop length    ", '/', chordHalveLoopLength,     NULL);
 	addTooltipBind(&tt, "increment the loop length", 'a', chordIncrementLoopLength, NULL);
-	addTooltipBind(&tt, "decrement the loop length", 'd', chordIncrementLoopLength, NULL);
+	addTooltipBind(&tt, "decrement the loop length", 'd', chordDecrementLoopLength, NULL);
+	addTooltipBind(&tt, "scale loop to cursor     ", 'c', chordLoopScaleToCursor,   NULL);
 	w->chord = ';';
 }

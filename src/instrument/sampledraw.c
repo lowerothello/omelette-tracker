@@ -126,7 +126,7 @@ void drawInstrumentSampler(Instrument *iv)
 	{
 		text = "PRESS 'o' TO OPEN A SAMPLE";
 		printf("\033[%d;%dH%s", CHANNEL_ROW + ((y - CHANNEL_ROW)>>1), INSTRUMENT_INDEX_COLS + ((ws.ws_col - INSTRUMENT_INDEX_COLS - (short)strlen(text))>>1), text);
-	} else if (!(w->instrumentlockv != INST_GLOBAL_LOCK_OK && w->instrumentlocki == s->instrumenti[w->instrument]))
+	} else if (!(w->instrumentlockv != INST_GLOBAL_LOCK_OK && w->instrumentlocki == s->instrument->i[w->instrument]))
 	{
 		if (w->waveformbuffer)
 		{

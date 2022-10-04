@@ -10,3 +10,4 @@ testmods
 
 # files omelette spits out for debugging
 .save_debug
+.bounce_debug

@@ -1,16 +1,15 @@
-char ifMacro(jack_nframes_t fptr, Channel *cv, Row r, char m, char (*callback)(jack_nframes_t, int, Channel *, Row))
+char ifMacro(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r, char m, char (*callback)(jack_nframes_t, uint16_t *, int, Channel *, Row))
 {
 	char ret = 0;
 	for (int i = 0; i <= cv->data.macroc; i++)
 		if (r.macro[i].c == m)
-			ret = callback(fptr, r.macro[i].v, cv, r);
+			ret = callback(fptr, spr, r.macro[i].v, cv, r);
 	return ret;
 }
 
-void changeBpm(Song *cs, uint8_t newbpm)
+void changeBpm(uint16_t *spr, uint8_t newbpm)
 {
-	cs->bpm = newbpm;
-	cs->spr = samplerate * (60.0 / newbpm) / cs->rowhighlight;
+	*spr = samplerate * (60.0 / newbpm) / p->s->rowhighlight;
 }
 
 /* freewheel to fill up the ramp buffer */
@@ -26,7 +25,7 @@ void ramp(Channel *cv, uint8_t realinstrument)
 
 		uint32_t pointeroffset = cv->pointer;
 		uint32_t pitchedpointeroffset = cv->pitchedpointer;
-		if (realinstrument < p->s->instrumentc)
+		if (realinstrument < p->s->instrument->c)
 		{
 			float multiplier = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
 			pitchedpointeroffset += (int)((pointeroffset+1)*multiplier) - (int)(pointeroffset*multiplier);
@@ -87,9 +86,11 @@ void triggerNote(Channel *cv, uint8_t note, uint8_t inst)
 		cv->data.rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 
-		if (!cv->data.mute && instrumentSafe(p->s, inst))
+		if (!cv->data.mute)
 		{
-			p->s->instrumentv[p->s->instrumenti[inst]].triggerflash = samplerate / buffersize *DIV1000 * INSTRUMENT_TRIGGER_FLASH_MS;
+			if (instrumentSafe(p->s, inst))
+				p->s->instrument->v[p->s->instrument->i[inst]].triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S;
+			cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S;
 			p->dirty = 1;
 		}
 	}
@@ -127,7 +128,7 @@ char triggerMidi(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note
 {
 	if (note != NOTE_VOID && !cv->data.mute && instrumentSafe(p->s, inst))
 	{
-		Instrument *iv = &p->s->instrumentv[p->s->instrumenti[inst]];
+		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[inst]];
 		if (iv->midichannel != -1)
 		{
 			/* always stop the prev. note */
@@ -139,7 +140,7 @@ char triggerMidi(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note
 }
 
 
-void preprocessRow(jack_nframes_t fptr, char midi, Channel *cv, Row r)
+void preprocessRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Channel *cv, Row r)
 {
 	char ret;
 	uint8_t oldnote = NOTE_UNUSED;
@@ -174,27 +175,27 @@ void preprocessRow(jack_nframes_t fptr, char midi, Channel *cv, Row r)
 	if (cv->targetfiltercut != -1) { cv->filtercut = cv->targetfiltercut; cv->targetfiltercut = -1; }
 	if (cv->targetfilterres != -1) { cv->filterres = cv->targetfilterres; cv->targetfilterres = -1; }
 
-	ret = ifMacro(fptr, cv, r, 'V', &Vc);
+	ret = ifMacro(fptr, spr, cv, r, 'V', &Vc);
 	if (!ret) cv->vibratosamples = 0;
 
-	if (ifMacro(fptr, cv, r, '%', &percentc)) return;
-	ifMacro(fptr, cv, r, 'b', &Bc); /* bpm */
+	if (ifMacro(fptr, spr, cv, r, '%', &percentc)) return;
+	ifMacro(fptr, spr, cv, r, 'B', &Bc); /* bpm */
 
-	if (cv->pointer
-			&&(ifMacro(fptr, cv, r, 'G', &DUMMY)
-			|| ifMacro(fptr, cv, r, 'I', &DUMMY)))
-		ramp(cv, p->s->instrumenti[cv->samplerinst]);
+	if (cv->pointer && instrumentSafe(p->s, cv->samplerinst)
+			&&(ifMacro(fptr, spr, cv, r, 'G', &DUMMY)
+			|| ifMacro(fptr, spr, cv, r, 'I', &DUMMY)))
+		ramp(cv, p->s->instrument->i[cv->samplerinst]);
 
-	ifMacro(fptr, cv, r, 'G', &Gc); /* gain              */
-	ifMacro(fptr, cv, r, 'I', &Ic); /* rand gain         */
-	ifMacro(fptr, cv, r, 'g', &gc); /* smooth gain       */
-	ifMacro(fptr, cv, r, 'i', &ic); /* smooth rand gain  */
-	ifMacro(fptr, cv, r, 'S', &Sc); /* send              */
-	ifMacro(fptr, cv, r, 's', &sc); /* smooth send       */
+	ifMacro(fptr, spr, cv, r, 'G', &Gc); /* gain              */
+	ifMacro(fptr, spr, cv, r, 'I', &Ic); /* rand gain         */
+	ifMacro(fptr, spr, cv, r, 'g', &gc); /* smooth gain       */
+	ifMacro(fptr, spr, cv, r, 'i', &ic); /* smooth rand gain  */
+	ifMacro(fptr, spr, cv, r, 'S', &Sc); /* send              */
+	ifMacro(fptr, spr, cv, r, 's', &sc); /* smooth send       */
 
-	ret = ifMacro(fptr, cv, r, 'C', &Cc); /* cut */
-	if (!ret && r.note != NOTE_VOID) { ret = ifMacro(fptr, cv, r, 'P', &Pc); /* portamento */
-		if (!ret)                    { ret = ifMacro(fptr, cv, r, 'D', &Dc); /* delay      */
+	ret = ifMacro(fptr, spr, cv, r, 'C', &Cc); /* cut */
+	if (!ret && r.note != NOTE_VOID) { ret = ifMacro(fptr, spr, cv, r, 'P', &Pc); /* portamento */
+		if (!ret)                    { ret = ifMacro(fptr, spr, cv, r, 'D', &Dc); /* delay      */
 			if (!ret)
 			{
 				oldnote = cv->r.note;
@@ -202,12 +203,12 @@ void preprocessRow(jack_nframes_t fptr, char midi, Channel *cv, Row r)
 				if (r.inst == INST_VOID)
 				{
 					if (instrumentSafe(p->s, cv->samplerinst))
-						ramp(cv, p->s->instrumenti[cv->samplerinst]);
+						ramp(cv, p->s->instrument->i[cv->samplerinst]);
 					triggerNote(cv, r.note, cv->r.inst);
 				} else
 				{
 					if (instrumentSafe(p->s, cv->r.inst))
-						ramp(cv, p->s->instrumenti[cv->r.inst]);
+						ramp(cv, p->s->instrument->i[cv->r.inst]);
 					triggerNote(cv, r.note, r.inst);
 				}
 			}
@@ -215,51 +216,51 @@ void preprocessRow(jack_nframes_t fptr, char midi, Channel *cv, Row r)
 	}
 
 	if (cv->pointer && instrumentSafe(p->s, cv->samplerinst)
-			&&(ifMacro(fptr, cv, r, 'F', &DUMMY)
-			|| ifMacro(fptr, cv, r, 'Z', &DUMMY)
-			|| ifMacro(fptr, cv, r, 'O', &DUMMY)
-			|| ifMacro(fptr, cv, r, 'o', &ocPRERAMP)
-			|| ifMacro(fptr, cv, r, 'U', &DUMMY)
-			|| ifMacro(fptr, cv, r, 'u', &DUMMY)))
-		ramp(cv, p->s->instrumenti[cv->samplerinst]);
+			&&(ifMacro(fptr, spr, cv, r, 'F', &DUMMY)
+			|| ifMacro(fptr, spr, cv, r, 'Z', &DUMMY)
+			|| ifMacro(fptr, spr, cv, r, 'O', &DUMMY)
+			|| ifMacro(fptr, spr, cv, r, 'o', &ocPRERAMP)
+			|| ifMacro(fptr, spr, cv, r, 'U', &DUMMY)
+			|| ifMacro(fptr, spr, cv, r, 'u', &DUMMY)))
+		ramp(cv, p->s->instrument->i[cv->samplerinst]);
 
-	ifMacro(fptr, cv, r, 'F', &Fc); /* cutoff            */
-	ifMacro(fptr, cv, r, 'Z', &Zc); /* resonance         */
-	ifMacro(fptr, cv, r, 'f', &fc); /* smooth cutoff     */
-	ifMacro(fptr, cv, r, 'z', &zc); /* smooth resonance  */
-	ifMacro(fptr, cv, r, 'O', &Oc); /* offset            */
-	ifMacro(fptr, cv, r, 'o', &oc); /* bw offset         */
-	ifMacro(fptr, cv, r, 'U', &Uc); /* rand offset       */
-	ifMacro(fptr, cv, r, 'u', &uc); /* rand bw offset    */
-	ifMacro(fptr, cv, r, 'E', &Ec); /* local envelope    */
-	ifMacro(fptr, cv, r, 'H', &Hc); /* local pitch shift */
-	ifMacro(fptr, cv, r, 'L', &Lc); /* local cyclelength */
+	ifMacro(fptr, spr, cv, r, 'F', &Fc); /* cutoff            */
+	ifMacro(fptr, spr, cv, r, 'Z', &Zc); /* resonance         */
+	ifMacro(fptr, spr, cv, r, 'f', &fc); /* smooth cutoff     */
+	ifMacro(fptr, spr, cv, r, 'z', &zc); /* smooth resonance  */
+	ifMacro(fptr, spr, cv, r, 'O', &Oc); /* offset            */
+	ifMacro(fptr, spr, cv, r, 'o', &oc); /* bw offset         */
+	ifMacro(fptr, spr, cv, r, 'U', &Uc); /* rand offset       */
+	ifMacro(fptr, spr, cv, r, 'u', &uc); /* rand bw offset    */
+	ifMacro(fptr, spr, cv, r, 'E', &Ec); /* local envelope    */
+	ifMacro(fptr, spr, cv, r, 'H', &Hc); /* local pitch shift */
+	ifMacro(fptr, spr, cv, r, 'L', &Lc); /* local cyclelength */
 
 	/* midi */
-	if (oldnote != NOTE_UNUSED && midi) /* trigger midi (needs to be after gain calculation) */
+	if (midi && oldnote != NOTE_UNUSED) /* trigger midi (needs to be after gain calculation) */
 	{
 		if (r.inst == INST_VOID) { if (cv->r.inst != INST_VOID) ret = triggerMidi(fptr, cv, oldnote, r.note, cv->r.inst); }
 		else                                                    ret = triggerMidi(fptr, cv, oldnote, r.note, r.inst);
 	}
-	ifMacro(fptr, cv, r, ';', &midicctargetc);
-	ifMacro(fptr, cv, r, '@', &midipcc);
-	ifMacro(fptr, cv, r, '.', &midiccc);
+	ifMacro(fptr, spr, cv, r, ';', &midicctargetc);
+	ifMacro(fptr, spr, cv, r, '@', &midipcc);
+	ifMacro(fptr, spr, cv, r, '.', &midiccc);
 
-	ifMacro(fptr, cv, r, 'M', &Mc);             /* microtonal offset  */
+	ifMacro(fptr, spr, cv, r, 'M', &Mc);             /* microtonal offset  */
 
 	/* retrigger macros (all *4* of them) */
-	if (       !ifMacro(fptr, cv, r, 'q', &qc)  /* bw retrigger       */
-	        && !ifMacro(fptr, cv, r, 'Q', &Qc)  /* retrigger          */
-	        && !ifMacro(fptr, cv, r, 'r', &rc)) /* bw block retrigger */
-		ifMacro(fptr, cv, r, 'R', &Rc);         /* block retrigger    */
+	if (       !ifMacro(fptr, spr, cv, r, 'q', &qc)  /* bw retrigger       */
+	        && !ifMacro(fptr, spr, cv, r, 'Q', &Qc)  /* retrigger          */
+	        && !ifMacro(fptr, spr, cv, r, 'r', &rc)) /* bw block retrigger */
+		ifMacro(fptr, spr, cv, r, 'R', &Rc);         /* block retrigger    */
 	if (cv->rtrigsamples && cv->rtrigblocksize < -1)
 	{ /* clean up if the last row had a [Q,q]xx and this row doesn't */
 		cv->data.rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 	}
 
-	ifMacro(fptr, cv, r, 'W', &Wc); /* waveshaper         */
-	ifMacro(fptr, cv, r, 'w', &wc); /* smooth waveshaper  */
+	ifMacro(fptr, spr, cv, r, 'W', &Wc); /* waveshaper         */
+	ifMacro(fptr, spr, cv, r, 'w', &wc); /* smooth waveshaper  */
 }
 
 void postSampler(jack_nframes_t fptr, Channel *cv, float rp,
@@ -394,6 +395,10 @@ void postSampler(jack_nframes_t fptr, Channel *cv, float rp,
 		rf *= (gain%16)*DIV16;
 	}
 
+	/* channel insert effects */
+	for (uint8_t i = 0; i < cv->data.effect.c; i++)
+		stepEffect(&cv->data.effect.v[i], &lf, &rf);
+
 	if (cv->outputl && cv->outputr)
 	{
 		cv->outputl[fptr] = lf;
@@ -411,7 +416,7 @@ void postSampler(jack_nframes_t fptr, Channel *cv, float rp,
 	} */
 }
 
-void playChannelLookback(jack_nframes_t fptr, Channel *cv)
+void playChannelLookback(jack_nframes_t fptr, uint16_t *spr, Channel *cv)
 {
 	float multiplier;
 	uint32_t delta;
@@ -426,12 +431,12 @@ void playChannelLookback(jack_nframes_t fptr, Channel *cv)
 		triggerNote(cv, cv->delaynote, cv->delayinst);
 		cv->delaysamples = 0;
 
-		ifMacro(fptr, cv, cv->r, 'O', &Oc); /* offset         */
-		ifMacro(fptr, cv, cv->r, 'o', &oc); /* bw offset      */
-		ifMacro(fptr, cv, cv->r, 'U', &Uc); /* rand offset    */
-		ifMacro(fptr, cv, cv->r, 'u', &uc); /* rand bw offset */
-		ifMacro(fptr, cv, cv->r, 'M', &Mc); /* microtonal offset */
-		ifMacro(fptr, cv, cv->r, 'E', &Ec); /* local envelope    */
+		ifMacro(fptr, spr, cv, cv->r, 'O', &Oc); /* offset         */
+		ifMacro(fptr, spr, cv, cv->r, 'o', &oc); /* bw offset      */
+		ifMacro(fptr, spr, cv, cv->r, 'U', &Uc); /* rand offset    */
+		ifMacro(fptr, spr, cv, cv->r, 'u', &uc); /* rand bw offset */
+		ifMacro(fptr, spr, cv, cv->r, 'M', &Mc); /* microtonal offset */
+		ifMacro(fptr, spr, cv, cv->r, 'E', &Ec); /* local envelope    */
 		cv->envgain = 0; /* TODO: necessary? */ /* not perfect, but a good enough assumption */
 	} else if (cv->cutsamples)
 	{ /* cut is set and takes priority over delay */
@@ -441,7 +446,7 @@ void playChannelLookback(jack_nframes_t fptr, Channel *cv)
 		return;
 	}
 
-	for (sprp = sprs; sprp < p->s->spr; sprp++)
+	for (sprp = sprs; sprp < *spr; sprp++)
 	{
 		cv->finetune = cv->microtonalfinetune;
 		if (cv->portamentosamplepointer == cv->portamentosamples)
@@ -472,8 +477,8 @@ void playChannelLookback(jack_nframes_t fptr, Channel *cv)
 	if (instrumentSafe(p->s, cv->samplerinst) && cv->samplernote != NOTE_VOID
 			&& cv->samplernote != NOTE_OFF && cv->samplerinst != INST_VOID)
 	{
-		Instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
-		for (sprp = 0; sprp < p->s->spr - sprs; sprp++)
+		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[cv->samplerinst]];
+		for (sprp = 0; sprp < *spr - sprs; sprp++)
 			envelope(iv, cv, cv->pointer+sprp);
 
 		if (cv->portamentosamplepointer >= cv->portamentosamples)
@@ -489,7 +494,7 @@ void playChannelLookback(jack_nframes_t fptr, Channel *cv)
 		} cv->pointer += sprp - sprs;
 	}
 }
-void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
+void playChannel(bool midi, jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Channel *cv)
 {
 	short li = 0;
 	short ri = 0;
@@ -499,29 +504,31 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 
 	if (cv->cutsamples && sprp > cv->cutsamples)
 	{
-		ramp(cv, p->s->instrumenti[cv->samplerinst]);
+		if (instrumentSafe(p->s, cv->samplerinst))
+			ramp(cv, p->s->instrument->i[cv->samplerinst]);
 		triggerNote(cv, NOTE_OFF, cv->r.inst);
-		triggerMidi(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
+		if (midi) triggerMidi(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 		cv->cutsamples = 0;
 	}
 	if (cv->delaysamples && sprp > cv->delaysamples)
 	{
-		ramp(cv, p->s->instrumenti[cv->delayinst]);
+		if (instrumentSafe(p->s, cv->delayinst))
+			ramp(cv, p->s->instrument->i[cv->delayinst]);
 		triggerNote(cv, cv->delaynote, cv->delayinst);
-		triggerMidi(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
+		if (midi) triggerMidi(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
 		cv->delaysamples = 0;
 
-		ifMacro(fptr, cv, cv->r, 'F', &Fc); /* cutoff            */
-		ifMacro(fptr, cv, cv->r, 'Z', &Zc); /* resonance         */
-		ifMacro(fptr, cv, cv->r, 'f', &fc); /* smooth cutoff     */
-		ifMacro(fptr, cv, cv->r, 'z', &zc); /* smooth resonance  */
-		ifMacro(fptr, cv, cv->r, 'O', &Oc); /* offset            */
-		ifMacro(fptr, cv, cv->r, 'o', &oc); /* bw offset         */
-		ifMacro(fptr, cv, cv->r, 'U', &Uc); /* rand offset       */
-		ifMacro(fptr, cv, cv->r, 'u', &uc); /* rand bw offset    */
-		ifMacro(fptr, cv, cv->r, 'E', &Ec); /* local envelope    */
-		ifMacro(fptr, cv, cv->r, 'H', &Hc); /* local pitch shift */
-		ifMacro(fptr, cv, cv->r, 'L', &Lc); /* local cyclelength */
+		ifMacro(fptr, spr, cv, cv->r, 'F', &Fc); /* cutoff            */
+		ifMacro(fptr, spr, cv, cv->r, 'Z', &Zc); /* resonance         */
+		ifMacro(fptr, spr, cv, cv->r, 'f', &fc); /* smooth cutoff     */
+		ifMacro(fptr, spr, cv, cv->r, 'z', &zc); /* smooth resonance  */
+		ifMacro(fptr, spr, cv, cv->r, 'O', &Oc); /* offset            */
+		ifMacro(fptr, spr, cv, cv->r, 'o', &oc); /* bw offset         */
+		ifMacro(fptr, spr, cv, cv->r, 'U', &Uc); /* rand offset       */
+		ifMacro(fptr, spr, cv, cv->r, 'u', &uc); /* rand bw offset    */
+		ifMacro(fptr, spr, cv, cv->r, 'E', &Ec); /* local envelope    */
+		ifMacro(fptr, spr, cv, cv->r, 'H', &Hc); /* local pitch shift */
+		ifMacro(fptr, spr, cv, cv->r, 'L', &Lc); /* local cyclelength */
 	}
 
 	cv->finetune = cv->microtonalfinetune;
@@ -557,16 +564,16 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 		if (cv->vibratosamplepointer > cv->vibratosamples)
 		{
 			cv->vibratosamplepointer = 0;
-			if (!ifMacro(fptr, cv, cv->r, 'V', &Vc))
+			if (!ifMacro(fptr, spr, cv, cv->r, 'V', &Vc))
 				cv->vibratosamples = 0;
 		}
 	}
 
 	if (instrumentSafe(p->s, cv->samplerinst))
 	{
-		Instrument *iv = &p->s->instrumentv[p->s->instrumenti[cv->samplerinst]];
+		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[cv->samplerinst]];
 
-		if (!cv->data.mute && !(sprp%PITCH_WHEEL_SAMPLES) && iv->midichannel != -1 && cv->finetune != 0.0f)
+		if (midi && !cv->data.mute && !(sprp%PITCH_WHEEL_SAMPLES) && iv->midichannel != -1 && cv->finetune != 0.0f)
 			midiPitchWheel(fptr, iv->midichannel, MIN(2.0f, MAX(-2.0f, cv->finetune + cv->portamentofinetune)));
 
 		/* process the sampler */
@@ -577,7 +584,7 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 				uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
 				if (!rtrigoffset)
 				{ /* first sample of any retrigger */
-					if (iv->midichannel != -1)
+					if (midi && iv->midichannel != -1)
 					{
 						midiNoteOff(fptr, iv->midichannel, cv->r.note, (cv->randgain>>4)<<3);
 						midiNoteOn (fptr, iv->midichannel, cv->r.note, (cv->randgain>>4)<<3);
@@ -585,9 +592,9 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 					if (cv->pointer > cv->rtrigpointer) /* first sample of any retrigger but the first */
 						cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
 				}
-				if (cv->data.rtrig_rev) samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
-				else                    samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
-			} else samplerProcess(p->s->instrumenti[cv->samplerinst], cv, cv->pointer, cv->pitchedpointer, &li, &ri);
+				if (cv->data.rtrig_rev) samplerProcess(p->s->instrument->i[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
+				else                    samplerProcess(p->s->instrument->i[cv->samplerinst], cv, cv->pointer, cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
+			} else samplerProcess(p->s->instrument->i[cv->samplerinst], cv, cv->pointer, cv->pitchedpointer, &li, &ri);
 
 			if (cv->portamentosamplepointer >= cv->portamentosamples)
 			{ /* only walk pitchedpointer if not pitch sliding */
@@ -606,7 +613,7 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 	float rf = (float)ri*DIVSHRT;
 
 	float samplegain;
-	float rowprogress = (float)sprp / (float)p->s->spr;
+	float rowprogress = (float)sprp / (float)(*spr);
 	if (cv->rampbuffer && cv->rampindex < rampmax)
 	{ // ramping
 		if (!cv->data.mute)
@@ -615,14 +622,14 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 
 			if (instrumentSafe(p->s, cv->samplerinst))
 			{
-				samplegain = powf(2, (float)p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV16);
+				samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->samplerinst]].gain*DIV16);
 				lf *= samplegain * gain;
 				rf *= samplegain * gain;
 			}
 
-			if (cv->rampinst < p->s->instrumentc)
+			if (cv->rampinst < p->s->instrument->c)
 			{
-				samplegain = powf(2, (float)p->s->instrumentv[p->s->instrumenti[cv->rampinst]].gain*DIV16);
+				samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->rampinst]].gain*DIV16);
 				lf += ((float)cv->rampbuffer[cv->rampindex*2 + 0]*DIVSHRT)*samplegain * (1.0f - gain);
 				rf += ((float)cv->rampbuffer[cv->rampindex*2 + 1]*DIVSHRT)*samplegain * (1.0f - gain);
 			}
@@ -634,7 +641,7 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 		cv->rampindex++;
 	} else if (!cv->data.mute && instrumentSafe(p->s, cv->samplerinst))
 	{
-		samplegain = powf(2, (float)p->s->instrumentv[p->s->instrumenti[cv->samplerinst]].gain*DIV16);
+		samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->samplerinst]].gain*DIV16);
 		lf *= samplegain;
 		rf *= samplegain;
 
@@ -643,14 +650,14 @@ void playChannel(jack_nframes_t fptr, uint16_t sprp, Channel *cv)
 	}
 }
 
-void lookback(jack_nframes_t fptr)
+void lookback(jack_nframes_t fptr, uint16_t *spr)
 {
 	/* for every row before the current one */
 	for (uint16_t r = 0; r < p->s->playfy; r++)
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
-			preprocessRow(fptr, 0, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, r));
-			playChannelLookback(fptr, &p->s->channelv[c]);
+			preprocessRow(fptr, spr, 0, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, r));
+			playChannelLookback(fptr, spr, &p->s->channelv[c]);
 		}
 }
 
@@ -663,8 +670,8 @@ typedef struct
 
 void *channelThreadRoutine(void *arg)
 {
-	for (int i = 0; i < ((ChannelThreadArg *)arg)->iterations; i++)
-		playChannel(((ChannelThreadArg *)arg)->fptroffset + i,
+	for (jack_nframes_t i = 0; i < ((ChannelThreadArg *)arg)->iterations; i++)
+		playChannel(1, ((ChannelThreadArg *)arg)->fptroffset + i, &p->s->spr,
 				p->s->sprp + i, ((ChannelThreadArg *)arg)->cv);
 	return NULL;
 }
@@ -681,9 +688,7 @@ int process(jack_nframes_t nfptr, void *arg)
 	pb.out.r =   jack_port_get_buffer(p->out.r,   nfptr); memset(pb.out.r, 0, nfptr * sizeof(sample_t));
 	pb.midiout = jack_port_get_buffer(p->midiout, nfptr); jack_midi_clear_buffer(pb.midiout);
 
-	if (p->sem == M_SEM_RELOAD_REQ) p->sem++;
-	if (p->sem != M_SEM_OK) return 0;
-
+	if (processM_SEM()) return 0;
 
 	/* will no longer write to the record buffer */
 	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_END)    p->w->instrumentrecv = INST_REC_LOCK_END;
@@ -700,9 +705,9 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
-			if (p->s->instrumenti[cv->r.inst] == p->w->instrumentlocki)
+			if (p->s->instrument->i[cv->r.inst] == p->w->instrumentlocki)
 			{
-				midiNoteOff(0, p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
+				midiNoteOff(0, p->s->instrument->v[p->s->instrument->i[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
 				cv->r.note = NOTE_VOID;
 			}
 		} p->w->instrumentlockv = INST_GLOBAL_LOCK_OK;
@@ -714,9 +719,9 @@ int process(jack_nframes_t nfptr, void *arg)
 		for (uint8_t c = 0; c < p->s->channelc; c++)
 		{
 			cv = &p->s->channelv[c];
-			if (cv->data.mute && instrumentSafe(p->s, cv->r.inst) && p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel != -1)
+			if (cv->data.mute && instrumentSafe(p->s, cv->r.inst) && p->s->instrument->v[p->s->instrument->i[cv->r.inst]].midichannel != -1)
 			{
-				midiNoteOff(0, p->s->instrumentv[p->s->instrumenti[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
+				midiNoteOff(0, p->s->instrument->v[p->s->instrument->i[cv->r.inst]].midichannel, cv->r.note, (cv->randgain>>4)<<3);
 				cv->r.note = NOTE_VOID;
 			}
 		}
@@ -738,7 +743,7 @@ int process(jack_nframes_t nfptr, void *arg)
 			p->w->previewchannel.samplernote = holdnote;
 			p->w->previewchannel.samplerinst = holdinst;
 
-			preprocessRow(0, 1, &p->w->previewchannel, p->w->previewrow);
+			preprocessRow(0, &p->s->spr, 1, &p->w->previewchannel, p->w->previewrow);
 		}
 		p->w->previewtrigger = 0;
 	}
@@ -746,7 +751,7 @@ int process(jack_nframes_t nfptr, void *arg)
 	/* start/stop playback */
 	if (p->s->playing == PLAYING_START)
 	{
-		changeBpm(p->s, p->s->songbpm);
+		changeBpm(&p->s->spr, p->s->songbpm);
 		p->s->sprp = 0;
 
 		/* stop preview */
@@ -760,12 +765,17 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv = &p->s->channelv[c];
 			if (!cv->data.mute && instrumentSafe(p->s, cv->r.inst))
 			{
-				iv = &p->s->instrumentv[p->s->instrumenti[cv->r.inst]];
+				iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
 				if (iv->midichannel != -1) midiNoteOff(0, iv->midichannel, cv->r.note, (cv->randgain>>4)<<3);
 			} clearChannelRuntime(cv);
 		}
 
-		lookback(0);
+		lookback(0, &p->s->spr);
+
+		/* preprocess the first row */
+		for (uint8_t c = 0; c < p->s->channelc; c++)
+			preprocessRow(0, &p->s->spr, 1, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, p->s->playfy));
+
 
 		/* start recording if cueing */
 		if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START)
@@ -782,7 +792,8 @@ int process(jack_nframes_t nfptr, void *arg)
 			cv = &p->s->channelv[i];
 			cv->delaysamples = 0;
 			cv->cutsamples = 0;
-			ramp(cv, p->s->instrumenti[cv->samplerinst]);
+			if (instrumentSafe(p->s, cv->samplerinst))
+				ramp(cv, p->s->instrument->i[cv->samplerinst]);
 			triggerNote(cv, NOTE_OFF, cv->r.inst);
 			triggerMidi(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 		}
@@ -793,7 +804,7 @@ int process(jack_nframes_t nfptr, void *arg)
 
 	if (p->w->request == REQ_BPM)
 	{
-		changeBpm(p->s, p->s->songbpm);
+		changeBpm(&p->s->spr, p->s->songbpm);
 		p->w->request = REQ_OK;
 	}
 
@@ -837,21 +848,25 @@ int process(jack_nframes_t nfptr, void *arg)
 
 			if (p->s->playing == PLAYING_CONT)
 			{
-				/* preprocess channels */
-				for (uint8_t c = 0; c < p->s->channelc; c++)
-					preprocessRow(fptr, 1, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, p->s->playfy));
-
-				/* loop at the end of the song */
-				if (p->s->playfy++ >= p->s->loop[1])
+				/* walk the pointer and loop */
+				p->s->playfy++;
+				if (p->s->loop[1] && p->s->playfy > p->s->loop[1])
 				{
 					p->s->playfy = p->s->loop[0];
-					lookback(fptr);
-					
+					lookback(fptr, &p->s->spr);
+				} else if (!p->s->loop[1] && p->s->playfy >= p->s->songlen)
+				{
+					p->s->playfy = STATE_ROWS;
+					lookback(fptr, &p->s->spr);
+				}
 					/* handle record cue */
 					/* TODO: how to do record cue with the new sequencing approach? */
 					/* if (p->w->instrumentrecv == INST_REC_LOCK_CUE_CONT) p->w->instrumentrecv = INST_REC_LOCK_END;
 					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START) p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT; */
-				}
+
+				/* preprocess channels */
+				for (uint8_t c = 0; c < p->s->channelc; c++)
+					preprocessRow(fptr, &p->s->spr, 1, &p->s->channelv[c], *getChannelRow(&p->s->channelv[c].data, p->s->playfy));
 
 				if (p->w->follow)
 					p->w->trackerfy = p->s->playfy;
@@ -963,12 +978,19 @@ int process(jack_nframes_t nfptr, void *arg)
 	updateBackground(nfptr, pb.out.l, pb.out.r);
 #endif
 
-	/* instrument trigger animation */
-	for (int i = 0; i < p->s->instrumentc; i++)
-		if (p->s->instrumentv[i].triggerflash)
+	/* triggerflash animations */
+	for (int i = 0; i < p->s->instrument->c; i++)
+		if (p->s->instrument->v[i].triggerflash)
 		{
-			if (p->s->instrumentv[i].triggerflash == 1) p->dirty = 1;
-			p->s->instrumentv[i].triggerflash--;
+			if (p->s->instrument->v[i].triggerflash == 1) p->dirty = 1;
+			p->s->instrument->v[i].triggerflash--;
+		}
+
+	for (int i = 0; i < p->s->channelc; i++)
+		if (p->s->channelv[i].triggerflash)
+		{
+			if (p->s->channelv[i].triggerflash == 1) p->dirty = 1;
+			p->s->channelv[i].triggerflash--;
 		}
 
 	return 0;

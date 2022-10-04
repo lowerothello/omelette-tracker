@@ -3,15 +3,21 @@ Song *_addSong(void)
 	Song *cs = calloc(1, sizeof(Song));
 	if (!cs) return NULL;
 
-	cs->instrumentc = 0;
-
 	cs->rowhighlight = 4;
 	cs->songbpm = DEF_BPM;
 	w->request = REQ_BPM;
 
-	memset(cs->instrumenti, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
-
 	return cs;
+}
+
+Song *addSong(void)
+{
+	Song *ret = _addSong();
+
+	ret->instrument = calloc(1, sizeof(InstrumentChain));
+	memset(ret->instrument->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
+
+	return ret;
 }
 
 void delSong(Song *cs)
@@ -20,9 +26,9 @@ void delSong(Song *cs)
 		_delChannel(&cs->channelv[i]);
 	free(cs->channelv);
 
-	for (int i = 0; i < cs->instrumentc; i++)
-		_delInstrument(&cs->instrumentv[i]);
-	free(cs->instrumentv);
+	for (int i = 0; i < cs->instrument->c; i++)
+		_delInstrument(&cs->instrument->v[i]);
+	free(cs->instrument);
 
 	free(cs);
 }

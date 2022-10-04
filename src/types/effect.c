@@ -6,6 +6,7 @@
 /* IMPORTANT NOTE: effects can NOT register any more than 16 controls! */
 /* TODO: fix this, controls should be dynamically allocated            */
 #include "../effect/distortion.c"
+#include "../effect/equalizer.c"
 
 
 uint8_t getEffectControlCount(Effect *e)
@@ -13,6 +14,7 @@ uint8_t getEffectControlCount(Effect *e)
 	switch (e->type)
 	{
 		case 1: return distortionControlCount;
+		case 2: return equalizerControlCount;
 	} return 0; /* fallback */
 }
 
@@ -23,6 +25,7 @@ void freeEffect(Effect *e)
 	switch (e->type)
 	{
 		case 1: break;
+		case 2: break;
 	}
 	free(e->state);
 	e->state = NULL;
@@ -35,6 +38,7 @@ void setEffectType(Effect *e, uint8_t type)
 	switch (type)
 	{
 		case 1: initDistortion(e); break;
+		case 2: initEqualizer(e); break;
 	}
 }
 void addEffect(EffectChain *chain, uint8_t type, uint8_t index)
@@ -88,6 +92,7 @@ void copyEffect(Effect *dest, Effect *src)
 	switch (src->type)
 	{
 		case 1: copyDistortion(dest, src); break;
+		case 2: copyEqualizer(dest, src); break;
 	}
 }
 
@@ -98,6 +103,7 @@ void serializeEffect(Effect *e, FILE *fp)
 	switch (e->type)
 	{
 		case 1: serializeDistortion(e, fp); break;
+		case 2: serializeEqualizer(e, fp); break;
 	}
 }
 void deserializeEffect(Effect *e, FILE *fp, uint8_t major, uint8_t minor)
@@ -107,6 +113,7 @@ void deserializeEffect(Effect *e, FILE *fp, uint8_t major, uint8_t minor)
 	switch (e->type)
 	{
 		case 1: initDistortion(e); deserializeDistortion(e, fp); break;
+		case 2: initEqualizer(e); deserializeEqualizer(e, fp); break;
 	}
 }
 
@@ -115,17 +122,19 @@ short getEffectHeight(Effect *e, short w)
 	switch (e->type)
 	{
 		case 1: return getDistortionHeight(e, w);
+		case 2: return getEqualizerHeight(e, w);
 	} return 0; /* fallback */
 }
 int drawEffect(Effect *e, ControlState *cc, bool selected,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
-	short ret = 0;
 	switch (e->type)
 	{
-		case 1: drawDistortion(e, cc, x, w, y, ymin, ymax); ret = getDistortionHeight(e, w); break;
+		case 1: drawDistortion(e, cc, x, w, y, ymin, ymax); break;
+		case 2: drawEqualizer(e, cc, x, w, y, ymin, ymax); break;
 	}
+	short ret = getEffectHeight(e, w);
 
 	y--;
 	if (selected) printf("\033[1m");
@@ -162,5 +171,6 @@ void stepEffect(Effect *e, float *l, float *r)
 	switch (e->type)
 	{
 		case 1: stepDistortion(e, l, r); break;
+		case 2: stepEqualizer(e, l, r); break;
 	}
 }

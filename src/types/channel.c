@@ -184,6 +184,10 @@ void copyChanneldata(ChannelData *dest, ChannelData *src)
 	if (src->trig) memcpy(dest->trig, src->trig,    s->songlen * sizeof(Vtrig));
 	else           memset(dest->trig, VARIANT_VOID, s->songlen * sizeof(Vtrig));
 
+	for (uint8_t i = 0; i < src->effect.c; i++)
+		copyEffect(&dest->effect.v[i], &src->effect.v[i]);
+	dest->effect.c = src->effect.c;
+
 	dest->macroc = src->macroc;
 }
 
@@ -345,6 +349,7 @@ int getChannelVariant(Variant **output, ChannelData *cd, uint16_t index)
 }
 
 /* the effective rowc, how many rows are actually used */
+/* only implemented for the global variant             */
 uint16_t getSignificantRowc(ChannelData *cd)
 {
 	/* get the length if only the variant triggers */
@@ -372,10 +377,14 @@ uint16_t getSignificantRowc(ChannelData *cd)
 
 void regenGlobalRowc(Song *cs)
 {
-	uint16_t oldsonglen = cs->songlen;
 	cs->songlen = STATE_ROWS;
 	for (uint8_t i = 0; i < cs->channelc; i++)
 		cs->songlen = MAX(cs->songlen, getSignificantRowc(&cs->channelv[i].data));
+
+	/* both zeroed out if the loop range is unset              */
+	/* only check loop1 cos loop1 is always greater than loop0 */
+	if (cs->loop[1])
+		cs->songlen = MAX(cs->loop[1]+1, cs->songlen);
 
 	cs->songlen += 4*s->rowhighlight;
 
@@ -383,12 +392,6 @@ void regenGlobalRowc(Song *cs)
 		resizeChanneldataGlobalVariant(&cs->channelv[i].data, cs->songlen);
 
 	w->trackerfy = MIN(cs->songlen-1, w->trackerfy);
-
-	if (cs->loop[0] > cs->songlen-1)
-		cs->loop[0] = cs->songlen-1;
-
-	if (cs->loop[1] > cs->songlen-1 || cs->loop[1] == oldsonglen-1)
-		cs->loop[1] = cs->songlen-1;
 }
 
 void serializeVariant(Variant *v, FILE *fp)

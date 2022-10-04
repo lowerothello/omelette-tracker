@@ -24,24 +24,24 @@ void drawInstrument(void)
 			{
 				if (instrumentSafe(s, i))
 				{
-					iv = &s->instrumentv[s->instrumenti[i]];
-					if (iv->triggerflash) printf("\033[%d;1H\033[7m%02x %02x \033[4%dm<%08x>\033[40;22;27m", w->centre - w->instrument + i, i, s->instrumenti[i], i%6 + 1, iv->length);
-					else                  printf("\033[%d;1H\033[7m%02x %02x \033[1m<%08x>\033[22;27m",      w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
-				} else                    printf("\033[%d;1H\033[7m%02x %02x  ........ \033[27m",            w->centre - w->instrument + i, i, s->instrumenti[i]);
+					iv = &s->instrument->v[s->instrument->i[i]];
+					if (iv->triggerflash) printf("\033[%d;1H\033[7m%02x %02x \033[4%dm<%08x>\033[40;22;27m", w->centre - w->instrument + i, i, s->instrument->i[i], i%6 + 1, iv->length);
+					else                  printf("\033[%d;1H\033[7m%02x %02x \033[1m<%08x>\033[22;27m",      w->centre - w->instrument + i, i, s->instrument->i[i], iv->length);
+				} else                    printf("\033[%d;1H\033[7m%02x %02x  ........ \033[27m",            w->centre - w->instrument + i, i, s->instrument->i[i]);
 			} else
 			{
 				if (instrumentSafe(s, i))
 				{
-					iv = &s->instrumentv[s->instrumenti[i]];
-					if (iv->triggerflash) printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[3%dm<%08x>\033[37;22m", w->centre - w->instrument + i, i, s->instrumenti[i], i%6 + 1, iv->length);
-					else                  printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[1m<%08x>\033[22m",      w->centre - w->instrument + i, i, s->instrumenti[i], iv->length);
-				} else                    printf("\033[%d;1H%02x \033[2m%02x\033[22m  ........ ",                 w->centre - w->instrument + i, i, s->instrumenti[i]);
+					iv = &s->instrument->v[s->instrument->i[i]];
+					if (iv->triggerflash) printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[3%dm<%08x>\033[37;22m", w->centre - w->instrument + i, i, s->instrument->i[i], i%6 + 1, iv->length);
+					else                  printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[1m<%08x>\033[22m",      w->centre - w->instrument + i, i, s->instrument->i[i], iv->length);
+				} else                    printf("\033[%d;1H%02x \033[2m%02x\033[22m  ........ ",                 w->centre - w->instrument + i, i, s->instrument->i[i]);
 			}
 		}
 
 	if (instrumentSafe(s, w->instrument))
 	{
-		iv = &s->instrumentv[s->instrumenti[w->instrument]];
+		iv = &s->instrument->v[s->instrument->i[w->instrument]];
 		switch (w->page)
 		{
 			case PAGE_INSTRUMENT_SAMPLE: drawInstrumentSampler(iv); break;

@@ -1,3 +1,5 @@
+const uint8_t distortionControlCount = 9;
+
 /*
  * bias:
  *   add dc offset to the input signal
@@ -22,14 +24,12 @@
 #define E_D_ALG_SOFTCLIP 1
 #define E_D_ALG_WAVEFOLD 2
 #define E_D_ALG_WAVEWRAP 5
-#define E_D_ALG_HARDGATE 4
 typedef struct
 {
 	int8_t  bias;
 	bool    biasstereo;
-	int8_t  gain;
-	uint8_t tone;
-	uint8_t noise;
+	uint8_t drive;
+	uint8_t gate;
 
 	uint8_t emphasispitch;
 	int8_t  emphasisgain;
@@ -37,7 +37,7 @@ typedef struct
 
 	int8_t  parallel;
 
-	uint8_t algorithm;
+	int8_t algorithm;
 
 	SVFilter parallelfilter[2];
 } DistortionState;
@@ -54,8 +54,6 @@ void copyDistortion(Effect *dest, Effect *src) { memcpy(dest->state, src->state,
 void serializeDistortion  (Effect *e, FILE *fp) { fwrite(e->state, sizeof(DistortionState), 1, fp); }
 void deserializeDistortion(Effect *e, FILE *fp) { fread (e->state, sizeof(DistortionState), 1, fp); }
 
-
-const uint8_t distortionControlCount = 10;
 
 short getDistortionHeight(Effect *e, short w)
 {
@@ -81,21 +79,18 @@ void drawDistortion(Effect *e, ControlState *cc,
 		if (ymin <= y+0 && ymax >= y+0) printf("\033[%d;%dH \033[1m#                              DISTORTION                               #\033[m ", y+0, xx);
 		if (ymin <= y+1 && ymax >= y+1)
 		{
-			printf("\033[%d;%dHgain/tone: [   ][  ]  algorithm [        ]  bias: [   ][ ]  parallel: [   ]", y+1, xx);
-			addControl(cc, xx+12, y+1, &s->gain, 3, 0, 0, 0);
-			addControl(cc, xx+17, y+1, &s->tone, 2, 0x0, 0xff, 0);
-			addControl(cc, xx+33, y+1, &s->algorithm, 1, 0, 4, 8);
+			printf("\033[%d;%dHdrive:          [  ]  algorithm [        ]  bias: [   ][ ]  parallel: [   ]", y+1, xx);
+			addControl(cc, xx+17, y+1, &s->drive, 2, 0x0, 0xff, 0);
+			addControl(cc, xx+33, y+1, &s->algorithm, 1, 0, 3, 8);
 				setControlPrettyName(cc, "HARDCLIP");
 				setControlPrettyName(cc, "SOFTCLIP");
 				setControlPrettyName(cc, "WAVEFOLD");
 				setControlPrettyName(cc, "WAVEWRAP");
-				setControlPrettyName(cc, "HARDGATE");
 			addControl(cc, xx+51, y+1, &s->bias, 3, 0, 0, 0);
 			addControl(cc, xx+56, y+1, &s->biasstereo, 0, 0, 1, 0);
 			addControl(cc, xx+71, y+1, &s->parallel, 3, 0, 0, 0);
 		} else
 		{
-			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
@@ -108,11 +103,11 @@ void drawDistortion(Effect *e, ControlState *cc,
 		if (ymin <= y+0 && ymax >= y+0) printf("\033[%d;%dH +                   emphasis                   + ", y+0, xx);
 		if (ymin <= y+1 && ymax >= y+1)
 		{
-			printf("\033[%d;%dHpitch: [  ]  gain: [   ]  width: [00]  noise: [00]", y+1, xx);
+			printf("\033[%d;%dHpitch: [  ]  gain: [   ]  width: [00]  gate:  [00]", y+1, xx);
 			addControl(cc, xx+8,  y+1, &s->emphasispitch, 2, 0x0, 0xff, 0);
 			addControl(cc, xx+20, y+1, &s->emphasisgain, 3, 0, 0, 0);
 			addControl(cc, xx+34, y+1, &s->emphasiswidth, 2, 0x0, 0xff, 0);
-			addControl(cc, xx+47, y+1, &s->noise, 2, 0x0, 0xff, 0);
+			addControl(cc, xx+47, y+1, &s->gate, 2, 0x0, 0xff, 0);
 		} else
 		{
 			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
@@ -130,23 +125,20 @@ void drawDistortion(Effect *e, ControlState *cc,
 		if (ymin <= y+0 && ymax >= y+0) printf("\033[%d;%dH \033[1m#            DISTORTION           #\033[m ", y+0, xx);
 		if (ymin <= y+1 && ymax >= y+1)
 		{
-			printf("\033[%d;%dHgain/tone: [   ][  ]  bias:  [   ][ ]", y+1, xx);
-			addControl(cc, xx+12, y+1, &s->gain, 3, 0, 0, 0);
-			addControl(cc, xx+17, y+1, &s->tone, 2, 0x0, 0xff, 0);
+			printf("\033[%d;%dHdrive:          [  ]  bias:  [   ][ ]", y+1, xx);
+			addControl(cc, xx+17, y+1, &s->drive, 2, 0x0, 0xff, 0);
 		} else
 		{
-			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		}
 		if (ymin <= y+2 && ymax >= y+2)
 		{
 			printf("\033[%d;%dHalgorithm [        ]  parallel: [   ]", y+2, xx);
-			addControl(cc, xx+11, y+2, &s->algorithm, 1, 0, 4, 8);
+			addControl(cc, xx+11, y+2, &s->algorithm, 1, 0, 3, 8);
 				setControlPrettyName(cc, "HARDCLIP");
 				setControlPrettyName(cc, "SOFTCLIP");
 				setControlPrettyName(cc, "WAVEFOLD");
 				setControlPrettyName(cc, "WAVEWRAP");
-				setControlPrettyName(cc, "HARDGATE");
 		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+1 && ymax >= y+1)
 		{
@@ -165,11 +157,11 @@ void drawDistortion(Effect *e, ControlState *cc,
 		xx = x + getNextColumnOffset(&cs);
 		if (ymin <= y+0 && ymax >= y+0) printf("\033[%d;%dH +      emphasis      + ", y+0, xx);
 		if (ymin <= y+1 && ymax >= y+1) printf("\033[%d;%dHpitch: [  ]  width: [  ]", y+1, xx);
-		if (ymin <= y+2 && ymax >= y+2) printf("\033[%d;%dHgain: [   ]  noise: [  ]", y+2, xx);
+		if (ymin <= y+2 && ymax >= y+2) printf("\033[%d;%dHgain: [   ]  gate:  [  ]", y+2, xx);
 		if (ymin <= y+1 && ymax >= y+1) addControl(cc, xx+8,  y+1, &s->emphasispitch, 2, 0x0, 0xff, 0); else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+2 && ymax >= y+2) addControl(cc, xx+7,  y+2, &s->emphasisgain,  3, 0,   0,    0); else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+1 && ymax >= y+1) addControl(cc, xx+21, y+1, &s->emphasiswidth, 2, 0x0, 0xff, 0); else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
-		if (ymin <= y+2 && ymax >= y+2) addControl(cc, xx+21, y+2, &s->noise,         2, 0x0, 0xff, 0); else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
+		if (ymin <= y+2 && ymax >= y+2) addControl(cc, xx+21, y+2, &s->gate,          2, 0x0, 0xff, 0); else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 	} else
 	{
 		addColumn(&cs, 20);
@@ -180,23 +172,17 @@ void drawDistortion(Effect *e, ControlState *cc,
 		if (ymin <= y+0 && ymax >= y+0) printf("\033[%d;%dH \033[1m#   DISTORTION   #\033[m ", y+0, xx);
 		if (ymin <= y+1 && ymax >= y+1)
 		{
-			printf("\033[%d;%dHgain/tone: [   ][  ]", y+1, xx);
-			addControl(cc, xx+12, y+1, &s->gain, 3, 0, 0, 0);
-			addControl(cc, xx+17, y+1, &s->tone, 2, 0x0, 0xff, 0);
-		} else
-		{
-			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
-			addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
-		}
+			printf("\033[%d;%dHdrive:          [  ]", y+1, xx);
+			addControl(cc, xx+17, y+1, &s->drive, 2, 0x0, 0xff, 0);
+		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+2 && ymax >= y+2)
 		{
 			printf("\033[%d;%dHalgorithm [        ]", y+2, xx);
-			addControl(cc, xx+11, y+2, &s->algorithm, 1, 0, 4, 8);
+			addControl(cc, xx+11, y+2, &s->algorithm, 1, 0, 3, 8);
 				setControlPrettyName(cc, "HARDCLIP");
 				setControlPrettyName(cc, "SOFTCLIP");
 				setControlPrettyName(cc, "WAVEFOLD");
 				setControlPrettyName(cc, "WAVEWRAP");
-				setControlPrettyName(cc, "HARDGATE");
 		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+3 && ymax >= y+3)
 		{
@@ -220,89 +206,77 @@ void drawDistortion(Effect *e, ControlState *cc,
 		if (ymin <= y+1 && ymax >= y+1) { printf("\033[%d;%dHpitch:  [  ]", y+1, xx); addControl(cc, xx+9, y+1, &s->emphasispitch, 2, 0x0, 0xff, 0); } else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+2 && ymax >= y+2) { printf("\033[%d;%dHgain:  [   ]", y+2, xx); addControl(cc, xx+8, y+2, &s->emphasisgain,  3, 0,   0,    0); } else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 		if (ymin <= y+3 && ymax >= y+3) { printf("\033[%d;%dHwidth:  [  ]", y+3, xx); addControl(cc, xx+9, y+3, &s->emphasiswidth, 2, 0x0, 0xff, 0); } else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
-		if (ymin <= y+4 && ymax >= y+4) { printf("\033[%d;%dHnoise:  [  ]", y+4, xx); addControl(cc, xx+9, y+4, &s->noise,         2, 0x0, 0xff, 0); } else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
+		if (ymin <= y+4 && ymax >= y+4) { printf("\033[%d;%dHgate:   [  ]", y+4, xx); addControl(cc, xx+9, y+4, &s->gate,          2, 0x0, 0xff, 0); } else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
 	}
 }
 
 #define DRIVE_COEF 1.02214f
 void stepDistortion(Effect *e, float *l, float *r)
 {
-	DistortionState *s = (DistortionState *)&e->state;
-	float affectl = 0.0f;
-	float affectr = 0.0f;
-	float bypassl = 0.0f;
-	float bypassr = 0.0f;
+	DistortionState *s = e->state;
 
-	runSVFilter(&s->parallelfilter[0], *l, fabs(s->parallel*DIV128), 0.0);
-	runSVFilter(&s->parallelfilter[1], *l, fabs(s->parallel*DIV128), 0.0);
-
+	float affectl, affectr;
 	if (s->parallel == 0)
 	{
+		runSVFilter(&s->parallelfilter[0], *l, 0.0f, 0.0f);
+		runSVFilter(&s->parallelfilter[1], *r, 0.0f, 0.0f);
 		affectl = *l;
 		affectr = *r;
 	} else if (s->parallel < 0)
 	{
+		runSVFilter(&s->parallelfilter[0], *l, 1.0f - (s->parallel*DIV128) * -1.0f, 0.0f);
+		runSVFilter(&s->parallelfilter[1], *r, 1.0f - (s->parallel*DIV128) * -1.0f, 0.0f);
 		affectl = s->parallelfilter[0].l;
 		affectr = s->parallelfilter[1].l;
-		bypassl = s->parallelfilter[0].h;
-		bypassr = s->parallelfilter[1].h;
 	} else
 	{
+		runSVFilter(&s->parallelfilter[0], *l, s->parallel*DIV128, 0.0f);
+		runSVFilter(&s->parallelfilter[1], *r, s->parallel*DIV128, 0.0f);
 		affectl = s->parallelfilter[0].h;
 		affectr = s->parallelfilter[1].h;
-		bypassl = s->parallelfilter[0].l;
-		bypassr = s->parallelfilter[1].l;
 	}
+	float bypassl = *l - affectl;
+	float bypassr = *r - affectr;
 
-	float a, b; /* registers */
+	if (fabsf(affectl) < s->gate*DIV512) affectl = 0.0f;
+	if (fabsf(affectr) < s->gate*DIV512) affectr = 0.0f;
+
+	/* pre gain */
+	float gain = powf(DRIVE_COEF, s->drive);
+	float makeup = 1.0f / sqrtf(gain);
+
+	affectl *= gain;
+	affectr *= gain;
 
 	/* bias */
-	b = s->bias*DIV128;
-	if (s->biasstereo)
-	{
-		affectl += b;
-		affectr -= b;
-	} else
-	{
-		affectl += b;
-		affectr += b;
-	}
+	float bias = s->bias*DIV128;
+	if (s->biasstereo) { affectl += bias;
+	                     affectr -= bias; }
+	else               { affectl += bias;
+	                     affectr += bias; }
 
-	/* drive */
-	a = powf(DRIVE_COEF, s->gain);
-	b = 1.0f / sqrtf(a);
-
+	/* distortion stage */
 	switch (s->algorithm)
 	{
 		case E_D_ALG_HARDCLIP:
-			affectl = hardclip(affectl*a)*b;
-			affectr = hardclip(affectr*a)*b;
+			affectl = hardclip(affectl);
+			affectr = hardclip(affectr);
 			break;
 		case E_D_ALG_SOFTCLIP:
-			affectl = thirddegreepolynomial(affectl*a)*b;
-			affectr = thirddegreepolynomial(affectr*a)*b;
+			affectl = thirddegreepolynomial(affectl);
+			affectr = thirddegreepolynomial(affectr);
 			break;
 		case E_D_ALG_WAVEFOLD:
-			affectl = wavefolder(affectl*a)*b;
-			affectr = wavefolder(affectr*a)*b;
+			affectl = wavefolder(affectl);
+			affectr = wavefolder(affectr);
 			break;
-		case E_D_ALG_WAVEWRAP:
-			affectl = wavewrapper(affectl*a)*b;
-			affectr = wavewrapper(affectr*a)*b;
-			break;
-		case E_D_ALG_HARDGATE: /* doesn't use the a/b registers */
-			if (s->gain < 0)
-			{
-				if (fabsf(affectl) < (-s->gain)*DIV128) affectl = 0.0f;
-				if (fabsf(affectr) < (-s->gain)*DIV128) affectr = 0.0f;
-			} else
-			{
-				if (fabsf(affectl) < s->gain*DIV128) affectl = 0.0f;
-				if (fabsf(affectr) < s->gain*DIV128) affectr = 0.0f;
-			}
+		case E_D_ALG_WAVEWRAP: /* TODO: does nothing */
+			affectl = wavewrapper(affectl);
+			affectr = wavewrapper(affectr);
 			break;
 	}
 
-	*l = affectl * bypassl;
-	*r = affectr * bypassr;
+	/* final mix + post auto-makeup */
+	*l = affectl*makeup + bypassl;
+	*r = affectr*makeup + bypassr;
 }
