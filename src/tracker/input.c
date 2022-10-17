@@ -3,7 +3,7 @@
 void trackerInput(int input)
 {
 	int button, x, y, i;
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	switch (input)
 	{
 		case '\033': /* escape */
@@ -79,8 +79,8 @@ void trackerInput(int input)
 										else                                w->channel += w->channeloffset;
 									} else
 									{
-										if (w->channeloffset > s->channelc-1 - w->channel) w->channel = s->channelc-1;
-										else                                               w->channel += w->channeloffset;
+										if (w->channeloffset > s->channel->c-1 - w->channel) w->channel = s->channel->c-1;
+										else                                                 w->channel += w->channeloffset;
 									}
 									if (w->fyoffset < 0)
 									{
@@ -135,39 +135,12 @@ void trackerInput(int input)
 															} break;
 													} w->mousex = x; break;
 												default: /* click */
-													if (y == CHANNEL_ROW-2)
-													{
-														switch (w->page)
-														{ /* hacky implementation */
-															case PAGE_CHANNEL_VARIANT: if (x >= ((ws.ws_col-17)>>1) + 9) showTracker(); break;
-															case PAGE_CHANNEL_EFFECT:  if (x <  ((ws.ws_col-17)>>1) + 9) showTracker(); break;
-														} break;
-													} else if (y < CHANNEL_ROW-2)
-													{
-														if (x >= ((ws.ws_col-17)>>1) + 7) showInstrument();
-														break;
-													} else if (y <= CHANNEL_ROW)
-													{
-														for (i = 0; i < s->channelc; i++)
-														{
-															tx += CHANNEL_TRIG_COLS;
-															tx += 8 + 4*(s->channelv[i].data.macroc+1);
-															if (tx > x)
-															{
-																switch (button)
-																{
-																	case BUTTON1: case BUTTON1_CTRL: w->channeloffset = i - w->channel; break;
-																	case BUTTON2: case BUTTON2_CTRL: /* TODO: channel solo */ break;
-																	case BUTTON3: case BUTTON3_CTRL: toggleChannelMute(i); break;
-																} break;
-															}
-														} break;
-													}
+													if (trackerMouseHeader(button, x, y, &tx)) break;
 
 													if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
 													w->follow = 0;
 
-													for (i = 0; i < s->channelc; i++)
+													for (i = 0; i < s->channel->c; i++)
 													{
 														tx += CHANNEL_TRIG_COLS;
 														if (tx > x) /* clicked on the trig column */
@@ -185,7 +158,7 @@ void trackerInput(int input)
 															{
 																case BUTTON2: case BUTTON2_CTRL:
 																	if (w->mode != T_MODE_VTRIG_INSERT) w->mode = T_MODE_VTRIG;
-																	setChannelTrig(&s->channelv[i].data, w->trackerfy + y - w->centre, VARIANT_VOID);
+																	setChannelTrig(&s->channel->v[i].data, w->trackerfy + y - w->centre, VARIANT_VOID);
 																	regenGlobalRowc(s); break;
 																case BUTTON1: case BUTTON1_CTRL:
 																	if (w->mode != T_MODE_VTRIG_INSERT) w->mode = T_MODE_VTRIG;
@@ -209,8 +182,8 @@ void trackerInput(int input)
 															break;
 														}
 
-														tx += 8 + 4*(s->channelv[i].data.macroc+1);
-														if (i == s->channelc-1 || tx > x) /* clicked on the tracker row or out of range */
+														tx += 8 + 4*(s->channel->v[i].data.macroc+1);
+														if (i == s->channel->c-1 || tx > x) /* clicked on the tracker row or out of range */
 														{
 															switch (w->mode)
 															{
@@ -238,17 +211,18 @@ void trackerInput(int input)
 															}
 															if (tx-x < 3) /* clicked out of range, on the star column */
 															{
-																w->trackerfx = 1+((s->channelv[i].data.macroc+1)<<1);
+																w->trackerfx = 3;
 																w->fieldpointer = 0;
-															} else if (tx-x < 3 + 4*(s->channelv[i].data.macroc+1)) /* a macro column was clicked */
+															} else if (tx-x < 3 + 4*(s->channel->v[i].data.macroc+1)) /* a macro column was clicked */
 															{
-																w->trackerfx = 1+((s->channelv[i].data.macroc+1)<<1) - (((tx-x - 1)>>1) - 1);
+																if (((tx-x - 1)>>1)&0x1) w->trackerfx = ((tx-x - 1)>>1) + 2;
+																else                     w->trackerfx = ((tx-x - 1)>>1);
 																if (((tx-x - 1) - 1) % 2) w->fieldpointer = 0;
 																else                      w->fieldpointer = 1;
-															} else if (tx-x < 6 + 4*(s->channelv[i].data.macroc+1))
+															} else if (tx-x < 6 + 4*(s->channel->v[i].data.macroc+1))
 															{
 																w->trackerfx = 1;
-																if (tx-x < 4 + 4*(s->channelv[i].data.macroc+1)) w->fieldpointer = 0;
+																if (tx-x < 4 + 4*(s->channel->v[i].data.macroc+1)) w->fieldpointer = 0;
 																else                                             w->fieldpointer = 1;
 															} else w->trackerfx = 0;
 
@@ -286,36 +260,8 @@ void trackerInput(int input)
 												case WHEEL_DOWN: case WHEEL_DOWN_CTRL: effectCtrlDownArrow(&cd->effect, 1); break;
 												default:
 													if (button != BUTTON1_HOLD && button != BUTTON1_HOLD_CTRL)
-													{
-														if (y == CHANNEL_ROW-2)
-														{
-															switch (w->page)
-															{ /* hacky implementation */
-																case PAGE_CHANNEL_VARIANT: if (x >= ((ws.ws_col-17)>>1) + 9) showTracker(); break;
-																case PAGE_CHANNEL_EFFECT:  if (x <  ((ws.ws_col-17)>>1) + 9) showTracker(); break;
-															} break;
-														} else if (y < CHANNEL_ROW-2)
-														{
-															if (x >= ((ws.ws_col-17)>>1) + 7) showInstrument();
-															break;
-														} else if (y <= CHANNEL_ROW)
-														{
-															for (i = 0; i < s->channelc; i++)
-															{
-																tx += CHANNEL_TRIG_COLS;
-																tx += 8 + 4*(s->channelv[i].data.macroc+1);
-																if (tx > x)
-																{
-																	switch (button)
-																	{
-																		case BUTTON1: case BUTTON1_CTRL: w->channeloffset = i - w->channel; break;
-																		case BUTTON2: case BUTTON2_CTRL: /* TODO: channel solo */ break;
-																		case BUTTON3: case BUTTON3_CTRL: toggleChannelMute(i); break;
-																	} break;
-																}
-															} break;
-														}
-													} mouseControls(&cc, button, x, y);
+														if (trackerMouseHeader(button, x, y, &tx)) break;
+													mouseControls(&cc, button, x, y);
 													break;
 											} break;
 									} p->dirty = 1; break;

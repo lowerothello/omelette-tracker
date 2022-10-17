@@ -11,13 +11,15 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <signal.h>
+#include <assert.h>
 #include <dirent.h>
 #include <libgen.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <jack/thread.h>
-typedef jack_default_audio_sample_t sample_t;
 #include <sndfile.h>
+#include <dlfcn.h>
+#include <ladspa.h>
 
 /* libdrawille */
 #include "lib/libdrawille/src/Canvas.h"
@@ -28,7 +30,7 @@ typedef jack_default_audio_sample_t sample_t;
 
 /* version */
 const unsigned char MAJOR = 0;
-const unsigned char MINOR = 98;
+const unsigned char MINOR = 101;
 
 #define LINENO_COLS 7
 
@@ -41,14 +43,16 @@ const unsigned char MINOR = 98;
 int DEBUG;
 
 jack_nframes_t samplerate, buffersize;
-jack_nframes_t rampmax, grainrampmax;
+jack_nframes_t rampmax;
+
 jack_client_t *client;
+pthread_t dummyprocessthread;
 
 struct termios origterm;
 struct winsize ws;
 
 
-/* prototypes */
+/* prototypes, TODO: proper header files would be less ugly */
 void resize(int); /* TODO: remove hooks to this, should only be hooked asynchronously */
 void startPlayback(void);
 void stopPlayback(void);
@@ -68,16 +72,22 @@ void changeMacro(int, char *);
 
 #include "signal.h" /* signal declares */
 
+#include "buttons.h"
+#include "control.c"
 #include "types/types.c"
 
+char ifMacro(jack_nframes_t, uint16_t *, Channel *, Row, char, char (*)(jack_nframes_t, uint16_t *, int, Channel *, Row));
+void setBpm(uint16_t *, uint8_t);
+void midiNoteOff(jack_nframes_t, uint8_t, uint8_t, uint8_t);
+
 #include "input.c"
-#include "control.c"
 ControlState cc;
 #include "tooltip.c"
 TooltipState tt;
 #include "column.c"
 
 #include "types/effect.c"
+#include "effect/pluginbrowser.c"
 #include "types/channel.c"
 #include "types/instrument.c"
 #include "types/song.c"
@@ -86,12 +96,12 @@ TooltipState tt;
 #include "signal.c" /* signal handlers */
 
 #include "background.c"
-#include "sampler.c"
+#include "generator/sampler.c"
 #include "macros.h"
 #include "process.c"
 #include "macros.c"
 
-#include "master.c"
+// #include "master.c"
 #include "filebrowser.c"
 
 #include "effect/effectinput.c"
@@ -164,10 +174,19 @@ void redraw(void)
 		drawRuler();
 		switch (w->page)
 		{
-			case PAGE_CHANNEL_VARIANT:   case PAGE_CHANNEL_EFFECT:    drawTracker(); break;
-			case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: drawInstrument(); break;
-			case PAGE_MASTER:                                         drawMaster(); break;
-			case PAGE_FILEBROWSER:                                    drawFilebrowser(); break;
+			case PAGE_CHANNEL_VARIANT:
+			case PAGE_CHANNEL_EFFECT:
+				drawTracker(); break;
+			case PAGE_INSTRUMENT_SAMPLE:
+			case PAGE_INSTRUMENT_EFFECT:
+				drawInstrument(); break;
+			/* case PAGE_MASTER:
+				drawMaster(); break; */
+			case PAGE_FILEBROWSER:
+				drawFilebrowser(); break;
+			case PAGE_CHANNEL_EFFECT_PLUGINBROWSER:
+			case PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER:
+				drawPluginEffectBrowser();
 		}
 		drawCommand(&w->command, w->mode);
 	}
@@ -183,7 +202,10 @@ void filebrowserEditCallback(char *path)
 	if (path)
 	{
 		strcpy(w->newfilename, path);
-		p->sem = M_SEM_RELOAD_REQ;
+		Event e;
+		e.sem = M_SEM_RELOAD_REQ;
+		e.callback = cb_reloadFile;
+		pushEvent(&e);
 	}
 	w->page = PAGE_CHANNEL_VARIANT;
 }
@@ -215,7 +237,10 @@ int commandCallback(char *command, unsigned char *mode)
 		} else
 		{
 			strcpy(w->newfilename, buffer);
-			p->sem = M_SEM_RELOAD_REQ;
+			Event e;
+			e.sem = M_SEM_RELOAD_REQ;
+			e.callback = cb_reloadFile;
+			pushEvent(&e);
 		}
 	}
 
@@ -261,6 +286,7 @@ void showTracker(void)
 			w->mode = T_MODE_NORMAL;
 			break;
 	}
+	freePreviewSample();
 }
 void showInstrument(void)
 {
@@ -280,11 +306,13 @@ void showInstrument(void)
 	}
 	if (s->instrument->i[w->instrument] != INSTRUMENT_VOID)
 		resetWaveform();
+	freePreviewSample();
 }
 void showMaster(void)
 {
 	w->mode = 0;
 	w->page = PAGE_MASTER;
+	freePreviewSample();
 }
 
 int input(void)
@@ -335,10 +363,19 @@ int input(void)
 				default:
 					switch (w->page)
 					{
-						case PAGE_CHANNEL_VARIANT:   case PAGE_CHANNEL_EFFECT:    trackerInput(input); break;
-						case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: instrumentInput(input); break;
-						case PAGE_MASTER:                                         masterInput(input); break;
-						case PAGE_FILEBROWSER:                                    filebrowserInput(input); break;
+						case PAGE_CHANNEL_VARIANT:
+						case PAGE_CHANNEL_EFFECT:
+							trackerInput(input); break;
+						case PAGE_INSTRUMENT_SAMPLE:
+						case PAGE_INSTRUMENT_EFFECT:
+							instrumentInput(input); break;
+						/* case PAGE_MASTER:
+							masterInput(input); break; */
+						case PAGE_FILEBROWSER:
+							filebrowserInput(input); break;
+						case PAGE_CHANNEL_EFFECT_PLUGINBROWSER:
+						case PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER:
+							pluginEffectBrowserInput(input); break;
 					}
 					break;
 			}
@@ -353,10 +390,10 @@ void resize(int _)
 	w->centre = (ws.ws_row>>1) + 1;
 
 	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1)<<1;
-	if (ws.ws_col - INSTRUMENT_INDEX_COLS < 57)
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 10)<<2;
-	else
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 6)<<2;
+	// if (ws.ws_col - INSTRUMENT_INDEX_COLS < 57)
+		w->waveformh = (ws.ws_row - CHANNEL_ROW - 12)<<2;
+	/* else
+		w->waveformh = (ws.ws_row - CHANNEL_ROW - 6)<<2; */
 
 	if (w->waveformcanvas) { free_canvas(w->waveformcanvas); w->waveformcanvas = NULL; }
 	if (w->waveformbuffer) { free_buffer(w->waveformbuffer); w->waveformbuffer = NULL; }
@@ -413,8 +450,8 @@ int main(int argc, char **argv)
 				if (w->recptr > 0)
 				{
 					w->recbuffer = realloc(w->recbuffer, (w->recptr<<1) * sizeof(short));
-					reparentSample(&s->instrument->v[s->instrument->i[w->instrumentreci]], w->recbuffer, w->recptr);
-					resetWaveform();
+					reparentSample(&s->instrument->v[s->instrument->i[w->instrumentreci]], w->recbuffer, w->recptr, samplerate);
+					w->recbuffer = 0; resetWaveform();
 				} else { free(w->recbuffer); w->recbuffer = NULL; }
 
 				w->instrumentrecv = INST_REC_LOCK_OK;

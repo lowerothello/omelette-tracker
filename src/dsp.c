@@ -1,12 +1,5 @@
 #define C5_FREQ 261.63 /* set this to the resonant frequency of your favourite rock for best results */
 
-/* <seconds> */
-#define ENVELOPE_A_STEP 0.05
-#define ENVELOPE_A_MIN 0
-#define ENVELOPE_D_STEP 0.1
-#define ENVELOPE_D_MIN 0.005
-/* </seconds> */
-
 /* the threshold where processing is no longer necessary */
 /* to avoid denormals and otherwise wasted cycles        */
 #define NOISE_GATE 0.00001
@@ -57,28 +50,19 @@ float wavefolder(float input)
 	}
 	return input;
 }
-float wavewrapper(float input)
+float wavewrapper(float input, float maxrange)
 {
-	while (input >  1.0f) input -= 1.0f;
-	while (input < -1.0f) input += 1.0f;
+	while (input >  maxrange) input -= maxrange;
+	while (input < -maxrange) input += maxrange;
 	return input;
 }
 float signedunsigned(float input)
 {
-	if (fabsf(input) < NOISE_GATE) /* TODO: fix dc properly (high pass the output) */
-		return 0.0f;
-	else
-	{
-		if (input > 0.0f) return input - 1.0f;
-		else              return input + 1.0f;
-	}
+	if (input > 0.0f) return input - 0.0f;
+	else              return input + 1.0f;
 }
-float rectify(float input) /* TODO: clicky */
-{
-	if (fabsf(input) < NOISE_GATE) /* TODO: fix dc properly (high pass the output) */
-		return 0.0f;
-	else
-		return hardclip(fabsf(input) * 2.0f - 1.0f);
-}
+float rectify(float input)
+{ return (fabsf(input) * 2.0f) - 1.0f; }
+
 float thirddegreepolynomial(float input)
 { return 1.5f*input - 0.5f*input*input*input; }

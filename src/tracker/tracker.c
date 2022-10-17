@@ -1,13 +1,4 @@
-#define T_MODE_NORMAL 0
-#define T_MODE_INSERT 1
-#define T_MODE_MOUSEADJUST 2
-#define T_MODE_VISUAL 3
-#define T_MODE_VISUALLINE 4
-#define T_MODE_VISUALREPLACE 5
-#define T_MODE_VTRIG 6
-#define T_MODE_VTRIG_INSERT 7
-#define T_MODE_VTRIG_VISUAL 8
-#define T_MODE_VTRIG_MOUSEADJUST 9
+#define CHANNEL_TRIG_COLS 4
 
 void inputPatternHex(Row *r, char value)
 {
@@ -19,7 +10,7 @@ void inputPatternHex(Row *r, char value)
 			macro = (w->trackerfx - 2)>>1;
 			if (w->trackerfx % 2 == 1) { r->macro[macro].v <<= 4; r->macro[macro].v += value; }
 			break;
-	}
+	} regenGlobalRowc(s);
 }
 uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 {
@@ -34,7 +25,7 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 
 void trackerAdjustRight(void) /* mouse adjust only */
 {
-	Row *r = getChannelRow(&s->channelv[w->channel].data, w->trackerfy);
+	Row *r = getChannelRow(&s->channel->v[w->channel].data, w->trackerfy);
 	short macro;
 	switch (w->trackerfx)
 	{
@@ -50,11 +41,11 @@ void trackerAdjustRight(void) /* mouse adjust only */
 				if (w->fieldpointer) r->macro[macro].v+=16;
 				else                 r->macro[macro].v++;
 			} break;
-	}
+	} regenGlobalRowc(s);
 }
 void trackerAdjustLeft(void) /* mouse adjust only */
 {
-	Row *r = getChannelRow(&s->channelv[w->channel].data, w->trackerfy);
+	Row *r = getChannelRow(&s->channel->v[w->channel].data, w->trackerfy);
 	short macro;
 	switch (w->trackerfx)
 	{
@@ -70,7 +61,7 @@ void trackerAdjustLeft(void) /* mouse adjust only */
 				if (w->fieldpointer) r->macro[macro].v-=16;
 				else                 r->macro[macro].v--;
 			} break;
-	}
+	} regenGlobalRowc(s);
 }
 
 void trackerUpArrow(int count)
@@ -101,7 +92,7 @@ void trackerDownArrow(int count)
 void cycleUp(void) /* TODO: count */
 {
 	Variant *v;
-	uint16_t bound;
+	int bound;
 	switch (w->page)
 	{
 		case PAGE_CHANNEL_VARIANT:
@@ -111,25 +102,23 @@ void cycleUp(void) /* TODO: count */
 				case T_MODE_NORMAL: case T_MODE_INSERT:
 					for (int i = 0; i < MAX(1, w->count); i++)
 					{
-						bound = getChannelVariant(&v, &s->channelv[w->channel].data, w->trackerfy);
+						bound = getChannelVariant(&v, &s->channel->v[w->channel].data, w->trackerfy);
 						if (bound != -1) cycleVariantUp(v, bound);
 					} break;
 				case T_MODE_VISUAL: case T_MODE_VISUALREPLACE:
 					cycleUpPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 					break;
 				case T_MODE_VISUALLINE:
-					cycleUpPartPattern(0, 2+s->channelv[w->channel].data.macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+					cycleUpPartPattern(0, 2+s->channel->v[w->channel].data.macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 					break;
-			}
-			// regenGlobalRowc(s); /* doesn't matter rn but may in the future */
-			break;
-		case PAGE_CHANNEL_EFFECT: effectCtrlUpArrow(&s->channelv[w->channel].data.effect, 1); break;
+			} regenGlobalRowc(s); break;
+		case PAGE_CHANNEL_EFFECT: effectCtrlUpArrow(&s->channel->v[w->channel].data.effect, 1); break;
 	}
 }
 void cycleDown(void) /* TODO: count */
 {
 	Variant *v;
-	uint16_t bound;
+	int bound;
 	switch (w->page)
 	{
 		case PAGE_CHANNEL_VARIANT:
@@ -139,19 +128,17 @@ void cycleDown(void) /* TODO: count */
 				case T_MODE_NORMAL: case T_MODE_INSERT:
 					for (int i = 0; i < MAX(1, w->count); i++)
 					{
-						bound = getChannelVariant(&v, &s->channelv[w->channel].data, w->trackerfy);
+						bound = getChannelVariant(&v, &s->channel->v[w->channel].data, w->trackerfy);
 						if (bound != -1) cycleVariantDown(v, bound);
 					} break;
 				case T_MODE_VISUAL: case T_MODE_VISUALREPLACE:
 					cycleDownPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 					break;
 				case T_MODE_VISUALLINE:
-					cycleDownPartPattern(0, 2+s->channelv[w->channel].data.macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+					cycleDownPartPattern(0, 2+s->channel->v[w->channel].data.macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 					break;
-			}
-			// regenGlobalRowc(s); /* doesn't matter rn but may in the future */
-			break;
-		case PAGE_CHANNEL_EFFECT: effectCtrlDownArrow(&s->channelv[w->channel].data.effect, 1); break;
+			} regenGlobalRowc(s); break;
+		case PAGE_CHANNEL_EFFECT: effectCtrlDownArrow(&s->channel->v[w->channel].data.effect, 1); break;
 	}
 }
 void trackerLeftArrow(void)
@@ -164,32 +151,37 @@ void trackerLeftArrow(void)
 				case T_MODE_VTRIG: case T_MODE_VTRIG_INSERT: case T_MODE_VTRIG_VISUAL:
 					if (MAX(1, w->count) > w->channel) w->channel = 0;
 					else                               w->channel -= MAX(1, w->count);
-					if (w->trackerfx > 3 + s->channelv[w->channel].data.macroc * 2)
-						w->trackerfx = 3 + s->channelv[w->channel].data.macroc * 2;
+					if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc * 2)
+						w->trackerfx = 3 + s->channel->v[w->channel].data.macroc * 2;
 					break;
 				default:
 					for (int i = 0; i < MAX(1, w->count); i++)
 					{
-						w->trackerfx--;
-						if (w->trackerfx < 0)
+						if      (w->trackerfx == 2 + (s->channel->v[w->channel].data.macroc<<1)) w->trackerfx = 1;
+						else if (w->trackerfx == 0)
 						{
 							if (w->channel > 0)
 							{
 								w->channel--;
-								w->trackerfx = 3 + s->channelv[w->channel].data.macroc * 2;
-							} else w->trackerfx = 0;
-						}
+								w->trackerfx = 3;
+							}
+						} else if (w->trackerfx > 1)
+						{
+							if (w->trackerfx&0x1) w->trackerfx--;
+							else                  w->trackerfx+=3;
+						} else                    w->trackerfx--;
 					} break;
 			} break;
 		case PAGE_CHANNEL_EFFECT: effectLeftArrow(); break;
 	}
+DEBUG=w->trackerfx; p->dirty=1;
 }
 void channelLeft(void)
 {
 	if (MAX(1, w->count) > w->channel) w->channel = 0;
 	else                               w->channel -= MAX(1, w->count);
-	if (w->trackerfx > 3 + s->channelv[w->channel].data.macroc * 2)
-		w->trackerfx = 3 + s->channelv[w->channel].data.macroc * 2;
+	if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc * 2)
+		w->trackerfx = 3 + s->channel->v[w->channel].data.macroc * 2;
 }
 void trackerRightArrow(void)
 {
@@ -199,34 +191,39 @@ void trackerRightArrow(void)
 			switch (w->mode)
 			{
 				case T_MODE_VTRIG: case T_MODE_VTRIG_INSERT: case T_MODE_VTRIG_VISUAL:
-					if (w->channel + MAX(1, w->count) > s->channelc-1) w->channel = s->channelc-1;
+					if (w->channel + MAX(1, w->count) > s->channel->c-1) w->channel = s->channel->c-1;
 					else                                             w->channel += MAX(1, w->count);
-					if (w->trackerfx > 3 + s->channelv[w->channel].data.macroc * 2)
-						w->trackerfx = 3 + s->channelv[w->channel].data.macroc * 2;
+					if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc * 2)
+						w->trackerfx = 3 + s->channel->v[w->channel].data.macroc * 2;
 					break;
 				default:
 					for (int i = 0; i < MAX(1, w->count); i++)
 					{
-						w->trackerfx++;
-						if (w->trackerfx > 3 + s->channelv[w->channel].data.macroc * 2)
+						if      (w->trackerfx == 1) w->trackerfx = 2 + s->channel->v[w->channel].data.macroc * 2;
+						else if (w->trackerfx == 3)
 						{
-							if (w->channel < s->channelc-1)
+							if (w->channel < s->channel->c-1)
 							{
 								w->channel++;
 								w->trackerfx = 0;
-							} else w->trackerfx = 3 + s->channelv[w->channel].data.macroc * 2;
-						}
+							} else w->trackerfx = 2;
+						} else if (w->trackerfx > 1)
+						{
+							if (w->trackerfx&0x1) w->trackerfx-=3;
+							else                  w->trackerfx++;
+						} else                    w->trackerfx++;
 					} break;
 			} break;
 		case PAGE_CHANNEL_EFFECT: effectRightArrow(); break;
 	}
+DEBUG=w->trackerfx; p->dirty=1;
 }
 void channelRight(void)
 {
 	w->channel += MAX(1, w->count);
-	if (w->channel > s->channelc-1) w->channel = s->channelc-1;
-	if (w->trackerfx > 3 + s->channelv[w->channel].data.macroc * 2)
-		w->trackerfx = 3 + s->channelv[w->channel].data.macroc * 2;
+	if (w->channel > s->channel->c-1) w->channel = s->channel->c-1;
+	if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc * 2)
+		w->trackerfx = 3 + s->channel->v[w->channel].data.macroc * 2;
 }
 void trackerHome(void)
 {
@@ -252,22 +249,43 @@ void trackerEnd(void)
 }
 
 
-void insertNote(Row *r, int key)
+void insertNote(Row *r, int input)
 {
-	if (w->instrumentrecv == INST_REC_LOCK_OK)
-		r->inst = w->instrument;
-	switch (w->keyboardmacro)
+	switch (input)
 	{
-		case 0: charToNote(key, &r->note); break;
-		case 'G': case 'g': case 'K': case 'k': /* m.x and m.y are note */
-			if (charToKmode(key, 1, &r->macro[0].v, &r->note))
-				r->macro[0].c = w->keyboardmacro;
+		case 1:  /* ^a */ r->note+=MAX(1, w->count); break;
+		case 24: /* ^x */ r->note-=MAX(1, w->count); break;
+		case 127: case '\b': /* backspace */
+			r->note = NOTE_VOID;
+			r->inst = INST_VOID;
+			trackerUpArrow(w->step);
 			break;
-		default: /* m.x is note */
-			if (charToKmode(key, 0, &r->macro[0].v, &r->note))
-				r->macro[0].c = w->keyboardmacro;
-			break;
-	}
+		case '0': r->note = changeNoteOctave(0, r->note); break;
+		case '1': r->note = changeNoteOctave(1, r->note); break;
+		case '2': r->note = changeNoteOctave(2, r->note); break;
+		case '3': r->note = changeNoteOctave(3, r->note); break;
+		case '4': r->note = changeNoteOctave(4, r->note); break;
+		case '5': r->note = changeNoteOctave(5, r->note); break;
+		case '6': r->note = changeNoteOctave(6, r->note); break;
+		case '7': r->note = changeNoteOctave(7, r->note); break;
+		case '8': r->note = changeNoteOctave(8, r->note); break;
+		case '9': r->note = changeNoteOctave(9, r->note); break;
+		default:
+			if (w->instrumentrecv == INST_REC_LOCK_OK)
+				r->inst = w->instrument;
+			switch (w->keyboardmacro)
+			{
+				case 0: charToNote(input, &r->note); break;
+				case 'G': case 'g': /* m.x and m.y are note */
+					if (charToKmode(input, 1, &r->macro[0].v, &r->note))
+						r->macro[0].c = w->keyboardmacro;
+					break;
+				default: /* m.x is note */
+					if (charToKmode(input, 0, &r->macro[0].v, &r->note))
+						r->macro[0].c = w->keyboardmacro;
+					break;
+			} break;
+	} regenGlobalRowc(s);
 }
 void insertInst(Row *r, int input)
 {
@@ -293,7 +311,7 @@ void insertInst(Row *r, int input)
 		case 'D': case 'd':  inputPatternHex(r, 13); if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst; break;
 		case 'E': case 'e':  inputPatternHex(r, 14); if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst; break;
 		case 'F': case 'f':  inputPatternHex(r, 15); if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst; break;
-	}
+	} regenGlobalRowc(s);
 }
 void insertMacroc(Row *r, uint8_t macro, int input)
 {
@@ -304,7 +322,7 @@ void insertMacroc(Row *r, uint8_t macro, int input)
 			if (!r->macro[macro].c) r->macro[macro].v = 0;
 			changeMacro(input, &r->macro[macro].c);
 			break;
-	}
+	} regenGlobalRowc(s);
 }
 void insertMacrov(Row *r, uint8_t macro, int input)
 {
@@ -341,13 +359,43 @@ void insertMacrov(Row *r, uint8_t macro, int input)
 			case 'E': case 'e': inputPatternHex(r, 14); break;
 			case 'F': case 'f': inputPatternHex(r, 15); break;
 		}
+	regenGlobalRowc(s);
 }
 
+void applyChannelMutes(void)
+{
+	Event e;
+	e.sem = M_SEM_CHANNEL_MUTE;
+	pushEvent(&e);
+}
 void toggleChannelMute(uint8_t channel)
 {
-	s->channelv[channel].data.mute = !s->channelv[channel].data.mute;
-	if (w->instrumentlockv == INST_GLOBAL_LOCK_OK)
-		w->instrumentlockv = INST_GLOBAL_CHANNEL_MUTE;
+	s->channel->v[channel].data.mute = !s->channel->v[channel].data.mute;
+	applyChannelMutes();
+}
+void toggleChannelSolo(uint8_t channel)
+{
+	bool flush = 1; /* all channels except the toggled one should be muted */
+	bool reset = 1; /* all channels should be unmuted                      */
+
+	for (int i = 0; i < s->channel->c; i++)
+	{
+		if ( s->channel->v[i].data.mute)                 flush = 0;
+		if ( s->channel->v[i].data.mute && i == channel) reset = 0;
+		if (!s->channel->v[i].data.mute && i != channel) reset = 0;
+	}
+
+	if (flush && !reset)
+	{
+		for (int i = 0; i < s->channel->c; i++)
+			if (i != channel) s->channel->v[i].data.mute = 1;
+		applyChannelMutes();
+	} else if (reset && !flush)
+	{
+		for (int i = 0; i < s->channel->c; i++)
+			s->channel->v[i].data.mute = 0;
+		applyChannelMutes();
+	} else toggleChannelMute(channel);
 }
 
 void leaveSpecialModes(void)
@@ -362,7 +410,7 @@ void leaveSpecialModes(void)
 
 void chordRowScaleToCursor(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getPrevVtrig(cd, w->trackerfy);
 	if (gcvret == -1 || cd->trig[gcvret].index == VARIANT_OFF) return;
 	uint8_t vi = cd->varianti[cd->trig[gcvret].index];
@@ -370,10 +418,11 @@ void chordRowScaleToCursor(void *_)
 	Variant *v = _copyVariant(cd->variantv[vi], w->trackerfy - gcvret);
 
 	free(cd->variantv[vi]); cd->variantv[vi] = v;
+	regenGlobalRowc(s);
 }
 void chordRowLengthToCount(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -384,10 +433,11 @@ void chordRowLengthToCount(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
 void chordRowIncrementLength(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -398,10 +448,11 @@ void chordRowIncrementLength(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
 void chordRowDecrementLength(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -412,10 +463,11 @@ void chordRowDecrementLength(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
 void chordRowCopyDown(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -428,10 +480,11 @@ void chordRowCopyDown(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
 void chordRowDiscardHalf(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -442,10 +495,11 @@ void chordRowDiscardHalf(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
 void chordRowAddBlanks(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -458,10 +512,11 @@ void chordRowAddBlanks(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
 void chordRowDiscardEveryOther(void *_)
 {
-	ChannelData *cd = &s->channelv[w->channel].data;
+	ChannelData *cd = &s->channel->v[w->channel].data;
 	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->varianti[cd->trig[w->trackerfy - gcvret].index];
@@ -474,44 +529,179 @@ void chordRowDiscardEveryOther(void *_)
 	if (!(cd->trig[w->trackerfy - gcvret].flags&C_VTRIG_LOOP)
 			&& w->trackerfy > w->trackerfy - gcvret + cd->variantv[vi]->rowc)
 		w->trackerfy = w->trackerfy - gcvret + cd->variantv[vi]->rowc;
+	regenGlobalRowc(s);
 }
-void setChordRow(void)
+void chordRowBurn(void *_)
 {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "variant rows");
-	addTooltipBind(&tt, "scale variant to cursor     ", 'c', chordRowScaleToCursor,     NULL);
-	addTooltipBind(&tt, "set variant length to count ", 'r', chordRowLengthToCount,     NULL);
-	addTooltipBind(&tt, "increment variant length    ", 'a', chordRowIncrementLength,   NULL);
-	addTooltipBind(&tt, "decrement variant length    ", 'd', chordRowDecrementLength,   NULL);
-	addTooltipBind(&tt, "double variant length       ", '+', chordRowCopyDown,          NULL);
-	addTooltipBind(&tt, "halve variant length        ", '-', chordRowDiscardHalf,       NULL);
-	addTooltipBind(&tt, "stretch variant length      ", '*', chordRowAddBlanks,         NULL);
-	addTooltipBind(&tt, "shrink variant length       ", '/', chordRowDiscardEveryOther, NULL);
-	w->chord = 'r';
+	ChannelData *cd = &s->channel->v[w->channel].data;
+	int gcvret = getChannelVariant(NULL, cd, w->trackerfy);
+	if (gcvret == -1) return;
+	uint8_t vvi = cd->trig[w->trackerfy - gcvret].index;
+	uint8_t vi = cd->varianti[vvi];
+
+	cd->trig[w->trackerfy - gcvret].index = VARIANT_VOID;
+
+	for (int i = 0; i < cd->variantv[vi]->rowc; i++)
+		memcpy(getChannelRow(cd, (w->trackerfy - gcvret) + i), &cd->variantv[vi]->rowv[i], sizeof(Row));
+
+	pruneVariant(cd, vvi);
+	regenGlobalRowc(s);
 }
 
 void chordAddMacro(void *_)
 {
 	for (int i = 0; i < MAX(1, w->count); i++)
-		if (s->channelv[w->channel].data.macroc < 7)
-			s->channelv[w->channel].data.macroc++;
+		if (s->channel->v[w->channel].data.macroc < 7)
+			s->channel->v[w->channel].data.macroc++;
+	regenGlobalRowc(s);
 }
 void chordDeleteMacro(void *_)
 {
 	for (int i = 0; i < MAX(1, w->count); i++)
 	{
-		if (s->channelv[w->channel].data.macroc) s->channelv[w->channel].data.macroc--;
-		if (w->trackerfx > 2 + s->channelv[w->channel].data.macroc*2)
-			w->trackerfx = 2 + s->channelv[w->channel].data.macroc*2;
+		if (s->channel->v[w->channel].data.macroc) s->channel->v[w->channel].data.macroc--;
+		if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc*2)
+			w->trackerfx = 3 + s->channel->v[w->channel].data.macroc*2;
 	}
+	regenGlobalRowc(s);
 }
 void chordSetMacro(void *_)
 {
-	if (w->count) s->channelv[w->channel].data.macroc = MIN(8, w->count) - 1;
-	else          s->channelv[w->channel].data.macroc = 1;
+	if (w->count) s->channel->v[w->channel].data.macroc = MIN(8, w->count) - 1;
+	else          s->channel->v[w->channel].data.macroc = 1;
+	if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc*2)
+		w->trackerfx = 3 + s->channel->v[w->channel].data.macroc*2;
+	regenGlobalRowc(s);
 }
-void setChordMacro(void)
+
+void chordClearChannel(void *_)
 {
+	clearChanneldata(s, &s->channel->v[w->channel].data);
+	regenGlobalRowc(s);
+}
+void chordAddChannel(void *_)
+{
+	addChannel(s, w->channel+1, MAX(1, w->count));
+	w->channel = MIN(CHANNEL_MAX-1, w->channel + MAX(1, w->count)); /* atomically safe */
+}
+void chordAddBefore(void *_)
+{
+	addChannel(s, w->channel, MAX(1, w->count));
+}
+void chordDeleteChannel(void *_)
+{
+	delChannel(w->channel, MAX(1, w->count));
+}
+void chordCopyChannel(void *_)
+{
+	copyChanneldata(&w->channelbuffer, &s->channel->v[w->channel].data);
+	regenGlobalRowc(s);
+}
+void chordPasteChannel(void *_)
+{
+	copyChanneldata(&s->channel->v[w->channel].data, &w->channelbuffer);
+	for (int i = 1; i < MAX(1, w->count); i++)
+	{
+		if (s->channel->c >= CHANNEL_MAX) break;
+		w->channel++;
+		copyChanneldata(&s->channel->v[w->channel].data, &w->channelbuffer);
+	}
+	regenGlobalRowc(s);
+}
+
+void setLoopRange(uint16_t start, uint16_t end)
+{
+	s->loop[0] = start;
+	if (s->playing)
+	{
+		if (s->playfy < end) s->loop[1] = end;
+		else                 s->loop[2] = end;
+	} else
+		s->loop[1] = end;
+}
+void chordLoopContext(void *_)
+{
+	Variant *v;
+	uint16_t ltrackerfy = MAX(w->trackerfy, STATE_ROWS);
+	int gcvret = getChannelVariantNoLoop(&v, &s->channel->v[w->channel].data, ltrackerfy);
+	if (gcvret == -1)
+	{ /* not in a variant */
+		if (s->loop[0] == ltrackerfy)
+			setLoopRange(0, 0);
+		else
+			setLoopRange(ltrackerfy, ltrackerfy + 4*s->rowhighlight - 1);
+	} else
+	{ /* in a variant */
+		if (s->loop[0] == ltrackerfy - gcvret
+		 && s->loop[1] == ltrackerfy - gcvret + v->rowc)
+			setLoopRange(0, 0);
+		else
+			setLoopRange(ltrackerfy - gcvret, ltrackerfy - gcvret + v->rowc);
+	} regenGlobalRowc(s);
+}
+void chordDoubleLoopLength   (void *_) { if (!s->loop[1]) setLoopRange(STATE_ROWS, STATE_ROWS + 4*s->rowhighlight - 1); setLoopRange(s->loop[0], s->loop[0] + ((s->loop[1] - s->loop[0])<<1) + 1); regenGlobalRowc(s); }
+void chordHalveLoopLength    (void *_) { if (!s->loop[1]) setLoopRange(STATE_ROWS, STATE_ROWS + 4*s->rowhighlight - 1); setLoopRange(s->loop[0], s->loop[0] + ((s->loop[1] - s->loop[0])>>1)); regenGlobalRowc(s);     }
+void chordIncrementLoopLength(void *_) { if (!s->loop[1]) setLoopRange(STATE_ROWS, STATE_ROWS + 4*s->rowhighlight - 1); setLoopRange(s->loop[0], s->loop[1] + MAX(1, w->count)); regenGlobalRowc(s);                   }
+void chordDecrementLoopLength(void *_) { if (!s->loop[1]) setLoopRange(STATE_ROWS, STATE_ROWS + 4*s->rowhighlight - 1); setLoopRange(s->loop[0], MAX(s->loop[0], s->loop[1] - MAX(1, w->count))); regenGlobalRowc(s);  }
+void chordLoopScaleToCursor  (void *_)
+{
+	if (!s->loop[1])
+		setLoopRange(STATE_ROWS, STATE_ROWS + 4*s->rowhighlight - 1);
+	if (w->trackerfy < s->loop[0]) setLoopRange(MAX(w->trackerfy, STATE_ROWS), s->loop[1]);
+	else                           setLoopRange(s->loop[0], w->trackerfy);
+
+	regenGlobalRowc(s);
+}
+
+int trackerMouseHeader(int button, int x, int y, short *tx)
+{
+	if (y == CHANNEL_ROW-2)
+	{
+		switch (w->page)
+		{ /* hacky implementation */
+			case PAGE_CHANNEL_VARIANT: if (x >= ((ws.ws_col-17)>>1) + 9) showTracker(); break;
+			case PAGE_CHANNEL_EFFECT:  if (x <  ((ws.ws_col-17)>>1) + 9) showTracker(); break;
+		} return 1;
+	} else if (y < CHANNEL_ROW-2)
+	{
+		if (x >= ((ws.ws_col-17)>>1) + 7) showInstrument();
+		return 1;
+	} else if (y <= CHANNEL_ROW)
+	{
+		for (int i = 0; i < s->channel->c; i++)
+		{
+			*tx += CHANNEL_TRIG_COLS;
+			*tx += 8 + 4*(s->channel->v[i].data.macroc+1);
+			if (*tx > x)
+			{
+				switch (button)
+				{
+					case BUTTON1: case BUTTON1_CTRL: w->channeloffset = i - w->channel; break;
+					case BUTTON2: case BUTTON2_CTRL: toggleChannelSolo(i); break;
+					case BUTTON3: case BUTTON3_CTRL: toggleChannelMute(i); break;
+				} break;
+			}
+		} return 1;
+	}
+	return 0;
+}
+
+/* chord bindings */
+void setChordRow(void) {
+	clearTooltip(&tt);
+	setTooltipTitle(&tt, "variant rows");
+	addTooltipBind(&tt, "scale variant to cursor    ", 'c', chordRowScaleToCursor,     NULL);
+	addTooltipBind(&tt, "set variant length to count", 'r', chordRowLengthToCount,     NULL);
+	addTooltipBind(&tt, "increment variant length   ", 'a', chordRowIncrementLength,   NULL);
+	addTooltipBind(&tt, "decrement variant length   ", 'd', chordRowDecrementLength,   NULL);
+	addTooltipBind(&tt, "double variant length      ", '+', chordRowCopyDown,          NULL);
+	addTooltipBind(&tt, "halve variant length       ", '-', chordRowDiscardHalf,       NULL);
+	addTooltipBind(&tt, "stretch variant length     ", '*', chordRowAddBlanks,         NULL);
+	addTooltipBind(&tt, "shrink variant length      ", '/', chordRowDiscardEveryOther, NULL);
+	addTooltipBind(&tt, "burn variant               ", 'b', chordRowBurn,              NULL);
+	w->chord = 'r';
+}
+void setChordMacro(void) {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "macro");
 	addTooltipBind(&tt, "increment macro columns   ", 'a', chordAddMacro,    NULL);
@@ -519,110 +709,18 @@ void setChordMacro(void)
 	addTooltipBind(&tt, "set macro columns to count", 'm', chordSetMacro,    NULL);
 	w->chord = 'm';
 }
-
-void chordClearChannel(void *_) { clearChanneldata(s, &s->channelv[w->channel].data); }
-void chordAddChannel(void *_)
-{
-	for (int i = 0; i < MAX(1, w->count); i++)
-	{
-		if (s->channelc >= CHANNEL_MAX) break;
-		addChannel(s, w->channel+1);
-		w->channel++;
-	}
-}
-void chordAddBefore(void *_)
-{
-	for (int i = 0; i < MAX(1, w->count); i++)
-	{
-		if (s->channelc >= CHANNEL_MAX) break;
-		addChannel(s, w->channel);
-	}
-}
-void chordDeleteChannel(void *_)
-{
-	for (int i = 0; i < MAX(1, w->count); i++)
-	{
-		delChannel(w->channel);
-		if (w->channel > s->channelc-1)
-			w->channel = s->channelc-1;
-	}
-}
-void chordDeleteToEnd(void *_)
-{
-	if (w->channel == 0) w->channel++;
-	for (uint8_t i = s->channelc; i > w->channel; i--)
-		delChannel(i - 1);
-	w->channel--;
-}
-void chordCopyChannel(void *_) { copyChanneldata(&w->channelbuffer, &s->channelv[w->channel].data); }
-void chordPasteChannel(void *_)
-{
-	copyChanneldata(&s->channelv[w->channel].data, &w->channelbuffer);
-	for (int i = 1; i < MAX(1, w->count); i++)
-	{
-		if (s->channelc >= CHANNEL_MAX) break;
-		w->channel++;
-		copyChanneldata(&s->channelv[w->channel].data, &w->channelbuffer);
-	}
-}
-void setChordChannel(void)
-{
+void setChordChannel(void) {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "channel");
 	addTooltipBind(&tt, "clear channel ", 'c', chordClearChannel,  NULL);
 	addTooltipBind(&tt, "add channel   ", 'a', chordAddChannel,    NULL);
 	addTooltipBind(&tt, "add before    ", 'A', chordAddBefore,     NULL);
 	addTooltipBind(&tt, "delete channel", 'd', chordDeleteChannel, NULL);
-	addTooltipBind(&tt, "delete to end ", 'D', chordDeleteToEnd,   NULL);
 	addTooltipBind(&tt, "copy channel  ", 'y', chordCopyChannel,   NULL);
 	addTooltipBind(&tt, "paste channel ", 'p', chordPasteChannel,  NULL);
 	w->chord = 'c';
 }
-
-void chordLoopContext(void *_)
-{
-	Variant *v;
-	uint16_t ltrackerfy = MAX(w->trackerfy, STATE_ROWS);
-	int gcvret = getChannelVariant(&v, &s->channelv[w->channel].data, ltrackerfy);
-	if (gcvret == -1)
-	{ /* not in a variant */
-		// if (s->loop[0] == ltrackerfy && s->loop[1] == ltrackerfy + 4*s->rowhighlight - 1)
-		if (s->loop[0] == ltrackerfy)
-			s->loop[0] = s->loop[1] = 0;
-		else
-		{
-			s->loop[0] = ltrackerfy;
-			s->loop[1] = ltrackerfy + 4*s->rowhighlight - 1;
-		}
-	} else
-	{ /* in a variant */
-		if (s->loop[0] == ltrackerfy - gcvret
-		 && s->loop[1] == ltrackerfy - gcvret + v->rowc)
-			s->loop[0] = s->loop[1] = 0;
-		else
-		{
-			s->loop[0] = ltrackerfy - gcvret;
-			s->loop[1] = ltrackerfy - gcvret + v->rowc;
-		}
-	} regenGlobalRowc(s);
-}
-void chordDoubleLoopLength   (void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = s->loop[0] + ((s->loop[1] - s->loop[0])<<1) + 1; regenGlobalRowc(s); }
-void chordHalveLoopLength    (void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = s->loop[0] + ((s->loop[1] - s->loop[0])>>1); regenGlobalRowc(s);     }
-void chordIncrementLoopLength(void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = s->loop[1] + MAX(1, w->count); regenGlobalRowc(s);                   }
-void chordDecrementLoopLength(void *_) { if (!s->loop[1]) { s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1; } s->loop[1] = MAX(s->loop[0], s->loop[1] - MAX(1, w->count)); regenGlobalRowc(s);  }
-void chordLoopScaleToCursor(void *_)
-{
-	if (!s->loop[1])
-	{
-		s->loop[0] = STATE_ROWS; s->loop[1] = STATE_ROWS + 4*s->rowhighlight - 1;
-	}
-	if (w->trackerfy < s->loop[0]) s->loop[0] = MAX(w->trackerfy, STATE_ROWS);
-	else                           s->loop[1] = w->trackerfy;
-
-	regenGlobalRowc(s);
-}
-void setChordLoop(void)
-{
+void setChordLoop(void) {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "loop range");
 	addTooltipBind(&tt, "loop the current context ", ';', chordLoopContext,         NULL);

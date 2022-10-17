@@ -8,13 +8,20 @@
 #include "../effect/distortion.c"
 #include "../effect/equalizer.c"
 
+#include "../effect/ladspa.c"
+
+
+#define EFFECT_TYPE_LADSPA 255
+#define EFFECT_TYPE_LV2    254 /* TODO */
+#define EFFECT_TYPE_CLAP   253 /* TODO */
 
 uint8_t getEffectControlCount(Effect *e)
 {
 	switch (e->type)
 	{
-		case 1: return distortionControlCount;
-		case 2: return equalizerControlCount;
+		case 1:                  return distortionControlCount;
+		case 2:                  return equalizerControlCount;
+		case EFFECT_TYPE_LADSPA: return getLadspaEffectControlCount(e);
 	} return 0; /* fallback */
 }
 
@@ -24,8 +31,9 @@ void freeEffect(Effect *e)
 
 	switch (e->type)
 	{
-		case 1: break;
-		case 2: break;
+		case 1:                  break;
+		case 2:                  break;
+		case EFFECT_TYPE_LADSPA: freeLadspaEffect(e); break;
 	}
 	free(e->state);
 	e->state = NULL;
@@ -37,8 +45,9 @@ void setEffectType(Effect *e, uint8_t type)
 	e->type = type;
 	switch (type)
 	{
-		case 1: initDistortion(e); break;
-		case 2: initEqualizer(e); break;
+		case 1:                  initDistortion(e); break;
+		case 2:                  initEqualizer(e); break;
+		case EFFECT_TYPE_LADSPA: initLadspaEffect(e); break;
 	}
 }
 void addEffect(EffectChain *chain, uint8_t type, uint8_t index)
@@ -49,6 +58,8 @@ void addEffect(EffectChain *chain, uint8_t type, uint8_t index)
 			chain->v[i] = chain->v[i-1];
 
 		chain->v[index].state = NULL;
+		memcpy(&chain->v[index].input, &chain->input, sizeof(float *) * 2);
+		memcpy(&chain->v[index].output, &chain->output, sizeof(float *) * 2);
 		setEffectType(&chain->v[index], type);
 
 		chain->c++;
@@ -66,7 +77,7 @@ void delEffect(EffectChain *chain, uint8_t index)
 	}
 }
 
-/* cursor should be ((ControlState)cc).cursor compatible */
+/* cursor is (ControlState).cursor compatible */
 uint8_t getEffectFromCursor(EffectChain *chain, uint8_t cursor)
 {
 	uint8_t offset = 0;
@@ -87,12 +98,13 @@ uint8_t getCursorFromEffect(EffectChain *chain, uint8_t index)
 
 void copyEffect(Effect *dest, Effect *src)
 {
-	setEffectType(dest, src->type);
+	freeEffect(dest);
 
 	switch (src->type)
 	{
-		case 1: copyDistortion(dest, src); break;
-		case 2: copyEqualizer(dest, src); break;
+		case 1:                  copyDistortion(dest, src); break;
+		case 2:                  copyEqualizer(dest, src); break;
+		case EFFECT_TYPE_LADSPA: copyLadspaEffect(dest, src); break;
 	}
 }
 
@@ -102,18 +114,22 @@ void serializeEffect(Effect *e, FILE *fp)
 
 	switch (e->type)
 	{
-		case 1: serializeDistortion(e, fp); break;
-		case 2: serializeEqualizer(e, fp); break;
+		case 1:                  serializeDistortion(e, fp); break;
+		case 2:                  serializeEqualizer(e, fp); break;
+		case EFFECT_TYPE_LADSPA: serializeLadspaEffect(e, fp); break;
 	}
 }
-void deserializeEffect(Effect *e, FILE *fp, uint8_t major, uint8_t minor)
+void deserializeEffect(EffectChain *chain, Effect *e, FILE *fp, uint8_t major, uint8_t minor)
 {
 	e->type = fgetc(fp);
+	memcpy(&chain->input, &e->input, sizeof(float *) * 2);
+	memcpy(&chain->output, &e->output, sizeof(float *) * 2);
 
 	switch (e->type)
 	{
-		case 1: initDistortion(e); deserializeDistortion(e, fp); break;
-		case 2: initEqualizer(e); deserializeEqualizer(e, fp); break;
+		case 1:                  deserializeDistortion(e, fp); break;
+		case 2:                  deserializeEqualizer(e, fp); break;
+		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect(e, fp); break;
 	}
 }
 
@@ -121,8 +137,9 @@ short getEffectHeight(Effect *e, short w)
 {
 	switch (e->type)
 	{
-		case 1: return getDistortionHeight(e, w);
-		case 2: return getEqualizerHeight(e, w);
+		case 1:                  return getDistortionHeight(e, w);
+		case 2:                  return getEqualizerHeight(e, w);
+		case EFFECT_TYPE_LADSPA: return getLadspaEffectHeight(e, w);
 	} return 0; /* fallback */
 }
 int drawEffect(Effect *e, ControlState *cc, bool selected,
@@ -131,8 +148,9 @@ int drawEffect(Effect *e, ControlState *cc, bool selected,
 {
 	switch (e->type)
 	{
-		case 1: drawDistortion(e, cc, x, w, y, ymin, ymax); break;
-		case 2: drawEqualizer(e, cc, x, w, y, ymin, ymax); break;
+		case 1:                  drawDistortion(e, cc, x, w, y, ymin, ymax); break;
+		case 2:                  drawEqualizer(e, cc, x, w, y, ymin, ymax); break;
+		case EFFECT_TYPE_LADSPA: drawLadspaEffect(e, cc, x, w, y, ymin, ymax); break;
 	}
 	short ret = getEffectHeight(e, w);
 
@@ -166,11 +184,13 @@ int drawEffect(Effect *e, ControlState *cc, bool selected,
 	return ret;
 }
 
-void stepEffect(Effect *e, float *l, float *r)
+/* e->input and e->output should be arrays of at least length samplecount */
+void runEffect(uint32_t samplecount, Effect *e)
 {
 	switch (e->type)
 	{
-		case 1: stepDistortion(e, l, r); break;
-		case 2: stepEqualizer(e, l, r); break;
+		case 1:                  runDistortion  (samplecount, e); break;
+		case 2:                  runEqualizer   (samplecount, e); break;
+		case EFFECT_TYPE_LADSPA: runLadspaEffect(samplecount, e); break;
 	}
 }

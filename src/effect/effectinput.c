@@ -23,29 +23,42 @@ void effectAddDistortionBefore(void *chain) { effectAddTypeBefore((EffectChain *
 void effectAddEqualizerAfter (void *chain) { effectAddTypeAfter ((EffectChain *)chain, 2); }
 void effectAddEqualizerBefore(void *chain) { effectAddTypeBefore((EffectChain *)chain, 2); }
 
+void effectAddExternalAfter(void *chain)
+{
+	w->pluginplacebefore = 0;
+	switch (w->page)
+	{
+		case PAGE_CHANNEL_EFFECT: w->page = PAGE_CHANNEL_EFFECT_PLUGINBROWSER; break;
+		case PAGE_INSTRUMENT_EFFECT: w->page = PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER; break;
+	} p->dirty = 1;
+}
+void effectAddExternalBefore(void *chain)
+{
+	w->pluginplacebefore = 1;
+	switch (w->page)
+	{
+		case PAGE_CHANNEL_EFFECT: w->page = PAGE_CHANNEL_EFFECT_PLUGINBROWSER; break;
+		case PAGE_INSTRUMENT_EFFECT: w->page = PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER; break;
+	} p->dirty = 1;
+}
+
 void setChordAddEffect(EffectChain *chain)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "add effect");
-	addTooltipBind(&tt,  "distortion  ", 'w', effectAddDistortionAfter, chain);
-	addTooltipBind(&tt,  "equalizer   ", 'e', effectAddEqualizerAfter, chain);
-	addTooltipBind(&tt,  "chorus      ", 'c', NULL, chain);
-	addTooltipBind(&tt,  "pitch shift ", 'p', NULL, chain);
-	addTooltipBind(&tt,  "delay       ", 'd', NULL, chain);
-	addTooltipBind(&tt,  "env follower", 'f', NULL, chain);
+	addTooltipBind(&tt,  "distortion ", 'w', effectAddDistortionAfter, chain);
+	addTooltipBind(&tt,  "equalizer  ", 'e', effectAddEqualizerAfter,  chain);
+	addTooltipBind(&tt,  "ext. plugin", 'p', effectAddExternalAfter,   chain);
 	w->chord = 'a';
 }
 void setChordAddEffectBefore(EffectChain *chain)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "add before");
-	addTooltipBind(&tt,  "distortion  ", 'w', effectAddDistortionBefore, chain);
-	addTooltipBind(&tt,  "equalizer   ", 'e', effectAddEqualizerBefore, chain);
-	addTooltipBind(&tt,  "chorus      ", 'c', NULL, chain);
-	addTooltipBind(&tt,  "pitch shift ", 'p', NULL, chain);
-	addTooltipBind(&tt,  "delay       ", 'd', NULL, chain);
-	addTooltipBind(&tt,  "env follower", 'f', NULL, chain);
-	w->chord = 'a';
+	addTooltipBind(&tt,  "distortion ", 'w', effectAddDistortionBefore, chain);
+	addTooltipBind(&tt,  "equalizer  ", 'e', effectAddEqualizerBefore,  chain);
+	addTooltipBind(&tt,  "ext. plugin", 'p', effectAddExternalBefore,   chain);
+	w->chord = 'A';
 }
 
 int inputEffect(EffectChain *chain, int input)
@@ -59,6 +72,7 @@ int inputEffect(EffectChain *chain, int input)
 		switch (input)
 		{
 			case '\n': case '\r': toggleKeyControl(&cc); p->dirty = 1; break;
+			case '\b': case 127:  revertKeyControl(&cc); p->dirty = 1; break;
 			case 'a': setChordAddEffect(chain);       p->dirty = 1; return 1; break;
 			case 'A': setChordAddEffectBefore(chain); p->dirty = 1; return 1; break;
 			case 'd':

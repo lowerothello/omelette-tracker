@@ -46,17 +46,17 @@ int writeSong(char *path)
 	fwrite(&samplerate, sizeof(jack_nframes_t), 1, fp);
 	fputc(s->songbpm, fp);
 	fputc(s->instrument->c, fp);
-	fputc(s->channelc, fp);
+	fputc(s->channel->c, fp);
 	fputc(s->rowhighlight, fp);
 	fwrite(&s->songlen, sizeof(uint16_t), 1, fp);
 	fwrite(s->loop, sizeof(uint16_t), 2, fp);
 
 	/* channels */
-	fprintf(debugfp, "%02x channel(s) expected\n", s->channelc);
-	for (i = 0; i < s->channelc; i++)
+	fprintf(debugfp, "%02x channel(s) expected\n", s->channel->c);
+	for (i = 0; i < s->channel->c; i++)
 	{
 		fprintf(debugfp, "CHANNEL %02x - 0x%zx\n", i, ftell(fp));
-		serializeChannel(s, &s->channelv[i], fp);
+		serializeChannel(s, &s->channel->v[i], fp);
 	}
 
 	/* instrument->i */
@@ -110,13 +110,6 @@ Song *readSong(char *path)
 	/* version */
 	uint8_t filemajor = fgetc(fp);
 	uint8_t fileminor = fgetc(fp);
-	/* if (filemajor < 1)
-	{
-		fclose(fp);
-		fcntl(0, F_SETFL, O_NONBLOCK);
-		strcpy(w->command.error, "failed to read song, file is too old");
-		p->dirty = 1; return NULL;
-	} */
 
 	Song *cs = _addSong();
 	if (!cs)
@@ -141,18 +134,18 @@ Song *readSong(char *path)
 
 	/* counts */
 	cs->songbpm = fgetc(fp);
-	w->request = REQ_BPM;
 
 	uint8_t tempinstrumentc = fgetc(fp);
-	cs->channelc = fgetc(fp);
+	uint8_t tempchannelc = fgetc(fp);
 	cs->rowhighlight = fgetc(fp);
 	fread(&cs->songlen, sizeof(uint16_t), 1, fp);
 	fread(cs->loop, sizeof(uint16_t), 2, fp);
 
-	cs->channelv = calloc(cs->channelc, sizeof(Channel));
+	cs->channel = calloc(1, sizeof(ChannelChain) + tempchannelc * sizeof(Channel));
+	cs->channel->c = tempchannelc;
 	/* channels */
-	for (i = 0; i < cs->channelc; i++)
-		deserializeChannel(cs, &cs->channelv[i], fp, filemajor, fileminor);
+	for (i = 0; i < cs->channel->c; i++)
+		deserializeChannel(cs, &cs->channel->v[i], fp, filemajor, fileminor);
 
 	/* instruments */
 	cs->instrument = calloc(1, sizeof(InstrumentChain) + tempinstrumentc * sizeof(Instrument));

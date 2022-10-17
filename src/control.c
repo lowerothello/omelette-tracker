@@ -17,9 +17,9 @@
  *     0: (bool)       shows either "X" or " "
  *     1: (int8_t)     shows -1 to 15, reads pretty names, (uint8_t)min should not equal max
  *     2: (uint8_t)    shows 0 to 0xff
- *     3: (int8_t)     shows 0 to 0x3f/0x40 and the sign bit, min/max are hardcoded
+ *     3: (int8_t)     shows 0 to 0x3f/0x40 and the sign bit
  *     4: (uint16_t)   shows 0 to 0xffff
- *     5: (int16_t)    shows 0 to 0x7fff/0x8000 and the sign bit, min/max are hardcoded
+ *     5: (int16_t)    shows 0 to 0x7fff/0x8000 and the sign bit, min should be absolute
  *     8: (uint32_t)   shows 0 to 0xffffffff
  *     else: undefined
  */
@@ -28,10 +28,14 @@ typedef struct
 	short    x, y; /* position on the screen */
 	void    *value;
 	uint32_t min, max;
+	uint32_t def;
 	int8_t   nibbles;
 	uint8_t  prettynamelen;
 	char    *prettyname[16]; /* only actually read if (nibbles == 1) */
 	int8_t   prettynameptr;
+
+	void   (*callback)(void *cc); /* called when self->value is changed */
+	void    *callbackarg;
 } Control;
 
 typedef struct
@@ -44,9 +48,8 @@ typedef struct
 
 	bool mouseadjust;
 	bool keyadjust;
+	bool resetadjust;
 	short prevmousex;
-
-	void (*callback)(void *cc, bool keyadjustchanged, bool mouseadjustchanged, bool valuechanged);
 } ControlState;
 
 
@@ -74,25 +77,29 @@ void clearControls(ControlState *cc)
 			c->prettyname[j] = NULL;
 		}
 		c->value = NULL;
+		c->callback = NULL;
 	}
 	cc->controlc = 0;
-	cc->callback = NULL;
 }
 
 void addControl(ControlState *cc,
 		short x, short y,
 		void *value, int8_t nibbles,
-		uint32_t min, uint32_t max,
-		uint8_t prettynamelen)
+		uint32_t min, uint32_t max, uint32_t def,
+		uint8_t prettynamelen,
+		void (*callback)(void *), void *callbackarg)
 {
 	cc->control[cc->controlc].x = x;
 	cc->control[cc->controlc].y = y;
 	cc->control[cc->controlc].value = value;
 	cc->control[cc->controlc].min = min;
 	cc->control[cc->controlc].max = max;
+	cc->control[cc->controlc].def = def;
 	cc->control[cc->controlc].nibbles = nibbles;
 	cc->control[cc->controlc].prettynamelen = prettynamelen;
 	cc->control[cc->controlc].prettynameptr = 0;
+	cc->control[cc->controlc].callback = callback;
+	cc->control[cc->controlc].callbackarg = callbackarg;
 
 	cc->controlc++;
 }
@@ -104,8 +111,6 @@ void setControlPrettyName(ControlState *cc, char *prettyname)
 	strcpy(c->prettyname[c->prettynameptr], prettyname);
 	c->prettynameptr++;
 }
-void setControlCallback(ControlState *cc, void (*callback)(void *, bool, bool, bool))
-{ cc->callback = callback; }
 
 /*
  * dump state to the screen
@@ -120,7 +125,12 @@ void drawControls(ControlState *cc)
 		if (!c->value) continue;
 
 		printf("\033[%d;%dH", c->y, c->x);
-		if (i == cc->cursor && (cc->mouseadjust || cc->keyadjust)) printf("\033[1m");
+		if (i == cc->cursor)
+		{
+			if (cc->mouseadjust || cc->keyadjust) printf("\033[1m");
+			else if (cc->resetadjust)             printf("\033[34m");
+		}
+
 		switch (c->nibbles)
 		{
 			case 0:
@@ -162,22 +172,16 @@ void incControlValue(ControlState *cc)
 	switch (c->nibbles)
 	{
 		case 1:
-			if ((*(int8_t *)(c->value)) == c->max) break;
-			if ((*(int8_t *)(c->value)) == c->min) /* hack */  (*(int8_t *)(c->value)) += delta;
-			else if ((*(int8_t *)(c->value)) + delta > c->max) (*(int8_t *)(c->value)) = c->max;
-			else                                               (*(int8_t *)(c->value)) += delta;
+			if ((*(int8_t *)(c->value)) == (int)c->max) break;
+			if ((*(int8_t *)(c->value)) == (int)c->min) /* hack */  (*(int8_t *)(c->value)) += delta;
+			else if ((*(int8_t *)(c->value)) + delta > (int)c->max) (*(int8_t *)(c->value)) = (int)c->max;
+			else                                                    (*(int8_t *)(c->value)) += delta;
 			break;
 		case 2:
 			if ((*(uint8_t *)(c->value)) + delta > c->max) (*(uint8_t *)(c->value)) = c->max;
 			else                                           (*(uint8_t *)(c->value)) += delta;
 			break;
-		case 3:
-			if (*(int8_t *)(c->value) > 0)
-			{
-				if ((*(int8_t *)(c->value)) + delta > SCHAR_MAX) (*(int8_t *)(c->value)) = SCHAR_MAX;
-				else                                             (*(int8_t *)(c->value)) += delta;
-			} else (*(int8_t *)(c->value)) += delta;
-			break;
+		case 3: (*(int8_t *)(c->value)) = MIN((*(int8_t *)(c->value)) + (int)delta, (int)c->max); break;
 		case 4:
 			if ((*(uint16_t *)(c->value)) + delta > c->max) (*(uint16_t *)(c->value)) = c->max;
 			else                                            (*(uint16_t *)(c->value)) += delta;
@@ -186,15 +190,29 @@ void incControlValue(ControlState *cc)
 			if (*(int16_t *)(c->value) > 0)
 			{
 				if ((*(int16_t *)(c->value)) + delta > SHRT_MAX) (*(int16_t *)(c->value)) = SHRT_MAX;
-				else                                             (*(int16_t *)(c->value)) += delta;
-			} else (*(int16_t *)(c->value)) += delta;
+				else
+				{
+					(*(int16_t *)(c->value)) += delta;
+					while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f) && (int)(*(int16_t *)(c->value) + 0x0001) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0001;
+					while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0) && (int)(*(int16_t *)(c->value) + 0x0010) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0010;
+					while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00) && (int)(*(int16_t *)(c->value) + 0x0100) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0100;
+					while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) -= 0x1000;
+				}
+			} else
+			{
+				(*(int16_t *)(c->value)) += delta;
+				while ((abs(*(int16_t *)(c->value)) & 0x000f) > (c->min & 0x000f)) (*(int16_t *)(c->value)) += 0x0001;
+				while ((abs(*(int16_t *)(c->value)) & 0x00f0) > (c->min & 0x00f0)) (*(int16_t *)(c->value)) += 0x0010;
+				while ((abs(*(int16_t *)(c->value)) & 0x0f00) > (c->min & 0x0f00)) (*(int16_t *)(c->value)) += 0x0100;
+				while ((abs(*(int16_t *)(c->value)) & 0xf000) > (c->min & 0xf000)) (*(int16_t *)(c->value)) += 0x1000;
+			}
 			break;
 		case 8:
 			if ((*(uint32_t *)(c->value)) + delta > c->max) (*(uint32_t *)(c->value)) = c->max;
 			else                                            (*(uint32_t *)(c->value)) += delta;
 			break;
 	}
-	if (cc->callback) cc->callback(cc, 0, 0, 1);
+	if (c->callback) c->callback(c->callbackarg);
 }
 void decControlValue(ControlState *cc)
 {
@@ -205,21 +223,15 @@ void decControlValue(ControlState *cc)
 	switch (c->nibbles)
 	{
 		case 1:
-			if ((*(int8_t *)(c->value)) == c->min) break;
-			if (c->min + delta < (*(int8_t *)(c->value))) (*(int8_t *)(c->value)) -= delta;
-			else                                          (*(int8_t *)(c->value)) = c->min;
+			if ((*(int8_t *)(c->value)) == (int)c->min) break;
+			if ((int)c->min + delta < (*(int8_t *)(c->value))) (*(int8_t *)(c->value)) -= delta;
+			else                                               (*(int8_t *)(c->value)) = (int)c->min;
 			break;
 		case 2:
 			if (c->min + delta < (*(uint8_t *)(c->value))) (*(uint8_t *)(c->value)) -= delta;
 			else                                           (*(uint8_t *)(c->value)) = c->min;
 			break;
-		case 3:
-			if (*(int8_t *)(c->value) < 0)
-			{
-				if (SCHAR_MIN + delta < (*(int8_t *)(c->value))) (*(int8_t *)(c->value)) -= delta;
-				else                                             (*(int8_t *)(c->value)) = SCHAR_MIN;
-			} else (*(int8_t *)(c->value)) -= delta;
-			break;
+		case 3: (*(int8_t *)(c->value)) = MAX((*(int8_t *)(c->value)) - (int)delta, (int)c->min); break;
 		case 4:
 			if (c->min + delta < (*(uint16_t *)(c->value))) (*(uint16_t *)(c->value)) -= delta;
 			else                                            (*(uint16_t *)(c->value)) = c->min;
@@ -227,16 +239,32 @@ void decControlValue(ControlState *cc)
 		case 5:
 			if (*(int16_t *)(c->value) < 0)
 			{
-				if (SHRT_MIN + delta < (*(int16_t *)(c->value))) (*(int16_t *)(c->value)) -= delta;
-				else                                             (*(int16_t *)(c->value)) = SHRT_MIN;
-			} else (*(int16_t *)(c->value)) -= delta;
+				if (SHRT_MIN + delta < (*(int16_t *)(c->value)))
+				{
+					(*(int16_t *)(c->value)) -= delta;
+					while ((abs(*(int16_t *)(c->value)) & 0x000f) > (c->min & 0x000f) && (int)(*(int16_t *)(c->value)) - 0x0001 > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0001;
+					while ((abs(*(int16_t *)(c->value)) & 0x00f0) > (c->min & 0x00f0) && (int)(*(int16_t *)(c->value)) - 0x0010 > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0010;
+					while ((abs(*(int16_t *)(c->value)) & 0x0f00) > (c->min & 0x0f00) && (int)(*(int16_t *)(c->value)) - 0x0100 > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0100;
+					while ((abs(*(int16_t *)(c->value)) & 0xf000) > (c->min & 0xf000)) (*(int16_t *)(c->value)) += 0x1000;
+				} else (*(int16_t *)(c->value)) = SHRT_MIN;
+			} else
+			{
+				(*(int16_t *)(c->value)) -= delta;
+				if (*(int16_t *)(c->value) > 0)
+				{
+					while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f)) (*(int16_t *)(c->value)) -= 0x0001;
+					while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0)) (*(int16_t *)(c->value)) -= 0x0010;
+					while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00)) (*(int16_t *)(c->value)) -= 0x0100;
+					while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) -= 0x1000;
+				}
+			}
 			break;
 		case 8:
 			if (c->min + delta < (*(uint32_t *)(c->value))) (*(uint32_t *)(c->value)) -= delta;
 			else                                            (*(uint32_t *)(c->value)) = c->min;
 			break;
 	}
-	if (cc->callback) cc->callback(cc, 0, 0, 1);
+	if (c->callback) c->callback(c->callbackarg);
 }
 
 void incControlCursor(ControlState *cc, uint8_t count)
@@ -334,10 +362,22 @@ void hexControlValue(ControlState *cc, char value)
 			{
 				(*(int16_t *)(c->value)) += _pow32(16, cc->fieldpointer) * (((*(int16_t *)(c->value))*-1) / _pow32(16, cc->fieldpointer)%16);
 				(*(int16_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * value;
+
+				/* TODO: untested */
+				while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f) && (int)(*(int16_t *)(c->value) - 0x0001) > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0001;
+				while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0) && (int)(*(int16_t *)(c->value) - 0x0010) > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0010;
+				while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00) && (int)(*(int16_t *)(c->value) - 0x0100) > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0100;
+				while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) += 0x1000;
 			} else
 			{
 				(*(int16_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * ((*(int16_t *)(c->value)) / _pow32(16, cc->fieldpointer)%16);
 				(*(int16_t *)(c->value)) += _pow32(16, cc->fieldpointer) * value;
+
+				/* TODO: untested */
+				while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f) && (int)(*(int16_t *)(c->value) + 0x0001) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0001;
+				while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0) && (int)(*(int16_t *)(c->value) + 0x0010) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0010;
+				while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00) && (int)(*(int16_t *)(c->value) + 0x0100) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0100;
+				while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) -= 0x1000;
 			}
 			(*(int16_t *)(c->value)) = MIN(SHRT_MAX, *(int16_t *)(c->value));
 			(*(int16_t *)(c->value)) = MAX(SHRT_MIN, *(int16_t *)(c->value));
@@ -349,7 +389,7 @@ void hexControlValue(ControlState *cc, char value)
 			(*(uint32_t *)(c->value)) = MAX(c->min, *(uint32_t *)(c->value));
 			break;
 	}
-	if (cc->callback) cc->callback(cc, 0, 0, 1);
+	if (c->callback) c->callback(c->callbackarg);
 	decControlFieldpointer(cc);
 }
 void toggleKeyControl(ControlState *cc)
@@ -360,12 +400,26 @@ void toggleKeyControl(ControlState *cc)
 	if (!c->nibbles)
 	{
 		(*(bool *)(c->value)) = !(*(bool *)(c->value));
-		if (cc->callback) cc->callback(cc, 0, 0, 1);
+		if (c->callback) c->callback(c->callbackarg);
 	} else
-	{
 		cc->keyadjust = !cc->keyadjust;
-		if (cc->callback) cc->callback(cc, 1, 0, 0);
+}
+void revertKeyControl(ControlState *cc)
+{
+	Control *c = &cc->control[cc->cursor];
+	if (!c->value) return;
+
+	switch (c->nibbles)
+	{
+		case 0: (*(bool *)(c->value)) = c->def; break;
+		case 1: (*(int8_t *)(c->value)) = c->def; break;
+		case 2: (*(uint8_t *)(c->value)) = c->def; break;
+		case 3: (*(int8_t *)(c->value)) = c->def; break;
+		case 4: (*(uint16_t *)(c->value)) = c->def; break;
+		case 5: (*(int16_t *)(c->value)) = c->def; break;
+		case 8: (*(uint32_t *)(c->value)) = c->def; break;
 	}
+	if (c->callback) c->callback(c->callbackarg);
 }
 
 void mouseControls(ControlState *cc, int button, int x, int y)
@@ -375,16 +429,22 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 	switch (button)
 	{
 		case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
-			cc->mouseadjust = 0;
-			cc->fieldpointer = 0;
-			c = &cc->control[cc->cursor];
-			if (c->value && !c->nibbles)
+			if (cc->resetadjust)
 			{
-				(*(bool *)(c->value)) = !(*(bool *)(c->value));
-				if (cc->callback) cc->callback(cc, 0, 1, 1);
-			} else
-				if (cc->callback) cc->callback(cc, 0, 1, 0);
-			break;
+				cc->resetadjust = 0;
+				revertKeyControl(cc);
+			}
+			if (cc->mouseadjust)
+			{
+				cc->mouseadjust = 0;
+				cc->fieldpointer = 0;
+				c = &cc->control[cc->cursor];
+				if (c->value && !c->nibbles)
+				{
+					(*(bool *)(c->value)) = !(*(bool *)(c->value));
+					if (c->callback) c->callback(c->callbackarg);
+				}
+			} break;
 		case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
 			if (cc->mouseadjust)
 			{
@@ -401,7 +461,6 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 					cc->cursor = i;
 					cc->prevmousex = x;
 					cc->mouseadjust = 1;
-					if (cc->callback) cc->callback(cc, 0, 1, 0);
 					switch (c->nibbles)
 					{
 						case 0: cc->fieldpointer = 1; break;
@@ -416,6 +475,16 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 							else                             cc->fieldpointer = (c->nibbles-1) - (x - c->x);
 							break;
 					} break;
+				}
+			} break;
+		case BUTTON2: case BUTTON2_CTRL:
+			for (i = 0; i < cc->controlc; i++)
+			{
+				c = &cc->control[i];
+				if (y == c->y && x >= c->x -1 && x <= c->x + MAX(1, c->nibbles) + (MAX(1, c->prettynamelen)-1))
+				{
+					cc->cursor = i;
+					cc->resetadjust = 1;
 				}
 			} break;
 	}

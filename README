@@ -2,7 +2,7 @@ omelette tracker
 ----------------
 
 omelette is a modern tracker for the terminal. it should compile and run on any
-POSIX compilant system, but i've only tested linux.
+POSIX compilant system, but i've only tested it on linux.
 
 
 features aren't set in stone, expect mods to be broken on new versions!
@@ -19,11 +19,12 @@ DEPENDS:
 - libsndfile                            - file loading
 - libdrawille (included as a submodule) - waveform drawing
 - valgrind                              - set NO_VALGRIND in config.h to remove
+- ladspa                                - LADSPA plugin support
 
 BUILD:
-$ git submodule init ; git submodule update # fetch libdrawille
+$ git submodule init ; git submodule update  # fetch libdrawille
 $ ( cd src/lib/libdrawille; cmake .; make; ) # build libdrawille
-$ ./make.sh 3 # build with -O3 (system CFLAGS aren't read currently)
+$ ./make.sh 3 # build with gcc -O3 (system CFLAGS aren't read currently)
 
 INSTALL: (no proper install script yet)
 $ su -c "install -Dm755 omelette '/usr/bin/omelette'"

@@ -1,10 +1,10 @@
 typedef struct
 {
-	sample_t *samples;
-	size_t    pointer;
-	size_t    width, height;
-	Canvas   *canvas;
-	char    **buffer;
+	jack_default_audio_sample_t *samples;
+	size_t  pointer;
+	size_t  width, height;
+	Canvas *canvas;
+	char  **buffer;
 } backgroundstate;
 backgroundstate *b;
 
@@ -19,7 +19,7 @@ void resizeBackground(backgroundstate *cb)
 	cb->height = (ws.ws_row - 2) * 4;
 
 	if (cb->samples) { free(cb->samples); cb->samples = NULL; }
-	cb->samples = calloc(cb->width, sizeof(sample_t));
+	cb->samples = calloc(cb->width, sizeof(jack_default_audio_sample_t));
 
 	if (cb->canvas) { free_canvas(cb->canvas); cb->canvas = NULL; }
 	if (cb->buffer) { free_buffer(cb->buffer); cb->buffer = NULL; }
@@ -41,7 +41,7 @@ void freeBackground(backgroundstate *cb)
 	free(cb);
 }
 
-void updateBackground(jack_nframes_t nfptr, sample_t *outl, sample_t *outr)
+void updateBackground(jack_nframes_t nfptr, jack_default_audio_sample_t *outl, jack_default_audio_sample_t *outr)
 {
 	if (b->samples) /* segfault protection, TODO: shouldn't be needed */
 		for (jack_nframes_t i = 0; i < nfptr; i++)

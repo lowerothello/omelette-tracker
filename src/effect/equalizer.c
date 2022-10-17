@@ -31,10 +31,23 @@ void initEqualizer(Effect *e)
 		((EqualizerState *)e->state)->band[i].resonance = 0x7f;
 	}
 }
-void copyEqualizer(Effect *dest, Effect *src) { memcpy(dest->state, src->state, sizeof(DistortionState)); }
+void copyEqualizer(Effect *dest, Effect *src)
+{
+	if (dest->state) free(dest->state);
+	dest->type = src->type;
+	initEqualizer(dest);
+	memcpy(dest->state, src->state, sizeof(DistortionState));
+}
 
-void serializeEqualizer  (Effect *e, FILE *fp) { fwrite(e->state, sizeof(EqualizerState), 1, fp); }
-void deserializeEqualizer(Effect *e, FILE *fp) { fread (e->state, sizeof(EqualizerState), 1, fp); }
+void serializeEqualizer(Effect *e, FILE *fp)
+{
+	fwrite(e->state, sizeof(EqualizerState), 1, fp);
+}
+void deserializeEqualizer(Effect *e, FILE *fp)
+{
+	initEqualizer(e);
+	fread(e->state, sizeof(EqualizerState), 1, fp);
+}
 
 short getEqualizerHeight(Effect *e, short w) { return E_E_GRAPH_ROWS + 7; }
 
@@ -123,52 +136,53 @@ void drawEqualizer(Effect *e, ControlState *cc,
 		if (ymin <= y+E_E_GRAPH_ROWS+1 && ymax >= y+E_E_GRAPH_ROWS+1)
 		{
 			printf("\033[%d;%dH%d: [  ]", y+E_E_GRAPH_ROWS+1, xx, i);
-			addControl(cc, xx+4, y+E_E_GRAPH_ROWS+1, &s->band[i].frequency, 2, 0x0, 0xff, 0);
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
+			addControl(cc, xx+4, y+E_E_GRAPH_ROWS+1, &s->band[i].frequency, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
+		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+2 && ymax >= y+E_E_GRAPH_ROWS+2)
 		{
 			printf("\033[%d;%dHM[    ]", y+E_E_GRAPH_ROWS+2, xx);
-			addControl(cc, xx+2, y+E_E_GRAPH_ROWS+2, &s->band[i].mode, 1, 0, 3, 5);
+			addControl(cc, xx+2, y+E_E_GRAPH_ROWS+2, &s->band[i].mode, 1, 0, 3, 0, 5, NULL, NULL);
 				setControlPrettyName(cc, "PEAK");
 				setControlPrettyName(cc, " LOW");
 				setControlPrettyName(cc, "HIGH");
 				setControlPrettyName(cc, "BAND");
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
+		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+3 && ymax >= y+E_E_GRAPH_ROWS+3)
 		{
 			printf("\033[%d;%dHG:[   ]", y+E_E_GRAPH_ROWS+3, xx);
-			addControl(cc, xx+3, y+E_E_GRAPH_ROWS+3, &s->band[i].gain, 3, 0, 0, 0);
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
+			addControl(cc, xx+3, y+E_E_GRAPH_ROWS+3, &s->band[i].gain, 3, -128, 127, 0, 0, NULL, NULL);
+		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+4 && ymax >= y+E_E_GRAPH_ROWS+4)
 		{
 			printf("\033[%d;%dHQ: [  ]", y+E_E_GRAPH_ROWS+4, xx);
-			addControl(cc, xx+4, y+E_E_GRAPH_ROWS+4, &s->band[i].resonance, 2, 0x0, 0xff, 0);
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0);
+			addControl(cc, xx+4, y+E_E_GRAPH_ROWS+4, &s->band[i].resonance, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
+		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 	}
 }
 
 #define E_E_GAIN_SCALE 8.0f
-void stepEqualizer(Effect *e, float *l, float *r)
+void runEqualizer(uint32_t samplecount, Effect *e)
 {
 	EqualizerState *s = (EqualizerState *)e->state;
-
 	float gain;
-	for (int i = 0; i < E_E_BANDS; i++)
-	{
-		runSVFilter(&s->band[i].filter[0], *l, s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
-		runSVFilter(&s->band[i].filter[1], *r, s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
 
-		if (s->band[i].gain == -128) gain = -1.0f; /* fully cancel out bands */
-		else                         gain = powf(E_E_GAIN_SCALE, s->band[i].gain*DIV128) - 1.0f;
-		switch (s->band[i].mode)
+	for (uint32_t fptr = 0; fptr < samplecount; fptr++)
+		for (int i = 0; i < E_E_BANDS; i++)
 		{
-			case E_E_MODE_PEAK: *l += s->band[i].filter[0].b * gain; *r += s->band[i].filter[1].b * gain; break;
-			case E_E_MODE_LOW:  *l += s->band[i].filter[0].l * gain; *r += s->band[i].filter[1].l * gain; break;
-			case E_E_MODE_HIGH: *l += s->band[i].filter[0].h * gain; *r += s->band[i].filter[1].h * gain; break;
-			case E_E_MODE_BAND: *l  = s->band[i].filter[0].b;        *r  = s->band[i].filter[1].b;        break;
+			runSVFilter(&s->band[i].filter[0], e->input[0][fptr], s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
+			runSVFilter(&s->band[i].filter[1], e->input[1][fptr], s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
+
+			if (s->band[i].gain == -128) gain = -1.0f; /* fully cancel out bands */
+			else                         gain = powf(E_E_GAIN_SCALE, s->band[i].gain*DIV128) - 1.0f;
+			switch (s->band[i].mode)
+			{
+				case E_E_MODE_PEAK: e->input[0][fptr] += s->band[i].filter[0].b * gain; e->input[1][fptr] += s->band[i].filter[1].b * gain; break;
+				case E_E_MODE_LOW:  e->input[0][fptr] += s->band[i].filter[0].l * gain; e->input[1][fptr] += s->band[i].filter[1].l * gain; break;
+				case E_E_MODE_HIGH: e->input[0][fptr] += s->band[i].filter[0].h * gain; e->input[1][fptr] += s->band[i].filter[1].h * gain; break;
+				case E_E_MODE_BAND: e->input[0][fptr]  = s->band[i].filter[0].b;        e->input[1][fptr]  = s->band[i].filter[1].b;        break;
+			}
 		}
-	}
 }

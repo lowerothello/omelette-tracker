@@ -76,9 +76,12 @@ void inputTooltip(TooltipState *tt, int input)
 		{
 			if (tt->entryv[i].callback)
 				tt->entryv[i].callback(tt->entryv[i].arg);
-			break;
+			return;
 		}
 	}
+
+	/* no callback triggered */
+	clearTooltip(tt);
 }
 
 void drawTooltip(TooltipState *tt)
@@ -87,8 +90,8 @@ void drawTooltip(TooltipState *tt)
 	printf("\033[s");
 	short w = tt->maxprettynamelen + 6;
 	short h = tt->entryc + 2;
-	short x = (ws.ws_col - w)>>1;
-	short y = (ws.ws_row - h)>>1;
+	short x = ws.ws_col - w - 1;
+	short y = ws.ws_row - h - 1;
 
 	for (short i = 0; i < tt->entryc; i++)
 		printf("\033[%d;%dH│ %s  \033[2m%c\033[m │", y+1+i, x, tt->entryv[i].prettyname, tt->entryv[i].keybind);

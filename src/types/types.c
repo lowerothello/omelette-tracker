@@ -1,6 +1,8 @@
 typedef struct
 {
 	uint8_t type;
+	float  *input[2];
+	float  *output[2];
 	void   *state;
 } Effect;
 #define EFFECT_CHAIN_LEN 16
@@ -8,6 +10,8 @@ typedef struct
 {
 	uint8_t c;
 	Effect  v[EFFECT_CHAIN_LEN];
+	float  *input[2];
+	float  *output[2];
 } EffectChain;
 
 
@@ -17,6 +21,7 @@ typedef struct
 #define NOTE_C5 60      /* centre note */
 #define NOTE_A10 120    /* first out of range note */
 #define INST_VOID 255
+#define INST_FILEPREVIEW -1 /* signed, be careful with this */
 typedef struct
 {
 	uint8_t note; /* MIDI compatible  | NOTE_* declares */
@@ -79,7 +84,8 @@ typedef struct
 	uint8_t  randgain;       /* gain override for the Ixy macro */
 	short    targetgain;     /* smooth gain target */
 	Row      r;
-	uint8_t  samplernote, samplerinst;
+	uint8_t  samplernote;
+	short    samplerinst; /* allowed to be signed */
 	float    finetune;                 /* calculated fine tune, clamped between -2/+2 for midi */
 
 	float    portamentofinetune;       /* portamento fine tune */
@@ -91,6 +97,7 @@ typedef struct
 	float    microtonalfinetune;         /* used by the local microtonal macro */
 	uint16_t rtrigsamples;               /* samples per retrigger */
 	uint32_t rtrigpointer;               /* clock reference */
+	uint32_t rtrigcurrentpointer;        /* pointer the current rtrig started at */
 	uint32_t rtrigpitchedpointer;        /* pitchedpointer to ratchet back to */
 	uint32_t rtrigcurrentpitchedpointer; /* pitchedpointer the current retrig started at */
 	int8_t   rtrigblocksize;             /* number of rows block extends to */
@@ -98,20 +105,26 @@ typedef struct
 	uint16_t delaysamples;               /* samples into the row to delay, 0 for no delay */
 	uint8_t  delaynote;
 	uint8_t  delayinst;
+
+	/* vibrato */
 	uint8_t  vibrato;                    /* vibrato depth, 0-f */
 	uint32_t vibratosamples;             /* samples per full phase walk */
 	uint32_t vibratosamplepointer;       /* distance through cv->vibratosamples */
 
+
 	short localenvelope;
-	short localpitchshift;
+	short localsustain;
+	short localpitchshift, targetlocalpitchshift;
+	short localpitchwidth, targetlocalpitchwidth;
 	int   localcyclelength;
+	short localsamplerate, targetlocalsamplerate;
 
 	short   midiccindex;
 	uint8_t midicc;
 
-	int8_t sendgroup;
-	int8_t sendgain;
-	int8_t targetsendgain;
+	uint8_t sendgain;
+	uint8_t sendrandgain;
+	short   targetsendgain;
 
 	/* waveshaper */
 	char    waveshaper;               /* which waveshaper to use */
@@ -120,11 +133,11 @@ typedef struct
 
 	/* filter */
 	SVFilter fl[2], fr[2];
-	char     filtermode;
-	int8_t   targetfiltermode;
-	uint8_t  filtercut;
-	short    targetfiltercut;
-	int8_t   filterres, targetfilterres;
+	int8_t   filtermode[2], targetfiltermode[2];
+	uint8_t  filtercut[2];
+	short    targetfiltercut[2];
+	uint8_t  filterres[2];
+	short    targetfilterres[2];
 
 	/* ramping */
 	uint16_t rampindex;        /* progress through the ramp buffer, rampmax if not ramping */
@@ -137,51 +150,100 @@ typedef struct
 	uint16_t grainrampindex; /* progress through the grain ramp buffer, >=cv->grainrampmax if not ramping */
 	uint16_t grainrampmax;   /* actual grainrampmax used, to allow for tiny grain sizes */
 
-	uint32_t oldgrainstart, grainstart;
-	uint32_t oldgrainpitchedpointer, grainpitchedpointer;
-
-	float *outputl, *outputr;
+	float *output[2];
+	float *pluginoutput[2]; /* some external plugins need to read and write from separate buffers */
+	float *mainmult[2]; /* apply post-effects in parallel with sendmult */
+	float *sendmult[2]; /* apply post-effects in parallel with mainmult */
 
 	uint32_t triggerflash;
 } Channel;
 
+typedef struct
+{ /* TODO: use a flexible array member here? */
+	short   *data; /* alloc(sizeof(short) * length * channels) */
+	uint32_t length;
+	uint8_t  channels;
+	uint32_t rate; /* rate to play C5 at */
+	uint32_t defrate; /* rate to return to when the rate control is reset */
+} Sample;
 
 #define INSTRUMENT_VOID 255
 #define INSTRUMENT_MAX 255
+enum {
+	INST_ALG_SIMPLE,
+	INST_ALG_GRANULAR,
+	INST_ALG_WAVETABLE,
+	INST_ALG_MIDI
+} INST_ALG;
 typedef struct
 {
-	short    *sampledata;   /* variable size, persists between types */
-	uint32_t  samplelength; /* raw samples allocated for sampledata */
+	Sample sample;
 
-	uint32_t length;
-	uint8_t  channels;
 	int8_t   channelmode;
-	uint32_t c5rate;
 	uint8_t  samplerate;  /* percent of c5rate to actually use */
 	int8_t   bitdepth;
 	uint32_t trimstart;
 	uint32_t trimlength;
 	uint32_t looplength;
-	uint8_t  envelope;
-	bool     sustain;
+	uint16_t envelope;
 	int8_t   gain;
 	bool     invert;
 	bool     pingpong;
 	uint8_t  loopramp;
-	int8_t   midichannel;
+
+	int8_t   filtermode;
+	uint8_t  filtercutoff;
+	uint8_t  filterresonance;
+
+	int8_t   algorithm;
+
+	/* midi */
+	struct {
+		int8_t channel;
+	} midi;
 
 	/* granular */
-	uint16_t cyclelength;
-	uint8_t  rearrange;
-	bool     reversegrains;
-	int16_t  timestretch;
-	bool     notestretch;
-	int16_t  pitchshift;
-	int8_t   pitchstereo;
+	struct {
+		uint16_t cyclelength;
+		bool     reversegrains;
+		int8_t   rampgrains;
+		int16_t  timestretch;
+		bool     notestretch;
+		int16_t  pitchshift;
+		int8_t   pitchstereo;
+	} granular;
+
+	/* wavetable */
+	struct {
+		uint32_t framelength;
+		uint8_t  wtpos;
+		int8_t   syncoffset;
+		int8_t   pulsewidth;
+		int8_t   phasedynamics;
+		uint8_t  lfospeed;
+		int8_t   lfoduty;
+		bool     lfoshape;
+		struct {
+			int8_t wtpos;
+			int8_t sync;
+			int8_t cutoff;
+			int8_t phase;
+			int8_t pwm;
+			int8_t pdyn;
+		} env;
+		struct {
+			uint8_t gain;
+			int8_t wtpos;
+			int8_t sync;
+			int8_t cutoff;
+			int8_t phase;
+			int8_t pwm;
+			int8_t pdyn;
+		} lfo;
+	} wavetable;
 
 	/* effects */
 	EffectChain effect;
-
 	uint32_t triggerflash;
 } Instrument;
 
@@ -192,24 +254,31 @@ typedef struct
 	Instrument v[];               /* instrument values  */
 } InstrumentChain;
 
+typedef struct
+{
+	uint8_t c;   /* channel count  */
+	Channel v[]; /* channel values */
+} ChannelChain;
 
-#define PLAYING_STOP      0
-#define PLAYING_START     1
-#define PLAYING_CONT      2
-#define PLAYING_PREP_STOP 3
+enum {
+	PLAYING_STOP, /* TODO: some old code relies on this being 0, fix */
+	PLAYING_START,
+	PLAYING_CONT,
+	PLAYING_PREP_STOP
+} PLAYING;
 typedef struct
 {
 	/* instruments */
 	InstrumentChain *instrument;
 
 	/* channels */
-	uint8_t  channelc; /* channel count */
-	Channel *channelv; /* channel values */
+	ChannelChain *channel;
+	short        *bpmcache; /* bpm change caching so multithreading isn't hell */
 
 	/* song pointers */
 	uint16_t playfy;  /* analogous to window->trackerfy */
 	uint16_t songlen; /* how long the global variant is */
-	uint16_t loop[2]; /* loop range pointers */
+	uint16_t loop[3]; /* loop range pointers, [2] is the staging loop end */
 
 	/* mastering chain */
 	/* uint8_t effectc;
@@ -225,29 +294,53 @@ typedef struct
 Song *s;
 
 
-#define INST_GLOBAL_LOCK_OK 0        /* playback and most memory ops are safe */
-#define INST_GLOBAL_INST_MUTE 7      /* force stop midi for instrument locki */
-#define INST_GLOBAL_CHANNEL_MUTE 8   /* one or more channels have changed mute state */
+enum { /* TODO: port to the event system */
+	INST_REC_LOCK_OK,           /* playback and most memory ops are safe */
+	INST_REC_LOCK_START,        /* want to be unsafe                     */
+	INST_REC_LOCK_CUE_START,    /* want to be unsafe                     */
+	INST_REC_LOCK_CONT,         /* recording                             */
+	INST_REC_LOCK_CUE_CONT,     /* recording                             */
+	INST_REC_LOCK_PREP_END,     /* start stopping recording              */
+	INST_REC_LOCK_END,          /* stopping recording has finished       */
+	INST_REC_LOCK_PREP_CANCEL,  /* start cancelling recording            */
+	INST_REC_LOCK_CANCEL,       /* cancelling recording has finished     */
+} INST_REC;
 
-#define INST_REC_LOCK_OK 0          /* playback and most memory ops are safe */
-#define INST_REC_LOCK_START 1       /* want to be unsafe                     */
-#define INST_REC_LOCK_CUE_START 2   /* want to be unsafe                     */
-#define INST_REC_LOCK_CONT 3        /* recording                             */
-#define INST_REC_LOCK_CUE_CONT 4    /* recording                             */
-#define INST_REC_LOCK_PREP_END 5    /* start stopping recording              */
-#define INST_REC_LOCK_END 6         /* stopping recording has finished       */
-#define INST_REC_LOCK_PREP_CANCEL 7 /* start cancelling recording            */
-#define INST_REC_LOCK_CANCEL 8      /* cancelling recording has finished     */
+enum { /* pages */
+	PAGE_CHANNEL_VARIANT,
+	PAGE_CHANNEL_EFFECT,
+	PAGE_CHANNEL_EFFECT_PLUGINBROWSER,
+	PAGE_INSTRUMENT_SAMPLE,
+	PAGE_INSTRUMENT_SAMPLE_PLUGINBROWSER,
+	PAGE_INSTRUMENT_EFFECT,
+	PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER,
+	PAGE_MASTER,
+	PAGE_FILEBROWSER
+} PAGE;
 
-#define REQ_OK 0  /* do nothing / done */
-#define REQ_BPM 1 /* re-apply the song bpm */
+enum { /* tracker modes */
+	T_MODE_NORMAL,
+	T_MODE_INSERT,
+	T_MODE_MOUSEADJUST,
+	T_MODE_VISUAL,
+	T_MODE_VISUALLINE,
+	T_MODE_VISUALREPLACE,
+	T_MODE_VTRIG,
+	T_MODE_VTRIG_INSERT,
+	T_MODE_VTRIG_VISUAL,
+	T_MODE_VTRIG_MOUSEADJUST
+} T_MODE;
 
-#define PAGE_CHANNEL_VARIANT 0
-#define PAGE_CHANNEL_EFFECT 1
-#define PAGE_INSTRUMENT_SAMPLE 2
-#define PAGE_INSTRUMENT_EFFECT 3
-#define PAGE_MASTER 4
-#define PAGE_FILEBROWSER 15
+enum { /* instrument modes */
+	I_MODE_INDICES,
+	I_MODE_NORMAL
+} I_MODE;
+
+enum {
+	PTRIG_OK,     /* no queued preview            */
+	PTRIG_NORMAL, /* queued s->instrument preview */
+	PTRIG_FILE,   /* queued filebrowser preview   */
+} PTRIG;
 typedef struct
 {
 	Variant *pbvariantv[CHANNEL_MAX];
@@ -278,7 +371,9 @@ typedef struct
 
 	short          effectscroll;
 
-	int filebrowserindex;
+	int    filebrowserindex;
+	size_t plugineffectindex;
+	bool   pluginplacebefore; /* true to place plugins before the cursor, false to place plugins after the cursor */
 
 	unsigned short mousey, mousex;
 
@@ -290,14 +385,12 @@ typedef struct
 	unsigned int   dirc;
 	unsigned short dirmaxwidth;
 	unsigned char  dircols;
+	short dirx, diry, dirw, dirh; /* file browser screen region */
 	DIR           *dir;
 
 	Canvas  *waveformcanvas;
 	char   **waveformbuffer;
 	size_t   waveformw, waveformh;
-	uint32_t waveformwidth;
-	uint32_t waveformcursor;
-	uint32_t waveformvisual;
 	uint32_t waveformdrawpointer;
 
 	char     chord; /* key chord buffer, vi-style multi-letter commands */
@@ -309,15 +402,12 @@ typedef struct
 
 	Row     previewrow;
 	Channel previewchannel;
-	bool    previewtrigger;
-
-	uint8_t instrumentlocki; /* realindex */
-	uint8_t instrumentlockv; /* value, set to an INST_GLOBAL_LOCK constant */
-	char    request;         /* ask the playback function to do something */
+	Sample *previewsample; /* used by the filebrowser to soft load samples */
+	char    previewtrigger;
 
 	uint8_t  instrumentreci; /* NOT a realindex */
 	uint8_t  instrumentrecv; /* value, set to an INST_REC_LOCK constant */
-	short   *recbuffer;      /* disallow changing the type or removing while recording */
+	short   *recbuffer;      /* disallow removing an instrument while recording to it */
 	uint32_t recptr;
 
 	char newfilename[COMMAND_LENGTH]; /* used by readSong */
@@ -327,21 +417,20 @@ Window *w;
 
 typedef struct
 {
-	struct { sample_t *l, *r; } in, out;
+	struct { jack_default_audio_sample_t *l, *r; } in, out;
 	void *midiout;
 } portbuffers;
 portbuffers pb;
 
+#define EVENT_QUEUE_MAX 16
 typedef struct
 {
 	Song        *s;
 	Window      *w;
 	struct { jack_port_t *l, *r; } in, out;
 	jack_port_t *midiout;
-	bool         dirty; /* request a screen redraw */
-	uint8_t      sem;   /* M_SEM_* defines */
-	void        *semarg;
-	void       (*semcallback)(void *);
-	void        *semcallbackarg;
+	bool         dirty;  /* request a screen redraw */
+	Event        eventv[EVENT_QUEUE_MAX];
+	uint8_t      eventc; /* the eventv index pushEvent() should populate */
 } PlaybackInfo;
 PlaybackInfo *p;

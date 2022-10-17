@@ -1,25 +1,3 @@
-#define BUTTON1 32
-#define BUTTON2 33
-#define BUTTON3 34
-#define BUTTON_RELEASE 35
-#define BUTTON1_CTRL BUTTON1 + 16
-#define BUTTON2_CTRL BUTTON2 + 16
-#define BUTTON3_CTRL BUTTON3 + 16
-#define BUTTON_RELEASE_CTRL BUTTON_RELEASE + 16
-
-#define BUTTON1_HOLD BUTTON1 + 32
-#define BUTTON2_HOLD BUTTON2 + 32
-#define BUTTON3_HOLD BUTTON3 + 32
-#define BUTTON1_HOLD_CTRL BUTTON1_CTRL + 32
-#define BUTTON2_HOLD_CTRL BUTTON2_CTRL + 32
-#define BUTTON3_HOLD_CTRL BUTTON3_CTRL + 32
-
-#define WHEEL_UP BUTTON1 + 64
-#define WHEEL_DOWN BUTTON2 + 64
-#define WHEEL_UP_CTRL BUTTON1_CTRL + 64
-#define WHEEL_DOWN_CTRL BUTTON2_CTRL + 64
-
-
 /* *note is allowed to be null             */
 /* returns true if a valid pad was pressed */
 int charToKmode(int key, bool GXXstyle, uint8_t *macrov, uint8_t *note)
@@ -97,21 +75,32 @@ int charToNote(int key, uint8_t *note)
 	}
 }
 
-void previewNote(int key, uint8_t inst)
+void _previewNote(Window *cw, int key, uint8_t inst)
 {
-	w->previewrow.macro[0].c = '\0';
-	w->previewrow.inst = inst;
+	cw->previewrow.macro[0].c = '\0';
+	cw->previewrow.inst = inst;
 
-	switch (w->keyboardmacro)
+	switch (cw->keyboardmacro)
 	{
-		case 0: charToNote(key, &w->previewrow.note); break;
+		case 0: charToNote(key, &cw->previewrow.note); break;
 		case 'G':
-			if (charToKmode(key, 1, &w->previewrow.macro[0].v, &w->previewrow.note))
-				w->previewrow.macro[0].c = w->keyboardmacro;
+			if (charToKmode(key, 1, &cw->previewrow.macro[0].v, &cw->previewrow.note))
+				cw->previewrow.macro[0].c = cw->keyboardmacro;
 			break;
 		default:
-			if (charToKmode(key, 0, &w->previewrow.macro[0].v, &w->previewrow.note))
-				w->previewrow.macro[0].c = w->keyboardmacro;
+			if (charToKmode(key, 0, &cw->previewrow.macro[0].v, &cw->previewrow.note))
+				cw->previewrow.macro[0].c = cw->keyboardmacro;
 			break;
-	} w->previewtrigger = 1;
+	}
+}
+void previewNote(int key, uint8_t inst)
+{
+	if (p->s->playing) return; /* TODO: only discriminate if on the channel page */
+	_previewNote(w, key, inst);
+	w->previewtrigger = PTRIG_NORMAL;
+}
+void previewFileNote(int key)
+{
+	_previewNote(w, key, 0); /* inst arg is unused so it doesn't matter */
+	w->previewtrigger = PTRIG_FILE;
 }

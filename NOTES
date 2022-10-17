@@ -1,26 +1,65 @@
 - change the cursor shape to help differentiate modes
-- waveform visual bug when opening files
-- clear the bottom line and leave the cursor at the beginning of it when
-  quitting
 - Ixy isn't always smoothed properly over trigs, should be fixed by Gxx-like slew
 
 - rx0 reaching the beginning of the sample cuts the note
-- Qxx can swap to qxx but not the other way round
-- Oxx gets fucked by notestretch
-
-- bind to set the octave of the hovered note and NOT the default octave?
-	- maybe inc/dec by octaves? ctrl+alt+a/x or smth
 
 lookback needs proper testing, some macros are probably inexplicably broken
 for no apparent reason
-	- also lookback performs too badly, should be multithreaded
+	- lookback resets the envelope, cutting long attacks immediately
+		- not sure the solution to this
+	- bpm macros are really fucked, lookback reads macros it shouldn't be able to see
 
 
 - multithreading is currently broken
-- loop ramping should use data from outside the loop range instead of padding
-
-
-tracker channel header middle click to toggle solo
+- loop ramping should use data from outside the loop range instead of padding the range
+the first time a channel plays a sound it's much clickier than it is every later time
+	- probably due to the envelope?
 
 
 addVariant->_copyVariant->malloc memory leak
+
+
+
+octave setting is kinda awful
+	- remove the global octave? or at least separate binds to change the global octave
+	  and binds to change the selected note's octave
+	- bind to set the octave of the hovered note and NOT the default octave?
+		- maybe inc/dec by octaves? ctrl+alt+a/x or smth
+only apply step when holding alt?
+the instrument index modes need to be rethought
+mode where keyboard shortcuts toggle mute channels, with a popup that links keys with channels
+	- shift+key to solo
+	- dynamic mapping, map to the home row first?
+resident tooltip popup, togglable with '?'
+multi-channel copy/paste is currently broken, fix it
+	- include variants as well
+reduce the distinction between vtrig columns and variant content columns
+add variant macro columns
+	- default to 1 variant macro column
+		- use the same mutation keybinds as row macros use
+	- different scope to row macro columns
+	macros:
+		- +x: local transpose up     } linked   }
+		- -x: local transpose down   } "        } preview these while editing
+		- /x: local speed up     } linked       }
+		- *x: local speed down   } "            }
+		- Gx: global mono gain scale
+		- Fx: global mono filter cutoff scale
+		- Zx: global mono filter resonance scale
+		- ?x: instrument offset (unsigned)
+
+
+LADSPA effects:
+- handle odd audio port arrangements gracefully
+	- mono handling
+	- ignore everything after the first 2 ports
+	- handle 0 ports as well as possible
+- process code
+- ensure copy/paste works as expected
+
+ladspa bugs:
+- some controls don't respect limits
+	- think it's probably a logarithmic control issue, might not be
+- the stereo field is fucked
+- segfaults cos effects aren't atomic yet
+

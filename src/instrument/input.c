@@ -126,9 +126,8 @@ void instrumentInput(int input)
 					previewNote(' ', INST_VOID);
 					switch (getchar())
 					{
-						case 'P': /* xterm f1 */ showTracker(); break;
+						case 'P': /* xterm f1 */ showTracker   (); break;
 						case 'Q': /* xterm f2 */ showInstrument(); break;
-						case 'S': /* xterm f4 */ showMaster(); break;
 					} p->dirty = 1; break;
 				case '[': /* CSI */
 					switch (getchar())
@@ -137,9 +136,8 @@ void instrumentInput(int input)
 							previewNote(' ', INST_VOID);
 							switch (getchar())
 							{
-								case 'A': /* linux f1 */ showTracker(); break;
+								case 'A': /* linux f1 */ showTracker   (); break;
 								case 'B': /* linux f2 */ showInstrument(); break;
-								case 'D': /* linux f4 */ showMaster(); break;
 								case 'E': /* linux f5 */ startPlayback(); break;
 							} p->dirty = 1; break;
 						case 'A': /* up arrow    */ instrumentUpArrow  (1); p->dirty = 1; break;
@@ -149,8 +147,8 @@ void instrumentInput(int input)
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
-								case '5': /* xterm f5, play  */ startPlayback(); getchar(); break;
-								case '7': /* f6, stop        */
+								case '5': /* xterm f5 */ startPlayback(); getchar(); break;
+								case '7': /*       f6 */
 									previewNote(' ', INST_VOID);
 									stopPlayback(); getchar(); break;
 								case ';': /* mod+arrow */
@@ -166,22 +164,12 @@ void instrumentInput(int input)
 											} break;
 										default: getchar(); break;
 									} break;
-								case '~': /* linux home */          instrumentHome(); p->dirty = 1;   break;
+								case '~': /* linux home */ instrumentHome(); p->dirty = 1; break;
 							} break;
-						case 'H': /* xterm home */                  instrumentHome(); p->dirty = 1;   break;
+						case 'H': /* xterm home */         instrumentHome(); p->dirty = 1; break;
 						case '4': /* end */ if (getchar() == '~') { instrumentEnd (); p->dirty = 1; } break;
-						case '5':
-							switch (getchar())
-							{
-								case '~': /* page up        */ instrumentUpArrow(ws.ws_row>>1); p->dirty = 1; break;
-								case ';': /* shift+scrollup */ getchar(); break;
-							} break;
-						case '6':
-							switch (getchar())
-							{
-								case '~': /* page down      */ instrumentDownArrow(ws.ws_row>>1); p->dirty = 1; break;
-								case ';': /* shift+scrolldn */ getchar(); break;
-							} break;
+						case '5': /* page up / shift+scrollup */ getchar(); instrumentUpArrow  (ws.ws_row>>1); p->dirty = 1; break;
+						case '6': /* page dn / shift+scrolldn */ getchar(); instrumentDownArrow(ws.ws_row>>1); p->dirty = 1; break;
 						case 'M': /* mouse */
 							button = getchar();
 							x = getchar() - 32;
@@ -193,7 +181,10 @@ void instrumentInput(int input)
 									break;
 								default:
 									if (button != BUTTON1_HOLD && button != BUTTON1_HOLD_CTRL) instrumentModeToNormal();
-									if (cc.mouseadjust || (instrumentSafe(s, w->instrument)
+									if (instrumentSafe(s, w->instrument) && (!s->instrument->v[s->instrument->i[w->instrument]].sample.length || !s->instrument->v[s->instrument->i[w->instrument]].sample.data)
+											&& y > CHANNEL_ROW-2 && x >= INSTRUMENT_INDEX_COLS)
+										filebrowserMouse(button, x, y);
+									else if (cc.mouseadjust || (instrumentSafe(s, w->instrument)
 												&& y > CHANNEL_ROW-2 && x >= INSTRUMENT_INDEX_COLS))
 									{
 										if (button != BUTTON1_HOLD && button != BUTTON1_HOLD_CTRL) instrumentModeToNormal();
@@ -256,14 +247,6 @@ void instrumentInput(int input)
 													case BUTTON1: case BUTTON1_CTRL:
 														w->fyoffset = y - w->centre;
 														break;
-													case BUTTON3: case BUTTON3_CTRL:
-														if ((short)w->instrument + (y - w->centre) < 0)        w->instrument = 0;
-														else if ((short)w->instrument + (y - w->centre) > 254) w->instrument = 254;
-														else                                                   w->instrument += y - w->centre;
-														w->effectscroll = 0;
-
-														instrumentOpenFilebrowser();
-														break;
 												}
 												previewNote(' ', INST_VOID);
 												break;
@@ -301,16 +284,18 @@ void instrumentInput(int input)
 								w->count = MIN(256, w->count);
 								switch (w->chord)
 								{
-									case 'r': /* record        */ inputTooltip(&tt, input); break;
+									case 'r': /* record   */ inputTooltip(&tt, input); break;
+									case 'a': /* add inst */ inputTooltip(&tt, input); break;
 								} w->count = 0; p->dirty = 1;
 							} else
 								switch (input)
 								{
 									case '\t': /* not indices    */ if (instrumentSafe(s, w->instrument)) { w->mode = I_MODE_NORMAL; p->dirty = 1; } break;
+									case 'b':  /* bpm            */ if (w->count) { s->songbpm = MIN(255, MAX(32, w->count)); reapplyBpm(); } p->dirty = 1; break;
 									case 'r':  /* record         */ setChordRecord(); p->dirty = 1; return;
 									case 'a':  /* add            */
 										if (instrumentSafe(s, w->instrument)) { previewNote('a', w->instrument); }
-										else                                  { addInstrument(w->instrument); p->dirty = 1; }
+										else                                  { setChordAddInst(); p->dirty = 1; return; }
 										break;
 									case ' ': if (instrumentSafe(s, w->instrument)) previewNote(' ', w->instrument); break;
 									case 'd': case 'x': case 127: case '\b': /* delete */
@@ -321,7 +306,6 @@ void instrumentInput(int input)
 										} p->dirty = 1; break;
 									case 'y':  /* yank    */ yankInstrument(w->instrument); p->dirty = 1; break;
 									case 'p':  /* put     */ putInstrument (w->instrument); p->dirty = 1; break;
-									case 'o': case '\n': case '\r': instrumentOpenFilebrowser(); p->dirty = 1; break;
 									case 'e': /* export   */
 										setCommand(&w->command, &sampleExportCallback, NULL, NULL, 0, "File name: ", "");
 										w->mode = 255;

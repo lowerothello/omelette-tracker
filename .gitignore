@@ -11,3 +11,5 @@ testmods
 # files omelette spits out for debugging
 .save_debug
 .bounce_debug
+.ladspa_debug
+.oml_channeldump

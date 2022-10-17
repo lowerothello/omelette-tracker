@@ -1,4 +1,3 @@
-#define CHANNEL_TRIG_COLS 4
 #define CHANNEL_LINENO_COLS (LINENO_COLS - 3)
 
 /* will populate buffer, buffer should be at least length 4 */
@@ -51,6 +50,7 @@ void drawGlobalLineNumbers(unsigned short x)
 			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
 			if (s->playing == PLAYING_CONT && s->playfy == i)                              printf("\033[1m");
 			else if (i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
+if (s->bpmcache && s->bpmcache[i] != -1) printf("\033[33m");
 			if (i < STATE_ROWS) printf("  -%x", STATE_ROWS - i);
 			else                printf("%04x",  i - STATE_ROWS);
 			printf("\033[m");
@@ -161,7 +161,7 @@ void setRowIntensity(ChannelData *cd, int i)
 
 void drawChannelTrigs(uint8_t channel, short x)
 {
-	ChannelData *cd = &s->channelv[channel].data;
+	ChannelData *cd = &s->channel->v[channel].data;
 	char buffer[5];
 
 	for (int i = 0; i < s->songlen; i++)
@@ -210,44 +210,57 @@ void drawStarColumn(unsigned short x)
 
 short _drawChannelHeader(uint8_t channel, short x)
 {
-	if (channel >= s->channelc) return 0;
-	char buffer[16];
+	if (channel >= s->channel->c) return 0;
+	char headerbuffer[11], variantbuffer[3];
 
-	ChannelData *cd = &s->channelv[channel].data;
+	ChannelData *cd = &s->channel->v[channel].data;
 
-	snprintf(buffer, 11, "CHANNEL %02x", channel);
+	/* TODO: channel line underline, deceptively complex */
+	snprintf(headerbuffer, 11, "CHANNEL %02x", channel);
 
-	int c = x + (6 + 4*(cd->macroc+1) - 10)/2;
+	int prevVtrig = getPrevVtrig(cd, w->trackerfy);
+	int c;
+	if (prevVtrig != -1 && cd->trig[prevVtrig].index != VARIANT_OFF)
+	{
+		if (cd->trig[prevVtrig].flags&C_VTRIG_LOOP || cd->variantv[cd->varianti[cd->trig[prevVtrig].index]]->rowc >= w->trackerfy - prevVtrig)
+		{
+			/* gcc likes to make variantbuffer static (fuck gcc), so be super careful about not using it uninitialized so non-conformant compilers don't crash and burn here */
+			snprintf(variantbuffer, 3, "%02x", cd->trig[prevVtrig].index);
+			c = x - 3;
+			printf("\033[3m");
+			if (c <= ws.ws_col)
+			{
+				if (x < LINENO_COLS + 2) { if (x > LINENO_COLS) printf("\033[%d;%dH%s", CHANNEL_ROW, LINENO_COLS, variantbuffer+(LINENO_COLS - x - 2)); }
+				else                                            printf("\033[%d;%dH%.*s", CHANNEL_ROW, c, ws.ws_col - c, variantbuffer);
+			}
+			printf("\033[m");
+		}
+	}
+
+	if (cd->mute) printf("\033[2m");
+	else          printf("\033[1m");
+	if (s->channel->v[channel].triggerflash) printf("\033[3%dm", channel%6 + 1);
+	if (channel == w->channel + w->channeloffset) printf("\033[7m");
+	c = x + ((6 + 4*(cd->macroc+1) - 10)>>1);
 	if (c <= ws.ws_col)
 	{
-		/* TODO: channel line underline is more complicated than this, not sure how to approach it */
-		/* if (w->centre - w->trackerfy == CHANNEL_ROW)
-		{
-			gcvret = getChannelVariant(&v, cd, i);
-			if ((i < s->songlen-1 && (cd->trig[i+1].index < VARIANT_MAX || (cd->trig[i+1].index == VARIANT_OFF && gcvret != -1)))
-					|| (gcvret != -1 && (gcvret%(v->rowc+1) == v->rowc)))
-				printf("\033[4m");
-		} */
+		if (x < LINENO_COLS - 2) { if (x > LINENO_COLS - 12) printf("\033[%d;%dH%s", CHANNEL_ROW, LINENO_COLS, headerbuffer+(LINENO_COLS - x - 2)); }
+		else                                                 printf("\033[%d;%dH%.*s", CHANNEL_ROW, c, ws.ws_col - c, headerbuffer);
+	}
 
-		if (s->channelv[channel].triggerflash) printf("\033[3%dm", channel%6 + 1);
-		if (cd->mute) printf("\033[2m");
-		else          printf("\033[1m");
-		if (channel == w->channel + w->channeloffset) printf("\033[7m");
-		if (x < LINENO_COLS - 2) { if (x > LINENO_COLS - 12) printf("\033[%d;%dH%s", CHANNEL_ROW, LINENO_COLS, buffer+(LINENO_COLS - x - 2)); }
-		else                                                 printf("\033[%d;%dH%.*s", CHANNEL_ROW, c, ws.ws_col - c, buffer);
-		printf("\033[m");
-	} return 8 + 4*(cd->macroc+1);
+	printf("\033[m");
+	return 8 + 4*(cd->macroc+1);
 }
 short drawChannel(uint8_t channel, short x)
 {
-	if (channel >= s->channelc) return 0;
+	if (channel >= s->channel->c) return 0;
 
 	Row *r;
 	char buffer[16];
 
 	Variant *v;
 	int gcvret;
-	ChannelData *cd = &s->channelv[channel].data;
+	ChannelData *cd = &s->channel->v[channel].data;
 
 	_drawChannelHeader(channel, x);
 
@@ -339,7 +352,7 @@ short drawChannel(uint8_t channel, short x)
 					setRowIntensity(cd, i);
 				}
 
-				for (int j = 0; j <= cd->macroc; j++)
+				for (int j = cd->macroc; j >= 0; j--)
 				{
 					if (x+7 + 4*j <= ws.ws_col)
 					{
@@ -416,9 +429,9 @@ short genSfx(void)
 	short x = 0;
 	short ret = 0;
 
-	for (int i = 0; i < s->channelc; i++)
+	for (int i = 0; i < s->channel->c; i++)
 	{
-		x += 3 + 9 + 4*(s->channelv[i].data.macroc+1);
+		x += 3 + 9 + 4*(s->channel->v[i].data.macroc+1);
 		if (i == w->channel) ret = x; /* should only be set once */
 		/* keep iterating so x is the full width of all channels */
 	}
@@ -453,7 +466,7 @@ void drawTracker(void)
 			if (sfx >= 0) drawStarColumn(x + MAX(sfx, 0));
 			x += 2;
 
-			for (int i = 0; i < s->channelc; i++)
+			for (int i = 0; i < s->channel->c; i++)
 			{
 				drawChannelTrigs(i, x+sfx);
 				x += CHANNEL_TRIG_COLS;
@@ -482,7 +495,7 @@ void drawTracker(void)
 
 			if (w->trackerfx > 1 && w->mode == T_MODE_INSERT)
 			{
-				Row *r = getChannelRow(&s->channelv[w->channel].data, w->trackerfy);
+				Row *r = getChannelRow(&s->channel->v[w->channel].data, w->trackerfy);
 				short macro = (w->trackerfx - 2)>>1;
 				descMacro(r->macro[macro].c, r->macro[macro].v);
 			}
@@ -510,8 +523,8 @@ void drawTracker(void)
 					case 1: printf("\033[%d;%dH", y, sx + 5 - w->fieldpointer + sfx); break;
 					default: /* macro columns */
 						macro = (w->trackerfx - 2)>>1;
-						if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx + 7 + macro*4 + sfx);
-						else printf("\033[%d;%dH", y, sx + 9 + macro*4 - w->fieldpointer + sfx);
+						if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx + 7 + (s->channel->v[w->channel].data.macroc - macro)*4 + sfx);
+						else printf("\033[%d;%dH", y, sx + 9 + (s->channel->v[w->channel].data.macroc - macro)*4 - w->fieldpointer + sfx);
 						break;
 				}
 			} break;
@@ -520,7 +533,7 @@ void drawTracker(void)
 
 			x += CHANNEL_LINENO_COLS + 2;
 
-			for (int i = 0; i < s->channelc; i++)
+			for (int i = 0; i < s->channel->c; i++)
 			{
 				x += CHANNEL_TRIG_COLS;
 				x += _drawChannelHeader(i, x+sfx);
@@ -528,7 +541,7 @@ void drawTracker(void)
 			if (sfx < 0)             printf("\033[%d;%dH^", CHANNEL_ROW, LINENO_COLS - 1);
 			if (x + sfx > ws.ws_col) printf("\033[%d;%dH$", CHANNEL_ROW, ws.ws_col);
 
-			drawEffects(&s->channelv[w->channel].data.effect, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW + 2); break;
+			drawEffects(&s->channel->v[w->channel].data.effect, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW + 2); break;
 			break;
 	}
 

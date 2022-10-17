@@ -1,21 +1,21 @@
 /* debugging symbols */
 
-/* DEBUG_DISABLE_AUDIO_THREAD
+#define DEBUG_DUMMY_SAMPLERATE 44100
+#define DEBUG_DUMMY_BUFFERSIZE 256
+/* DEBUG_DISABLE_AUDIO_OUTPUT
  *   disables registering the jack client, should allow
  *   running under gdb without stalling jackd.
  *
- *   WARNING: semaphores will never finish! anything that
- *   &TODO    uses semaphores will block forever!
- *            (eg. addInstrument, delInstrument)
+ *   pretty janky, but good enough for some debugging.
  */
-// #define DEBUG_DISABLE_AUDIO_THREAD
+// #define DEBUG_DISABLE_AUDIO_OUTPUT
 
 /* NO_VALGRIND
  *   removes the dependancy on valgrind by not including
  *   valgrind/valgrind.h, might cause lots of messages to
- *   be printed to the screen when running under valgrind
- *   due to valgrind's scheduler not really supporting
- *   realtime priority threads (or multithreading in general).
+ *   be printed to stderr when running under valgrind due
+ *   to valgrind's scheduler not really supporting realtime
+ *   priority threads (or multithreading in general).
  */
 // #define NO_VALGRIND
 
@@ -56,7 +56,6 @@
  */
 #define RAMP_MS 10 /* usual ramp time */
 #define LOOP_RAMP_MS 80 /* loop crossfade time, will auto-lower to half the loop range */
-#define TIMESTRETCH_RAMP_MS 15 /* timestretch ramp time */
 
 /* real length of an iv->cyclelength unit */
 /* I think this is actually in seconds, too lazy to check though */

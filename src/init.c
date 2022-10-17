@@ -1,12 +1,14 @@
 void common_cleanup(int ret)
 {
-	clearControls(&cc);
-	clearTooltip(&tt);
-
 	if (w) { free(w); w = NULL; }
 	if (s) { delSong(s); s = NULL; }
 	if (p) { free(p); p = NULL; }
 	if (b) { freeBackground(b); b = NULL; }
+
+	clearControls(&cc);
+	clearTooltip(&tt);
+
+	freeLadspaDB();
 
 	fcntl(0, F_SETFL, 0); /* reset to blocking stdin reads */
 	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
@@ -18,13 +20,12 @@ void common_cleanup(int ret)
 
 void cleanup(int ret)
 {
-#ifndef DEBUG_DISABLE_AUDIO_THREAD
+	struct timespec req;
+
 	if (client)
 	{
 		if (s)
 		{
-			struct timespec req;
-
 			stopPlayback();
 			while (s->playing)
 			{ /* wait until stopPlayback() finishes fully */
@@ -34,10 +35,13 @@ void cleanup(int ret)
 			}
 		}
 
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 		jack_deactivate(client);
 		jack_client_close(client);
-	}
+#else
+		pthread_cancel(dummyprocessthread);
 #endif
+	}
 
 	if (w)
 	{
@@ -50,12 +54,18 @@ void cleanup(int ret)
 		__delChannel(&w->previewchannel);
 		if (w->previewchannel.data.trig) free(w->previewchannel.data.trig);
 		if (w->previewchannel.data.songv) free(w->previewchannel.data.songv);
+		if (w->previewsample)
+		{
+			if (w->previewsample->data) free(w->previewsample->data);
+			free(w->previewsample);
+		}
 
 		for (short i = 0; i < w->vbchannelc; i++)
 			free(w->vbtrig[i]);
 		for (short i = 0; i < w->pbchannelc; i++)
 			free(w->pbvariantv[i]);
 	}
+	printf("\033[%d;0H\033[2K", ws.ws_row);
 
 	common_cleanup(ret);
 }
@@ -79,12 +89,14 @@ void init(int argc, char **argv)
 	signal(SIGINT, SIG_IGN);
 	signal(SIGTERM, &cleanup);
 
+	initLadspaDB();
+
 	/* jack stuffs */
 	p = malloc(sizeof(PlaybackInfo));
 	if (!p) { puts("out of memory"); common_cleanup(1); }
 	memset(p, 0, sizeof(PlaybackInfo));
 
-#ifndef DEBUG_DISABLE_AUDIO_THREAD
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	client = jack_client_open("omelette", JackNullOption, NULL);
 	if (!client) { puts("failed to init the jack client"); common_cleanup(1); }
 
@@ -97,8 +109,10 @@ void init(int argc, char **argv)
 	samplerate = jack_get_sample_rate(client);
 	buffersize = jack_get_buffer_size(client);
 
-	rampmax =      samplerate / 1000 * RAMP_MS;
-	grainrampmax = samplerate / 1000 * TIMESTRETCH_RAMP_MS;
+	rampmax = samplerate / 1000 * RAMP_MS;
+#else
+	samplerate = DEBUG_DUMMY_SAMPLERATE;
+	buffersize = DEBUG_DUMMY_BUFFERSIZE;
 #endif
 
 	w = calloc(1, sizeof(Window));
@@ -111,14 +125,6 @@ void init(int argc, char **argv)
 	s = addSong();
 	if (!s) { puts("out of memory"); common_cleanup(1); }
 
-	regenGlobalRowc(s);
-
-	/* 4 starting channels */
-	addChannel(s, s->channelc);
-	addChannel(s, s->channelc);
-	addChannel(s, s->channelc);
-	addChannel(s, s->channelc);
-
 	p->s = s;
 	p->w = w;
 
@@ -127,9 +133,11 @@ void init(int argc, char **argv)
 	__addChannel(&w->previewchannel);
 
 
-#ifndef DEBUG_DISABLE_AUDIO_THREAD
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	jack_set_process_callback(client, process, p);
 	jack_activate(client);
+#else
+	pthread_create(&dummyprocessthread, NULL, process, p);
 #endif
 
 
@@ -139,13 +147,20 @@ void init(int argc, char **argv)
 	getcwd(w->dirpath, sizeof(w->dirpath));
 #endif
 
+	ioctl(1, TIOCGWINSZ, &ws);
+	w->dirx = w->diry = 0;
+	w->dirh = ws.ws_row - 1;
+	w->dirw = ws.ws_col;
 	changeDirectory();
 
 	if (argc > 1)
 	{
 		strcpy(w->newfilename, argv[1]);
-		p->sem = M_SEM_RELOAD_REQ;
-	}
+		Event e;
+		e.sem = M_SEM_RELOAD_REQ;
+		e.callback = cb_reloadFile;
+		pushEvent(&e);
+	} else reapplyBpm(); /* implied by the other branch */
 
 	resize(0);
 }
