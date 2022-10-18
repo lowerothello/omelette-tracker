@@ -430,8 +430,6 @@ int main(int argc, char **argv)
 	{
 		if (!mainM_SEM())
 		{
-			running = input();
-
 			/* imply p->dirty if background is on */
 #ifdef ENABLE_BACKGROUND
 			redraw();
@@ -457,6 +455,7 @@ int main(int argc, char **argv)
 				w->instrumentrecv = INST_REC_LOCK_OK;
 				p->dirty = 1;
 			}
+			running = input(); /* ensure that semaphores are handled between input and draw */
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */

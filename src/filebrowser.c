@@ -42,10 +42,10 @@ int changeDirectory(void)
 /* assume swap2 is a (Sample), free it if it is set */
 void cb_freeSemargSample(Event *e)
 {
-	if (e->swap2)
+	if (e->src)
 	{
-		if (((Sample *)e->swap2)->data) free(((Sample *)e->swap2)->data);
-		free(e->swap2); e->swap2 = NULL;
+		if (((Sample *)e->src)->data) free(((Sample *)e->src)->data);
+		free(e->src); e->src = NULL;
 	}
 }
 
@@ -53,8 +53,8 @@ void freePreviewSample(void)
 { /* fully atomic */
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = w->previewsample;
-	e.swap2 = NULL; /* explicitly typed for clarity */
+	e.dest = (void **)&w->previewsample;
+	e.src = NULL; /* explicitly typed for clarity */
 	e.callback = cb_freeSemargSample;
 	pushEvent(&e);
 }
@@ -292,8 +292,8 @@ void filebrowserPreview(int input)
 
 				Event e;
 				e.sem = M_SEM_SWAP_PREVIEWSAMPLE_PREVIEW_REQ;
-				e.swap1 = w->previewsample;
-				e.swap2 = newpreviewsample;
+				*e.dest = w->previewsample;
+				e.src = newpreviewsample;
 				e.callback = cb_freeSemargSample;
 				e.callbackarg = (void *)((size_t)input);
 				pushEvent(&e);

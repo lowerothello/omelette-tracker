@@ -23,7 +23,7 @@
  *   executes all channel processing in a single thread
  *   instead of spawning a thread for each channel.
  */
-#define NO_MULTITHREADING
+// #define NO_MULTITHREADING
 
 /* filebrowser starting dir */
 #define SAMPLES_DIR "/media/prod"

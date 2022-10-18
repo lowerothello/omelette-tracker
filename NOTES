@@ -6,7 +6,7 @@
 lookback needs proper testing, some macros are probably inexplicably broken
 for no apparent reason
 	- lookback resets the envelope, cutting long attacks immediately
-		- not sure the solution to this
+		- not sure the solution to this design-wise
 	- bpm macros are really fucked, lookback reads macros it shouldn't be able to see
 
 

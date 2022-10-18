@@ -4,6 +4,7 @@
 /* communication is always initiated by the main thread */
 enum {
 	M_SEM_OK,                             /* allow processing */
+	M_SEM_DONE,                           /* pop the event    */
 	M_SEM_RELOAD_REQ,                     /* trigger downtime for a file reload */
 	M_SEM_SWAP_REQ,                       /* swap e->swap1 and e->swap2 in the process thread */
 	M_SEM_CALLBACK,                       /* call p->semcallback() in the main thread */
@@ -16,11 +17,10 @@ enum {
 typedef struct event
 {
 	uint8_t sem; /* M_SEM_* defines */
-	void   *swap1;
-	void   *swap2;
+	void  **dest; /* swapping sets *dest to src, leaving what *dest used to be in src */
+	void   *src;  /* note that only dest is a double pointer */
 	void  (*callback)(struct event *);
 	void   *callbackarg;
 } Event;
 
-// void pushEvent(uint8_t sem, void *semarg, void (*semcallback)(Event *), void *semcallbackarg);
 void pushEvent(Event *e);

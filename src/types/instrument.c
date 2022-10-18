@@ -80,10 +80,10 @@ void toggleRecording(uint8_t inst, char cue)
 	} p->dirty = 1;
 }
 
-void cb_addInstrument         (Event *e) { free(e->swap2); e->swap2 = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->dirty = 1; }
-void cb_addRecordInstrument   (Event *e) { free(e->swap2); e->swap2 = NULL; toggleRecording((size_t)e->callbackarg, 0); p->dirty = 1; }
-void cb_addRecordCueInstrument(Event *e) { free(e->swap2); e->swap2 = NULL; toggleRecording((size_t)e->callbackarg, 1); p->dirty = 1; }
-void cb_addPutInstrument      (Event *e) { free(e->swap2); e->swap2 = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->dirty = 1; }
+void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->dirty = 1; }
+void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->dirty = 1; }
+void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->dirty = 1; }
+void cb_addPutInstrument      (Event *e) { free(e->src); e->src = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->dirty = 1; }
 InstrumentChain *_addInstrument(uint8_t index, int8_t algorithm)
 {
 	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c+1) * sizeof(Instrument));
@@ -108,8 +108,8 @@ int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event *))
 	if (instrumentSafe(s, index)) return 1; /* index occupied */
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = s->instrument;
-	e.swap2 = _addInstrument(index, algorithm);
+	e.dest = (void **)&s->instrument;
+	e.src = _addInstrument(index, algorithm);
 	e.callback = cb;
 	e.callbackarg = (void *)(size_t)index;
 	pushEvent(&e);
@@ -126,7 +126,7 @@ typedef struct
 void cb_addReparentInstrument(Event *e)
 {
 	InstrumentAddReparentArg *castarg = e->callbackarg;
-	free(e->swap2); e->swap2 = NULL;
+	free(e->src); e->src = NULL;
 	reparentSample(&s->instrument->v[s->instrument->i[castarg->index]], castarg->buffer, castarg->buflen, castarg->rate);
 	free(e->callbackarg); e->callbackarg = NULL;
 	p->dirty = 1;
@@ -143,8 +143,8 @@ int addReparentInstrument(uint8_t index, int8_t algorithm, short *buffer, jack_n
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = s->instrument;
-	e.swap2 = _addInstrument(index, algorithm);
+	e.dest = (void **)&s->instrument;
+	e.src = _addInstrument(index, algorithm);
 	e.callback = cb_addReparentInstrument;
 	e.callbackarg = arg;
 	pushEvent(&e);
@@ -174,42 +174,43 @@ void putInstrument(uint8_t index)
 
 void cb_delInstrument(Event *e)
 {
-	_delInstrument(&((InstrumentChain *)e->swap2)->v[(size_t)e->callbackarg]);
-	free(e->swap2); e->swap2 = NULL;
+	_delInstrument(&((InstrumentChain *)e->src)->v[(size_t)e->callbackarg]);
+	free(e->src); e->src = NULL;
 	p->dirty = 1;
 }
+
 int delInstrument(uint8_t index)
 { /* fully atomic */
 	if (!instrumentSafe(s, index)) return 1; /* instrument doesn't exist */
 
 	size_t cutindex = s->instrument->i[index]; /* cast to void* later */
-	_delInstrument(&s->instrument->v[cutindex]);
 
-	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + s->instrument->c * sizeof(Instrument));
-	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain)); /* copy just the header */
+	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c-1) * sizeof(Instrument));
+	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain)); /* copy just the header (.c and .i) */
+
 
 	if (cutindex > 0)
-		memcpy(newinstrument->v,
-				s->instrument->v,
-				sizeof(Instrument)*(cutindex+1));
+		memcpy(&newinstrument->v[0],
+				&s->instrument->v[0],
+				sizeof(Instrument)*(cutindex));
 
 	if (cutindex < s->instrument->c-1)
 		memcpy(&newinstrument->v[cutindex],
 				&s->instrument->v[cutindex+1],
-				sizeof(Instrument)*(s->instrument->c-(cutindex+1)));
+				sizeof(Instrument)*(s->instrument->c - (cutindex+1)));
 
 	newinstrument->i[index] = INSTRUMENT_VOID;
-	/* backref contiguity */
+	// backref contiguity
 	for (uint8_t i = 0; i < 255; i++)
-		if (newinstrument->i[i] >= cutindex && newinstrument->i[i] < newinstrument->c)
+		if (newinstrument->i[i] >= cutindex && newinstrument->i[i] < s->instrument->c)
 			newinstrument->i[i]--;
 
-	newinstrument->c--;
+	newinstrument->c = s->instrument->c - 1;
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = s->instrument;
-	e.swap2 = newinstrument;
+	e.dest = (void **)&s->instrument;
+	e.src = newinstrument;
 	e.callback = cb_delInstrument;
 	e.callbackarg = (void *)cutindex;
 	pushEvent(&e);

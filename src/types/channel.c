@@ -1,4 +1,4 @@
-void regenGlobalRowc(Song *); /* TODO: proper headers to avoid stragglers */
+void regenGlobalRowc(Song *); /* TODO: proper header files to avoid stragglers */
 uint16_t getSignificantRowc(ChannelData *);
 
 /* clears the playback state of a channel */
@@ -142,14 +142,14 @@ void debug_dumpChannelState(Song *cs)
 
 void cb_addChannel(Event *e)
 {
-	free(e->swap2);
-	e->swap2 = NULL;
-	debug_dumpChannelState(s);
-	regenGlobalRowc(s);
-	p->dirty = 1;
+	free(e->src); e->src = NULL;
+	regenGlobalRowc(s); /* sets p->dirty */
 }
 int addChannel(Song *cs, uint8_t index, uint16_t count)
 { /* fully atomic */
+	/* scale down count if necessary */
+	/* if (         (index + count) - (int)s->channel->c < 0)
+		count += (index + count) - (int)s->channel->c; */
 	if (cs->channel->c + count > CHANNEL_MAX) return 1; /* TODO: should add fewer channels if the requested amount wouldn't fit */
 
 	ChannelChain *newchannel = calloc(1, sizeof(ChannelChain) + (cs->channel->c+count) * sizeof(Channel));
@@ -173,8 +173,8 @@ int addChannel(Song *cs, uint8_t index, uint16_t count)
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = s->channel;
-	e.swap2 = newchannel;
+	e.dest = (void **)&s->channel;
+	e.src = newchannel;
 	e.callback = cb_addChannel;
 	pushEvent(&e);
 	return 0;
@@ -198,14 +198,12 @@ void cb_delChannel(Event *e)
 	uint16_t count = (size_t)e->callbackarg & 0xffff;
 	uint8_t index = ((size_t)e->callbackarg & 0xff0000) >> 16;
 	for (uint16_t i = 0; i < count; i++)
-		_delChannel(&((ChannelChain *)e->swap2)->v[index+i]);
-
-	free(e->swap2);
-	e->swap2 = NULL;
+		_delChannel(&((ChannelChain *)e->src)->v[index+i]);
+	free(e->src); e->src = NULL;
 	if (w->channel > s->channel->c-1)
 		w->channel = s->channel->c-1;
-	regenGlobalRowc(s);
-	p->dirty = 1;
+
+	regenGlobalRowc(s); /* sets p->dirty */
 }
 void delChannel(uint8_t index, uint16_t count)
 { /* fully atomic */
@@ -230,8 +228,8 @@ void delChannel(uint8_t index, uint16_t count)
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = s->channel;
-	e.swap2 = newchannel;
+	e.dest = (void **)&s->channel;
+	e.src = newchannel;
 	e.callback = cb_delChannel;
 	e.callbackarg = (void *)((((size_t)index)<<16) + (size_t)count);
 	pushEvent(&e);
@@ -381,8 +379,8 @@ char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r
 }
 void cb_regenBpmCache(Event *e)
 { /* using cb_addChannel for this causes a loop */
-	free(e->swap2);
-	e->swap2 = NULL;
+	free(e->src); e->src = NULL;
+
 	p->dirty = 1;
 }
 void regenBpmCache(Song *cs)
@@ -396,8 +394,8 @@ void regenBpmCache(Song *cs)
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.swap1 = s->bpmcache;
-	e.swap2 = newbpmcache;
+	e.dest = (void **)&cs->bpmcache;
+	e.src = newbpmcache;
 	e.callback = cb_regenBpmCache;
 	pushEvent(&e);
 }
