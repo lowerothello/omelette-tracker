@@ -1,5 +1,5 @@
 /* clamps within range and loop, returns output samples */
-void trimloop(uint32_t ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t decimate, Instrument *iv, uint8_t stereochannel, short *output)
+void trimloop(double ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t decimate, Instrument *iv, uint8_t stereochannel, short *output)
 {
 	if (loop)
 	{ /* if there is a loop range */
@@ -7,37 +7,37 @@ void trimloop(uint32_t ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t
 		{ /* ping-pong loop */
 			if (ptr > length)
 			{
-				ptr = (ptr - length)%(loop<<1);
+				ptr = fmod(ptr - length, loop<<1);
 				if (ptr > loop) /* walking forwards  */ ptr = (length - loop) + (ptr - loop);
 				else            /* walking backwards */ ptr = length - ptr;
 			}
 
-			if (iv->sample.channels == 1) getSample(ptr+iv->trimstart, decimate, iv, output);
-			else                          getSample((ptr+iv->trimstart)*iv->sample.channels + stereochannel, decimate, iv, output);
+			if (iv->sample->channels == 1) getSample(ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
 		} else
 		{ /* crossfaded forwards loop */
-			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * (iv->loopramp*DIV255);
-			if (ptr > length) ptr = (length - loop) + looprampmax + (ptr - length)%(loop - looprampmax);
+			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * iv->loopramp*DIV255;
+			if (ptr > length) ptr = (length - loop) + looprampmax + fmod(ptr - length, loop - looprampmax);
 
 			if (ptr > length - looprampmax)
 			{
 				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
 				float ramppointer = (ptr - (loop - looprampmax));
-				if (iv->sample.channels == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv, output);
-				else                          getSampleLoopRamp((ptr+iv->trimstart)*iv->sample.channels + stereochannel,
-				                                                        ramppointer*iv->sample.channels + stereochannel, lerp, decimate, iv, output);
+				if (iv->sample->channels == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample, output);
+				else                           getSampleLoopRamp((ptr+iv->trimstart)*iv->sample->channels + stereochannel,
+				                                                         ramppointer*iv->sample->channels + stereochannel, lerp, decimate, iv->bitdepth, iv->sample, output);
 			} else
 			{
-				if (iv->sample.channels == 1) getSample( ptr+iv->trimstart, decimate, iv, output);
-				else                          getSample((ptr+iv->trimstart)*iv->sample.channels + stereochannel, decimate, iv, output);
+				if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+				else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
 			}
 		}
 	} else
 	{
 		if (ptr < length)
 		{
-			if (iv->sample.channels == 1) getSample( ptr+iv->trimstart, decimate, iv, output);
-			else                          getSample((ptr+iv->trimstart)*iv->sample.channels + stereochannel, decimate, iv, output);
+			if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
 		}
 	}
 }
@@ -50,13 +50,13 @@ float semitoneShortToMultiplier(int16_t input)
 
 void granularProcess(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
-	uint32_t length = MIN(iv->trimlength, iv->sample.length-1 - iv->trimstart);
+	uint32_t length = MIN(iv->trimlength, iv->sample->length-1 - iv->trimstart);
 	uint32_t loop   = MIN(iv->looplength, length);
 	uint16_t localcyclelength = iv->granular.cyclelength; if (cv->localcyclelength != -1) localcyclelength = cv->localcyclelength;
-	int16_t localpitchshift = iv->granular.pitchshift; if (cv->localpitchshift != -1) localpitchshift = (cv->localpitchshift - 0x80)<<8;
+	int16_t  localpitchshift =  iv->granular.pitchshift;  if (cv->localpitchshift  != -1) localpitchshift  = (cv->localpitchshift - 0x80)<<8;
+	int16_t  localpitchwidth =  iv->granular.pitchstereo; if (cv->localpitchwidth  != -1) localpitchwidth  = cv->localpitchwidth - 0x80;
 	if (cv->targetlocalpitchshift != -1) localpitchshift += (((cv->targetlocalpitchshift - 0x80)<<8) - localpitchshift) * rp;
-	int16_t localpitchwidth = iv->granular.pitchstereo; if (cv->localpitchwidth != -1) localpitchwidth = cv->localpitchwidth - 0x80;
-	if (cv->targetlocalpitchwidth != -1) localpitchwidth += ((cv->targetlocalpitchwidth - 0x80) - localpitchwidth) * rp;
+	if (cv->targetlocalpitchwidth != -1) localpitchwidth +=  ((cv->targetlocalpitchwidth - 0x80)     - localpitchwidth) * rp;
 
 	uint8_t localsamplerate = iv->samplerate; if (cv->localsamplerate != -1) localsamplerate = cv->localsamplerate;
 	if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
@@ -78,33 +78,34 @@ void granularProcess(Instrument *iv, Channel *cv, float rp, uint32_t pointer, ui
 
 	float gain;
 
-	float calcshiftstereol = powf(2.0f, (float)(-localpitchwidth)*DIV1024);
-	float calcshiftstereor = powf(2.0f, (float)(+localpitchwidth)*DIV1024);
-	float calcshift = semitoneShortToMultiplier(localpitchshift) / semitoneShortToMultiplier(iv->granular.timestretch);
-	float calcrate = (float)iv->sample.rate / (float)samplerate * semitoneShortToMultiplier(iv->granular.timestretch);
-	float calcpitch = (float)pitchedpointer / (float)pointer;
+	/* use doubles to try to avoid the worst of float approximation bullshit */
+	double calcshiftstereol = powf(2.0f, (float)(-localpitchwidth)*DIV1024);
+	double calcshiftstereor = powf(2.0f, (float)(+localpitchwidth)*DIV1024);
+	double calcshift = semitoneShortToMultiplier(localpitchshift) / semitoneShortToMultiplier(iv->granular.timestretch);
+	double calcrate = (float)iv->sample->rate / (float)samplerate * semitoneShortToMultiplier(iv->granular.timestretch);
+	double calcpitch = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
 	if (iv->granular.notestretch)
 	{ /* note stretch */
 		if (iv->granular.reversegrains)
 		{
-			trimloop((pointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, l);
-			trimloop((pointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, r);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, l);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, r);
 		} else
 		{
-			trimloop((pointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, l);
-			trimloop((pointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, r);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, l);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, r);
 		}
 
 		if (cv->grainrampindex < cv->grainrampmax)
 		{
 			if (iv->granular.reversegrains)
 			{
-				trimloop((pointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
-				trimloop((pointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
 			} else
 			{
-				trimloop((pointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
-				trimloop((pointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
 			}
 
 			gain = (float)cv->grainrampindex / (float)cv->grainrampmax;
@@ -116,24 +117,24 @@ void granularProcess(Instrument *iv, Channel *cv, float rp, uint32_t pointer, ui
 	{ /* no note stretch */
 		if (iv->granular.reversegrains)
 		{
-			trimloop((pointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, l);
-			trimloop((pointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, r);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, l);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, r);
 		} else
 		{
-			trimloop((pointer - pointersnap + (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, l);
-			trimloop((pointer - pointersnap + (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, r);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, l);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, r);
 		}
 
 		if (cv->grainrampindex < cv->grainrampmax)
 		{
 			if (iv->granular.reversegrains)
 			{
-				trimloop((pointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
-				trimloop((pointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
 			} else
 			{
-				trimloop((pointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
-				trimloop((pointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + cv->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, iv, 1, &rr);
 			}
 
 			gain = (float)cv->grainrampindex / (float)cv->grainrampmax;

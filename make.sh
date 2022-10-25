@@ -11,7 +11,7 @@ run() {
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		-lm -Wall -g -pg \
-		src/main.c src/lib/libdrawille/src/liblibdrawille.a
+		src/main.c lib/libdrawille/src/liblibdrawille.a
 	return
 }
 
@@ -21,7 +21,7 @@ run() {
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		-lm -Wall -g \
-		src/main.c src/lib/libdrawille/src/liblibdrawille.a
+		src/main.c lib/libdrawille/src/liblibdrawille.a
 	return
 }
 
@@ -30,4 +30,4 @@ run ${CC:-tcc} -o omelette -O0 \
 	$(pkg-config --libs --cflags jack) \
 	$(pkg-config --libs --cflags sndfile) \
 	-lm -Wall -g \
-	src/main.c src/lib/libdrawille/src/liblibdrawille.a
+	src/main.c lib/libdrawille/src/liblibdrawille.a

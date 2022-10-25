@@ -1,35 +1,43 @@
 void copyInstrument(Instrument *dest, Instrument *src) /* TODO: should be atomic */
 {
-	if (dest->sample.data)
-	{ free(dest->sample.data); dest->sample.data = NULL; }
+	if (dest->sample)
+	{ free(dest->sample); dest->sample = NULL; }
 
-	for (uint8_t i = 0; i < dest->effect.c; i++)
-		freeEffect(&dest->effect.v[i]);
+	EffectChain *hold_effect = dest->effect;
+	/* TODO: this holding is awkward to extend and ugly */
+	float *hold_output      [2]; memcpy(&hold_output,       &dest->output,       sizeof(float *) * 2);
+	float *hold_pluginoutput[2]; memcpy(&hold_pluginoutput, &dest->pluginoutput, sizeof(float *) * 2);
 
 	memcpy(dest, src, sizeof(Instrument));
 
-	if (src->sample.data)
+	if (src->sample)
 	{ /* only copy sampledata if it exists */
-		dest->sample.data = malloc(sizeof(short) * src->sample.length * src->sample.channels);
-		memcpy(dest->sample.data, src->sample.data, sizeof(short) * src->sample.length * src->sample.channels);
+		dest->sample = malloc(sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->channels);
+		memcpy(dest->sample, src->sample, sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->channels);
 	}
 
-	for (uint8_t i = 0; i < src->effect.c; i++)
-		copyEffect(&dest->effect.v[i], &src->effect.v[i]);
+	dest->effect = hold_effect;
+	memcpy(&dest->output,       &hold_output,       sizeof(float *) * 2);
+	memcpy(&dest->pluginoutput, &hold_pluginoutput, sizeof(float *) * 2);
+	copyEffectChain(&dest->effect, src->effect);
 }
 
 /* frees the contents of an instrument */
 void _delInstrument(Instrument *iv)
 {
-	if (iv->sample.data)
-	{
-		free(iv->sample.data);
-		iv->sample.data = NULL;
-	}
+	if (iv->sample) free(iv->sample);
+	iv->sample = NULL;
 
-	for (uint8_t i = 0; i < iv->effect.c; i++)
-		freeEffect(&iv->effect.v[i]);
-	iv->effect.c = 0;
+	if (iv->output[0])       { free(iv->output[0]); iv->output[0] = NULL; }
+	if (iv->output[1])       { free(iv->output[1]); iv->output[1] = NULL; }
+	if (iv->pluginoutput[0]) { free(iv->pluginoutput[0]); iv->pluginoutput[0] = NULL; }
+	if (iv->pluginoutput[1]) { free(iv->pluginoutput[1]); iv->pluginoutput[1] = NULL; }
+
+	if (iv->effect)
+	{
+		clearEffectChain(iv->effect);
+		free(iv->effect);
+	}
 }
 
 bool instrumentSafe(Song *cs, short index)
@@ -40,21 +48,59 @@ bool instrumentSafe(Song *cs, short index)
 	return 0;
 }
 
-/* take a short* and reparent it under instrument iv               */
-/* bufferlen is how many stereo pairs of samples are in the buffer */
-void reparentSample(Instrument *iv, short *buffer, jack_nframes_t bufferlen, uint32_t rate)
+/* take a Sample* and reparent it under instrument iv */
+void reparentSample(Instrument *iv, Sample *sample)
 {
-	if (iv->sample.data) { free(iv->sample.data); iv->sample.data = NULL; }
+	if (iv->sample) free(iv->sample);
+	iv->sample = NULL;
 
-	iv->sample.data = buffer;
+	iv->sample = sample;
 
-	iv->sample.length = bufferlen;
-	iv->sample.channels = 2;
-	iv->sample.rate = iv->sample.defrate = rate; /* assume the buffer is at the system sample rate */
 	iv->trimstart = 0;
-	iv->trimlength = bufferlen-1;
-	iv->wavetable.framelength = (bufferlen-1) / 256;
+	iv->trimlength = sample->length-1;
+	iv->wavetable.framelength = (sample->length-1)>>8; /* /256 */
 	iv->looplength = 0;
+}
+
+/* TODO: use this function */
+Sample *applySampleEffects(Instrument *iv, Sample *sample)
+{
+	uint32_t block, i;
+	uint8_t j;
+
+	Sample *ret = malloc(sizeof(Sample) + sizeof(short)*(sample->length<<1)); /* always run in stereo */
+	memcpy(ret, sample, sizeof(Sample));
+
+	uint32_t ptr = 0;
+	while (ptr < sample->length)
+	{
+		block = MIN(buffersize, sample->length - ptr);
+		for (i = 0; i < block; i++)
+		{
+			if (sample->channels > 1)
+			{
+				iv->output[0][i] = sample->data[(ptr + i)*sample->channels + 0];
+				iv->output[1][i] = sample->data[(ptr + i)*sample->channels + 1];
+			} else
+			{
+				iv->output[0][i] = sample->data[(ptr + i)];
+				iv->output[1][i] = sample->data[(ptr + i)];
+			}
+		}
+
+		for (j = 0; j < iv->effect->c; j++)
+			runEffect(block, iv->effect, &iv->effect->v[j]);
+
+		for (i = 0; i < block; i++)
+		{
+			ret->data[((ptr + i)<<1) + 0] = iv->output[0][i];
+			ret->data[((ptr + i)<<1) + 1] = iv->output[1][i];
+		}
+
+		ptr += buffersize;
+	}
+
+	return ret;
 }
 
 void toggleRecording(uint8_t inst, char cue)
@@ -77,26 +123,38 @@ void toggleRecording(uint8_t inst, char cue)
 				break;
 			default: w->instrumentrecv = INST_REC_LOCK_PREP_END; break;
 		}
-	} p->dirty = 1;
+	} p->redraw = 1;
 }
 
-void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->dirty = 1; }
-void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->dirty = 1; }
-void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->dirty = 1; }
-void cb_addPutInstrument      (Event *e) { free(e->src); e->src = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->dirty = 1; }
+void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->redraw = 1; }
+void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
+void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
+void cb_addPutInstrument      (Event *e) { free(e->src); e->src = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->redraw = 1; }
+/* __ layer of abstraction for initializing instrumentbuffer */
+void __addInstrument(Instrument *iv, int8_t algorithm)
+{
+	iv->algorithm = algorithm;
+	iv->samplerate = 0xff;
+	iv->bitdepth = 0xf;
+	iv->envelope = 0x00f0;
+	iv->filtercutoff = 0xff;
+
+	iv->granular.cyclelength = 0x3fff;
+	iv->granular.rampgrains = 8;
+
+	iv->output[0] =       calloc(buffersize, sizeof(float));
+	iv->output[1] =       calloc(buffersize, sizeof(float));
+	iv->pluginoutput[0] = calloc(buffersize, sizeof(float));
+	iv->pluginoutput[1] = calloc(buffersize, sizeof(float));
+	iv->effect = newEffectChain(iv->output, iv->pluginoutput);
+	iv->sample = calloc(1, sizeof(Sample));
+}
 InstrumentChain *_addInstrument(uint8_t index, int8_t algorithm)
 {
 	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c+1) * sizeof(Instrument));
 	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain) + s->instrument->c * sizeof(Instrument));
 
-	newinstrument->v[newinstrument->c].algorithm = algorithm;
-	newinstrument->v[newinstrument->c].samplerate = 0xff;
-	newinstrument->v[newinstrument->c].bitdepth = 0xf;
-	newinstrument->v[newinstrument->c].envelope = 0x00f0;
-	newinstrument->v[newinstrument->c].filtercutoff = 0xff;
-
-	newinstrument->v[newinstrument->c].granular.cyclelength = 0x3fff;
-	newinstrument->v[newinstrument->c].granular.rampgrains = 8;
+	__addInstrument(&newinstrument->v[newinstrument->c], algorithm);
 
 	newinstrument->i[index] = newinstrument->c;
 	newinstrument->c++;
@@ -118,27 +176,23 @@ int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event *))
 
 typedef struct
 {
-	short         *buffer;
-	jack_nframes_t buflen;
-	uint32_t       rate;
-	uint8_t        index;
+	Sample *buffer;
+	uint8_t index;
 } InstrumentAddReparentArg;
 void cb_addReparentInstrument(Event *e)
 {
 	InstrumentAddReparentArg *castarg = e->callbackarg;
 	free(e->src); e->src = NULL;
-	reparentSample(&s->instrument->v[s->instrument->i[castarg->index]], castarg->buffer, castarg->buflen, castarg->rate);
+	reparentSample(&s->instrument->v[s->instrument->i[castarg->index]], castarg->buffer);
 	free(e->callbackarg); e->callbackarg = NULL;
-	p->dirty = 1;
+	p->redraw = 1;
 }
-int addReparentInstrument(uint8_t index, int8_t algorithm, short *buffer, jack_nframes_t buflen, uint32_t rate)
+int addReparentInstrument(uint8_t index, int8_t algorithm, Sample *buffer)
 { /* fully atomic */
 	if (instrumentSafe(s, index)) return 1; /* index occupied */
 
 	InstrumentAddReparentArg *arg = malloc(sizeof(InstrumentAddReparentArg));
 	arg->buffer = buffer;
-	arg->buflen = buflen;
-	arg->rate = rate;
 	arg->index = index;
 
 	Event e;
@@ -162,7 +216,6 @@ short emptyInstrument(uint8_t min)
 void yankInstrument(uint8_t index)
 {
 	if (!instrumentSafe(s, index)) return; /* nothing to copy */
-	_delInstrument(&w->instrumentbuffer);
 	copyInstrument(&w->instrumentbuffer, &s->instrument->v[s->instrument->i[index]]);
 }
 
@@ -176,7 +229,7 @@ void cb_delInstrument(Event *e)
 {
 	_delInstrument(&((InstrumentChain *)e->src)->v[(size_t)e->callbackarg]);
 	free(e->src); e->src = NULL;
-	p->dirty = 1;
+	p->redraw = 1;
 }
 
 int delInstrument(uint8_t index)
@@ -217,13 +270,15 @@ int delInstrument(uint8_t index)
 	return 0;
 }
 
-short *_loadSample(char *path, SF_INFO *sfinfo)
+Sample *_loadSample(char *path)
 {
 	fcntl(0, F_SETFL, 0); /* blocking */
-	memset(sfinfo, 0, sizeof(SF_INFO));
+	SF_INFO sfinfo;
+	memset(&sfinfo, 0, sizeof(SF_INFO));
 
-	SNDFILE *sndfile = sf_open(path, SFM_READ, sfinfo);
-	short *ptr;
+	SNDFILE *sndfile = sf_open(path, SFM_READ, &sfinfo);
+
+	Sample *ret;
 
 	if (!sndfile)
 	{ /* raw file */
@@ -234,34 +289,26 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 			return NULL;
 		}
 
-		ptr = malloc(buf.st_size - buf.st_size % sizeof(short));
-		if (!ptr) // malloc failed
+		ret = malloc(sizeof(Sample) + buf.st_size - buf.st_size % sizeof(short));
+		if (!ret) /* malloc failed */
 		{
-			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
+			fcntl(0, F_SETFL, O_NONBLOCK);
 			return NULL;
 		} else
 		{
 			/* read the whole file into memory */
 			FILE *fp = fopen(path, "r");
-			fread(ptr, sizeof(short), buf.st_size / sizeof(short), fp);
+			fread(&ret->data, sizeof(short), buf.st_size / sizeof(short), fp);
 			fclose(fp);
 
-			/* spoof data */
-			sfinfo->channels = 1;
-			sfinfo->frames = buf.st_size / sizeof(short);
-			sfinfo->samplerate = 12000;
+			ret->channels = 1;
+			ret->length = buf.st_size / sizeof(short);
+			ret->rate = ret->defrate = 12000;
 		}
 	} else /* audio file */
 	{
-		if (sfinfo->channels > 2) /* fail on high channel files */
-		{
-			sf_close(sndfile);
-			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-			return NULL;
-		}
-
-		ptr = malloc(sizeof(short) * sfinfo->frames * sfinfo->channels);
-		if (!ptr) // malloc failed
+		ret = malloc(sizeof(Sample) + sizeof(short)*sfinfo.frames*sfinfo.channels);
+		if (!ret) // malloc failed
 		{
 			sf_close(sndfile);
 			fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
@@ -269,34 +316,33 @@ short *_loadSample(char *path, SF_INFO *sfinfo)
 		} else
 		{
 			/* read the whole file into memory */
-			sf_readf_short(sndfile, ptr, sfinfo->frames);
+			sf_readf_short(sndfile, ret->data, sfinfo.frames);
+			ret->length = sfinfo.frames;
+			ret->channels = sfinfo.channels;
+			ret->rate = ret->defrate = sfinfo.samplerate;
 			sf_close(sndfile);
 		}
 	}
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-	return ptr;
+	return ret;
 }
-void loadSample(uint8_t index, char *path)
+void loadSample(uint8_t index, char *path) /* TODO: atomicity */
 {
 	if (!instrumentSafe(s, index)) return; /* instrument doesn't exist */
 	Instrument *iv = &s->instrument->v[s->instrument->i[index]];
-	SF_INFO sfinfo;
-	short *sampledata = _loadSample(path, &sfinfo);
-	if (!sampledata)
+	Sample *newsample = _loadSample(path);
+	if (!newsample)
 	{
 		strcpy(w->command.error, "failed to load sample, out of memory");
 		return;
 	}
 
 	/* unload any present sample data */
-	if (iv->sample.data) free(iv->sample.data);
-	iv->sample.data = sampledata;
-	iv->sample.length = sfinfo.frames;
-	iv->sample.channels = sfinfo.channels;
-	iv->sample.rate = iv->sample.defrate = sfinfo.samplerate;
+	if (iv->sample) free(iv->sample);
+	iv->sample = newsample;
 	iv->trimstart = 0;
-	iv->trimlength = sfinfo.frames-1;
-	iv->wavetable.framelength = (sfinfo.frames-1) / 256;
+	iv->trimlength = newsample->length-1;
+	iv->wavetable.framelength = (newsample->length-1) / 256;
 	iv->looplength = 0;
 	iv->samplerate = 0xff;
 	iv->bitdepth = 0xf;
@@ -304,13 +350,14 @@ void loadSample(uint8_t index, char *path)
 
 void serializeInstrument(Instrument *iv, FILE *fp)
 {
-	fwrite(&iv->sample.length, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->sample.channels, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->sample->length, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->sample->channels, sizeof(uint8_t), 1, fp);
 	fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
-	fwrite(&iv->sample.rate, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->sample.defrate, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->sample->rate, sizeof(uint32_t), 1, fp);
+	fwrite(&iv->sample->defrate, sizeof(uint32_t), 1, fp);
 	fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
 	fwrite(&iv->bitdepth, sizeof(int8_t), 1, fp);
+	fwrite(&iv->interpolate, sizeof(bool), 1, fp);
 	fwrite(&iv->trimstart, sizeof(uint32_t), 1, fp);
 	fwrite(&iv->trimlength, sizeof(uint32_t), 1, fp);
 	fwrite(&iv->looplength, sizeof(uint32_t), 1, fp);
@@ -344,6 +391,7 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
 	fwrite(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
 	fwrite(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
+	fwrite(&iv->wavetable.envelope, sizeof(uint16_t), 1, fp);
 	fwrite(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
 	fwrite(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
 	fwrite(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
@@ -361,97 +409,78 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
 	fwrite(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
 
-	if (iv->sample.length)
-		fwrite(iv->sample.data, sizeof(short), iv->sample.length * iv->sample.channels, fp);
+	if (iv->sample->length)
+		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->channels, fp);
 
-	fwrite(&iv->effect.c, sizeof(uint8_t), 1, fp);
-	for (int i = 0; i < iv->effect.c; i++)
-		serializeEffect(&iv->effect.v[i], fp);
+	serializeEffectChain(iv->effect, fp);
 }
 void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor)
 {
+	Sample *newsample = malloc(sizeof(Sample));
 	if (major == 0 && minor < 99) fseek(fp, sizeof(uint32_t), SEEK_CUR);
-	fread(&iv->sample.length, sizeof(uint32_t), 1, fp);
-	fread(&iv->sample.channels, sizeof(uint8_t), 1, fp);
+	fread(&newsample->length, sizeof(uint32_t), 1, fp);
+	fread(&newsample->channels, sizeof(uint8_t), 1, fp);
 	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
-	fread(&iv->sample.rate, sizeof(uint32_t), 1, fp); iv->sample.rate *= ratemultiplier;
-	if (!(major == 0 && minor < 101)) { fread(&iv->sample.defrate, sizeof(uint32_t), 1, fp); iv->sample.defrate *= ratemultiplier; }
-	else                              iv->sample.defrate = iv->sample.rate;
+	fread(&newsample->rate, sizeof(uint32_t), 1, fp);    newsample->rate *= ratemultiplier;
+	fread(&newsample->defrate, sizeof(uint32_t), 1, fp); newsample->defrate *= ratemultiplier;
 	fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
 	fread(&iv->bitdepth, sizeof(int8_t), 1, fp);
+	fread(&iv->interpolate, sizeof(bool), 1, fp);
 	fread(&iv->trimstart, sizeof(uint32_t), 1, fp);
 	fread(&iv->trimlength, sizeof(uint32_t), 1, fp);
 	fread(&iv->looplength, sizeof(uint32_t), 1, fp);
-	if (major == 0 && minor < 100) { fread(&iv->envelope, sizeof( uint8_t), 1, fp); iv->envelope <<= 8; }
-	else                             fread(&iv->envelope, sizeof(uint16_t), 1, fp);
+	fread(&iv->envelope, sizeof(uint16_t), 1, fp);
 	fread(&iv->gain, sizeof(uint8_t), 1, fp);
 	fread(&iv->invert, sizeof(bool), 1, fp);
 	fread(&iv->pingpong, sizeof(bool), 1, fp);
 	fread(&iv->loopramp, sizeof(uint8_t), 1, fp);
 
-	if (!(major == 0 && minor < 101))
-	{
-		fread(&iv->filtermode, sizeof(int8_t), 1, fp);
-		fread(&iv->filtercutoff, sizeof(uint8_t), 1, fp);
-		fread(&iv->filterresonance, sizeof(uint8_t), 1, fp);
-	} else
-	{
-		iv->filtermode = 0;
-		iv->filtercutoff = 0xff;
-		iv->filterresonance = 0x0;
-	}
+	fread(&iv->filtermode, sizeof(int8_t), 1, fp);
+	fread(&iv->filtercutoff, sizeof(uint8_t), 1, fp);
+	fread(&iv->filterresonance, sizeof(uint8_t), 1, fp);
 
-	if (!(major == 0 && minor < 100)) fread(&iv->algorithm, sizeof(int8_t), 1, fp);
+	fread(&iv->algorithm, sizeof(int8_t), 1, fp);
 
 	/* midi */
 	fread(&iv->midi.channel, sizeof(int8_t), 1, fp);
 
 	/* granular */
 	fread(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
-	if (major == 0 && minor < 100) fseek(fp, sizeof(uint8_t), SEEK_CUR);
 	fread(&iv->granular.reversegrains, sizeof(bool), 1, fp);
-	if (!(major == 0 && minor < 100)) fread(&iv->granular.rampgrains, sizeof(int8_t), 1, fp);
+	fread(&iv->granular.rampgrains, sizeof(int8_t), 1, fp);
 	fread(&iv->granular.timestretch, sizeof(int16_t), 1, fp);
 	fread(&iv->granular.notestretch, sizeof(bool), 1, fp);
 	fread(&iv->granular.pitchshift, sizeof(int16_t), 1, fp);
 	fread(&iv->granular.pitchstereo, sizeof(int8_t), 1, fp);
 
 	/* wavetable */
-	if (!(major == 0 && minor < 100))
-	{
-		fread(&iv->wavetable.framelength, sizeof(uint32_t), 1, fp);
-		fread(&iv->wavetable.wtpos, sizeof(uint8_t), 1, fp);
-		fread(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
-		fread(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
-		fread(&iv->wavetable.env.wtpos, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.env.sync, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.env.cutoff, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.env.phase, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.env.pwm, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.env.pdyn, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfo.gain, sizeof(uint8_t), 1, fp);
-		fread(&iv->wavetable.lfo.wtpos, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfo.sync, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfo.cutoff, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfo.phase, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
-		fread(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
-	}
+	fread(&iv->wavetable.framelength, sizeof(uint32_t), 1, fp);
+	fread(&iv->wavetable.wtpos, sizeof(uint8_t), 1, fp);
+	fread(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.envelope, sizeof(uint16_t), 1, fp);
+	fread(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
+	fread(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
+	fread(&iv->wavetable.env.wtpos, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.env.sync, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.env.cutoff, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.env.phase, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.env.pwm, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.env.pdyn, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfo.gain, sizeof(uint8_t), 1, fp);
+	fread(&iv->wavetable.lfo.wtpos, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfo.sync, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfo.cutoff, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfo.phase, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
+	fread(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
 
-	if (iv->sample.length)
-	{
-		iv->sample.data = malloc(sizeof(short) * iv->sample.length * iv->sample.channels);
-		fread(iv->sample.data, sizeof(short), iv->sample.length * iv->sample.channels, fp);
-	}
+	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->channels);
+	if (newsample->length)
+		fread(newsample->data, sizeof(short), newsample->length*newsample->channels, fp);
+	iv->sample = newsample;
 
-	if (!(major == 1 && minor < 97))
-	{
-		fread(&iv->effect.c, sizeof(uint8_t), 1, fp);
-		for (int i = 0; i < iv->effect.c; i++)
-			deserializeEffect(&iv->effect, &iv->effect.v[i], fp, major, minor);
-	}
+	deserializeEffectChain(&iv->effect, fp, major, minor);
 }

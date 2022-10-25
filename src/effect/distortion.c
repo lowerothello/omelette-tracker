@@ -35,8 +35,6 @@ void initDistortion(Effect *e)
 
 void copyDistortion(Effect *dest, Effect *src)
 {
-	if (dest->state) free(dest->state);
-	dest->type = src->type;
 	initDistortion(dest);
 	memcpy(dest->state, src->state, sizeof(DistortionState));
 }
@@ -205,7 +203,7 @@ void drawDistortion(Effect *e, ControlState *cc,
 }
 
 #define DRIVE_COEF 1.02214f
-void runDistortion(uint32_t samplecount, Effect *e)
+void runDistortion(uint32_t samplecount, EffectChain *chain, Effect *e)
 {
 	float gain, bias, makeup;
 	DistortionState *s = e->state;
@@ -216,25 +214,25 @@ void runDistortion(uint32_t samplecount, Effect *e)
 	{
 		if (s->filterparallel == 0)
 		{
-			runSVFilter(&s->filter[0], e->input[0][fptr], 0.0f, 0.0f);
-			runSVFilter(&s->filter[1], e->input[1][fptr], 0.0f, 0.0f);
-			affectl = e->input[0][fptr];
-			affectr = e->input[1][fptr];
+			runSVFilter(&s->filter[0], chain->input[0][fptr], 0.0f, 0.0f);
+			runSVFilter(&s->filter[1], chain->input[1][fptr], 0.0f, 0.0f);
+			affectl = chain->input[0][fptr];
+			affectr = chain->input[1][fptr];
 		} else if (s->filterparallel < 0)
 		{
-			runSVFilter(&s->filter[0], e->input[0][fptr], 1.0f + s->filterparallel*DIV128, 0.0f);
-			runSVFilter(&s->filter[1], e->input[1][fptr], 1.0f + s->filterparallel*DIV128, 0.0f);
+			runSVFilter(&s->filter[0], chain->input[0][fptr], 1.0f + s->filterparallel*DIV128, 0.0f);
+			runSVFilter(&s->filter[1], chain->input[1][fptr], 1.0f + s->filterparallel*DIV128, 0.0f);
 			affectl = s->filter[0].l;
 			affectr = s->filter[1].l;
 		} else
 		{
-			runSVFilter(&s->filter[0], e->input[0][fptr], s->filterparallel*DIV128, 0.0f);
-			runSVFilter(&s->filter[1], e->input[1][fptr], s->filterparallel*DIV128, 0.0f);
+			runSVFilter(&s->filter[0], chain->input[0][fptr], s->filterparallel*DIV128, 0.0f);
+			runSVFilter(&s->filter[1], chain->input[1][fptr], s->filterparallel*DIV128, 0.0f);
 			affectl = s->filter[0].h;
 			affectr = s->filter[1].h;
 		}
-		bypassl = e->input[0][fptr] - affectl;
-		bypassr = e->input[1][fptr] - affectr;
+		bypassl = chain->input[0][fptr] - affectl;
+		bypassr = chain->input[1][fptr] - affectr;
 
 		gain = s->rectify*DIV255;
 		if (fabsf(affectl) < s->gate*DIV512) affectl = 0.0f;
@@ -292,7 +290,7 @@ void runDistortion(uint32_t samplecount, Effect *e)
 
 		/* final mix */
 		gain = s->gainparallel*DIV255;
-		e->input[0][fptr] = (s->dcblockoutput[0]*makeup + bypassl) * gain + e->input[0][fptr] * (1.0f - gain);
-		e->input[1][fptr] = (s->dcblockoutput[1]*makeup + bypassr) * gain + e->input[1][fptr] * (1.0f - gain);
+		chain->input[0][fptr] = (s->dcblockoutput[0]*makeup + bypassl) * gain + chain->input[0][fptr] * (1.0f - gain);
+		chain->input[1][fptr] = (s->dcblockoutput[1]*makeup + bypassr) * gain + chain->input[1][fptr] * (1.0f - gain);
 	}
 }

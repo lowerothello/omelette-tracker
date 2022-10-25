@@ -2,11 +2,11 @@
 
 void drawInstrument(void)
 {
-	printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[1mINSTRUMENT\033[m", 2, (ws.ws_col-18)>>1);
+	printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[1minstrument\033[m", 2, (ws.ws_col-18)>>1);
 	switch (w->page)
 	{
-		case PAGE_INSTRUMENT_SAMPLE: printf("\033[%d;%dH\033[3msample\033[m \033[3;2meffect\033[m", 3, (ws.ws_col-13)>>1); break;
-		case PAGE_INSTRUMENT_EFFECT: printf("\033[%d;%dH\033[3;2msample\033[m \033[3meffect\033[m", 3, (ws.ws_col-13)>>1); break;
+		case PAGE_INSTRUMENT_SAMPLE: printf("\033[%d;%dH\033[3msample\033[m \033[3;2mEFFECT\033[m", 3, (ws.ws_col-13)>>1); break;
+		case PAGE_INSTRUMENT_EFFECT: printf("\033[%d;%dH\033[3;2mSAMPLE\033[m \033[3meffect\033[m", 3, (ws.ws_col-13)>>1); break;
 	}
 
 	if (cc.mouseadjust || cc.keyadjust)
@@ -28,7 +28,8 @@ void drawInstrument(void)
 					iv = &s->instrument->v[s->instrument->i[i]];
 					if (iv->triggerflash) printf("\033[4%dm", i%6+1);
 					if (iv->algorithm == INST_ALG_MIDI) printf("\033[%d;1H%02x %02x \033[1m - MIDI - ", w->centre - w->instrument + i, i, s->instrument->i[i]);
-					else                                printf("\033[%d;1H%02x %02x \033[1m<%08x>",     w->centre - w->instrument + i, i, s->instrument->i[i], iv->sample.length);
+					else if (iv->sample)                printf("\033[%d;1H%02x %02x \033[1m<%08x>",     w->centre - w->instrument + i, i, s->instrument->i[i], iv->sample->length);
+					else                                printf("\033[%d;1H%02x %02x \033[1m<%08x>",     w->centre - w->instrument + i, i, s->instrument->i[i], 0);
 				} else                                  printf("\033[%d;1H%02x %02x  ........ ",        w->centre - w->instrument + i, i, s->instrument->i[i]);
 				printf("\033[40;22;27m");
 			} else
@@ -38,7 +39,8 @@ void drawInstrument(void)
 					iv = &s->instrument->v[s->instrument->i[i]];
 					if (iv->triggerflash) printf("\033[3%dm", i%6+1);
 					if (iv->algorithm == INST_ALG_MIDI) printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[1m - MIDI - ", w->centre - w->instrument + i, i, s->instrument->i[i]);
-					else                                printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[1m<%08x>",     w->centre - w->instrument + i, i, s->instrument->i[i], iv->sample.length);
+					else if (iv->sample)                printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[1m<%08x>",     w->centre - w->instrument + i, i, s->instrument->i[i], iv->sample->length);
+					else                                printf("\033[%d;1H%02x \033[2m%02x\033[22m \033[1m<%08x>",     w->centre - w->instrument + i, i, s->instrument->i[i], 0);
 				} else                                  printf("\033[%d;1H%02x \033[2m%02x\033[22m  ........ ",        w->centre - w->instrument + i, i, s->instrument->i[i]);
 				printf("\033[37;22m");
 			}
@@ -50,7 +52,7 @@ void drawInstrument(void)
 		switch (w->page)
 		{
 			case PAGE_INSTRUMENT_SAMPLE: drawInstrumentSampler(iv); break;
-			case PAGE_INSTRUMENT_EFFECT: drawEffects(&iv->effect, INSTRUMENT_INDEX_COLS+1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW); break;
+			case PAGE_INSTRUMENT_EFFECT: drawEffects(iv->effect, INSTRUMENT_INDEX_COLS+1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW); break;
 		}
 	} else
 	{

@@ -51,24 +51,26 @@ void cleanup(int ret)
 		if (w->recbuffer) free(w->recbuffer);
 		if (w->waveformcanvas) free_canvas(w->waveformcanvas);
 		if (w->waveformbuffer) free_buffer(w->waveformbuffer);
+
+		clearChanneldata(s, &w->channelbuffer);
+
 		__delChannel(&w->previewchannel);
 		if (w->previewchannel.data.trig) free(w->previewchannel.data.trig);
 		if (w->previewchannel.data.songv) free(w->previewchannel.data.songv);
-		if (w->previewsample)
-		{
-			if (w->previewsample->data) free(w->previewsample->data);
-			free(w->previewsample);
-		}
+		if (w->previewsample) free(w->previewsample);
 
-		for (short i = 0; i < w->vbchannelc; i++)
-			free(w->vbtrig[i]);
 		for (short i = 0; i < w->pbchannelc; i++)
+		{
 			free(w->pbvariantv[i]);
+			free(w->vbtrig[i]);
+		}
 	}
 	printf("\033[%d;0H\033[2K", ws.ws_row);
 
 	common_cleanup(ret);
 }
+
+void sigwinch(int _) { p->resize = 1; }
 
 void init(int argc, char **argv)
 {
@@ -88,6 +90,7 @@ void init(int argc, char **argv)
 	/* trap signals */
 	signal(SIGINT, SIG_IGN);
 	signal(SIGTERM, &cleanup);
+	signal(SIGWINCH, &sigwinch);
 
 	initLadspaDB();
 
@@ -120,6 +123,7 @@ void init(int argc, char **argv)
 	w->octave = 4;
 	w->defvariantlength = 0x7;
 	w->channelbuffer.macroc = 1;
+	w->channelbuffer.effect = newEffectChain(NULL, NULL);
 	w->trackerfy = STATE_ROWS;
 
 	s = addSong();
@@ -130,7 +134,8 @@ void init(int argc, char **argv)
 
 	/* need to be called before the jack client is activated */
 	initBackground();
-	__addChannel(&w->previewchannel);
+	__addChannel   (&w->previewchannel);
+	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
@@ -162,5 +167,5 @@ void init(int argc, char **argv)
 		pushEvent(&e);
 	} else reapplyBpm(); /* implied by the other branch */
 
-	resize(0);
+	p->resize = 1;
 }

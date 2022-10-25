@@ -1,20 +1,24 @@
 typedef struct
 {
 	uint8_t type;
-	float  *input[2];
-	float  *output[2];
 	void   *state;
 } Effect;
 #define EFFECT_CHAIN_LEN 16
 typedef struct
 {
-	uint8_t c;
-	Effect  v[EFFECT_CHAIN_LEN];
 	float  *input[2];
 	float  *output[2];
+	uint8_t c;
+	Effect  v[];
 } EffectChain;
 
 
+typedef struct
+{
+	char    c; /* command  */
+	uint8_t v; /* argument */
+	bool    alt; /* true to use the altername command */
+} Macro;
 #define NOTE_VOID 255
 #define NOTE_OFF 254
 #define NOTE_UNUSED 253 /* explicitly unused */
@@ -26,11 +30,15 @@ typedef struct
 {
 	uint8_t note; /* MIDI compatible  | NOTE_* declares */
 	uint8_t inst; /* instrument index | INST_* declares */
-	struct {
-		char    c; /* command  */
-		uint8_t v; /* argument */
-	} macro[8]; /* up to 8 macro columns, TODO: dynamically allocate? */
+	Macro   macro[8];
 } Row;
+
+#define C_VTRIG_LOOP 0b00000001
+typedef struct
+{
+	uint8_t index;
+	uint8_t flags;
+} Vtrig;
 
 #define VARIANT_VOID 255
 #define VARIANT_OFF 254
@@ -41,13 +49,6 @@ typedef struct
 	uint16_t rowc;
 	Row      rowv[];
 } Variant;
-
-#define C_VTRIG_LOOP 0b00000001
-typedef struct
-{
-	uint8_t index;
-	uint8_t flags;
-} Vtrig;
 
 #define SONG_MAX 65535
 #define STATE_ROWS 4
@@ -67,12 +68,12 @@ typedef struct
 	bool reverse;
 	bool release;
 	bool rtrig_rev;
-	bool target_rand;
 
 	uint8_t macroc; /* macro count */
 
-	EffectChain effect;
+	EffectChain *effect;
 } ChannelData; /* raw sequence data */
+
 typedef struct
 {
 	ChannelData data; /* saved to disk */
@@ -80,9 +81,24 @@ typedef struct
 	/* runtime state */
 	uint32_t pointer;        /* clock */
 	uint32_t pitchedpointer; /* sample to play */
-	uint8_t  gain;           /* unsigned nibble per-channel */
-	uint8_t  randgain;       /* gain override for the Ixy macro */
-	short    targetgain;     /* smooth gain target */
+
+	/* gain */
+	struct {
+		uint8_t base; /* unsigned nibble per channel */
+		uint8_t rand; /* base override for the altGxy macro */
+
+		short   target;      /* smoothing target, committed to both rand and base */
+		bool    target_rand; /* target should be commited to rand but NOT to base */
+	} gain;
+
+	struct {
+		uint8_t base;
+		uint8_t rand;
+
+		short   target;
+		bool    target_rand;
+	} send;
+
 	Row      r;
 	uint8_t  samplernote;
 	short    samplerinst; /* allowed to be signed */
@@ -122,22 +138,23 @@ typedef struct
 	short   midiccindex;
 	uint8_t midicc;
 
-	uint8_t sendgain;
-	uint8_t sendrandgain;
-	short   targetsendgain;
-
-	/* waveshaper */
-	char    waveshaper;               /* which waveshaper to use */
-	uint8_t waveshaperstrength;       /* mix / input gain */
-	short   targetwaveshaperstrength; /* mix / input gain target */
-
 	/* filter */
-	SVFilter fl[2], fr[2];
-	int8_t   filtermode[2], targetfiltermode[2];
-	uint8_t  filtercut[2];
-	short    targetfiltercut[2];
-	uint8_t  filterres[2];
-	short    targetfilterres[2];
+	struct {
+		SVFilter fl[2], fr[2];
+		int8_t   mode[2], targetmode[2]; /* TODO: jitter variant? */
+
+		/* cutoff */
+		uint8_t  cut[2];
+		uint8_t  randcut[2];
+		short    targetcut[2];
+		bool     targetcut_rand;
+
+		/* resonance */
+		uint8_t  res[2];
+		uint8_t  randres[2];
+		short    targetres[2];
+		bool     targetres_rand;
+	} filter;
 
 	/* ramping */
 	uint16_t rampindex;        /* progress through the ramp buffer, rampmax if not ramping */
@@ -146,6 +163,7 @@ typedef struct
 
 	/* sampler */
 	float envgain;
+	float modenvgain; /* wavetable modulation envelope */
 
 	uint16_t grainrampindex; /* progress through the grain ramp buffer, >=cv->grainrampmax if not ramping */
 	uint16_t grainrampmax;   /* actual grainrampmax used, to allow for tiny grain sizes */
@@ -159,12 +177,12 @@ typedef struct
 } Channel;
 
 typedef struct
-{ /* TODO: use a flexible array member here? */
-	short   *data; /* alloc(sizeof(short) * length * channels) */
+{
 	uint32_t length;
 	uint8_t  channels;
 	uint32_t rate; /* rate to play C5 at */
 	uint32_t defrate; /* rate to return to when the rate control is reset */
+	short    data[]; /* alloc(sizeof(short) * length * channels) */
 } Sample;
 
 #define INSTRUMENT_VOID 255
@@ -175,13 +193,30 @@ enum {
 	INST_ALG_WAVETABLE,
 	INST_ALG_MIDI
 } INST_ALG;
+
+#define WT_PARAM_MAX 9
+enum {
+	WT_PARAM_WTPOS,
+	WT_PARAM_GAIN,
+	WT_PARAM_SYNC,
+	WT_PARAM_FILTER, /* cutoff and resonance */
+	WT_PARAM_PHASE,
+	WT_PARAM_FREQUENCY,
+	WT_PARAM_PULSEWIDTH,
+	WT_PARAM_PHASEDYNAMICS,
+	WT_PARAM_NOISE,
+} WT_PARAM;
 typedef struct
 {
-	Sample sample;
+	Sample *sample;
 
-	int8_t   channelmode;
+	int8_t channelmode;
+
+	/* quality */
 	uint8_t  samplerate;  /* percent of c5rate to actually use */
 	int8_t   bitdepth;
+	bool     interpolate; /* lerp between samples */
+
 	uint32_t trimstart;
 	uint32_t trimlength;
 	uint32_t looplength;
@@ -220,6 +255,7 @@ typedef struct
 		int8_t   syncoffset;
 		int8_t   pulsewidth;
 		int8_t   phasedynamics;
+		uint16_t envelope;
 		uint8_t  lfospeed;
 		int8_t   lfoduty;
 		bool     lfoshape;
@@ -243,7 +279,10 @@ typedef struct
 	} wavetable;
 
 	/* effects */
-	EffectChain effect;
+	EffectChain *effect;
+	float *output[2];       /* used by effects */
+	float *pluginoutput[2]; /* some external plugins need to read and write from separate buffers */
+
 	uint32_t triggerflash;
 } Instrument;
 
@@ -274,6 +313,7 @@ typedef struct
 	/* channels */
 	ChannelChain *channel;
 	short        *bpmcache; /* bpm change caching so multithreading isn't hell */
+	uint16_t      bpmcachelen; /* how far into bpmcache it's safe to index */
 
 	/* song pointers */
 	uint16_t playfy;  /* analogous to window->trackerfy */
@@ -325,10 +365,6 @@ enum { /* tracker modes */
 	T_MODE_VISUAL,
 	T_MODE_VISUALLINE,
 	T_MODE_VISUALREPLACE,
-	T_MODE_VTRIG,
-	T_MODE_VTRIG_INSERT,
-	T_MODE_VTRIG_VISUAL,
-	T_MODE_VTRIG_MOUSEADJUST
 } T_MODE;
 
 enum { /* instrument modes */
@@ -341,14 +377,15 @@ enum {
 	PTRIG_NORMAL, /* queued s->instrument preview */
 	PTRIG_FILE,   /* queued filebrowser preview   */
 } PTRIG;
+
+#define TRACKERFX_MIN -1
+#define TRACKERFX_VISUAL_MIN 0
 typedef struct
 {
 	Variant *pbvariantv[CHANNEL_MAX];
+	Vtrig   *vbtrig    [CHANNEL_MAX];
 	uint8_t  pbchannelc; /* how many channels are in the pattern buffer */
-	short    pbfx[2];    /* patternbuffer clipping region */
-	Vtrig   *vbtrig[CHANNEL_MAX];
-	uint8_t  vbchannelc; /* how many channels are in the vtrig buffer */
-	uint16_t vbrowc;     /* how many rows are in the vtrig buffer */
+	int8_t   pbfx[2];    /* patternbuffer horizontal clipping region */
 	Instrument instrumentbuffer; /* instrument paste buffer */
 	uint8_t    defvariantlength;
 
@@ -366,14 +403,15 @@ typedef struct
 	short          instrument; /* focused instrument, TODO: should be a uint8_t */
 
 	uint16_t       trackerfy, visualfy;
-	short          trackerfx, visualfx;
+	int8_t         trackerfx, visualfx;
 	uint8_t        visualchannel;
 
 	short          effectscroll;
 
-	int    filebrowserindex;
-	size_t plugineffectindex;
-	bool   pluginplacebefore; /* true to place plugins before the cursor, false to place plugins after the cursor */
+	int           filebrowserindex;
+	size_t        plugineffectindex;
+	bool          pluginbrowserbefore; /* true to place plugins before the cursor, false to place plugins after the cursor */
+	EffectChain **pluginbrowserchain;  /* which chain to place plugins into */
 
 	unsigned short mousey, mousex;
 
@@ -393,11 +431,14 @@ typedef struct
 	size_t   waveformw, waveformh;
 	uint32_t waveformdrawpointer;
 
+	int8_t wtparam;
+
 	char     chord; /* key chord buffer, vi-style multi-letter commands */
 	uint16_t count; /* action repeat count, follows similar rules to w->chord */
 	char     octave;
 	uint8_t  step;
 	char     keyboardmacro;
+	bool     keyboardmacroalt;
 	bool     follow;
 
 	Row     previewrow;
@@ -429,7 +470,8 @@ typedef struct
 	Window      *w;
 	struct { jack_port_t *l, *r; } in, out;
 	jack_port_t *midiout;
-	bool         dirty;  /* request a screen redraw */
+	bool         redraw; /* request a screen redraw */
+	bool         resize; /* request a screen resize */
 	Event        eventv[EVENT_QUEUE_MAX];
 	uint8_t      eventc; /* the eventv index pushEvent() should populate */
 } PlaybackInfo;

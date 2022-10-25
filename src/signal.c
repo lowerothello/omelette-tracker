@@ -1,12 +1,13 @@
 void pushEvent(Event *e)
 {
+#ifdef DEBUG_LOGS
+	FILE *fp = fopen(".oml_eventdump", "a");
+	fprintf(fp, "index %d - sem:%d, dest:%p, src:%p, callback:%p, callbackarg:%p\n", p->eventc, e->sem, e->dest, e->src, e->callback, e->callbackarg);
+	fclose(fp);
+#endif
+
 	assert(p->eventc < EVENT_QUEUE_MAX); /* TODO: do something more useful than aborting */
 	memcpy(&p->eventv[p->eventc], e, sizeof(Event));
-	/* p->eventv[p->eventc].sem = e->sem;
-	p->eventv[p->eventc].swap1 = e->swap1;
-	p->eventv[p->eventc].swap2 = e->swap2;
-	p->eventv[p->eventc].callback = e->callback;
-	p->eventv[p->eventc].callbackarg = e->callbackarg; */
 	p->eventc++;
 }
 
@@ -74,7 +75,7 @@ bool processM_SEM(void)
 						iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
 						if (iv->midi.channel != -1)
 						{
-							midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->randgain>>4)<<3);
+							midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->gain.rand>>4)<<3);
 							cv->r.note = NOTE_VOID;
 						}
 					}
@@ -91,7 +92,8 @@ void cb_reloadFile(Event *e)
 	Song *cs = readSong(w->newfilename);
 	if (cs) { delSong(s); s = cs; }
 	p->s = s;
-	w->trackerfy = STATE_ROWS;
+	if (s->loop[1]) w->trackerfy = s->loop[0];
+	else            w->trackerfy = STATE_ROWS;
 	w->page = PAGE_CHANNEL_VARIANT;
 	regenGlobalRowc(s);
 	reapplyBpm();

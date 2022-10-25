@@ -1,3 +1,3 @@
-[submodule "src/lib/libdrawille"]
-	path = src/lib/libdrawille
+[submodule "lib/libdrawille"]
+	path = lib/libdrawille
 	url = https://github.com/huulivoide/libdrawille

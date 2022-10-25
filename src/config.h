@@ -1,5 +1,11 @@
 /* debugging symbols */
 
+/* DEBUG_LOGS
+ *   writes debugging files to the current directory.
+ *   these files are appended to and never reset so grow forever.
+ */
+// #define DEBUG_LOGS
+
 #define DEBUG_DUMMY_SAMPLERATE 44100
 #define DEBUG_DUMMY_BUFFERSIZE 256
 /* DEBUG_DISABLE_AUDIO_OUTPUT
@@ -14,8 +20,8 @@
  *   removes the dependancy on valgrind by not including
  *   valgrind/valgrind.h, might cause lots of messages to
  *   be printed to stderr when running under valgrind due
- *   to valgrind's scheduler not really supporting realtime
- *   priority threads (or multithreading in general).
+ *   to valgrind's scheduler not supporting realtime
+ *   priority threads (or multithreading at all).
  */
 // #define NO_VALGRIND
 

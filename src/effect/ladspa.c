@@ -120,25 +120,27 @@ void freeLadspaEffect(Effect *e)
 LADSPA_Data prettyPrintingToLadspaData(uint8_t data, LADSPA_PortRangeHint hint)
 {
 	LADSPA_Data ret = 0.0f;
-	short shortdata = data;
 	if (LADSPA_IS_HINT_TOGGLED(hint.HintDescriptor))
 	{
 		if (data) return 1.0f;
 		else      return 0.0f;
 	} else if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor))
-		ret = shortdata;
-	else if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor))
+	{
+		if (hint.LowerBound < 0.0f) return (int8_t)data;
+		else                        return data;
+	} else if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor))
 	{
 		/* offset signed values */
-		if (hint.LowerBound < 0.0f)
-			shortdata += 128;
+		if (hint.LowerBound < 0.0f) ret = ((short)(int8_t)data + 128)*DIV255;
+		else                        ret = data*DIV255;
 
-		ret = hint.LowerBound*(1.0f - shortdata*DIV255) + hint.UpperBound*(shortdata*DIV255);
-		if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -ret) + 1.0f) * M_1_OVER_0_9;
-	} else /* assume data is between LADSPA_DEF_MIN and LADSPA_DEF_MAX */
+		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -ret) + 1.0f) * M_1_OVER_0_9;
+		ret = hint.LowerBound*(1.0f - ret) + hint.UpperBound*ret;
+	} else /* assume data shold be between LADSPA_DEF_MIN and LADSPA_DEF_MAX */
 	{
-		ret = LADSPA_DEF_MIN + (shortdata*DIV255) * LADSPA_DEF_MAX;
-		if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -ret) + 1.0f) * M_1_OVER_0_9;
+		ret = data*DIV255;
+		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -(ret * 0.9f)) + 1.0f);
+		ret = LADSPA_DEF_MIN + ret * LADSPA_DEF_MAX;
 	}
 
 	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor))
@@ -153,31 +155,27 @@ short ladspaDataToPrettyPrinting(LADSPA_Data data, LADSPA_PortRangeHint hint)
 	if (LADSPA_IS_HINT_TOGGLED(hint.HintDescriptor)) {
 		if (data > 0.0f) return 1;
 		else             return 0;
-	} else
+	} else if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor))
+		return data;
+
+	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) data /= samplerate;
+
+	if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor))
 	{
+		hold = (data - hint.LowerBound) / (hint.UpperBound - hint.LowerBound);
+		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) hold = (-powf(10.0f, -hold) + 1.0f) * M_1_OVER_0_9;
+		ret = hold * 255.0f;
 
-		if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor))
-			return data;
-		else
-		{
-			if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) data /= samplerate;
-
-			if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor))
-				hold = (data - hint.LowerBound) / (hint.UpperBound - hint.LowerBound);
-			else /* assume data is between LADSPA_DEF_MIN and LADSPA_DEF_MAX */
-				hold = (data - LADSPA_DEF_MIN) / LADSPA_DEF_MAX;
-
-			if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -hold) + 1.0f) * M_1_OVER_0_9 * 255.0f;
-			else                                                 ret = hold * 255.0f;
-
-			/* offset signed values */
-			if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor)
-					&& hint.LowerBound < 0.0f)
-				ret -= 128;
-
-			return ret;
-		}
+		/* offset signed values */
+		if (hint.LowerBound < 0.0f) ret -= 128;
+	} else /* assume data is between LADSPA_DEF_MIN and LADSPA_DEF_MAX */
+	{
+		hold = (data - LADSPA_DEF_MIN) / (LADSPA_DEF_MAX - LADSPA_DEF_MIN);
+		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) hold = (-powf(10.0f, -hold) + 1.0f) * M_1_OVER_0_9;
+		ret = hold * 255.0f;
 	}
+
+	return ret;
 }
 
 /* apply adjustments to the real values */
@@ -189,6 +187,7 @@ void _controlpToV(void *arg)
 		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
 		{
 			s->controlv[controlp] = prettyPrintingToLadspaData(s->controlp[controlp], s->desc->PortRangeHints[i]);
+			// s->controlp[controlp] = ladspaDataToPrettyPrinting(s->controlv[controlp], s->desc->PortRangeHints[i]);
 			controlp++;
 		}
 }
@@ -202,12 +201,6 @@ void _controlvToP(LadspaState *s)
 			s->controlp[controlp] = ladspaDataToPrettyPrinting(s->controlv[controlp], s->desc->PortRangeHints[i]);
 			controlp++;
 		}
-}
-
-void initLadspaEffect(Effect *e)
-{
-	e->state = calloc(1, sizeof(LadspaState));
-	/* caller should set e->state->desc then call _startLadspaEffect() */
 }
 
 LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
@@ -263,7 +256,7 @@ LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
 	return ret;
 }
 
-void _startLadspaEffect(Effect *e)
+void _startLadspaEffect(EffectChain *chain, Effect *e)
 {
 	LadspaState *s = e->state;
 
@@ -291,7 +284,6 @@ void _startLadspaEffect(Effect *e)
 		{
 			s->desc->connect_port(s->instance, i, &s->controlv[controlp]);
 			if (setDefaults) s->controlv[controlp] = getLadspaPortDef(s->desc->PortRangeHints[i]);
-
 			controlp++;
 		} else if (LADSPA_IS_PORT_AUDIO(s->desc->PortDescriptors[i]))
 		{
@@ -299,14 +291,18 @@ void _startLadspaEffect(Effect *e)
 			{
 				if (s->inputc < 2)
 				{
-					s->desc->connect_port(s->instance, i, e->input[s->inputc]);
+					if (chain->input)
+						s->desc->connect_port(s->instance, i, chain->input[s->inputc]);
+
 					s->inputc++;
 				}
 			} else if (LADSPA_IS_PORT_OUTPUT(s->desc->PortDescriptors[i]))
 			{
 				if (s->outputc < 2)
 				{
-					s->desc->connect_port(s->instance, i, e->output[s->outputc]);
+					if (chain->output)
+						s->desc->connect_port(s->instance, i, chain->output[s->outputc]);
+
 					s->outputc++;
 				}
 			}
@@ -319,14 +315,21 @@ void _startLadspaEffect(Effect *e)
 		s->desc->activate(s->instance);
 }
 
-void copyLadspaEffect(Effect *dest, Effect *src)
+void initLadspaEffect(EffectChain *chain, Effect *e, const LADSPA_Descriptor *desc)
 {
-	LadspaState *s_dest = dest->state;
+	e->state = calloc(1, sizeof(LadspaState));
+	((LadspaState *)e->state)->desc = desc;
+	_startLadspaEffect(chain, e);
+}
+
+void copyLadspaEffect(EffectChain *destchain, Effect *dest, Effect *src)
+{
 	LadspaState *s_src = src->state;
+	initLadspaEffect(destchain, dest, s_src->desc);
+	LadspaState *s_dest = dest->state;
 
-	s_dest->desc = s_src->desc;
-
-	_startLadspaEffect(dest);
+	memcpy(s_dest->controlv, s_src->controlv, s_src->controlc * sizeof(LADSPA_Data));
+	_controlvToP(s_dest);
 }
 
 void serializeLadspaEffect(Effect *e, FILE *fp)
@@ -338,7 +341,7 @@ void serializeLadspaEffect(Effect *e, FILE *fp)
 	fwrite(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
 	fwrite(s->controla, sizeof(int8_t), s->controlc, fp);
 }
-void deserializeLadspaEffect(Effect *e, FILE *fp)
+void deserializeLadspaEffect(EffectChain *chain, Effect *e, FILE *fp)
 {
 	LadspaState *s = e->state;
 
@@ -349,7 +352,7 @@ void deserializeLadspaEffect(Effect *e, FILE *fp)
 	fread(s->controla, sizeof(int8_t), s->controlc, fp);
 
 	/* TODO: loop up desc */
-	_startLadspaEffect(e);
+	_startLadspaEffect(chain, e);
 }
 
 short getLadspaEffectHeight(Effect *e, short w) { return ((LadspaState *)e->state)->controlc + 3; }
@@ -368,7 +371,8 @@ void drawLadspaEffect(Effect *e, ControlState *cc,
 		{
 			if (ymin <= y+1 + controlp && ymax >= y+1 + controlp)
 			{
-				printf("\033[%ld;%dH%.*s", y+1 + controlp, x + 1, w - 12, s->desc->PortNames[i]);
+				printf("\033[%ld;%dH%.*s", y+1 + controlp, x + 1, w - 20, s->desc->PortNames[i]);
+				printf("\033[%ld;%dH%f", y+1 + controlp, x + w - 18, s->controlv[controlp]);
 
 				if (LADSPA_IS_HINT_TOGGLED(s->desc->PortRangeHints[i].HintDescriptor))
 				{
@@ -408,7 +412,8 @@ void drawLadspaEffect(Effect *e, ControlState *cc,
 		}
 }
 
-void runLadspaEffect(uint32_t samplecount, Effect *e)
+/* only valid to call if e->state->input and e->state->output are not NULL */
+void runLadspaEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 {
 	LadspaState *s = e->state;
 
@@ -416,11 +421,11 @@ void runLadspaEffect(uint32_t samplecount, Effect *e)
 
 	if (s->outputc == 1) /* handle mono output correctly */
 	{
-		memcpy(e->input[0], e->output[0], sizeof(float) * samplecount);
-		memcpy(e->input[1], e->output[0], sizeof(float) * samplecount);
+		memcpy(chain->input[0], chain->output[0], sizeof(float) * samplecount);
+		memcpy(chain->input[1], chain->output[0], sizeof(float) * samplecount);
 	} else if (s->outputc >= 2)
 	{
-		memcpy(e->input[0], e->output[0], sizeof(float) * samplecount);
-		memcpy(e->input[1], e->output[0], sizeof(float) * samplecount);
+		memcpy(chain->input[0], chain->output[0], sizeof(float) * samplecount);
+		memcpy(chain->input[1], chain->output[0], sizeof(float) * samplecount);
 	}
 }

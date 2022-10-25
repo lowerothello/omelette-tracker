@@ -32,7 +32,10 @@ int writeSong(char *path)
 	fcntl(0, F_SETFL, 0); /* blocking */
 	FILE *fp = fopen(pathext, "w");
 
-	FILE *debugfp = fopen(".save_debug", "w");
+#ifdef DEBUG_LOGS /* TODO: too many #ifdefs here */
+	FILE *debugfp = fopen(".oml_savedump", "a");
+	fprintf(debugfp, "===== SAVE DUMP =====");
+#endif
 
 	int i;
 
@@ -52,10 +55,14 @@ int writeSong(char *path)
 	fwrite(s->loop, sizeof(uint16_t), 2, fp);
 
 	/* channels */
+#ifdef DEBUG_LOGS
 	fprintf(debugfp, "%02x channel(s) expected\n", s->channel->c);
+#endif
 	for (i = 0; i < s->channel->c; i++)
 	{
+#ifdef DEBUG_LOGS
 		fprintf(debugfp, "CHANNEL %02x - 0x%zx\n", i, ftell(fp));
+#endif
 		serializeChannel(s, &s->channel->v[i], fp);
 	}
 
@@ -63,15 +70,22 @@ int writeSong(char *path)
 	for (i = 0; i < INSTRUMENT_MAX; i++) fputc(s->instrument->i[i], fp);
 
 	/* instrument->v */
+#ifdef DEBUG_LOGS
 	fprintf(debugfp, "\n%02x instrument(s) expected\n", s->instrument->c);
+#endif
 	for (i = 0; i < s->instrument->c; i++)
 	{
+#ifdef DEBUG_LOGS
 		fprintf(debugfp, "INSTRUMENT %02x - 0x%zx\n", i, ftell(fp));
+#endif
 		serializeInstrument(&s->instrument->v[i], fp);
 	}
 
 	fclose(fp);
+#ifdef DEBUG_LOGS
+	fprintf(debugfp, "\n\n");
 	fclose(debugfp);
+#endif
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", pathext);
 	free(pathext);
@@ -83,8 +97,7 @@ Song *readSong(char *path)
 	FILE *fp = fopen(path, "r");
 	if (!fp) // file doesn't exist, or fopen otherwise failed
 	{
-		strcpy(w->filepath, path);
-		p->dirty = 1; return NULL;
+		p->redraw = 1; return NULL;
 	}
 	DIR *dp = opendir(path);
 	if (dp) // file is a directory
@@ -92,7 +105,7 @@ Song *readSong(char *path)
 		closedir(dp); fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' is a directory", path);
-		p->dirty = 1; return NULL;
+		p->redraw = 1; return NULL;
 	}
 
 	int i;
@@ -104,12 +117,20 @@ Song *readSong(char *path)
 		fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' isn't valid", path);
-		p->dirty = 1; return NULL;
+		p->redraw = 1; return NULL;
 	}
 
 	/* version */
 	uint8_t filemajor = fgetc(fp);
 	uint8_t fileminor = fgetc(fp);
+
+	if (filemajor < 1)
+	{
+		fclose(fp);
+		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
+		strcpy(w->command.error, "failed to read song, file too old");
+		p->redraw = 1; return NULL;
+	}
 
 	Song *cs = _addSong();
 	if (!cs)
@@ -117,7 +138,7 @@ Song *readSong(char *path)
 		fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 		strcpy(w->command.error, "failed to read song, out of memory");
-		p->dirty = 1; return NULL;
+		p->redraw = 1; return NULL;
 	}
 
 	/* assume the rest of the file is valid */
@@ -125,12 +146,9 @@ Song *readSong(char *path)
 	strcpy(w->filepath, path);
 
 	double ratemultiplier = 1.0;
-	if (!(filemajor == 0 && fileminor < 98))
-	{
-		jack_nframes_t filesamplerate;
-		fread(&filesamplerate, sizeof(jack_nframes_t), 1, fp);
-		ratemultiplier = (double)samplerate / (double)filesamplerate;
-	}
+	jack_nframes_t filesamplerate;
+	fread(&filesamplerate, sizeof(jack_nframes_t), 1, fp);
+	ratemultiplier = (double)samplerate / (double)filesamplerate;
 
 	/* counts */
 	cs->songbpm = fgetc(fp);
@@ -156,5 +174,5 @@ Song *readSong(char *path)
 
 	fclose(fp);
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-	p->dirty = 1; return cs;
+	p->redraw = 1; return cs;
 }

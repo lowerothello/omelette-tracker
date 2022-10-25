@@ -83,19 +83,17 @@ void _previewNote(Window *cw, int key, uint8_t inst)
 	switch (cw->keyboardmacro)
 	{
 		case 0: charToNote(key, &cw->previewrow.note); break;
-		case 'G':
-			if (charToKmode(key, 1, &cw->previewrow.macro[0].v, &cw->previewrow.note))
-				cw->previewrow.macro[0].c = cw->keyboardmacro;
-			break;
 		default:
-			if (charToKmode(key, 0, &cw->previewrow.macro[0].v, &cw->previewrow.note))
+			if (charToKmode(key, linkMacroNibbles(cw->keyboardmacro), &cw->previewrow.macro[0].v, &cw->previewrow.note))
+			{
 				cw->previewrow.macro[0].c = cw->keyboardmacro;
-			break;
+				cw->previewrow.macro[0].alt = cw->keyboardmacroalt;
+			} break;
 	}
 }
 void previewNote(int key, uint8_t inst)
 {
-	if (p->s->playing) return; /* TODO: only discriminate if on the channel page */
+	if (p->w->page == PAGE_CHANNEL_VARIANT && p->s->playing) return;
 	_previewNote(w, key, inst);
 	w->previewtrigger = PTRIG_NORMAL;
 }

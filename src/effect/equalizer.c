@@ -33,8 +33,6 @@ void initEqualizer(Effect *e)
 }
 void copyEqualizer(Effect *dest, Effect *src)
 {
-	if (dest->state) free(dest->state);
-	dest->type = src->type;
 	initEqualizer(dest);
 	memcpy(dest->state, src->state, sizeof(DistortionState));
 }
@@ -164,7 +162,7 @@ void drawEqualizer(Effect *e, ControlState *cc,
 }
 
 #define E_E_GAIN_SCALE 8.0f
-void runEqualizer(uint32_t samplecount, Effect *e)
+void runEqualizer(uint32_t samplecount, EffectChain *chain, Effect *e)
 {
 	EqualizerState *s = (EqualizerState *)e->state;
 	float gain;
@@ -172,17 +170,17 @@ void runEqualizer(uint32_t samplecount, Effect *e)
 	for (uint32_t fptr = 0; fptr < samplecount; fptr++)
 		for (int i = 0; i < E_E_BANDS; i++)
 		{
-			runSVFilter(&s->band[i].filter[0], e->input[0][fptr], s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
-			runSVFilter(&s->band[i].filter[1], e->input[1][fptr], s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
+			runSVFilter(&s->band[i].filter[0], chain->input[0][fptr], s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
+			runSVFilter(&s->band[i].filter[1], chain->input[1][fptr], s->band[i].frequency*DIV256, s->band[i].resonance*DIV256);
 
 			if (s->band[i].gain == -128) gain = -1.0f; /* fully cancel out bands */
 			else                         gain = powf(E_E_GAIN_SCALE, s->band[i].gain*DIV128) - 1.0f;
 			switch (s->band[i].mode)
 			{
-				case E_E_MODE_PEAK: e->input[0][fptr] += s->band[i].filter[0].b * gain; e->input[1][fptr] += s->band[i].filter[1].b * gain; break;
-				case E_E_MODE_LOW:  e->input[0][fptr] += s->band[i].filter[0].l * gain; e->input[1][fptr] += s->band[i].filter[1].l * gain; break;
-				case E_E_MODE_HIGH: e->input[0][fptr] += s->band[i].filter[0].h * gain; e->input[1][fptr] += s->band[i].filter[1].h * gain; break;
-				case E_E_MODE_BAND: e->input[0][fptr]  = s->band[i].filter[0].b;        e->input[1][fptr]  = s->band[i].filter[1].b;        break;
+				case E_E_MODE_PEAK: chain->input[0][fptr] += s->band[i].filter[0].b * gain; chain->input[1][fptr] += s->band[i].filter[1].b * gain; break;
+				case E_E_MODE_LOW:  chain->input[0][fptr] += s->band[i].filter[0].l * gain; chain->input[1][fptr] += s->band[i].filter[1].l * gain; break;
+				case E_E_MODE_HIGH: chain->input[0][fptr] += s->band[i].filter[0].h * gain; chain->input[1][fptr] += s->band[i].filter[1].h * gain; break;
+				case E_E_MODE_BAND: chain->input[0][fptr]  = s->band[i].filter[0].b;        chain->input[1][fptr]  = s->band[i].filter[1].b;        break;
 			}
 		}
 }

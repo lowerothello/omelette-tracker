@@ -22,15 +22,15 @@
 #include <ladspa.h>
 
 /* libdrawille */
-#include "lib/libdrawille/src/Canvas.h"
+#include "../lib/libdrawille/src/Canvas.h"
 
 #define MIN(X, Y) ((X)<(Y)?(X):(Y))
 #define MAX(X, Y) ((X)>(Y)?(X):(Y))
 
 
 /* version */
-const unsigned char MAJOR = 0;
-const unsigned char MINOR = 101;
+const unsigned char MAJOR = 1;
+const unsigned char MINOR = 1;
 
 #define LINENO_COLS 7
 
@@ -53,13 +53,11 @@ struct winsize ws;
 
 
 /* prototypes, TODO: proper header files would be less ugly */
-void resize(int); /* TODO: remove hooks to this, should only be hooked asynchronously */
 void startPlayback(void);
 void stopPlayback(void);
 void showTracker(void);
 void showInstrument(void);
 void showMaster(void);
-void changeMacro(int, char *);
 
 #include "config.h"
 
@@ -76,9 +74,11 @@ void changeMacro(int, char *);
 #include "control.c"
 #include "types/types.c"
 
-char ifMacro(jack_nframes_t, uint16_t *, Channel *, Row, char, char (*)(jack_nframes_t, uint16_t *, int, Channel *, Row));
 void setBpm(uint16_t *, uint8_t);
 void midiNoteOff(jack_nframes_t, uint8_t, uint8_t, uint8_t);
+void debug_dumpChannelState(Song *);
+
+#include "macros.h"
 
 #include "input.c"
 ControlState cc;
@@ -97,15 +97,14 @@ TooltipState tt;
 
 #include "background.c"
 #include "generator/sampler.c"
-#include "macros.h"
 #include "process.c"
 #include "macros.c"
 
 // #include "master.c"
 #include "filebrowser.c"
 
-#include "effect/effectinput.c"
-#include "effect/effectdraw.c"
+#include "effect/input.c"
+#include "effect/draw.c"
 
 #include "instrument/instrument.c"
 #include "instrument/input.c"
@@ -122,8 +121,8 @@ TooltipState tt;
 void drawRuler(void)
 {
 	/* top ruler */
-	printf("\033[0;0H\033[2K\033[1momelette tracker\033[0;%dHv%d.%2d  %d\033[m",
-			ws.ws_col - 14, MAJOR, MINOR, DEBUG);
+	printf("\033[0;0H\033[2K\033[1momelette tracker\033[0;%dHv%d.%03d  %d\033[m",
+			ws.ws_col - 15, MAJOR, MINOR, DEBUG);
 
 	/* bottom ruler */
 	if (w->mode < 255)
@@ -245,7 +244,7 @@ int commandCallback(char *command, unsigned char *mode)
 	}
 
 	free(buffer); buffer = NULL;
-	p->dirty = 1;
+	p->redraw = 1;
 	return 0;
 }
 
@@ -265,8 +264,13 @@ void stopPlayback(void)
 		if (w->instrumentrecv == INST_REC_LOCK_CONT || w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
 			w->instrumentrecv = INST_REC_LOCK_PREP_END;
 		s->playing = PLAYING_PREP_STOP;
-	} else w->trackerfy = STATE_ROWS;
-	p->dirty = 1;
+	} else
+	{
+		if (s->loop[1]) w->trackerfy = s->loop[0];
+		else            w->trackerfy = STATE_ROWS;
+	}
+	w->mode = 0; /* always go to mode 0 on stop */
+	p->redraw = 1;
 }
 
 void showTracker(void)
@@ -320,14 +324,14 @@ int input(void)
 	int input;
 	while (1)
 	{
-		input = getchar(); /* read a byte from stdin if it's available */
+		input = getchar(); /* pop a byte from stdin */
 		if (input < 0) break;
 		DEBUG = input;
 
 		if (w->mode == 255) /* command */
 		{
 			if (commandInput(&w->command, input, &w->mode, w->oldmode)) return 1;
-			p->dirty = 1;
+			p->redraw = 1;
 		} else switch (input)
 			{
 				case ':': /* enter command mode */
@@ -346,20 +350,15 @@ int input(void)
 							case T_MODE_MOUSEADJUST:
 								w->oldmode = T_MODE_NORMAL;
 								break;
-							case T_MODE_VTRIG_INSERT:
-							case T_MODE_VTRIG_VISUAL:
-							case T_MODE_VTRIG_MOUSEADJUST:
-								w->oldmode = T_MODE_VTRIG;
-								break;
 						}
 					w->mode = 255;
-					p->dirty = 1; break;
+					p->redraw = 1; break;
 				case 7: /* ^G, show file info */
 					if (strlen(w->filepath))
 						sprintf(w->command.error, "\"%.*s\"", COMMAND_LENGTH - 2, w->filepath);
 					else
 						strcpy(w->command.error, "No file loaded");
-					p->dirty = 1; break;
+					p->redraw = 1; break;
 				default:
 					switch (w->page)
 					{
@@ -376,16 +375,13 @@ int input(void)
 						case PAGE_CHANNEL_EFFECT_PLUGINBROWSER:
 						case PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER:
 							pluginEffectBrowserInput(input); break;
-					}
-					break;
+					} break;
 			}
-	}
-	return 0;
+	} return 0;
 }
 
 void resize(int _)
 {
-	signal(SIGWINCH, SIG_IGN); /* ignore the signal until it's finished */
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->centre = (ws.ws_row>>1) + 1;
 
@@ -407,17 +403,16 @@ void resize(int _)
 	w->waveformdrawpointer = 0;
 
 	resizeBackground(b);
-	changeDirectory(); /* recalc the maxwidth/cols */
+	changeDirectory(); /* recalc maxwidth/cols */
 
-	signal(SIGWINCH, &resize);
-	p->dirty = 1;
+	p->redraw = 1;
 }
 
 int main(int argc, char **argv)
 {
 	if (argc > 1 && (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")))
 	{
-		printf("omelette tracker, v%d.%2d\n", MAJOR, MINOR);
+		printf("omelette tracker, v%d.%03d\n", MAJOR, MINOR);
 		return 0;
 	}
 
@@ -430,11 +425,12 @@ int main(int argc, char **argv)
 	{
 		if (!mainM_SEM())
 		{
-			/* imply p->dirty if background is on */
+			if (p->resize) { p->resize = 0; resize(0); }
 #ifdef ENABLE_BACKGROUND
+			/* imply p->redraw if background is on */
 			redraw();
 #else
-			if (p->dirty) { p->dirty = 0; redraw(); }
+			if (p->redraw) { p->redraw = 0; redraw(); }
 #endif
 
 			/* finish freeing the record buffer */
@@ -442,18 +438,23 @@ int main(int argc, char **argv)
 			{
 				free(w->recbuffer); w->recbuffer = NULL;
 				w->instrumentrecv = INST_REC_LOCK_OK;
-				p->dirty = 1;
+				p->redraw = 1;
 			} else if (w->instrumentrecv == INST_REC_LOCK_END)
 			{
 				if (w->recptr > 0)
 				{
-					w->recbuffer = realloc(w->recbuffer, (w->recptr<<1) * sizeof(short));
-					reparentSample(&s->instrument->v[s->instrument->i[w->instrumentreci]], w->recbuffer, w->recptr, samplerate);
-					w->recbuffer = 0; resetWaveform();
+					Sample *sample = malloc(sizeof(Sample) + (w->recptr<<1)*sizeof(short));
+					sample->length = w->recptr;
+					sample->channels = 2;
+					sample->rate = sample->defrate = samplerate;
+					memcpy(&sample->data, w->recbuffer, (w->recptr<<1)*sizeof(short));
+					free(w->recbuffer); w->recbuffer = NULL;
+					reparentSample(&s->instrument->v[s->instrument->i[w->instrumentreci]], sample);
+					w->recptr = 0; resetWaveform();
 				} else { free(w->recbuffer); w->recbuffer = NULL; }
 
 				w->instrumentrecv = INST_REC_LOCK_OK;
-				p->dirty = 1;
+				p->redraw = 1;
 			}
 			running = input(); /* ensure that semaphores are handled between input and draw */
 		}

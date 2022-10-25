@@ -1,65 +1,48 @@
 - change the cursor shape to help differentiate modes
+	- especially for replace modes
 - Ixy isn't always smoothed properly over trigs, should be fixed by Gxx-like slew
 
 - rx0 reaching the beginning of the sample cuts the note
+	- should hold the pointer at 0
 
-lookback needs proper testing, some macros are probably inexplicably broken
-for no apparent reason
+- lookback needs proper testing, some macros are probably inexplicably broken for no apparent reason
 	- lookback resets the envelope, cutting long attacks immediately
 		- not sure the solution to this design-wise
 	- bpm macros are really fucked, lookback reads macros it shouldn't be able to see
 
 
-- multithreading is currently broken
-- loop ramping should use data from outside the loop range instead of padding the range
-the first time a channel plays a sound it's much clickier than it is every later time
-	- probably due to the envelope?
+- multithreading is currently (slightly) broken
+	- threads fail to initialize randomly, not sure why (idk pthreads very well)
+		- they also print to stderr when they fail
+- loop ramping should use data from outside the loop range instead of padding the range when possible
+- the first time a channel plays a granular instrument it's much clickier than it is every later time
+	- granular algorithm bug, not present for simple instruments (didn't test wavetable)
+	- exaggerated by O00 calls (not fully eliminated by using pitchedpointer as the time base)
 
 
-addVariant->_copyVariant->malloc memory leak
-
-
-
-octave setting is kinda awful
-	- remove the global octave? or at least separate binds to change the global octave
-	  and binds to change the selected note's octave
-	- bind to set the octave of the hovered note and NOT the default octave?
-		- maybe inc/dec by octaves? ctrl+alt+a/x or smth
-only apply step when holding alt?
-the instrument index modes need to be rethought
-mode where keyboard shortcuts toggle mute channels, with a popup that links keys with channels
+- don't like the global octave setting binds (number keys)
+- only apply step when holding alt?
+- the instrument index modes really need to be rethought
+- mode where keyboard shortcuts toggle mute channels, with a popup that links keys with channels
 	- shift+key to solo
 	- dynamic mapping, map to the home row first?
-resident tooltip popup, togglable with '?'
-multi-channel copy/paste is currently broken, fix it
-	- include variants as well
-reduce the distinction between vtrig columns and variant content columns
-add variant macro columns
-	- default to 1 variant macro column
-		- use the same mutation keybinds as row macros use
-	- different scope to row macro columns
-	macros:
-		- +x: local transpose up     } linked   }
-		- -x: local transpose down   } "        } preview these while editing
-		- /x: local speed up     } linked       }
-		- *x: local speed down   } "            }
-		- Gx: global mono gain scale
-		- Fx: global mono filter cutoff scale
-		- Zx: global mono filter resonance scale
-		- ?x: instrument offset (unsigned)
+- resident tooltip popup, togglable with '?'
+	- requires a huge rewrite to how input is handled
+
+binds to jump to the current channel's vtrig/note/inst/nth macro
+	- polyend inspired
+	- toggle vtrig/note/inst/macro visibility
+	- toggle column visual line inclusion
 
 
-LADSPA effects:
-- handle odd audio port arrangements gracefully
-	- mono handling
-	- ignore everything after the first 2 ports
-	- handle 0 ports as well as possible
-- process code
-- ensure copy/paste works as expected
+ladspa effects:
+- logarithmic controls are not supported yet, i'm too dumb to implement them
 
-ladspa bugs:
-- some controls don't respect limits
-	- think it's probably a logarithmic control issue, might not be
-- the stereo field is fucked
-- segfaults cos effects aren't atomic yet
+- trackerdraw visual code isn't fully ported to the new macro order
+
+- the escape key is ignored sometimes on the tracker page
+
+- tracker binds for adding a new instrument
+
+- way to retroactively change an instrument's sample
 

@@ -42,21 +42,22 @@ int changeDirectory(void)
 /* assume swap2 is a (Sample), free it if it is set */
 void cb_freeSemargSample(Event *e)
 {
-	if (e->src)
-	{
-		if (((Sample *)e->src)->data) free(((Sample *)e->src)->data);
-		free(e->src); e->src = NULL;
-	}
+	if (e->callbackarg) previewFileNote((int)(size_t)e->callbackarg);
+	if (e->src) free(e->src);
+	e->src = NULL;
 }
 
 void freePreviewSample(void)
 { /* fully atomic */
-	Event e;
-	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void **)&w->previewsample;
-	e.src = NULL; /* explicitly typed for clarity */
-	e.callback = cb_freeSemargSample;
-	pushEvent(&e);
+	if (w->previewsample)
+	{
+		Event e;
+		e.sem = M_SEM_SWAP_REQ;
+		e.dest = (void **)&w->previewsample;
+		e.src = NULL; /* explicitly typed for clarity */
+		e.callback = cb_freeSemargSample;
+		pushEvent(&e);
+	}
 }
 
 void drawFilebrowser(void)
@@ -135,7 +136,7 @@ int getSubdir(char *newpath)
 				rewinddir(w->dir);
 				if (testdir == NULL) return 1; /* file */
 				else { closedir(testdir); return 2; /* directory */ }
-				p->dirty = 1; break;
+				p->redraw = 1; break;
 			} dirc++;
 		} dirent = readdir(w->dir);
 	}
@@ -244,8 +245,7 @@ void filebrowserMouse(int button, int x, int y)
 						break;
 				}
 			} break;
-	}
-	freePreviewSample();
+	} freePreviewSample();
 }
 void filebrowserReturn(void)
 {
@@ -277,31 +277,21 @@ void filebrowserBackspace(void)
 void filebrowserPreview(int input)
 {
 	char path[NAME_MAX + 1];
-	if (getSubdir(path) == 1) /* semaphore is free and hovered file is not a directory */
+	if (getSubdir(path) == 1) /* hovered file is not a directory */
 	{
 		if (!w->previewsample)
 		{
-			Sample *newpreviewsample = malloc(sizeof(Sample));
-			SF_INFO sfinfo;
-			newpreviewsample->data = _loadSample(path, &sfinfo);
-			if (newpreviewsample->data)
+			Sample *newpreviewsample = _loadSample(path);
+			if (newpreviewsample)
 			{
-				newpreviewsample->length = sfinfo.frames;
-				newpreviewsample->channels = sfinfo.channels;
-				newpreviewsample->rate = sfinfo.samplerate;
-
 				Event e;
 				e.sem = M_SEM_SWAP_PREVIEWSAMPLE_PREVIEW_REQ;
-				*e.dest = w->previewsample;
+				e.dest = (void **)&w->previewsample;
 				e.src = newpreviewsample;
 				e.callback = cb_freeSemargSample;
 				e.callbackarg = (void *)((size_t)input);
 				pushEvent(&e);
-			} else
-			{
-				strcpy(w->command.error, "failed to preview sample, out of memory");
-				free(newpreviewsample);
-			}
+			} else strcpy(w->command.error, "failed to preview sample, out of memory");
 		} else previewFileNote(input);
 	}
 }
@@ -310,8 +300,8 @@ void filebrowserInput(int input)
 {
 	switch (input)
 	{
-		case '\n': case '\r': /* return    */ filebrowserReturn   (); p->dirty = 1; break;
-		case 127: case '\b':  /* backspace */ filebrowserBackspace(); p->dirty = 1; break;
+		case '\n': case '\r': /* return    */ filebrowserReturn   (); p->redraw = 1; break;
+		case 127: case '\b':  /* backspace */ filebrowserBackspace(); p->redraw = 1; break;
 		case '\033':
 			switch (getchar())
 			{
@@ -320,7 +310,7 @@ void filebrowserInput(int input)
 					{
 						case 'P': /* xterm f1 */ showTracker   (); break;
 						case 'Q': /* xterm f2 */ showInstrument(); break;
-					} freePreviewSample(); p->dirty = 1; break;
+					} freePreviewSample(); p->redraw = 1; break;
 				case '[': /* CSI */
 					switch (getchar())
 					{
@@ -330,39 +320,39 @@ void filebrowserInput(int input)
 								case 'A': /* linux f1 */ showTracker   (); break;
 								case 'B': /* linux f2 */ showInstrument(); break;
 								case 'E': /* linux f5 */ startPlayback(); break;
-							} p->dirty = 1; break;
-						case 'A': /* up arrow    */ filebrowserUpArrow   (1); p->dirty = 1; break;
-						case 'B': /* down arrow  */ filebrowserDownArrow (1); p->dirty = 1; break;
-						case 'D': /* left arrow  */ filebrowserLeftArrow (1); p->dirty = 1; break;
-						case 'C': /* right arrow */ filebrowserRightArrow(1); p->dirty = 1; break;
-						case 'H': /* xterm home  */ filebrowserHome(); p->dirty = 1; break;
-						case '4': /* end */ if (getchar() == '~') { filebrowserEnd(); p->dirty = 1; } break;
-						case '5': /* page up / shift+scrollup */ getchar(); filebrowserUpArrow  (w->dirh>>1); p->dirty = 1; break;
-						case '6': /* page dn / shift+scrolldn */ getchar(); filebrowserDownArrow(w->dirh>>1); p->dirty = 1; break;
+							} p->redraw = 1; break;
+						case 'A': /* up arrow    */ filebrowserUpArrow   (1); p->redraw = 1; break;
+						case 'B': /* down arrow  */ filebrowserDownArrow (1); p->redraw = 1; break;
+						case 'D': /* left arrow  */ filebrowserLeftArrow (1); p->redraw = 1; break;
+						case 'C': /* right arrow */ filebrowserRightArrow(1); p->redraw = 1; break;
+						case 'H': /* xterm home  */ filebrowserHome(); p->redraw = 1; break;
+						case '4': /* end */ if (getchar() == '~') { filebrowserEnd(); p->redraw = 1; } break;
+						case '5': /* page up / shift+scrollup */ getchar(); filebrowserUpArrow  (w->dirh>>1); p->redraw = 1; break;
+						case '6': /* page dn / shift+scrolldn */ getchar(); filebrowserDownArrow(w->dirh>>1); p->redraw = 1; break;
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
 								case '5': /* xterm f5   */ getchar(); startPlayback(); break;
 								case '7': /*       f6   */ getchar(); stopPlayback (); break;
 								case ';': /* mod+arrow  */ getchar(); break;
-								case '~': /* linux home */ filebrowserHome(); p->dirty = 1; break;
+								case '~': /* linux home */ filebrowserHome(); p->redraw = 1; break;
 							} break;
-						case 'M': /* mouse */ filebrowserMouse(getchar(), getchar() - 32, getchar() - 32); p->dirty = 1; break;
+						case 'M': /* mouse */ filebrowserMouse(getchar(), getchar() - 32, getchar() - 32); p->redraw = 1; break;
 					} break;
 				default: /* leave the filebrowser */
 					w->filebrowserCallback(NULL);
-					p->dirty = 1; freePreviewSample(); break;
+					p->redraw = 1; freePreviewSample(); break;
 			} break;
-		case '0': w->octave = 0; p->dirty = 1; break;
-		case '1': w->octave = 1; p->dirty = 1; break;
-		case '2': w->octave = 2; p->dirty = 1; break;
-		case '3': w->octave = 3; p->dirty = 1; break;
-		case '4': w->octave = 4; p->dirty = 1; break;
-		case '5': w->octave = 5; p->dirty = 1; break;
-		case '6': w->octave = 6; p->dirty = 1; break;
-		case '7': w->octave = 7; p->dirty = 1; break;
-		case '8': w->octave = 8; p->dirty = 1; break;
-		case '9': w->octave = 9; p->dirty = 1; break;
+		case '0': w->octave = 0; p->redraw = 1; break;
+		case '1': w->octave = 1; p->redraw = 1; break;
+		case '2': w->octave = 2; p->redraw = 1; break;
+		case '3': w->octave = 3; p->redraw = 1; break;
+		case '4': w->octave = 4; p->redraw = 1; break;
+		case '5': w->octave = 5; p->redraw = 1; break;
+		case '6': w->octave = 6; p->redraw = 1; break;
+		case '7': w->octave = 7; p->redraw = 1; break;
+		case '8': w->octave = 8; p->redraw = 1; break;
+		case '9': w->octave = 9; p->redraw = 1; break;
 		default: filebrowserPreview(input); break;
 	}
 }

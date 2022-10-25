@@ -23,8 +23,8 @@ DEPENDS:
 
 BUILD:
 $ git submodule init ; git submodule update  # fetch libdrawille
-$ ( cd src/lib/libdrawille; cmake .; make; ) # build libdrawille
-$ ./make.sh 3 # build with gcc -O3 (system CFLAGS aren't read currently)
+$ ( cd lib/libdrawille; cmake .; make; )     # build libdrawille
+$ ./make.sh 3   # build with "gcc -O3" (system CFLAGS aren't read currently)
 
 INSTALL: (no proper install script yet)
 $ su -c "install -Dm755 omelette '/usr/bin/omelette'"

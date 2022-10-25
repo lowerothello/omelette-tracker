@@ -1,15 +1,14 @@
-# compiler/similar output
+# toolchain output
 omelette
 valgrind.log
 gmon.out
 
-# test mod files, some contain dmca-able samples (direct spotify recordings) so excluded
+# test mod files, some contain dmca-able samples so excluded
 testmods
-*.omlm
+*.omlm # old extension
 *.egg
 
 # files omelette spits out for debugging
-.save_debug
-.bounce_debug
-.ladspa_debug
+.oml_savedump
 .oml_channeldump
+.oml_eventdump
