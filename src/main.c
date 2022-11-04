@@ -20,6 +20,10 @@
 #include <sndfile.h>
 #include <dlfcn.h>
 #include <ladspa.h>
+#include <lilv/lilv.h>
+#include <lv2.h>
+// #include <lv2/port-props/port-props.h>
+#include <lv2/urid/urid.h>
 
 /* libdrawille */
 #include "../lib/libdrawille/src/Canvas.h"
@@ -54,10 +58,10 @@ struct winsize ws;
 
 /* prototypes, TODO: proper header files would be less ugly */
 void startPlayback(void);
-void stopPlayback(void);
-void showTracker(void);
+void stopPlayback (void);
+void showTracker   (void);
 void showInstrument(void);
-void showMaster(void);
+void showMaster    (void);
 
 #include "config.h"
 
@@ -68,7 +72,7 @@ void showMaster(void);
 #include "command.c"
 #include "dsp.c"
 
-#include "signal.h" /* signal declares */
+#include "event.h" /* event declares */
 
 #include "buttons.h"
 #include "control.c"
@@ -87,24 +91,26 @@ TooltipState tt;
 #include "column.c"
 
 #include "types/effect.c"
-#include "effect/pluginbrowser.c"
 #include "types/channel.c"
 #include "types/instrument.c"
 #include "types/song.c"
 #include "types/file.c"
 
-#include "signal.c" /* signal handlers */
+#include "browser.c"
+#include "filebrowser.c"
+#include "effect/pluginbrowser.c"
+
+#include "event.c" /* event handlers */
 
 #include "background.c"
 #include "generator/sampler.c"
 #include "process.c"
 #include "macros.c"
 
-// #include "master.c"
-#include "filebrowser.c"
-
 #include "effect/input.c"
 #include "effect/draw.c"
+
+#include "master.c"
 
 #include "instrument/instrument.c"
 #include "instrument/input.c"
@@ -118,6 +124,36 @@ TooltipState tt;
 #include "init.c"
 
 
+void drawPageIndicator(void)
+{
+	switch (w->page)
+	{
+		case PAGE_CHANNEL_VARIANT:
+			printf("\033[%d;%dH\033[1mchannel\033[m \033[2mINSTRUMENT\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
+			printf("\033[%d;%dH\033[3mvariant\033[m \033[3;2mEFFECT\033[m", 3, (ws.ws_col-14)>>1);
+			break;
+		case PAGE_CHANNEL_EFFECT:
+			printf("\033[%d;%dH\033[1mchannel\033[m \033[2mINSTRUMENT\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
+			printf("\033[%d;%dH\033[3;2mVARIANT\033[m \033[3meffect\033[m", 3, (ws.ws_col-14)>>1);
+			break;
+		case PAGE_INSTRUMENT_SAMPLE:
+			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[1minstrument\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
+			printf("\033[%d;%dH\033[3msample\033[m \033[3;2mEFFECT\033[m", 3, (ws.ws_col-13)>>1); break;
+			break;
+		case PAGE_INSTRUMENT_EFFECT:
+			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[1minstrument\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
+			printf("\033[%d;%dH\033[3;2mSAMPLE\033[m \033[3meffect\033[m", 3, (ws.ws_col-13)>>1); break;
+			break;
+		case PAGE_EFFECT_MASTER:
+			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[2mINSTRUMENT\033[m \033[1meffect\033[m", 2, (ws.ws_col-25)>>1);
+			printf("\033[%d;%dH\033[3mmaster\033[m \033[3;2mSEND\033[m", 3, (ws.ws_col-11)>>1); break;
+			break;
+		case PAGE_EFFECT_SEND:
+			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[2mINSTRUMENT\033[m \033[1meffect\033[m", 2, (ws.ws_col-25)>>1);
+			printf("\033[%d;%dH\033[3;2mMASTER\033[m \033[3msend\033[m", 3, (ws.ws_col-11)>>1); break;
+			break;
+	}
+}
 void drawRuler(void)
 {
 	/* top ruler */
@@ -169,23 +205,14 @@ void redraw(void)
 #ifdef ENABLE_BACKGROUND
 		drawBackground();
 #endif
-
+		drawPageIndicator();
 		drawRuler();
 		switch (w->page)
 		{
-			case PAGE_CHANNEL_VARIANT:
-			case PAGE_CHANNEL_EFFECT:
-				drawTracker(); break;
-			case PAGE_INSTRUMENT_SAMPLE:
-			case PAGE_INSTRUMENT_EFFECT:
-				drawInstrument(); break;
-			/* case PAGE_MASTER:
-				drawMaster(); break; */
-			case PAGE_FILEBROWSER:
-				drawFilebrowser(); break;
-			case PAGE_CHANNEL_EFFECT_PLUGINBROWSER:
-			case PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER:
-				drawPluginEffectBrowser();
+			case PAGE_CHANNEL_VARIANT: case PAGE_CHANNEL_EFFECT:      drawTracker();             break;
+			case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: drawInstrument();          break;
+			case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:           drawMaster();              break;
+			case PAGE_PLUGINBROWSER:                                  drawPluginEffectBrowser(); break;
 		}
 		drawCommand(&w->command, w->mode);
 	}
@@ -229,11 +256,7 @@ int commandCallback(char *command, unsigned char *mode)
 	} else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
-		if (!strcmp(buffer, ""))
-		{
-			w->page = PAGE_FILEBROWSER;
-			w->filebrowserCallback = &filebrowserEditCallback;
-		} else
+		if (strcmp(buffer, ""))
 		{
 			strcpy(w->newfilename, buffer);
 			Event e;
@@ -294,6 +317,7 @@ void showTracker(void)
 }
 void showInstrument(void)
 {
+	w->showfilebrowser = 0;
 	switch (w->page)
 	{
 		case PAGE_INSTRUMENT_SAMPLE:
@@ -305,7 +329,7 @@ void showInstrument(void)
 			break;
 		default:
 			w->page = PAGE_INSTRUMENT_SAMPLE;
-			w->mode = I_MODE_INDICES;
+			w->mode = I_MODE_NORMAL;
 			break;
 	}
 	if (s->instrument->i[w->instrument] != INSTRUMENT_VOID)
@@ -314,8 +338,15 @@ void showInstrument(void)
 }
 void showMaster(void)
 {
-	w->mode = 0;
-	w->page = PAGE_MASTER;
+	switch (w->page)
+	{
+		case PAGE_EFFECT_MASTER: w->page = PAGE_EFFECT_SEND; break;
+		case PAGE_EFFECT_SEND: w->page = PAGE_EFFECT_MASTER; break;
+		default:
+			w->page = PAGE_EFFECT_MASTER;
+			w->mode = 0;
+			break;
+	}
 	freePreviewSample();
 }
 
@@ -362,19 +393,10 @@ int input(void)
 				default:
 					switch (w->page)
 					{
-						case PAGE_CHANNEL_VARIANT:
-						case PAGE_CHANNEL_EFFECT:
-							trackerInput(input); break;
-						case PAGE_INSTRUMENT_SAMPLE:
-						case PAGE_INSTRUMENT_EFFECT:
-							instrumentInput(input); break;
-						/* case PAGE_MASTER:
-							masterInput(input); break; */
-						case PAGE_FILEBROWSER:
-							filebrowserInput(input); break;
-						case PAGE_CHANNEL_EFFECT_PLUGINBROWSER:
-						case PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER:
-							pluginEffectBrowserInput(input); break;
+						case PAGE_CHANNEL_VARIANT: case PAGE_CHANNEL_EFFECT:      trackerInput(input);             break;
+						case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: instrumentInput(input);          break;
+						case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:           masterInput(input);              break;
+						case PAGE_PLUGINBROWSER:                                  pluginEffectBrowserInput(input); break;
 					} break;
 			}
 	} return 0;
@@ -387,7 +409,7 @@ void resize(int _)
 
 	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1)<<1;
 	// if (ws.ws_col - INSTRUMENT_INDEX_COLS < 57)
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 12)<<2;
+		w->waveformh = (ws.ws_row - CHANNEL_ROW - 13)<<2;
 	/* else
 		w->waveformh = (ws.ws_row - CHANNEL_ROW - 6)<<2; */
 
@@ -403,7 +425,16 @@ void resize(int _)
 	w->waveformdrawpointer = 0;
 
 	resizeBackground(b);
-	changeDirectory(); /* recalc maxwidth/cols */
+	resizeBrowser(fbstate,
+			INSTRUMENT_INDEX_COLS + 2,         /* x */
+			CHANNEL_ROW + 1,                   /* y */
+			ws.ws_col - INSTRUMENT_INDEX_COLS, /* w */
+			ws.ws_row - CHANNEL_ROW - 1);      /* h */
+	resizeBrowser(pbstate,
+			1,                            /* x */
+			CHANNEL_ROW + 1,              /* y */
+			ws.ws_col,                    /* w */
+			ws.ws_row - CHANNEL_ROW - 1); /* h */
 
 	p->redraw = 1;
 }

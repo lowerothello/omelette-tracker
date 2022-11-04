@@ -47,22 +47,6 @@ void sampleLoadCallback(char *path)
 
 	w->page = PAGE_INSTRUMENT_SAMPLE;
 	w->mode = I_MODE_NORMAL;
+	w->showfilebrowser = 0;
 	resetWaveform();
 }
-
-void instrumentModeToIndices(void) { w->mode = I_MODE_INDICES; }
-void instrumentModeToNormal (void) { w->mode = I_MODE_NORMAL; }
-
-/* void instrumentOpenFilebrowser(void)
-{
-	if (!instrumentSafe(s, w->instrument)) addInstrument(w->instrument, 0, cb_addInstrument);
-	w->page = PAGE_FILEBROWSER;
-	w->fyoffset = 0;
-	w->oldmode = I_MODE_NORMAL;
-	w->mode = 0;
-	w->dirx = w->diry = 0;
-	w->dirh = ws.ws_row - 1;
-	w->dirw = ws.ws_col;
-	changeDirectory();
-	w->filebrowserCallback = &sampleLoadCallback;
-} */

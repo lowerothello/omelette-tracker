@@ -91,8 +91,8 @@ void trackerUpArrow(int count)
 	{
 		case PAGE_CHANNEL_VARIANT:
 			w->follow = 0;
-			if (MAX(1, w->count)*count > w->trackerfy) w->trackerfy = 0;
-			else                                       w->trackerfy -= MAX(1, w->count)*count;
+			if (count > w->trackerfy) w->trackerfy = 0;
+			else                      w->trackerfy -= count;
 			break;
 		case PAGE_CHANNEL_EFFECT: effectUpArrow(count); break;
 	}
@@ -103,18 +103,18 @@ void trackerDownArrow(int count)
 	{
 		case PAGE_CHANNEL_VARIANT:
 			w->follow = 0;
-			if (MAX(1, w->count)*count > s->songlen - w->trackerfy -1) w->trackerfy = s->songlen-1;
-			else                                                       w->trackerfy += MAX(1, w->count)*count;
+			if (count > s->songlen - w->trackerfy -1) w->trackerfy = s->songlen-1;
+			else                                      w->trackerfy += count;
 			break;
 		case PAGE_CHANNEL_EFFECT: effectDownArrow(count); break;
 	}
 }
-void trackerLeftArrow(void)
+void trackerLeftArrow(int count)
 {
 	switch (w->page)
 	{
 		case PAGE_CHANNEL_VARIANT:
-			for (int i = 0; i < MAX(1, w->count); i++)
+			for (int i = 0; i < count; i++)
 			{
 				if      (w->trackerfx == 2 + (s->channel->v[w->channel].data.macroc<<1)) w->trackerfx = 1;
 				else if (w->trackerfx == TRACKERFX_MIN)
@@ -133,19 +133,19 @@ void trackerLeftArrow(void)
 		case PAGE_CHANNEL_EFFECT: effectLeftArrow(); break;
 	}
 }
-void channelLeft(void)
+void channelLeft(int count)
 {
-	if (MAX(1, w->count) > w->channel) w->channel = 0;
-	else                               w->channel -= MAX(1, w->count);
+	if (count > w->channel) w->channel = 0;
+	else                    w->channel -= count;
 	if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc * 2)
 		w->trackerfx = 3 + s->channel->v[w->channel].data.macroc * 2;
 }
-void trackerRightArrow(void)
+void trackerRightArrow(int count)
 {
 	switch (w->page)
 	{
 		case PAGE_CHANNEL_VARIANT:
-			for (int i = 0; i < MAX(1, w->count); i++)
+			for (int i = 0; i < count; i++)
 			{
 				if      (w->trackerfx == 1) w->trackerfx = 2 + s->channel->v[w->channel].data.macroc * 2;
 				else if (w->trackerfx == 3)
@@ -164,9 +164,9 @@ void trackerRightArrow(void)
 		case PAGE_CHANNEL_EFFECT: effectRightArrow(); break;
 	}
 }
-void channelRight(void)
+void channelRight(int count)
 {
-	w->channel += MAX(1, w->count);
+	w->channel += count;
 	if (w->channel > s->channel->c-1) w->channel = s->channel->c-1;
 	if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc * 2)
 		w->trackerfx = 3 + s->channel->v[w->channel].data.macroc * 2;
@@ -177,7 +177,8 @@ void trackerHome(void)
 	{
 		case PAGE_CHANNEL_VARIANT:
 			w->follow = 0;
-			w->trackerfy = STATE_ROWS;
+			if (w->trackerfy == STATE_ROWS) w->channel = 0;
+			else                            w->trackerfy = STATE_ROWS;
 			break;
 		case PAGE_CHANNEL_EFFECT: effectHome(); break;
 	}
@@ -188,13 +189,14 @@ void trackerEnd(void)
 	{
 		case PAGE_CHANNEL_VARIANT:
 			w->follow = 0;
-			w->trackerfy = s->songlen-1;
+			if (w->trackerfy == s->songlen-1) w->channel = s->channel->c-1;
+			else                              w->trackerfy = s->songlen-1;
 			break;
 		case PAGE_CHANNEL_EFFECT: effectEnd(); break;
 	}
 }
 
-void cycleUp(void) /* TODO: count */
+void cycleUp(int count) /* TODO: count */
 {
 	Variant *v;
 	int bound;
@@ -205,7 +207,7 @@ void cycleUp(void) /* TODO: count */
 			{
 				/* TODO: variant trig mode and variant trig visual mode handling */
 				case T_MODE_NORMAL: case T_MODE_INSERT:
-					for (int i = 0; i < MAX(1, w->count); i++)
+					for (int i = 0; i < count; i++)
 					{
 						bound = getChannelVariant(&v, &s->channel->v[w->channel].data, w->trackerfy);
 						if (bound != -1) cycleVariantUp(v, bound);
@@ -217,10 +219,9 @@ void cycleUp(void) /* TODO: count */
 					cycleUpPartPattern(0, 2+s->channel->v[w->channel].data.macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 					break;
 			} break;
-		case PAGE_CHANNEL_EFFECT: effectCtrlUpArrow(s->channel->v[w->channel].data.effect, 1); p->redraw = 1; break;
 	}
 }
-void cycleDown(void) /* TODO: count */
+void cycleDown(int count) /* TODO: count */
 {
 	Variant *v;
 	int bound;
@@ -231,7 +232,7 @@ void cycleDown(void) /* TODO: count */
 			{
 				/* TODO: variant trig mode and variant trig visual mode handling */
 				case T_MODE_NORMAL: case T_MODE_INSERT:
-					for (int i = 0; i < MAX(1, w->count); i++)
+					for (int i = 0; i < count; i++)
 					{
 						bound = getChannelVariant(&v, &s->channel->v[w->channel].data, w->trackerfy);
 						if (bound != -1) cycleVariantDown(v, bound);
@@ -243,11 +244,30 @@ void cycleDown(void) /* TODO: count */
 					cycleDownPartPattern(0, 2+s->channel->v[w->channel].data.macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 					break;
 			} break;
-		case PAGE_CHANNEL_EFFECT: effectCtrlDownArrow(s->channel->v[w->channel].data.effect, 1); p->redraw = 1; break;
 	}
 }
 
-void shiftUp(void) /* TODO: count */
+void shiftUp(int count)
+{
+	ChannelData *cd;
+	switch (w->page)
+	{
+		case PAGE_CHANNEL_VARIANT:
+			trackerUpArrow(count);
+			for (uint8_t i = 0; i < s->channel->c; i++)
+			{
+				cd = &s->channel->v[i].data;
+				memmove(&cd->trig       [w->trackerfy], &cd->trig       [w->trackerfy + count], sizeof(Vtrig) * (s->songlen - w->trackerfy - count));
+				memmove(&cd->songv->rowv[w->trackerfy], &cd->songv->rowv[w->trackerfy + count], sizeof(Row)   * (s->songlen - w->trackerfy - count));
+			}
+			if (s->loop[1])
+			{
+				if (s->loop[0] > w->trackerfy) s->loop[0] -= count;
+				if (s->loop[1] > w->trackerfy) s->loop[1] -= count;
+			} regenGlobalRowc(s); break;
+	}
+}
+void shiftDown(int count)
 {
 	ChannelData *cd;
 	switch (w->page)
@@ -256,30 +276,42 @@ void shiftUp(void) /* TODO: count */
 			for (uint8_t i = 0; i < s->channel->c; i++)
 			{
 				cd = &s->channel->v[i].data;
-				memmove(&cd->trig[w->trackerfy],        &cd->trig[w->trackerfy + 1],        sizeof(Vtrig) * (s->songlen - w->trackerfy - 1));
-				memmove(&cd->songv->rowv[w->trackerfy], &cd->songv->rowv[w->trackerfy + 1], sizeof(Row)   * (s->songlen - w->trackerfy - 1));
-			} regenGlobalRowc(s); break;
+				memmove(&cd->trig       [w->trackerfy + count], &cd->trig       [w->trackerfy], sizeof(Vtrig) * (s->songlen - w->trackerfy - count));
+				memmove(&cd->songv->rowv[w->trackerfy + count], &cd->songv->rowv[w->trackerfy], sizeof(Row)   * (s->songlen - w->trackerfy - count));
+
+				/* zero out the new row(s) */
+				memset(&cd->songv->rowv[w->trackerfy], 0, sizeof(Row) * count);
+				for (int i = 0; i < count; i++)
+				{
+					cd->songv->rowv[w->trackerfy+i].note = NOTE_VOID;
+					cd->songv->rowv[w->trackerfy+i].inst = INST_VOID;
+					cd->trig[w->trackerfy+i].index = VARIANT_VOID;
+					cd->trig[w->trackerfy+i].flags = 0;
+				}
+			}
+			if (s->loop[1])
+			{
+				if (s->loop[0] >= w->trackerfy) s->loop[0] += count;
+				if (s->loop[1] >= w->trackerfy) s->loop[1] += count;
+			} trackerDownArrow(count); regenGlobalRowc(s); break;
 	}
 }
-void shiftDown(void) /* TODO: count */
+
+
+void trackerPgUp(int count)
 {
-	ChannelData *cd;
 	switch (w->page)
 	{
-		case PAGE_CHANNEL_VARIANT:
-			for (uint8_t i = 0; i < s->channel->c; i++)
-			{
-				cd = &s->channel->v[i].data;
-				memmove(&cd->trig[w->trackerfy + 1],        &cd->trig[w->trackerfy],        sizeof(Vtrig) * (s->songlen - w->trackerfy - 1));
-				memmove(&cd->songv->rowv[w->trackerfy + 1], &cd->songv->rowv[w->trackerfy], sizeof(Row)   * (s->songlen - w->trackerfy - 1));
-
-				/* zero out the new row */
-				cd->trig[w->trackerfy].index = VARIANT_VOID;
-				cd->trig[w->trackerfy].flags = 0;
-				memset(&cd->songv->rowv[w->trackerfy], 0, sizeof(Row));
-				cd->songv->rowv[w->trackerfy].note = NOTE_VOID;
-				cd->songv->rowv[w->trackerfy].inst = INST_VOID;
-			} regenGlobalRowc(s); break;
+		case PAGE_CHANNEL_VARIANT: trackerUpArrow(s->rowhighlight*count); break;
+		case PAGE_CHANNEL_EFFECT: effectPgUp(s->channel->v[w->channel].data.effect, count); break;
+	}
+}
+void trackerPgDn(int count)
+{
+	switch (w->page)
+	{
+		case PAGE_CHANNEL_VARIANT: trackerDownArrow(s->rowhighlight*count); break;
+		case PAGE_CHANNEL_EFFECT: effectPgDn(s->channel->v[w->channel].data.effect, count); break;
 	}
 }
 
@@ -307,8 +339,8 @@ void insertVtrig(ChannelData *cd, uint16_t fy, int input)
 		case 'F': case 'f': inputChannelTrig(cd, fy, 15); break;
 		case ' ':                            setChannelTrig(cd, fy, VARIANT_OFF ); break;
 		case 127: case '\b': /* backspace */ setChannelTrig(cd, fy, VARIANT_VOID); break;
-		case 1:  /* ^a */                    setChannelTrig(cd, fy, cd->trig[fy].index+MAX(1, w->count)-1); break;
-		case 24: /* ^x */                    setChannelTrig(cd, fy, cd->trig[fy].index-MAX(1, w->count)+1); break;
+		case 1:  /* ^a */                    addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+		case 24: /* ^x */                    addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
 	}
 }
 void insertNote(Row *r, int input)

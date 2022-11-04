@@ -3,6 +3,18 @@ Song *_addSong(void)
 	Song *cs = calloc(1, sizeof(Song));
 	if (!cs) return NULL;
 
+	cs->masteroutput[0] =       calloc(buffersize, sizeof(float));
+	cs->masteroutput[1] =       calloc(buffersize, sizeof(float));
+	cs->masterpluginoutput[0] = calloc(buffersize, sizeof(float));
+	cs->masterpluginoutput[1] = calloc(buffersize, sizeof(float));
+	cs->sendoutput[0] =       calloc(buffersize, sizeof(float));
+	cs->sendoutput[1] =       calloc(buffersize, sizeof(float));
+	cs->sendpluginoutput[0] = calloc(buffersize, sizeof(float));
+	cs->sendpluginoutput[1] = calloc(buffersize, sizeof(float));
+
+	cs->master = newEffectChain(cs->masteroutput, cs->masterpluginoutput);
+	cs->send   = newEffectChain(cs->sendoutput,   cs->sendpluginoutput);
+
 	cs->rowhighlight = 4;
 	cs->songbpm = DEF_BPM;
 
@@ -28,6 +40,18 @@ Song *addSong(void)
 
 void delSong(Song *cs)
 {
+	clearEffectChain(cs->master); free(cs->master);
+	clearEffectChain(cs->send); free(cs->send);
+
+	free(cs->masteroutput[0]);
+	free(cs->masteroutput[1]);
+	free(cs->masterpluginoutput[0]);
+	free(cs->masterpluginoutput[1]);
+	free(cs->sendoutput[0]);
+	free(cs->sendoutput[1]);
+	free(cs->sendpluginoutput[0]);
+	free(cs->sendpluginoutput[1]);
+
 	for (int i = 0; i < cs->channel->c; i++)
 		_delChannel(&cs->channel->v[i]);
 	free(cs->channel);

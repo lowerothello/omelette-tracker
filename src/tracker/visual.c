@@ -40,28 +40,33 @@ void putPartPattern(void)
 	uint8_t i, j;
 	int k;
 	Row *dest, *src;
-	unsigned char targetmacro;
+	char targetmacro;
 	ChannelData *cd;
 
 	if (!w->pbchannelc) return;
 	if (w->pbchannelc == 1) // only one channel
 	{
 		cd = &s->channel->v[w->channel].data;
-		if (w->pbfx[0] > 1 && w->pbfx[0] == w->pbfx[1]) // just one macro column
+		if (w->pbfx[0] > 1 && w->pbfx[1] > 1) /* just macro columns */
 		{
 			if (w->trackerfx < 2) targetmacro = 0;
-			else targetmacro = tfxToVfx(w->trackerfx)-2;
+			else                  targetmacro = tfxToVfx(w->trackerfx)-2;
+
+			targetmacro -= w->pbfx[1] - w->pbfx[0];
 
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
 				dest = getChannelRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
-				dest->macro[targetmacro].c = src->macro[w->pbfx[0]-2].c;
-				dest->macro[targetmacro].v = src->macro[w->pbfx[0]-2].v;
-				dest->macro[targetmacro].alt = src->macro[w->pbfx[0]-2].alt;
-			}
-			w->trackerfx = vfxToTfx(targetmacro + 2);
+				for (k = 0; k <= w->pbfx[1] - w->pbfx[0]; k++)
+				{
+					if (targetmacro+k < 0) continue;
+					dest->macro[targetmacro+k].c =   src->macro[w->pbfx[0]-2+k].c;
+					dest->macro[targetmacro+k].v =   src->macro[w->pbfx[0]-2+k].v;
+					dest->macro[targetmacro+k].alt = src->macro[w->pbfx[0]-2+k].alt;
+				}
+			} w->trackerfx = vfxToTfx(targetmacro+(w->pbfx[1] - w->pbfx[0])+2);
 		} else
 		{
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
@@ -142,46 +147,56 @@ void putPartPattern(void)
 }
 void mixPutPartPattern(void)
 {
-	uint8_t i;
+	uint8_t i, j;
 	int k;
 	Row *dest, *src;
+	char targetmacro;
+	ChannelData *cd;
+
 	if (!w->pbchannelc) return;
 	if (w->pbchannelc == 1) // only one channel
 	{
-		if (w->pbfx[0] > 1 && w->pbfx[0] == w->pbfx[1]) // just one macro column
+		cd = &s->channel->v[w->channel].data;
+		if (w->pbfx[0] > 1 && w->pbfx[1] > 1) /* just macro columns */
 		{
-			unsigned char targetmacro;
 			if (w->trackerfx < 2) targetmacro = 0;
-			else targetmacro = tfxToVfx(w->trackerfx)-2;
-			for (uint8_t j = 0; j < w->pbvariantv[0]->rowc; j++)
+			else                  targetmacro = tfxToVfx(w->trackerfx)-2;
+
+			targetmacro -= w->pbfx[1] - w->pbfx[0];
+
+			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(&s->channel->v[w->channel].data, w->trackerfy+j);
+				dest = getChannelRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
-				if (src->macro[w->pbfx[0]-2].c)
+				for (k = 0; k <= w->pbfx[1] - w->pbfx[0]; k++)
 				{
-					dest->macro[targetmacro].c = src->macro[w->pbfx[0]-2].c;
-					dest->macro[targetmacro].v = src->macro[w->pbfx[0]-2].v;
+					if (targetmacro+k < 0) continue;
+					if (src->macro[w->pbfx[0]-2+k].c)
+					{
+						dest->macro[targetmacro+k].c =   src->macro[w->pbfx[0]-2+k].c;
+						dest->macro[targetmacro+k].v =   src->macro[w->pbfx[0]-2+k].v;
+						dest->macro[targetmacro+k].alt = src->macro[w->pbfx[0]-2+k].alt;
+					}
 				}
-			}
-			w->trackerfx = vfxToTfx(targetmacro + 2);
-			w->trackerfx = vfxToTfx(targetmacro + 2);
+			} w->trackerfx = vfxToTfx(targetmacro+(w->pbfx[1] - w->pbfx[0])+2);
 		} else
 		{
-			for (uint8_t j = 0; j < w->pbvariantv[0]->rowc; j++)
+			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(&s->channel->v[w->channel].data, w->trackerfy+j);
+				dest = getChannelRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				if (w->pbfx[0] <= -1 && w->pbfx[1] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
-					s->channel->v[w->channel].data.trig[w->trackerfy+j] = w->vbtrig[0][j];
+					cd->trig[w->trackerfy+j] = w->vbtrig[0][j];
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0 && src->note != NOTE_VOID) dest->note = src->note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-				for (k = 0; k <= s->channel->v[w->channel].data.macroc; k++)
+				for (k = 0; k <= cd->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2 && src->macro[k].c)
 					{
-						dest->macro[k].c = src->macro[k].c;
-						dest->macro[k].v = src->macro[k].v;
+						dest->macro[k].c =   src->macro[k].c;
+						dest->macro[k].v =   src->macro[k].v;
+						dest->macro[k].alt = src->macro[k].alt;
 					}
 			} w->trackerfx = vfxToTfx(w->pbfx[0]);
 		}
@@ -189,48 +204,52 @@ void mixPutPartPattern(void)
 	{
 		for (i = 0; i < w->pbchannelc; i++)
 		{
+			cd = &s->channel->v[w->channel+i].data;
 			if (w->channel+i < s->channel->c)
-				for (uint8_t j = 0; j < w->pbvariantv[i]->rowc; j++)
+				for (j = 0; j < w->pbvariantv[i]->rowc; j++)
 				{
 					if (w->trackerfy + j >= s->songlen) break;
-					dest = getChannelRow(&s->channel->v[w->channel+i].data, w->trackerfy+j);
+					dest = getChannelRow(cd, w->trackerfy+j);
 					src = getVariantRow(w->pbvariantv[i], j);
 
 					if (i == 0) // first channel
 					{
 						if (w->pbfx[0] <= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
-							s->channel->v[w->channel+i].data.trig[w->trackerfy+j] = w->vbtrig[i][j];
+							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
 						if (w->pbfx[0] <= 0 && src->note != NOTE_VOID) dest->note = src->note;
 						if (w->pbfx[0] <= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-						for (k = 0; k <= s->channel->v[w->channel+i].data.macroc; k++)
+						for (k = 0; k <= cd->macroc; k++)
 							if (w->pbfx[0] <= k+2 && src->macro[k].c)
 							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
+								dest->macro[k].c =   src->macro[k].c;
+								dest->macro[k].v =   src->macro[k].v;
+								dest->macro[k].alt = src->macro[k].alt;
 							}
 					} else if (i == w->pbchannelc-1) // last channel
 					{
 						if (w->pbfx[0] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
-							s->channel->v[w->channel+i].data.trig[w->trackerfy+j] = w->vbtrig[i][j];
+							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
 						if (w->pbfx[1] >= 0 && src->note != NOTE_VOID) dest->note = src->note;
 						if (w->pbfx[1] >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-						for (k = 0; k <= s->channel->v[w->channel+i].data.macroc; k++)
+						for (k = 0; k <= cd->macroc; k++)
 							if (w->pbfx[1] >= k+2 && src->macro[k].c)
 							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
+								dest->macro[k].c =   src->macro[k].c;
+								dest->macro[k].v =   src->macro[k].v;
+								dest->macro[k].alt = src->macro[k].alt;
 							}
 					} else // middle channel
 					{
 						if (w->vbtrig[0][j].index != VARIANT_VOID)
-							s->channel->v[w->channel+i].data.trig[w->trackerfy+j] = w->vbtrig[i][j];
+							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
 						if (src->note != NOTE_VOID) dest->note = src->note;
 						if (src->inst != INST_VOID) dest->inst = src->inst;
-						for (k = 0; k <= s->channel->v[w->channel+i].data.macroc; k++)
+						for (k = 0; k <= cd->macroc; k++)
 							if (src->macro[k].c)
 							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
+								dest->macro[k].c =   src->macro[k].c;
+								dest->macro[k].v =   src->macro[k].v;
+								dest->macro[k].alt = src->macro[k].alt;
 							}
 					}
 				}
@@ -253,8 +272,9 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
-					r->macro[k].c = 0;
-					r->macro[k].v = 0;
+					r->macro[k].c   = 0;
+					r->macro[k].v   = 0;
+					r->macro[k].alt = 0;
 				}
 		}
 	else for (i = c1; i <= c2; i++)
@@ -270,8 +290,9 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 					for (k = 0; k <= s->channel->v[i].data.macroc; k++)
 						if (x1 <= k+2)
 						{
-							r->macro[k].c = 0;
-							r->macro[k].v = 0;
+							r->macro[k].c   = 0;
+							r->macro[k].v   = 0;
+							r->macro[k].alt = 0;
 						}
 				} else if (i == c2) /* last channel */
 				{
@@ -282,8 +303,9 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 					for (k = 0; k <= s->channel->v[i].data.macroc; k++)
 						if (x2 >= k+2)
 						{
-							r->macro[k].c = 0;
-							r->macro[k].v = 0;
+							r->macro[k].c   = 0;
+							r->macro[k].v   = 0;
+							r->macro[k].alt = 0;
 						}
 				} else /* middle channel */
 				{
@@ -645,17 +667,25 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 		for (l = 0; l < MAX(1, w->count); l++)
 		{
 			hold = *getChannelRow(&s->channel->v[c1].data, y1);
-			r0 =    getChannelRow(&s->channel->v[c1].data, j+0);
-			r1 =    getChannelRow(&s->channel->v[c1].data, j+1);
 			r2 =    getChannelRow(&s->channel->v[c1].data, y2);
 			if (x1 <= 0 && x2 >= 0)
 			{
-				for (j = y1; j < y2; j++) r0->note = r1->note;
+				for (j = y1; j < y2; j++)
+				{
+					r0 = getChannelRow(&s->channel->v[c1].data, j+0);
+					r1 = getChannelRow(&s->channel->v[c1].data, j+1);
+					r0->note = r1->note;
+				}
 				r2->note = hold.note;
 			}
 			if (x1 <= 1 && x2 >= 1)
 			{
-				for (j = y1; j < y2; j++) r0->inst = r1->inst;
+				for (j = y1; j < y2; j++)
+				{
+					r0 = getChannelRow(&s->channel->v[c1].data, j+0);
+					r1 = getChannelRow(&s->channel->v[c1].data, j+1);
+					r0->inst = r1->inst;
+				}
 				r2->inst = hold.inst;
 			}
 			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
@@ -663,11 +693,15 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 				{
 					for (j = y1; j < y2; j++)
 					{
-						r0->macro[k].c = r1->macro[k].c;
-						r0->macro[k].v = r1->macro[k].v;
+						r0 = getChannelRow(&s->channel->v[c1].data, j+0);
+						r1 = getChannelRow(&s->channel->v[c1].data, j+1);
+						r0->macro[k].c =   r1->macro[k].c;
+						r0->macro[k].v =   r1->macro[k].v;
+						r0->macro[k].alt = r1->macro[k].alt;
 					}
-					r2->macro[k].c = hold.macro[k].c;
-					r2->macro[k].v = hold.macro[k].v;
+					r2->macro[k].c =   hold.macro[k].c;
+					r2->macro[k].v =   hold.macro[k].v;
+					r2->macro[k].alt = hold.macro[k].alt;
 				}
 		}
 	} else
@@ -676,20 +710,28 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 			if (i < s->channel->c)
 			{
 				hold = *getChannelRow(&s->channel->v[i].data, y1);
-				r0 =    getChannelRow(&s->channel->v[i].data, j+0);
-				r1 =    getChannelRow(&s->channel->v[i].data, j+1);
 				r2 =    getChannelRow(&s->channel->v[i].data, y2);
 				if (i == c1) /* first channel */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						if (x1 <= 0)
 						{
-							for (j = y1; j < y2; j++) r0->note = r1->note;
+							for (j = y1; j < y2; j++)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+0);
+								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0->note = r1->note;
+							}
 							r2->note = hold.note;
 						}
 						if (x1 <= 1)
 						{
-							for (j = y1; j < y2; j++) r0->inst = r1->inst;
+							for (j = y1; j < y2; j++)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+0);
+								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0->inst = r1->inst;
+							}
 							r2->inst = hold.inst;
 						}
 						for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
@@ -697,11 +739,15 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 							{
 								for (j = y1; j < y2; j++)
 								{
-									r0->macro[k].c = r1->macro[k].c;
-									r0->macro[k].v = r1->macro[k].v;
+									r0 = getChannelRow(&s->channel->v[i].data, j+0);
+									r1 = getChannelRow(&s->channel->v[i].data, j+1);
+									r0->macro[k].c =   r1->macro[k].c;
+									r0->macro[k].v =   r1->macro[k].v;
+									r0->macro[k].alt = r1->macro[k].alt;
 								}
-								r2->macro[k].c = hold.macro[k].c;
-								r2->macro[k].v = hold.macro[k].v;
+								r2->macro[k].c =   hold.macro[k].c;
+								r2->macro[k].v =   hold.macro[k].v;
+								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
 				else if (i == c2) /* last channel */
@@ -709,12 +755,22 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 					{
 						if (x2 >= 0)
 						{
-							for (j = y1; j < y2; j++) r0->note = r1->note;
+							for (j = y1; j < y2; j++)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+0);
+								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0->note = r1->note;
+							}
 							r2->note = hold.note;
 						}
 						if (x2 >= 1)
 						{
-							for (j = y1; j < y2; j++) r0->inst = r1->inst;
+							for (j = y1; j < y2; j++)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+0);
+								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0->inst = r1->inst;
+							}
 							r2->inst = hold.inst;
 						}
 						for (k = 0; k <= s->channel->v[c2].data.macroc; k++)
@@ -722,17 +778,26 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 							{
 								for (j = y1; j < y2; j++)
 								{
-									r0->macro[k].c = r1->macro[k].c;
-									r0->macro[k].v = r1->macro[k].v;
+									r0 = getChannelRow(&s->channel->v[i].data, j+0);
+									r1 = getChannelRow(&s->channel->v[i].data, j+1);
+									r0->macro[k].c =   r1->macro[k].c;
+									r0->macro[k].v =   r1->macro[k].v;
+									r0->macro[k].alt = r1->macro[k].alt;
 								}
-								r2->macro[k].c = hold.macro[k].c;
-								r2->macro[k].v = hold.macro[k].v;
+								r2->macro[k].c   = hold.macro[k].c;
+								r2->macro[k].v   = hold.macro[k].v;
+								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
 				else /* middle channel */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
-						for (j = y1; j < y2; j++) *r0 = *r1;
+						for (j = y1; j < y2; j++)
+						{
+							r0 = getChannelRow(&s->channel->v[i].data, j+0);
+							r1 = getChannelRow(&s->channel->v[i].data, j+1);
+							*r0 = *r1;
+						}
 						*r2 = hold;
 					}
 			} else break;
@@ -748,18 +813,26 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 		for (l = 0; l < MAX(1, w->count); l++)
 		{
 			hold = *getChannelRow(&s->channel->v[c1].data, y2);
-			r0 =    getChannelRow(&s->channel->v[c1].data, j+1);
-			r1 =    getChannelRow(&s->channel->v[c1].data, j+0);
 			r2 =    getChannelRow(&s->channel->v[c1].data, y1);
 
 			if (x1 <= 0 && x2 >= 0)
 			{
-				for (j = y2-1; j >= y1; j--) r0->note = r1->note;
+				for (j = y2-1; j >= y1; j--)
+				{
+					r0 = getChannelRow(&s->channel->v[c1].data, j+1);
+					r1 = getChannelRow(&s->channel->v[c1].data, j+0);
+					r0->note = r1->note;
+				}
 				r2->note = hold.note;
 			}
 			if (x1 <= 1 && x2 >= 1)
 			{
-				for (j = y2-1; j >= y1; j--) r0->inst = r1->inst;
+				for (j = y2-1; j >= y1; j--)
+				{
+					r0 = getChannelRow(&s->channel->v[c1].data, j+1);
+					r1 = getChannelRow(&s->channel->v[c1].data, j+0);
+					r0->inst = r1->inst;
+				}
 				r2->inst = hold.inst;
 			}
 			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
@@ -767,11 +840,15 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 				{
 					for (j = y2-1; j >= y1; j--)
 					{
-						r0->macro[k].c = r1->macro[k].c;
-						r0->macro[k].v = r1->macro[k].v;
+						r0 = getChannelRow(&s->channel->v[c1].data, j+1);
+						r1 = getChannelRow(&s->channel->v[c1].data, j+0);
+						r0->macro[k].c =   r1->macro[k].c;
+						r0->macro[k].v =   r1->macro[k].v;
+						r0->macro[k].alt = r1->macro[k].alt;
 					}
-					r2->macro[k].c = hold.macro[k].c;
-					r2->macro[k].v = hold.macro[k].v;
+					r2->macro[k].c =   hold.macro[k].c;
+					r2->macro[k].v =   hold.macro[k].v;
+					r2->macro[k].alt = hold.macro[k].alt;
 				}
 		}
 	} else
@@ -780,8 +857,6 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 			if (i < s->channel->c)
 			{
 				hold = *getChannelRow(&s->channel->v[i].data, y2);
-				r0 =    getChannelRow(&s->channel->v[i].data, j+1);
-				r1 =    getChannelRow(&s->channel->v[i].data, j+0);
 				r2 =    getChannelRow(&s->channel->v[i].data, y1);
 
 				if (i == c1) /* first channel */
@@ -789,12 +864,22 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 					{
 						if (x1 <= 0)
 						{
-							for (j = y2-1; j >= y1; j--) r0->note = r1->note;
+							for (j = y2-1; j >= y1; j--)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+1);
+								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0->note = r1->note;
+							}
 							r2->note = hold.note;
 						}
 						if (x1 <= 1)
 						{
-							for (j = y2-1; j >= y1; j--) r0->inst = r1->inst;
+							for (j = y2-1; j >= y1; j--)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+1);
+								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0->inst = r1->inst;
+							}
 							r2->inst = hold.inst;
 						}
 						for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
@@ -802,11 +887,15 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 							{
 								for (j = y2-1; j >= y1; j--)
 								{
-									r0->macro[k].c = r1->macro[k].c;
-									r0->macro[k].v = r1->macro[k].v;
+									r0 = getChannelRow(&s->channel->v[i].data, j+1);
+									r1 = getChannelRow(&s->channel->v[i].data, j+0);
+									r0->macro[k].c =   r1->macro[k].c;
+									r0->macro[k].v =   r1->macro[k].v;
+									r0->macro[k].alt = r1->macro[k].alt;
 								}
-								r2->macro[k].c = hold.macro[k].c;
-								r2->macro[k].v = hold.macro[k].v;
+								r2->macro[k].c =   hold.macro[k].c;
+								r2->macro[k].v =   hold.macro[k].v;
+								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
 				else if (i == c2) /* last channel */
@@ -814,12 +903,22 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 					{
 						if (x2 >= 0)
 						{
-							for (j = y2-1; j >= y1; j--) r0->note = r1->note;
+							for (j = y2-1; j >= y1; j--)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+1);
+								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0->note = r1->note;
+							}
 							r2->note = hold.note;
 						}
 						if (x2 >= 1)
 						{
-							for (j = y2-1; j >= y1; j--) r0->inst = r1->inst;
+							for (j = y2-1; j >= y1; j--)
+							{
+								r0 = getChannelRow(&s->channel->v[i].data, j+1);
+								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0->inst = r1->inst;
+							}
 							r2->inst = hold.inst;
 						}
 						for (k = 0; k <= s->channel->v[c2].data.macroc; k++)
@@ -827,17 +926,26 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 							{
 								for (j = y2-1; j >= y1; j--)
 								{
-									r0->macro[k].c = r1->macro[k].c;
-									r0->macro[k].v = r1->macro[k].v;
+									r0 = getChannelRow(&s->channel->v[i].data, j+1);
+									r1 = getChannelRow(&s->channel->v[i].data, j+0);
+									r0->macro[k].c =   r1->macro[k].c;
+									r0->macro[k].v =   r1->macro[k].v;
+									r0->macro[k].alt = r1->macro[k].alt;
 								}
-								r2->macro[k].c = hold.macro[k].c;
-								r2->macro[k].v = hold.macro[k].v;
+								r2->macro[k].c =   hold.macro[k].c;
+								r2->macro[k].v =   hold.macro[k].v;
+								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
 				else /* middle channel */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
-						for (j = y2-1; j >= y1; j--) *r0 = *r1;
+						for (j = y2-1; j >= y1; j--)
+						{
+							r0 = getChannelRow(&s->channel->v[i].data, j+1);
+							r1 = getChannelRow(&s->channel->v[i].data, j+0);
+							*r0 = *r1;
+						}
 						*r2 = hold;
 					}
 			} else break;

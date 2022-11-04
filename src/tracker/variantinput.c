@@ -74,8 +74,141 @@ int inputChannelVariant(int input)
 
 	switch (w->mode)
 	{
+		case T_MODE_NORMAL:
+			switch (input)
+			{
+				case '\n': case '\r': /*  mute  */ toggleChannelMute(w->channel); p->redraw = 1; break;
+				case 's':             /*  solo  */ toggleChannelSolo(w->channel); p->redraw = 1; break;
+				case 'f': /* toggle song follow */ w->follow = !w->follow; if (s->playing) w->trackerfy = s->playfy; p->redraw = 1; break;
+				case 'I': /* macro insert mode  */ w->chord = 'I'; p->redraw = 1; return 1;
+				case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; p->redraw = 1; break;
+				// case 'u': /* undo               */ popPatternHistory(s->patterni[s->trig[w->songfy].index]); p->redraw = 1; break;
+				// case 18:  /* redo               */ unpopPatternHistory(s->patterni[s->trig[w->songfy].index]); p->redraw = 1; break;
+				case 'k': /* up arrow           */ trackerUpArrow  (MAX(1, w->count)); p->redraw = 1; break;
+				case 'j': /* down arrow         */ trackerDownArrow(MAX(1, w->count)); p->redraw = 1; break;
+				case 'h': /* left arrow         */ trackerLeftArrow (MAX(1, w->count)); p->redraw = 1; break;
+				case 'l': /* right arrow        */ trackerRightArrow(MAX(1, w->count)); p->redraw = 1; break;
+				case '[': /* chnl left          */ channelLeft (MAX(1, w->count)); p->redraw = 1; break;
+				case ']': /* chnl right         */ channelRight(MAX(1, w->count)); p->redraw = 1; break;
+				case '{': /* variant cycle up   */ cycleUp  (MAX(1, w->count)); break;
+				case '}': /* variant cycle down */ cycleDown(MAX(1, w->count)); break;
+				case '<': /* song shift up      */ shiftUp  (MAX(1, w->count)); break;
+				case '>': /* song shift down    */ shiftDown(MAX(1, w->count)); break;
+				case 'v': case 22: /* enter visual mode */
+					w->visualfx = tfxToVfx(w->trackerfx);
+					w->visualfy = w->trackerfy;
+					w->visualchannel = w->channel;
+					w->mode = T_MODE_VISUAL;
+					p->redraw = 1; break;
+				case 'V': /* enter visual line mode */
+					w->visualfx = tfxToVfx(w->trackerfx);
+					w->visualfy = w->trackerfy;
+					w->visualchannel = w->channel;
+					w->mode = T_MODE_VISUALLINE;
+					p->redraw = 1; break;
+				case 'y':  /* yank             */ setChordYankRow  (); p->redraw = 1; return 1;
+				case 'd':  /* delete           */ setChordDeleteRow(); p->redraw = 1; return 1;
+				case 'c':  /* channel          */ setChordChannel  (); p->redraw = 1; return 1;
+				case 'm':  /* macro            */ setChordMacro    (); p->redraw = 1; return 1;
+				case 'r':  /* row              */ setChordRow      (); p->redraw = 1; return 1;
+				case ';':  /* loop             */ setChordLoop     (); p->redraw = 1; return 1;
+				// case 'e':  /* add empty inst   */
+					/* w->instrument = emptyInstrument(0);
+					setChordAddInst(); w->chord = 'e';
+					p->redraw = 1; return 1; */
+				case 'g':  /* graphic misc     */ w->chord = 'g'; p->redraw = 1; return 1;
+				case 'G':  /* graphic end      */ trackerEnd(); p->redraw = 1; break;
+				case 't':  /* row highlight    */ if (w->count) { s->rowhighlight = MIN(16, w->count); regenGlobalRowc(s); } break;
+				case 'o':  /* octave           */
+					r = getChannelRow(cd, w->trackerfy);
+					if (!w->trackerfx) r->note = changeNoteOctave(MIN(9, w->count), r->note);
+					else               w->octave = MIN(9, w->count);
+					p->redraw = 1; break;
+				case 'p':  /* pattern put */ /* TODO: count */
+					putPartPattern();
+					if (w->pbchannelc)
+						trackerDownArrow(w->pbvariantv[0]->rowc);
+					break;
+				case 'P': /* pattern put before */
+					mixPutPartPattern();
+					break;
+				case 'x': case 127: case '\b': /* backspace */
+					if (!w->trackerfx) /* edge case to clear both the note and inst columns */
+					{
+						yankPartPattern(0, 1, w->trackerfy, w->trackerfy, w->channel, w->channel);
+						delPartPattern (0, 1, w->trackerfy, w->trackerfy, w->channel, w->channel);
+					} else
+					{
+						yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
+						delPartPattern (tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
+					} break;
+				case '%': /* jump between loop points */
+					if (s->loop[1])
+					{
+						if      (w->trackerfy == s->loop[0]) w->trackerfy = s->loop[1];
+						else if (w->trackerfy == s->loop[1]) w->trackerfy = s->loop[0];
+						else if (w->trackerfy < (s->loop[0] + s->loop[1])>>1) w->trackerfy = s->loop[0];
+						else                                                  w->trackerfy = s->loop[1];
+					} p->redraw = 1; break;
+				default: /* column specific */
+					r = getChannelRow(cd, w->trackerfy);
+					switch (w->trackerfx)
+					{
+						case -1: /* vtriggers */
+							switch (input)
+							{
+								case 1:   /* ^a         */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+								case 24:  /* ^x         */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+								case 'a': /* add empty  */ setChannelTrig(cd, w->trackerfy, _duplicateEmptyVariantIndex(cd, cd->trig[w->trackerfy].index)); break;
+								case '.': /* vtrig loop */ i = getPrevVtrig(cd, w->trackerfy); if (i != -1) cd->trig[i].flags ^= C_VTRIG_LOOP; break;
+							} break;
+						case 0: /* note */
+							switch (input)
+							{
+								case 1:  /* ^a */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+								case 24: /* ^x */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+							} break;
+						case 1: /* instrument */
+							switch (input)
+							{
+								case 1:  /* ^a */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1);
+									if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
+									break;
+								case 24: /* ^x */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1);
+									if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
+									break;
+							} break;
+						default: /* macro */
+							macro = (w->trackerfx - 2)>>1;
+							switch (input)
+							{
+								case 1:  /* ^a */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+								case 24: /* ^x */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
+								case '~': /* toggle case */
+									if      (isupper(r->macro[macro].c)) changeMacro(r->macro[macro].c, &r->macro[macro].c, &r->macro[macro].alt, r->macro[macro].alt);
+									else if (islower(r->macro[macro].c)) changeMacro(r->macro[macro].c, &r->macro[macro].c, &r->macro[macro].alt, r->macro[macro].alt);
+									break;
+							} break;
+					} regenGlobalRowc(s); break;
+			} break;
+		case T_MODE_INSERT:
+			r = getChannelRow(cd, w->trackerfy);
+			if (input == '\n' || input == '\r') /* mute */ { toggleChannelMute(w->channel); p->redraw = 1; }
+			else
+				switch (w->trackerfx)
+				{
+					case -1: /* vtriggers  */ insertVtrig(cd, w->trackerfy, input); regenGlobalRowc(s); break;
+					case 0:  /* note       */
+						insertNote(r, input); /* invalidates r, TODO: previewNote should be event aware, there's probably a race condition currently */
+						regenGlobalRowc(s);
+						previewNote(input, getChannelRow(cd, w->trackerfy)->inst);
+						trackerDownArrow(w->step);
+						break;
+					case 1:  /* instrument */ insertInst(r, input); regenGlobalRowc(s); break;
+					default: /* macro      */ insertMacro(&r->macro[(w->trackerfx - 2)>>1], input, 0); regenGlobalRowc(s); break;
+				} break;
 		case T_MODE_VISUALREPLACE:
-			if (input == '\n' || input == '\r') { toggleChannelMute(w->channel); p->redraw = 1; }
+			if (input == '\n' || input == '\r') /* mute */ { toggleChannelMute(w->channel); p->redraw = 1; }
 			else
 			{
 				switch (w->trackerfx)
@@ -107,11 +240,18 @@ int inputChannelVariant(int input)
 								insertMacrov(&getChannelRow(cd, i)->macro[macro], input);
 						} regenGlobalRowc(s); break;
 				} break;
-			}
+			} break;
 		case T_MODE_VISUAL: case T_MODE_VISUALLINE:
 			switch (input)
 			{
-				case '\n': case '\r': toggleChannelMute(w->channel); p->redraw = 1; break;
+				case '\n': case '\r': /* channel mute */
+					for (i = MIN(w->channel, w->visualchannel); i <= MAX(w->channel, w->visualchannel); i++)
+						toggleChannelMute(i);
+					p->redraw = 1; break;
+				case 's': /* channel solo */
+					for (i = MIN(w->channel, w->visualchannel); i <= MAX(w->channel, w->visualchannel); i++)
+						toggleChannelSolo(i);
+					p->redraw = 1; break;
 				case 'v': case 22: /* visual */
 					switch (w->mode)
 					{
@@ -125,14 +265,14 @@ int inputChannelVariant(int input)
 						case T_MODE_VISUALLINE: w->mode = T_MODE_NORMAL;     p->redraw = 1; break;
 					} break;
 				case 'r': /* replace     */ w->mode = T_MODE_VISUALREPLACE; p->redraw = 1; break;;
-				case 'k': /* up arrow    */ trackerUpArrow  (1); p->redraw = 1; break;
-				case 'j': /* down arrow  */ trackerDownArrow(1); p->redraw = 1; break;
-				case 'h': /* left arrow  */ trackerLeftArrow (); p->redraw = 1; break;
-				case 'l': /* right arrow */ trackerRightArrow(); p->redraw = 1; break;
-				case '[': /* chnl left   */ channelLeft      (); p->redraw = 1; break;
-				case ']': /* chnl right  */ channelRight     (); p->redraw = 1; break;
-				case '{': /* variant cycle up   */ cycleUp  (); break;
-				case '}': /* variant cycle down */ cycleDown(); break;
+				case 'k': /* up arrow    */ trackerUpArrow  (MAX(1, w->count)); p->redraw = 1; break;
+				case 'j': /* down arrow  */ trackerDownArrow(MAX(1, w->count)); p->redraw = 1; break;
+				case 'h': /* left arrow  */ trackerLeftArrow (MAX(1, w->count)); p->redraw = 1; break;
+				case 'l': /* right arrow */ trackerRightArrow(MAX(1, w->count)); p->redraw = 1; break;
+				case '[': /* chnl left   */ channelLeft      (MAX(1, w->count)); p->redraw = 1; break;
+				case ']': /* chnl right  */ channelRight     (MAX(1, w->count)); p->redraw = 1; break;
+				case '{': /* variant cycle up   */ cycleUp  (MAX(1, w->count)); break;
+				case '}': /* variant cycle down */ cycleDown(MAX(1, w->count)); break;
 				case '~': /* vi tilde */
 					switch (w->mode)
 					{
@@ -183,9 +323,6 @@ int inputChannelVariant(int input)
 					{
 						vlength = MIN(VARIANT_ROWMAX, MAX(w->trackerfy, w->visualfy) - vminrow);
 						cd = &s->channel->v[i].data;
-
-						/* avoid overwriting a variant, causes a memory corruption */
-						// setChannelTrig(cd, vminrow, VARIANT_VOID);
 
 						addVariant(cd, vindex, vlength);
 
@@ -245,7 +382,7 @@ int inputChannelVariant(int input)
 					w->trackerfy = MIN(w->trackerfy, w->visualfy);
 					w->channel = MIN(w->channel, w->visualchannel);
 					w->mode = T_MODE_NORMAL;
-					break;
+					p->redraw = 1; break;
 				case '.': /* vtrig loop */
 					switch (w->mode)
 					{
@@ -253,170 +390,10 @@ int inputChannelVariant(int input)
 						case T_MODE_VISUALLINE: loopPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
 					}
 					w->mode = T_MODE_NORMAL;
-					break;
+					p->redraw = 1; break;
 				case ';': /* loop range */
 					setLoopRange(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy));
 					regenGlobalRowc(s); break;
 			} break;
-		case T_MODE_NORMAL:
-			switch (input)
-			{ /* set count first */
-				case '0': w->count *= 10; w->count += 0; p->redraw = 1; return 1;
-				case '1': w->count *= 10; w->count += 1; p->redraw = 1; return 1;
-				case '2': w->count *= 10; w->count += 2; p->redraw = 1; return 1;
-				case '3': w->count *= 10; w->count += 3; p->redraw = 1; return 1;
-				case '4': w->count *= 10; w->count += 4; p->redraw = 1; return 1;
-				case '5': w->count *= 10; w->count += 5; p->redraw = 1; return 1;
-				case '6': w->count *= 10; w->count += 6; p->redraw = 1; return 1;
-				case '7': w->count *= 10; w->count += 7; p->redraw = 1; return 1;
-				case '8': w->count *= 10; w->count += 8; p->redraw = 1; return 1;
-				case '9': w->count *= 10; w->count += 9; p->redraw = 1; return 1;
-				default:
-					if (w->chord)
-					{
-						w->count = MIN(256, w->count);
-						switch (w->chord)
-						{
-							case 'd': /* delete       */ inputTooltip(&tt, input); break;
-							case 'y': /* yank         */ inputTooltip(&tt, input); break;
-							case 'c': /* channel      */ inputTooltip(&tt, input); p->resize = 1; break;
-							case 'm': /* macro        */ inputTooltip(&tt, input); p->resize = 1; break;
-							case 'I': /* macro insert */ changeMacro(input, &w->keyboardmacro, &w->keyboardmacroalt, 0); w->mode = T_MODE_INSERT; p->redraw = 1; break;
-							case 'g': /* graphic      */ if (input == 'g') w->trackerfy = 0; p->redraw = 1; break;
-							case 'r': /* row          */ inputTooltip(&tt, input); break;
-							case ';': /* loop         */ inputTooltip(&tt, input); break;
-							case 'e': /* empty inst   */ inputTooltip(&tt, input); p->redraw = 1; break;
-						} w->count = 0;
-					} else
-						switch (input)
-						{
-							case '\n': case '\r': toggleChannelMute(w->channel); p->redraw = 1; break;
-							case 's': toggleChannelSolo(w->channel); p->redraw = 1; break;
-							case 'f': /* toggle song follow */ w->follow = !w->follow; if (s->playing) w->trackerfy = s->playfy; p->redraw = 1; break;
-							case 'I': /* macro insert mode  */ w->chord = 'I'; p->redraw = 1; return 1;
-							case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; p->redraw = 1; break;
-							// case 'u': /* undo               */ popPatternHistory(s->patterni[s->trig[w->songfy].index]); p->redraw = 1; break;
-							// case 18:  /* redo               */ unpopPatternHistory(s->patterni[s->trig[w->songfy].index]); p->redraw = 1; break;
-							case 'k': /* up arrow           */ trackerUpArrow  (1); p->redraw = 1; break;
-							case 'j': /* down arrow         */ trackerDownArrow(1); p->redraw = 1; break;
-							case 'h': /* left arrow         */ trackerLeftArrow (); p->redraw = 1; break;
-							case 'l': /* right arrow        */ trackerRightArrow(); p->redraw = 1; break;
-							case '[': /* chnl left          */ channelLeft (); p->redraw = 1; break;
-							case ']': /* chnl right         */ channelRight(); p->redraw = 1; break;
-							case '{': /* variant cycle up   */ cycleUp  (); break;
-							case '}': /* variant cycle down */ cycleDown(); break;
-							case '<': /* song shift up      */ shiftUp  (); break;
-							case '>': /* song shift down    */ shiftDown(); break;
-							case 'v': case 22: /* enter visual mode */
-								w->visualfx = tfxToVfx(w->trackerfx);
-								w->visualfy = w->trackerfy;
-								w->visualchannel = w->channel;
-								w->mode = T_MODE_VISUAL;
-								p->redraw = 1; break;
-							case 'V': /* enter visual line mode */
-								w->visualfx = tfxToVfx(w->trackerfx);
-								w->visualfy = w->trackerfy;
-								w->visualchannel = w->channel;
-								w->mode = T_MODE_VISUALLINE;
-								p->redraw = 1; break;
-							case 'y':  /* yank             */ setChordYankRow  (); p->redraw = 1; return 1;
-							case 'd':  /* delete           */ setChordDeleteRow(); p->redraw = 1; return 1;
-							case 'c':  /* channel          */ setChordChannel  (); p->redraw = 1; return 1;
-							case 'm':  /* macro            */ setChordMacro    (); p->redraw = 1; return 1;
-							case 'r':  /* row              */ setChordRow      (); p->redraw = 1; return 1;
-							case ';':  /* loop             */ setChordLoop     (); p->redraw = 1; return 1;
-							// case 'e':  /* add empty inst   */
-								/* w->instrument = emptyInstrument(0);
-								setChordAddInst(); w->chord = 'e';
-								p->redraw = 1; return 1; */
-							case 'g':  /* graphic misc     */ w->chord = 'g'; p->redraw = 1; return 1;
-							case 'G':  /* graphic end      */ trackerEnd(); p->redraw = 1; break;
-							case 'b':  /* bpm              */ if (w->count) { s->songbpm = MIN(255, MAX(32, w->count)); reapplyBpm(); } p->redraw = 1; break;
-							case 't':  /* row highlight    */ if (w->count) { s->rowhighlight = MIN(16, w->count); regenGlobalRowc(s); } break;
-							case 'o':  /* octave           */
-								r = getChannelRow(cd, w->trackerfy);
-								if (!w->trackerfx) r->note = changeNoteOctave(MIN(9, w->count), r->note);
-								else               w->octave = MIN(9, w->count);
-								p->redraw = 1; break;
-							case 'p':  /* pattern put */ /* TODO: count */
-								putPartPattern();
-								if (w->pbchannelc)
-									trackerDownArrow(w->pbvariantv[0]->rowc);
-								break;
-							case 'P': /* pattern put before */
-								mixPutPartPattern();
-								break;
-							case 'x': case 127: case '\b': /* backspace */
-								if (!w->trackerfx) /* edge case to clear both the note and inst columns */
-								{
-									yankPartPattern(0, 1, w->trackerfy, w->trackerfy, w->channel, w->channel);
-									delPartPattern (0, 1, w->trackerfy, w->trackerfy, w->channel, w->channel);
-								} else
-								{
-									yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
-									delPartPattern (tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
-								} break;
-							case '%': /* random */
-								randPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel);
-								break;
-							default: /* column specific */
-								r = getChannelRow(cd, w->trackerfy);
-								switch (w->trackerfx)
-								{
-									case -1: /* vtriggers */
-										switch (input)
-										{
-											case 1:   /* ^a         */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-											case 24:  /* ^x         */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-											case 'a': /* add empty  */ setChannelTrig(cd, w->trackerfy, _duplicateEmptyVariantIndex(cd, cd->trig[w->trackerfy].index)); break;
-											case '.': /* vtrig loop */ i = getPrevVtrig(cd, w->trackerfy); if (i != -1) cd->trig[i].flags ^= C_VTRIG_LOOP; break;
-										} break;
-									case 0: /* note */
-										switch (input)
-										{
-											case 1:  /* ^a */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-											case 24: /* ^x */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-										} break;
-									case 1: /* instrument */
-										switch (input)
-										{
-											case 1:  /* ^a */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1);
-												if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
-												break;
-											case 24: /* ^x */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1);
-												if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
-												break;
-										} break;
-									default: /* macro */
-										macro = (w->trackerfx - 2)>>1;
-										switch (input)
-										{
-											case 1:  /* ^a */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-											case 24: /* ^x */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-											case '~': /* toggle case */
-												if      (isupper(r->macro[macro].c)) changeMacro(r->macro[macro].c, &r->macro[macro].c, &r->macro[macro].alt, r->macro[macro].alt);
-												else if (islower(r->macro[macro].c)) changeMacro(r->macro[macro].c, &r->macro[macro].c, &r->macro[macro].alt, r->macro[macro].alt);
-												break;
-										} break;
-								} regenGlobalRowc(s); break;
-						}
-					break;
-			} break;
-		case T_MODE_INSERT:
-			r = getChannelRow(cd, w->trackerfy);
-			if (input == '\n' || input == '\r') { toggleChannelMute(w->channel); p->redraw = 1; }
-			else
-				switch (w->trackerfx)
-				{
-					case -1: /* vtriggers  */ insertVtrig(cd, w->trackerfy, input); regenGlobalRowc(s); break;
-					case 0:  /* note       */
-						insertNote(r, input); /* invalidates r, TODO: previewNote should be event aware, there's probably a race condition currently */
-						regenGlobalRowc(s);
-						previewNote(input, getChannelRow(cd, w->trackerfy)->inst);
-						trackerDownArrow(w->step);
-						break;
-					case 1:  /* instrument */ insertInst(r, input); regenGlobalRowc(s); break;
-					default: /* macro      */ insertMacro(&r->macro[(w->trackerfx - 2)>>1], input, 0); regenGlobalRowc(s); break;
-				} break;
 	} return 0;
 }

@@ -1,5 +1,5 @@
-void chordAddSample(void *_) { addInstrument(w->instrument, INST_ALG_GRANULAR, cb_addInstrument); p->redraw = 1; }
-void chordAddMIDI  (void *_) { addInstrument(w->instrument, INST_ALG_MIDI,     cb_addInstrument); p->redraw = 1; }
+void chordAddSample(void *_) { addInstrument(w->instrument, INST_ALG_CYCLIC, cb_addInstrument); w->page = PAGE_INSTRUMENT_SAMPLE; w->showfilebrowser = 1; p->redraw = 1; }
+void chordAddMIDI  (void *_) { addInstrument(w->instrument, INST_ALG_MIDI,   cb_addInstrument); w->page = PAGE_INSTRUMENT_SAMPLE; p->redraw = 1; }
 
 void chordRecordToggle(void *_)
 {
@@ -8,7 +8,7 @@ void chordRecordToggle(void *_)
 		toggleRecording(w->instrumentreci, 0);
 	} else
 	{
-		if (!instrumentSafe(s, w->instrument)) addInstrument(w->instrument, 0, cb_addRecordInstrument);
+		if (!instrumentSafe(s, w->instrument)) addInstrument  (w->instrument, 0, cb_addRecordInstrument);
 		else                                   toggleRecording(w->instrument, 0);
 	}
 }
@@ -19,7 +19,7 @@ void chordRecordCueToggle(void *_)
 		toggleRecording(w->instrumentreci, 1);
 	} else
 	{
-		if (!instrumentSafe(s, w->instrument)) addInstrument(w->instrument, 0, cb_addRecordCueInstrument);
+		if (!instrumentSafe(s, w->instrument)) addInstrument  (w->instrument, 0, cb_addRecordCueInstrument);
 		else                                   toggleRecording(w->instrument, 1);
 	}
 }
@@ -34,18 +34,30 @@ void setChordAddInst(void)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "add instrument");
-	addTooltipBind(&tt, "load sample      ", 'a', chordAddSample, NULL);
-	addTooltipBind(&tt, "record sample    ", 'r', chordRecordToggle, NULL);
+	addTooltipBind(&tt, "load sample      ", 'a', chordAddSample,       NULL);
+	addTooltipBind(&tt, "record sample    ", 'r', chordRecordToggle,    NULL);
 	addTooltipBind(&tt, "cue sample record", 'q', chordRecordCueToggle, NULL);
-	addTooltipBind(&tt, "MIDI             ", 'm', chordAddMIDI, NULL);
-	w->chord = 'a';
+	addTooltipBind(&tt, "MIDI             ", 'm', chordAddMIDI,         NULL);
+	w->chord = 'A';
+}
+void setChordEmptyInst(void)
+{
+	w->instrument = emptyInstrument(0);
+
+	clearTooltip(&tt);
+	setTooltipTitle(&tt, "empty instrument");
+	addTooltipBind(&tt, "load sample      ", 'a', chordAddSample,       NULL);
+	addTooltipBind(&tt, "record sample    ", 'r', chordRecordToggle,    NULL);
+	addTooltipBind(&tt, "cue sample record", 'q', chordRecordCueToggle, NULL);
+	addTooltipBind(&tt, "MIDI             ", 'm', chordAddMIDI,         NULL);
+	w->chord = 'E';
 }
 void setChordRecord(void)
 {
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "record");
-	addTooltipBind(&tt, "toggle recording now", 'r', chordRecordToggle, NULL);
+	addTooltipBind(&tt, "toggle recording now", 'r', chordRecordToggle,    NULL);
 	addTooltipBind(&tt, "cue toggle recording", 'q', chordRecordCueToggle, NULL);
-	addTooltipBind(&tt, "cancel recording    ", 'c', chordRecordCancel, NULL);
-	w->chord = 'r';
+	addTooltipBind(&tt, "cancel recording    ", 'c', chordRecordCancel,    NULL);
+	w->chord = 'R';
 }

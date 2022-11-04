@@ -1,20 +1,17 @@
-typedef struct
-{
+typedef struct {
 	uint8_t type;
 	void   *state;
 } Effect;
 #define EFFECT_CHAIN_LEN 16
-typedef struct
-{
-	float  *input[2];
+typedef struct {
+	float  *input [2];
 	float  *output[2];
 	uint8_t c;
 	Effect  v[];
 } EffectChain;
 
 
-typedef struct
-{
+typedef struct {
 	char    c; /* command  */
 	uint8_t v; /* argument */
 	bool    alt; /* true to use the altername command */
@@ -26,16 +23,14 @@ typedef struct
 #define NOTE_A10 120    /* first out of range note */
 #define INST_VOID 255
 #define INST_FILEPREVIEW -1 /* signed, be careful with this */
-typedef struct
-{
+typedef struct {
 	uint8_t note; /* MIDI compatible  | NOTE_* declares */
 	uint8_t inst; /* instrument index | INST_* declares */
 	Macro   macro[8];
 } Row;
 
-#define C_VTRIG_LOOP 0b00000001
-typedef struct
-{
+#define C_VTRIG_LOOP (1<<0)
+typedef struct {
 	uint8_t index;
 	uint8_t flags;
 } Vtrig;
@@ -44,8 +39,7 @@ typedef struct
 #define VARIANT_OFF 254
 #define VARIANT_MAX 254
 #define VARIANT_ROWMAX 255
-typedef struct
-{
+typedef struct {
 	uint16_t rowc;
 	Row      rowv[];
 } Variant;
@@ -54,8 +48,7 @@ typedef struct
 #define STATE_ROWS 4
 
 #define CHANNEL_MAX 32
-typedef struct
-{
+typedef struct {
 	uint8_t  varianti[VARIANT_MAX]; /* variant index/backref   */
 	Variant *variantv[VARIANT_MAX]; /* variant contents        */
 	uint8_t  variantc; /*              variant contents length */
@@ -74,8 +67,7 @@ typedef struct
 	EffectChain *effect;
 } ChannelData; /* raw sequence data */
 
-typedef struct
-{
+typedef struct {
 	ChannelData data; /* saved to disk */
 
 	/* runtime state */
@@ -176,25 +168,25 @@ typedef struct
 	uint32_t triggerflash;
 } Channel;
 
-typedef struct
-{
+typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .channels) */
 	uint32_t length;
 	uint8_t  channels;
 	uint32_t rate; /* rate to play C5 at */
 	uint32_t defrate; /* rate to return to when the rate control is reset */
-	short    data[]; /* alloc(sizeof(short) * length * channels) */
+	short    data[];
 } Sample;
 
 #define INSTRUMENT_VOID 255
 #define INSTRUMENT_MAX 255
 enum {
 	INST_ALG_SIMPLE,
-	INST_ALG_GRANULAR,
+	INST_ALG_CYCLIC,
+	INST_ALG_TONAL,
+	INST_ALG_BEAT,
 	INST_ALG_WAVETABLE,
-	INST_ALG_MIDI
+	INST_ALG_MIDI,
 } INST_ALG;
 
-#define WT_PARAM_MAX 9
 enum {
 	WT_PARAM_WTPOS,
 	WT_PARAM_GAIN,
@@ -204,10 +196,14 @@ enum {
 	WT_PARAM_FREQUENCY,
 	WT_PARAM_PULSEWIDTH,
 	WT_PARAM_PHASEDYNAMICS,
-	WT_PARAM_NOISE,
+	WT_PARAM_MIXER,
 } WT_PARAM;
-typedef struct
-{
+enum {
+	SCALE_MAJ,
+	SCALE_MIN,
+	SCALE_CHR,
+} SCALE;
+typedef struct {
 	Sample *sample;
 
 	int8_t channelmode;
@@ -240,25 +236,53 @@ typedef struct
 	/* granular */
 	struct {
 		uint16_t cyclelength;
-		bool     reversegrains;
+		uint8_t  cyclelengthjitter;
+		uint8_t  reversegrains;
 		int8_t   rampgrains;
 		int16_t  timestretch;
 		bool     notestretch;
 		int16_t  pitchshift;
+		int16_t  formantshift;
 		int8_t   pitchstereo;
+		uint8_t  pitchjitter;
+		uint8_t  formantjitter;
+		int8_t   pitchoctaverange;
+		int8_t   pitchoctavechance;
+		uint8_t  panjitter;
+		uint8_t  ptrjitter;
+		int16_t  autotune;
+		int8_t   autoscale;
+		uint8_t  autospeed;
+		uint8_t  autostrength;
+		uint8_t  beatsensitivity;
+		uint8_t  beatdecay;
 	} granular;
 
 	/* wavetable */
 	struct {
 		uint32_t framelength;
-		uint8_t  wtpos;
-		int8_t   syncoffset;
-		int8_t   pulsewidth;
-		int8_t   phasedynamics;
+			uint8_t  wtpos;
+			int8_t   syncoffset;
+			int8_t   pulsewidth;
+			int8_t   phasedynamics;
 		uint16_t envelope;
 		uint8_t  lfospeed;
 		int8_t   lfoduty;
 		bool     lfoshape;
+		/* struct { int8_t offset, lfo, env, gainenv; } wtpos;
+		struct { int8_t lfo;                       } gain;
+		struct { int8_t offset, lfo, env, gainenv; } sync;
+		struct {
+			int8_t cutlfo, reslfo;
+			int8_t cutenv, resenv;
+			int8_t cutgainenv, resgainenv;
+			uint8_t notetrack;
+		} filter;
+		struct { int8_t offset, lfo, env, gainenv; } phase;
+		struct { int8_t offset, lfo, env, gainenv; } frequency;
+		struct { int8_t offset, lfo, env, gainenv; } pulsewidth;
+		struct { int8_t offset, lfo, env, gainenv; } phasedynamics;
+		struct { uint8_t osc, noise;               } mixer; */
 		struct {
 			int8_t wtpos;
 			int8_t sync;
@@ -286,15 +310,13 @@ typedef struct
 	uint32_t triggerflash;
 } Instrument;
 
-typedef struct
-{
+typedef struct {
 	uint8_t    c;                 /* instrument count   */
 	uint8_t    i[INSTRUMENT_MAX]; /* instrument backref */
 	Instrument v[];               /* instrument values  */
 } InstrumentChain;
 
-typedef struct
-{
+typedef struct {
 	uint8_t c;   /* channel count  */
 	Channel v[]; /* channel values */
 } ChannelChain;
@@ -305,8 +327,7 @@ enum {
 	PLAYING_CONT,
 	PLAYING_PREP_STOP
 } PLAYING;
-typedef struct
-{
+typedef struct {
 	/* instruments */
 	InstrumentChain *instrument;
 
@@ -320,9 +341,13 @@ typedef struct
 	uint16_t songlen; /* how long the global variant is */
 	uint16_t loop[3]; /* loop range pointers, [2] is the staging loop end */
 
-	/* mastering chain */
-	/* uint8_t effectc;
-	Effect *effectv; */
+	/* effect chains */
+	EffectChain *master;
+	float *masteroutput[2];
+	float *masterpluginoutput[2]; /* some external plugins need to read and write from separate buffers */
+	EffectChain *send;
+	float *sendoutput[2];
+	float *sendpluginoutput[2]; /* some external plugins need to read and write from separate buffers */
 
 	/* misc. state */
 	uint8_t  rowhighlight;
@@ -349,13 +374,11 @@ enum { /* TODO: port to the event system */
 enum { /* pages */
 	PAGE_CHANNEL_VARIANT,
 	PAGE_CHANNEL_EFFECT,
-	PAGE_CHANNEL_EFFECT_PLUGINBROWSER,
 	PAGE_INSTRUMENT_SAMPLE,
-	PAGE_INSTRUMENT_SAMPLE_PLUGINBROWSER,
 	PAGE_INSTRUMENT_EFFECT,
-	PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER,
-	PAGE_MASTER,
-	PAGE_FILEBROWSER
+	PAGE_EFFECT_MASTER,
+	PAGE_EFFECT_SEND,
+	PAGE_PLUGINBROWSER,
 } PAGE;
 
 enum { /* tracker modes */
@@ -368,8 +391,8 @@ enum { /* tracker modes */
 } T_MODE;
 
 enum { /* instrument modes */
-	I_MODE_INDICES,
-	I_MODE_NORMAL
+	I_MODE_NORMAL,
+	I_MODE_INSERT,
 } I_MODE;
 
 enum {
@@ -380,8 +403,7 @@ enum {
 
 #define TRACKERFX_MIN -1
 #define TRACKERFX_VISUAL_MIN 0
-typedef struct
-{
+typedef struct {
 	Variant *pbvariantv[CHANNEL_MAX];
 	Vtrig   *vbtrig    [CHANNEL_MAX];
 	uint8_t  pbchannelc; /* how many channels are in the pattern buffer */
@@ -395,7 +417,7 @@ typedef struct
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
 	command_t      command;
-	unsigned char  page;
+	unsigned char  page, oldpage;
 	unsigned char  mode, oldmode;
 	unsigned short centre;
 	uint8_t        pattern;    /* focused pattern */
@@ -408,23 +430,18 @@ typedef struct
 
 	short          effectscroll;
 
+	bool          showfilebrowser; /* show the instrument sample browser */
 	int           filebrowserindex;
-	size_t        plugineffectindex;
+	uint32_t      plugineffectindex;
 	bool          pluginbrowserbefore; /* true to place plugins before the cursor, false to place plugins after the cursor */
 	EffectChain **pluginbrowserchain;  /* which chain to place plugins into */
 
 	unsigned short mousey, mousex;
 
 	short       fyoffset;
+	short       shiftoffset; /* TODO */
 	signed char channeloffset;
 	signed char fieldpointer;
-
-	char           dirpath[NAME_MAX+1];
-	unsigned int   dirc;
-	unsigned short dirmaxwidth;
-	unsigned char  dircols;
-	short dirx, diry, dirw, dirh; /* file browser screen region */
-	DIR           *dir;
 
 	Canvas  *waveformcanvas;
 	char   **waveformbuffer;
@@ -456,16 +473,14 @@ typedef struct
 Window *w;
 
 
-typedef struct
-{
+typedef struct {
 	struct { jack_default_audio_sample_t *l, *r; } in, out;
 	void *midiout;
 } portbuffers;
 portbuffers pb;
 
 #define EVENT_QUEUE_MAX 16
-typedef struct
-{
+typedef struct {
 	Song        *s;
 	Window      *w;
 	struct { jack_port_t *l, *r; } in, out;

@@ -1,41 +1,35 @@
-/*
- * value:
- *   - a void pointer, should be cast from an integer type
- *   - the nibbles value should be consistent with the type cast from
- *   - set to NULL for this control to be a dummy (nibbles should be 0 in this case)
- *   - (*value < 0) is a special case, and will print '='
- *
- * nibbles:
- *   sets how many cells wide the control should be (drawn in hex)
- *
- *   input cases:
- *     0:    click/return to toggle, ignores other input
- *     2:    input shifts up, no fieldpointer handling
- *     3:    input shifts up, no fieldpointer handling, +/- to set the sign
- *     else: input sets the cell under fieldpointer and walks fieldpointer
- *   types:
- *     0: (bool)       shows either "X" or " "
- *     1: (int8_t)     shows -1 to 15, reads pretty names, (uint8_t)min should not equal max
- *     2: (uint8_t)    shows 0 to 0xff
- *     3: (int8_t)     shows 0 to 0x3f/0x40 and the sign bit
- *     4: (uint16_t)   shows 0 to 0xffff
- *     5: (int16_t)    shows 0 to 0x7fff/0x8000 and the sign bit, min should be absolute
- *     8: (uint32_t)   shows 0 to 0xffffffff
- *     else: undefined
- */
+enum {
+	CONTROL_NIBBLES_BOOL = 0,   /* shows either "X" or " ", click/return to toggle (ignores other input) */
+	CONTROL_NIBBLES_PRETTY = 1, /* shows -1 to 15, reads pretty names */
+	CONTROL_NIBBLES_UINT8 = 2,  /* shows 0 to 0xff */
+	CONTROL_NIBBLES_INT8 = 3,   /* shows 0 to 0x3f/0x40 and the sign bit */
+	CONTROL_NIBBLES_UINT16 = 4, /* shows 0 to 0xffff */
+	CONTROL_NIBBLES_INT16 = 5,  /* shows 0 to 0x7fff/0x8000 and the sign bit, min and max are nibble-wise, min should be absolute */
+	CONTROL_NIBBLES_UINT32 = 8, /* shows 0 to 0xffffffff */
+	CONTROL_NIBBLES_UNSIGNED_FLOAT,
+	CONTROL_NIBBLES_SIGNED_FLOAT,
+	CONTROL_NIBBLES_UNSIGNED_INT,
+	CONTROL_NIBBLES_SIGNED_INT,
+	CONTROL_NIBBLES_TOGGLED,
+} CONTROL_NIBBLES;
+
+typedef union {
+	float    f;
+	uint32_t i;
+} ControlRange;
+
 typedef struct
 {
-	short    x, y; /* position on the screen */
-	void    *value;
-	uint32_t min, max;
-	uint32_t def;
-	int8_t   nibbles;
-	uint8_t  prettynamelen;
-	char    *prettyname[16]; /* only actually read if (nibbles == 1) */
-	int8_t   prettynameptr;
+	short        x, y; /* position on the screen */
+	void        *value;
+	ControlRange min, max, def;
+	int8_t       nibbles;
+	uint8_t      prettynamelen;
+	char        *prettyname[16]; /* only actually read if (nibbles == 1) */
+	int8_t       prettynameptr;
 
-	void   (*callback)(void *cc); /* called when self->value is changed */
-	void    *callbackarg;
+	void       (*callback)(void *cc); /* called when self->value is changed */
+	void        *callbackarg;
 } Control;
 
 typedef struct
@@ -82,20 +76,14 @@ void clearControls(ControlState *cc)
 	cc->controlc = 0;
 }
 
-void addControl(ControlState *cc,
-		short x, short y,
-		void *value, int8_t nibbles,
-		uint32_t min, uint32_t max, uint32_t def,
-		uint8_t prettynamelen,
+/* min/max/def/nibbles should already be set */
+void _addControl(ControlState *cc, short x, short y,
+		void *value, uint8_t prettynamelen,
 		void (*callback)(void *), void *callbackarg)
 {
 	cc->control[cc->controlc].x = x;
 	cc->control[cc->controlc].y = y;
 	cc->control[cc->controlc].value = value;
-	cc->control[cc->controlc].min = min;
-	cc->control[cc->controlc].max = max;
-	cc->control[cc->controlc].def = def;
-	cc->control[cc->controlc].nibbles = nibbles;
 	cc->control[cc->controlc].prettynamelen = prettynamelen;
 	cc->control[cc->controlc].prettynameptr = 0;
 	cc->control[cc->controlc].callback = callback;
@@ -103,6 +91,29 @@ void addControl(ControlState *cc,
 
 	cc->controlc++;
 }
+void addControlInt(ControlState *cc, short x, short y, void *value, int8_t nibbles,
+		uint32_t min, uint32_t max, uint32_t def,
+		uint8_t prettynamelen, void (*callback)(void *), void *callbackarg)
+{
+	cc->control[cc->controlc].min.i = min;
+	cc->control[cc->controlc].max.i = max;
+	cc->control[cc->controlc].def.i = def;
+	cc->control[cc->controlc].nibbles = nibbles;
+
+	_addControl(cc, x, y, value, prettynamelen, callback, callbackarg);
+}
+void addControlFloat(ControlState *cc, short x, short y, void *value, int8_t nibbles,
+		float min, float max, float def,
+		uint8_t prettynamelen, void (*callback)(void *), void *callbackarg)
+{
+	cc->control[cc->controlc].min.f = min;
+	cc->control[cc->controlc].max.f = max;
+	cc->control[cc->controlc].def.f = def;
+	cc->control[cc->controlc].nibbles = nibbles;
+
+	_addControl(cc, x, y, value, prettynamelen, callback, callbackarg);
+}
+
 /* applies retroactively to the previously registered control */
 void setControlPrettyName(ControlState *cc, char *prettyname)
 {
@@ -112,104 +123,161 @@ void setControlPrettyName(ControlState *cc, char *prettyname)
 	c->prettynameptr++;
 }
 
+/* number of digits before the radix, up to 6 are checked for (float range) */
+/* don't think there's a more efficient way to do this? there might well be */
+int getPreRadixDigits(float x)
+{
+	if      (x >= 100000.0f) return 6;
+	else if (x >= 10000.0f) return 5;
+	else if (x >= 1000.0f) return 4;
+	else if (x >= 100.0f) return 3;
+	else if (x >= 10.0f) return 2;
+	else                return 1;
+}
+
+short getControlWidth(Control *c)
+{
+	if (!c->value) return 0;
+	switch (c->nibbles)
+	{
+		case 1:
+			if (*(int8_t *)c->value < c->prettynameptr) return c->prettynamelen + 2;
+			else                                          return 3;
+		case 0: case CONTROL_NIBBLES_TOGGLED: return 3;
+		case CONTROL_NIBBLES_UNSIGNED_FLOAT:  return 9;
+		case CONTROL_NIBBLES_SIGNED_FLOAT:    return 10;
+		case CONTROL_NIBBLES_UNSIGNED_INT:    return getPreRadixDigits(c->max.f) + 2;
+		case CONTROL_NIBBLES_SIGNED_INT:      return getPreRadixDigits(c->max.f) + 3;
+		default:                              return c->nibbles + 2;
+	}
+}
+
 /*
  * dump state to the screen
  * leaves the cursor over the selected control
+ * screen-space culling
  */
 void drawControls(ControlState *cc)
 {
+	short cw;
 	Control *c;
+	char *buffer;
 	for (int i = 0; i < cc->controlc; i++)
 	{
 		c = &cc->control[i];
-		if (!c->value) continue;
+		if (!c->value) continue; /* dummy control */
+		cw = getControlWidth(c);
+		if (c->x - 1 + cw < 2)      continue; /* off the left edge */
+		if (c->x - 1 > ws.ws_col+1) continue; /* off the right edge */
 
-		printf("\033[%d;%dH", c->y, c->x);
+		if (c->x - 1 > 0) printf("\033[%d;%dH[", c->y, c->x - 1);
+
 		if (i == cc->cursor)
 		{
 			if (cc->mouseadjust || cc->keyadjust) printf("\033[1m");
 			else if (cc->resetadjust)             printf("\033[34m");
 		}
 
+		buffer = calloc(cw - 1, sizeof(char)); /* doesn't need to be big enough to hold the leading and trailing square brackets */
+		// buffer = malloc(cw + 10); /* doesn't need to be big enough to hold the leading and trailing square brackets */
+
 		switch (c->nibbles)
 		{
 			case 0:
-				if (*(bool *)(c->value)) printf("X"); // Y
-				else                     printf(" "); // N
+				if (*(bool *)c->value) strcpy(buffer, "X"); // Y
+				else                   strcpy(buffer, " "); // N
+				break;
+			case CONTROL_NIBBLES_TOGGLED:
+				if (*(float *)c->value > 0.0f) strcpy(buffer, "X"); // Y
+				else                           strcpy(buffer, " "); // N
 				break;
 			case 1:
-				if (*(int8_t *)(c->value) < 0)                     printf("=");
-				else if (*(int8_t *)(c->value) < c->prettynameptr) printf("%s", c->prettyname[*(int8_t *)(c->value)]);
-				else                                               printf("%x", *(int8_t *)(c->value));
+				if (*(int8_t *)c->value < 0)                     strcpy(buffer, "=");
+				else if (*(int8_t *)c->value < c->prettynameptr) sprintf(buffer, "%s", c->prettyname[*(int8_t *)c->value]);
+				else                                             sprintf(buffer, "%x", *(int8_t *)c->value);
 				break;
-			case 2: printf("%02x", *(uint8_t *)(c->value)); break;
+			case 2: sprintf(buffer, "%02x", *(uint8_t *)c->value); break;
 			case 3:
-				if (*(int8_t *)(c->value) < 0) printf("-%02x", (short)(*(int8_t *)(c->value)) * -1);
-				else                           printf("+%02x", *(int8_t *)(c->value));
+				if (*(int8_t *)c->value < 0) sprintf(buffer, "-%02x", (short)(*(int8_t *)c->value) * -1);
+				else                         sprintf(buffer, "+%02x", *(int8_t *)c->value);
 				break;
-			case 4: printf("%04x", *(uint16_t *)(c->value)); break;
+			case 4: sprintf(buffer, "%04x", *(uint16_t *)c->value); break;
 			case 5:
-				if (*(int16_t *)(c->value) < 0) printf("-%04x", (int)(*(int16_t *)(c->value)) * -1);
-				else                            printf("+%04x", *(int16_t *)(c->value));
+				if (*(int16_t *)c->value < 0) sprintf(buffer, "-%04x", (int)(*(int16_t *)c->value) * -1);
+				else                          sprintf(buffer, "+%04x", *(int16_t *)c->value);
 				break;
-			case 8: printf("%08x", *(uint32_t *)(c->value)); break;
-		} printf("\033[m");
+			case 8: sprintf(buffer, "%08x", *(uint32_t *)c->value); break;
+			case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "%0*.*f", 7, 6-getPreRadixDigits(c->max.f), *(float *)c->value); break;
+			case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "%+0*.*f", 8, 5-getPreRadixDigits(c->max.f), *(float *)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
+			case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "%0*.0f",      getPreRadixDigits(c->max.f), *(float *)c->value); break;
+			case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "%+0*.0f",    1+getPreRadixDigits(c->max.f), *(float *)c->value); break;
+		}
+		// if (c->x - 1 > 0) printf("\033[%d;%dH[", c->y, c->x - 1);
+		if (c->x < 1) { if (c->x > 1 - (cw-2)) printf("\033[%d;%dH%s\033[m", c->y, 1, buffer+(1 - c->x)); }
+		else                                   printf("\033[%d;%dH%.*s\033[m", c->y, c->x, (ws.ws_col+1) - c->x, buffer);
+		free(buffer);
+
+		if (c->x + (cw-2) < ws.ws_col+1) printf("\033[%d;%dH]", c->y, c->x - 2 + cw);
 	}
 	if (cc->cursor < cc->controlc)
 	{
 		c = &cc->control[cc->cursor];
-		if (c->nibbles) printf("\033[%d;%dH", c->y, c->x + c->nibbles - 1 - cc->fieldpointer + (MAX(1, c->prettynamelen)-1));
-		else            printf("\033[%d;%dH", c->y, c->x);
+		switch (c->nibbles)
+		{
+			case 0: case CONTROL_NIBBLES_TOGGLED: printf("\033[%d;%dH", c->y, c->x); break;
+			case CONTROL_NIBBLES_UNSIGNED_FLOAT:
+				if (cc->fieldpointer < 6-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 6 - cc->fieldpointer);
+				else                                                  printf("\033[%d;%dH", c->y, c->x + 5 - cc->fieldpointer);
+				break;
+			case CONTROL_NIBBLES_SIGNED_FLOAT:
+				if (cc->fieldpointer < 5-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 7 - cc->fieldpointer);
+				else                                                       printf("\033[%d;%dH", c->y, c->x + 6 - cc->fieldpointer);
+				break;
+			case CONTROL_NIBBLES_UNSIGNED_INT: printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc->fieldpointer - 1); break;
+			case CONTROL_NIBBLES_SIGNED_INT:   printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc->fieldpointer    ); break;
+			default: printf("\033[%d;%dH", c->y, c->x + c->nibbles - 1 - cc->fieldpointer + (MAX(1, c->prettynamelen)-1)); break;
+		}
 	}
 }
 
 void incControlValue(ControlState *cc)
 {
 	Control *c = &cc->control[cc->cursor];
-	if (!c->value || !c->nibbles) return;
+	if (!c->value || !c->nibbles || c->nibbles == CONTROL_NIBBLES_TOGGLED) return;
 
-	uint32_t delta = _pow32(16, cc->fieldpointer);
 	switch (c->nibbles)
 	{
-		case 1:
-			if ((*(int8_t *)(c->value)) == (int)c->max) break;
-			if ((*(int8_t *)(c->value)) == (int)c->min) /* hack */  (*(int8_t *)(c->value)) += delta;
-			else if ((*(int8_t *)(c->value)) + delta > (int)c->max) (*(int8_t *)(c->value)) = (int)c->max;
-			else                                                    (*(int8_t *)(c->value)) += delta;
-			break;
-		case 2:
-			if ((*(uint8_t *)(c->value)) + delta > c->max) (*(uint8_t *)(c->value)) = c->max;
-			else                                           (*(uint8_t *)(c->value)) += delta;
-			break;
-		case 3: (*(int8_t *)(c->value)) = MIN((*(int8_t *)(c->value)) + (int)delta, (int)c->max); break;
-		case 4:
-			if ((*(uint16_t *)(c->value)) + delta > c->max) (*(uint16_t *)(c->value)) = c->max;
-			else                                            (*(uint16_t *)(c->value)) += delta;
-			break;
+		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
+			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT:
+			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer - (5-getPreRadixDigits(c->max.f))), c->max.f); break;
+		case CONTROL_NIBBLES_UNSIGNED_INT:
+		case CONTROL_NIBBLES_SIGNED_INT:
+			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer), c->max.f); break;
+		case 1: case 3: (*(int8_t   *)c->value) = MIN((*(int8_t   *)c->value) + (int)_pow32(16, cc->fieldpointer), (int8_t  )c->max.i); break;
+		case 2:         (*(uint8_t  *)c->value) = MIN((*(uint8_t  *)c->value) +      _pow32(16, cc->fieldpointer), (uint8_t )c->max.i); break;
+		case 4:         (*(uint16_t *)c->value) = MIN((*(uint16_t *)c->value) +      _pow32(16, cc->fieldpointer), (uint16_t)c->max.i); break;
+		case 8:         (*(uint32_t *)c->value) = MIN((*(uint32_t *)c->value) +      _pow32(16, cc->fieldpointer), (uint32_t)c->max.i); break;
 		case 5:
-			if (*(int16_t *)(c->value) > 0)
+			if (*(int16_t *)c->value > 0)
 			{
-				if ((*(int16_t *)(c->value)) + delta > SHRT_MAX) (*(int16_t *)(c->value)) = SHRT_MAX;
+				if ((*(int16_t *)c->value) + _pow32(16, cc->fieldpointer) > SHRT_MAX) (*(int16_t *)c->value) = SHRT_MAX;
 				else
 				{
-					(*(int16_t *)(c->value)) += delta;
-					while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f) && (int)(*(int16_t *)(c->value) + 0x0001) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0001;
-					while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0) && (int)(*(int16_t *)(c->value) + 0x0010) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0010;
-					while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00) && (int)(*(int16_t *)(c->value) + 0x0100) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0100;
-					while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) -= 0x1000;
+					(*(int16_t *)c->value) += _pow32(16, cc->fieldpointer);
+					while (((*(int16_t *)c->value) & 0x000f) > ((int16_t)c->max.i & 0x000f) && (int)(*(int16_t *)c->value) + 0x0001 < SHRT_MAX) (*(int16_t *)c->value) += 0x0001;
+					while (((*(int16_t *)c->value) & 0x00f0) > ((int16_t)c->max.i & 0x00f0) && (int)(*(int16_t *)c->value) + 0x0010 < SHRT_MAX) (*(int16_t *)c->value) += 0x0010;
+					while (((*(int16_t *)c->value) & 0x0f00) > ((int16_t)c->max.i & 0x0f00) && (int)(*(int16_t *)c->value) + 0x0100 < SHRT_MAX) (*(int16_t *)c->value) += 0x0100;
+					while (((*(int16_t *)c->value) & 0xf000) > ((int16_t)c->max.i & 0xf000))                                                    (*(int16_t *)c->value) -= 0x1000;
 				}
 			} else
 			{
-				(*(int16_t *)(c->value)) += delta;
-				while ((abs(*(int16_t *)(c->value)) & 0x000f) > (c->min & 0x000f)) (*(int16_t *)(c->value)) += 0x0001;
-				while ((abs(*(int16_t *)(c->value)) & 0x00f0) > (c->min & 0x00f0)) (*(int16_t *)(c->value)) += 0x0010;
-				while ((abs(*(int16_t *)(c->value)) & 0x0f00) > (c->min & 0x0f00)) (*(int16_t *)(c->value)) += 0x0100;
-				while ((abs(*(int16_t *)(c->value)) & 0xf000) > (c->min & 0xf000)) (*(int16_t *)(c->value)) += 0x1000;
+				(*(int16_t *)c->value) += _pow32(16, cc->fieldpointer);
+				while ((abs(*(int16_t *)c->value) & 0x000f) > ((int16_t)c->min.i & 0x000f)) (*(int16_t *)c->value) += 0x0001;
+				while ((abs(*(int16_t *)c->value) & 0x00f0) > ((int16_t)c->min.i & 0x00f0)) (*(int16_t *)c->value) += 0x0010;
+				while ((abs(*(int16_t *)c->value) & 0x0f00) > ((int16_t)c->min.i & 0x0f00)) (*(int16_t *)c->value) += 0x0100;
+				while ((abs(*(int16_t *)c->value) & 0xf000) > ((int16_t)c->min.i & 0xf000)) (*(int16_t *)c->value) += 0x1000;
 			}
-			break;
-		case 8:
-			if ((*(uint32_t *)(c->value)) + delta > c->max) (*(uint32_t *)(c->value)) = c->max;
-			else                                            (*(uint32_t *)(c->value)) += delta;
 			break;
 	}
 	if (c->callback) c->callback(c->callbackarg);
@@ -217,51 +285,43 @@ void incControlValue(ControlState *cc)
 void decControlValue(ControlState *cc)
 {
 	Control *c = &cc->control[cc->cursor];
-	if (!c->value || !c->nibbles) return;
+	if (!c->value || !c->nibbles || c->nibbles == CONTROL_NIBBLES_TOGGLED) return;
 
-	uint32_t delta = _pow32(16, cc->fieldpointer);
 	switch (c->nibbles)
 	{
-		case 1:
-			if ((*(int8_t *)(c->value)) == (int)c->min) break;
-			if ((int)c->min + delta < (*(int8_t *)(c->value))) (*(int8_t *)(c->value)) -= delta;
-			else                                               (*(int8_t *)(c->value)) = (int)c->min;
-			break;
-		case 2:
-			if (c->min + delta < (*(uint8_t *)(c->value))) (*(uint8_t *)(c->value)) -= delta;
-			else                                           (*(uint8_t *)(c->value)) = c->min;
-			break;
-		case 3: (*(int8_t *)(c->value)) = MAX((*(int8_t *)(c->value)) - (int)delta, (int)c->min); break;
-		case 4:
-			if (c->min + delta < (*(uint16_t *)(c->value))) (*(uint16_t *)(c->value)) -= delta;
-			else                                            (*(uint16_t *)(c->value)) = c->min;
-			break;
+		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
+			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT:
+			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer - (5-getPreRadixDigits(c->max.f))), c->min.f); break;
+		case CONTROL_NIBBLES_UNSIGNED_INT:
+		case CONTROL_NIBBLES_SIGNED_INT:
+			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer), c->min.f); break;
+		case 1: case 3: (*(int8_t   *)c->value) = MAX((*(int8_t   *)c->value) - (int)_pow32(16, cc->fieldpointer), (int8_t  )c->min.i); break;
+		case 2:         (*(uint8_t  *)c->value) = MAX((*(uint8_t  *)c->value) -      _pow32(16, cc->fieldpointer), (uint8_t )c->min.i); break;
+		case 4:         (*(uint16_t *)c->value) = MAX((*(uint16_t *)c->value) -      _pow32(16, cc->fieldpointer), (uint16_t)c->min.i); break;
+		case 8:         (*(uint32_t *)c->value) = MAX((*(uint32_t *)c->value) -      _pow32(16, cc->fieldpointer), (uint32_t)c->min.i); break;
 		case 5:
-			if (*(int16_t *)(c->value) < 0)
+			if (*(int16_t *)c->value < 0)
 			{
-				if (SHRT_MIN + delta < (*(int16_t *)(c->value)))
+				if (SHRT_MIN + _pow32(16, cc->fieldpointer) < (*(int16_t *)c->value))
 				{
-					(*(int16_t *)(c->value)) -= delta;
-					while ((abs(*(int16_t *)(c->value)) & 0x000f) > (c->min & 0x000f) && (int)(*(int16_t *)(c->value)) - 0x0001 > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0001;
-					while ((abs(*(int16_t *)(c->value)) & 0x00f0) > (c->min & 0x00f0) && (int)(*(int16_t *)(c->value)) - 0x0010 > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0010;
-					while ((abs(*(int16_t *)(c->value)) & 0x0f00) > (c->min & 0x0f00) && (int)(*(int16_t *)(c->value)) - 0x0100 > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0100;
-					while ((abs(*(int16_t *)(c->value)) & 0xf000) > (c->min & 0xf000)) (*(int16_t *)(c->value)) += 0x1000;
-				} else (*(int16_t *)(c->value)) = SHRT_MIN;
+					(*(int16_t *)c->value) -= _pow32(16, cc->fieldpointer);
+					while ((abs(*(int16_t *)c->value) & 0x000f) > ((int16_t)c->min.i & 0x000f) && (int)(*(int16_t *)c->value) - 0x0001 > SHRT_MIN) (*(int16_t *)c->value) -= 0x0001;
+					while ((abs(*(int16_t *)c->value) & 0x00f0) > ((int16_t)c->min.i & 0x00f0) && (int)(*(int16_t *)c->value) - 0x0010 > SHRT_MIN) (*(int16_t *)c->value) -= 0x0010;
+					while ((abs(*(int16_t *)c->value) & 0x0f00) > ((int16_t)c->min.i & 0x0f00) && (int)(*(int16_t *)c->value) - 0x0100 > SHRT_MIN) (*(int16_t *)c->value) -= 0x0100;
+					while ((abs(*(int16_t *)c->value) & 0xf000) > ((int16_t)c->min.i & 0xf000))                                                    (*(int16_t *)c->value) += 0x1000;
+				} else (*(int16_t *)c->value) = SHRT_MIN;
 			} else
 			{
-				(*(int16_t *)(c->value)) -= delta;
-				if (*(int16_t *)(c->value) > 0)
+				(*(int16_t *)c->value) -= _pow32(16, cc->fieldpointer);
+				if (*(int16_t *)c->value > 0)
 				{
-					while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f)) (*(int16_t *)(c->value)) -= 0x0001;
-					while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0)) (*(int16_t *)(c->value)) -= 0x0010;
-					while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00)) (*(int16_t *)(c->value)) -= 0x0100;
-					while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) -= 0x1000;
+					while (((*(int16_t *)c->value) & 0x000f) > ((int16_t)c->max.i & 0x000f)) (*(int16_t *)c->value) -= 0x0001;
+					while (((*(int16_t *)c->value) & 0x00f0) > ((int16_t)c->max.i & 0x00f0)) (*(int16_t *)c->value) -= 0x0010;
+					while (((*(int16_t *)c->value) & 0x0f00) > ((int16_t)c->max.i & 0x0f00)) (*(int16_t *)c->value) -= 0x0100;
+					while (((*(int16_t *)c->value) & 0xf000) > ((int16_t)c->max.i & 0xf000)) (*(int16_t *)c->value) -= 0x1000;
 				}
 			}
-			break;
-		case 8:
-			if (c->min + delta < (*(uint32_t *)(c->value))) (*(uint32_t *)(c->value)) -= delta;
-			else                                            (*(uint32_t *)(c->value)) = c->min;
 			break;
 	}
 	if (c->callback) c->callback(c->callbackarg);
@@ -300,10 +360,14 @@ void incControlFieldpointer(ControlState *cc)
 	Control *c = &cc->control[cc->cursor];
 	switch (c->nibbles)
 	{
-		case 0: case 1: cc->fieldpointer = 0; break;
+		case 0: case 1: case CONTROL_NIBBLES_TOGGLED: cc->fieldpointer = 0; break;
 		case 2: case 3: cc->fieldpointer = 1; break;
 		case 4: case 5: cc->fieldpointer++; if (cc->fieldpointer > 3) cc->fieldpointer = 0; break;
 		case 8: cc->fieldpointer++; if (cc->fieldpointer > 7) cc->fieldpointer = 0; break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT: case CONTROL_NIBBLES_UNSIGNED_FLOAT:
+			cc->fieldpointer++; if (cc->fieldpointer > 5) cc->fieldpointer = 0; break;
+		case CONTROL_NIBBLES_SIGNED_INT: case CONTROL_NIBBLES_UNSIGNED_INT:
+			cc->fieldpointer++; if (cc->fieldpointer > getPreRadixDigits(c->max.f)-1) cc->fieldpointer = 0; break;
 	}
 }
 void decControlFieldpointer(ControlState *cc)
@@ -311,10 +375,14 @@ void decControlFieldpointer(ControlState *cc)
 	Control *c = &cc->control[cc->cursor];
 	switch (c->nibbles)
 	{
-		case 0: case 1: cc->fieldpointer = 0; break;
+		case 0: case 1: case CONTROL_NIBBLES_TOGGLED: /* fall through */
 		case 2: case 3: cc->fieldpointer = 0; break;
-		case 4: case 5: cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = 3; break;
+		case 4: case 5: cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = 7; break;
 		case 8: cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = 7; break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT: case CONTROL_NIBBLES_UNSIGNED_FLOAT:
+			cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = 5; break;
+		case CONTROL_NIBBLES_SIGNED_INT: case CONTROL_NIBBLES_UNSIGNED_INT:
+			cc->fieldpointer--; if (cc->fieldpointer < 0) cc->fieldpointer = getPreRadixDigits(c->max.f)-1; break;
 	}
 }
 
@@ -325,68 +393,68 @@ void hexControlValue(ControlState *cc, char value)
 
 	switch (c->nibbles)
 	{
-		case 0: (*(bool *)(c->value)) = value; break;
+		case 0: (*(bool *)c->value) = value; break;
 		case 1:
-			(*(int8_t *)(c->value)) = value;
-			(*(int8_t *)(c->value)) = MIN((int8_t)c->max, *(int8_t *)(c->value));
-			(*(int8_t *)(c->value)) = MAX((int8_t)c->min, *(int8_t *)(c->value));
+			(*(int8_t *)c->value) = value;
+			(*(int8_t *)c->value) = MIN((int8_t)c->max.i, *(int8_t *)c->value);
+			(*(int8_t *)c->value) = MAX((int8_t)c->min.i, *(int8_t *)c->value);
 			break;
 		case 2:
-			(*(uint8_t *)(c->value)) <<= 4;
-			(*(uint8_t *)(c->value)) += value;
-			(*(uint8_t *)(c->value)) = MIN(c->max, *(uint8_t *)(c->value));
-			(*(uint8_t *)(c->value)) = MAX(c->min, *(uint8_t *)(c->value));
+			(*(uint8_t *)c->value) <<= 4;
+			(*(uint8_t *)c->value) += value;
+			(*(uint8_t *)c->value) = MIN((uint8_t)c->max.i, *(uint8_t *)c->value);
+			(*(uint8_t *)c->value) = MAX((uint8_t)c->min.i, *(uint8_t *)c->value);
 			break;
 		case 3:
-			if (*(int8_t *)(c->value) < 0)
+			if (*(int8_t *)c->value < 0)
 			{
-				(*(int8_t *)(c->value)) <<= 4;
-				(*(int8_t *)(c->value)) -= value;
+				(*(int8_t *)c->value) <<= 4;
+				(*(int8_t *)c->value) -= value;
 			} else
 			{
-				(*(int8_t *)(c->value)) <<= 4;
-				(*(int8_t *)(c->value)) += value;
+				(*(int8_t *)c->value) <<= 4;
+				(*(int8_t *)c->value) += value;
 			}
-			(*(int8_t *)(c->value)) = MIN(SCHAR_MAX, *(int8_t *)(c->value));
-			(*(int8_t *)(c->value)) = MAX(SCHAR_MIN, *(int8_t *)(c->value));
+			(*(int8_t *)c->value) = MIN(SCHAR_MAX, *(int8_t *)c->value);
+			(*(int8_t *)c->value) = MAX(SCHAR_MIN, *(int8_t *)c->value);
 			break;
 		case 4:
-			(*(uint16_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * ((*(uint16_t *)(c->value)) / _pow32(16, cc->fieldpointer)%16);
-			(*(uint16_t *)(c->value)) += _pow32(16, cc->fieldpointer) * value;
-			(*(uint16_t *)(c->value)) = MIN(c->max, *(uint16_t *)(c->value));
-			(*(uint16_t *)(c->value)) = MAX(c->min, *(uint16_t *)(c->value));
+			(*(uint16_t *)c->value) -= _pow32(16, cc->fieldpointer) * ((*(uint16_t *)c->value) / _pow32(16, cc->fieldpointer)%16);
+			(*(uint16_t *)c->value) += _pow32(16, cc->fieldpointer) * value;
+			(*(uint16_t *)c->value) = MIN((uint16_t)c->max.i, *(uint16_t *)c->value);
+			(*(uint16_t *)c->value) = MAX((uint16_t)c->min.i, *(uint16_t *)c->value);
 			break;
 		case 5:
 			/* TODO: pretty broken when numbers >= 0x8000 are involved */
-			if (*(int16_t *)(c->value) < 0)
+			if (*(int16_t *)c->value < 0)
 			{
-				(*(int16_t *)(c->value)) += _pow32(16, cc->fieldpointer) * (((*(int16_t *)(c->value))*-1) / _pow32(16, cc->fieldpointer)%16);
-				(*(int16_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * value;
+				(*(int16_t *)c->value) += _pow32(16, cc->fieldpointer) * (((*(int16_t *)c->value)*-1) / _pow32(16, cc->fieldpointer)%16);
+				(*(int16_t *)c->value) -= _pow32(16, cc->fieldpointer) * value;
 
 				/* TODO: untested */
-				while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f) && (int)(*(int16_t *)(c->value) - 0x0001) > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0001;
-				while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0) && (int)(*(int16_t *)(c->value) - 0x0010) > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0010;
-				while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00) && (int)(*(int16_t *)(c->value) - 0x0100) > SHRT_MIN) (*(int16_t *)(c->value)) -= 0x0100;
-				while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) += 0x1000;
+				while (((*(int16_t *)c->value) & 0x000f) > ((int16_t)c->max.i & 0x000f) && (int)(*(int16_t *)c->value - 0x0001) > SHRT_MIN) (*(int16_t *)c->value) -= 0x0001;
+				while (((*(int16_t *)c->value) & 0x00f0) > ((int16_t)c->max.i & 0x00f0) && (int)(*(int16_t *)c->value - 0x0010) > SHRT_MIN) (*(int16_t *)c->value) -= 0x0010;
+				while (((*(int16_t *)c->value) & 0x0f00) > ((int16_t)c->max.i & 0x0f00) && (int)(*(int16_t *)c->value - 0x0100) > SHRT_MIN) (*(int16_t *)c->value) -= 0x0100;
+				while (((*(int16_t *)c->value) & 0xf000) > ((int16_t)c->max.i & 0xf000))                                                    (*(int16_t *)c->value) += 0x1000;
 			} else
 			{
-				(*(int16_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * ((*(int16_t *)(c->value)) / _pow32(16, cc->fieldpointer)%16);
-				(*(int16_t *)(c->value)) += _pow32(16, cc->fieldpointer) * value;
+				(*(int16_t *)c->value) -= _pow32(16, cc->fieldpointer) * ((*(int16_t *)c->value) / _pow32(16, cc->fieldpointer)%16);
+				(*(int16_t *)c->value) += _pow32(16, cc->fieldpointer) * value;
 
 				/* TODO: untested */
-				while (((*(int16_t *)(c->value)) & 0x000f) > (c->max & 0x000f) && (int)(*(int16_t *)(c->value) + 0x0001) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0001;
-				while (((*(int16_t *)(c->value)) & 0x00f0) > (c->max & 0x00f0) && (int)(*(int16_t *)(c->value) + 0x0010) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0010;
-				while (((*(int16_t *)(c->value)) & 0x0f00) > (c->max & 0x0f00) && (int)(*(int16_t *)(c->value) + 0x0100) < SHRT_MAX) (*(int16_t *)(c->value)) += 0x0100;
-				while (((*(int16_t *)(c->value)) & 0xf000) > (c->max & 0xf000)) (*(int16_t *)(c->value)) -= 0x1000;
+				while (((*(int16_t *)c->value) & 0x000f) > ((int16_t)c->max.i & 0x000f) && (int)(*(int16_t *)c->value + 0x0001) < SHRT_MAX) (*(int16_t *)c->value) += 0x0001;
+				while (((*(int16_t *)c->value) & 0x00f0) > ((int16_t)c->max.i & 0x00f0) && (int)(*(int16_t *)c->value + 0x0010) < SHRT_MAX) (*(int16_t *)c->value) += 0x0010;
+				while (((*(int16_t *)c->value) & 0x0f00) > ((int16_t)c->max.i & 0x0f00) && (int)(*(int16_t *)c->value + 0x0100) < SHRT_MAX) (*(int16_t *)c->value) += 0x0100;
+				while (((*(int16_t *)c->value) & 0xf000) > ((int16_t)c->max.i & 0xf000))                                                    (*(int16_t *)c->value) -= 0x1000;
 			}
-			(*(int16_t *)(c->value)) = MIN(SHRT_MAX, *(int16_t *)(c->value));
-			(*(int16_t *)(c->value)) = MAX(SHRT_MIN, *(int16_t *)(c->value));
+			(*(int16_t *)c->value) = MIN(SHRT_MAX, *(int16_t *)c->value);
+			(*(int16_t *)c->value) = MAX(SHRT_MIN, *(int16_t *)c->value);
 			break;
 		case 8:
-			(*(uint32_t *)(c->value)) -= _pow32(16, cc->fieldpointer) * ((*(uint32_t *)(c->value)) / _pow32(16, cc->fieldpointer)%16);
-			(*(uint32_t *)(c->value)) += _pow32(16, cc->fieldpointer) * value;
-			(*(uint32_t *)(c->value)) = MIN(c->max, *(uint32_t *)(c->value));
-			(*(uint32_t *)(c->value)) = MAX(c->min, *(uint32_t *)(c->value));
+			(*(uint32_t *)c->value) -= _pow32(16, cc->fieldpointer) * ((*(uint32_t *)c->value) / _pow32(16, cc->fieldpointer)%16);
+			(*(uint32_t *)c->value) += _pow32(16, cc->fieldpointer) * value;
+			(*(uint32_t *)c->value) = MIN((uint32_t)c->max.i, *(uint32_t *)c->value);
+			(*(uint32_t *)c->value) = MAX((uint32_t)c->min.i, *(uint32_t *)c->value);
 			break;
 	}
 	if (c->callback) c->callback(c->callbackarg);
@@ -397,12 +465,21 @@ void toggleKeyControl(ControlState *cc)
 	Control *c = &cc->control[cc->cursor];
 	if (!c->value) return;
 
-	if (!c->nibbles)
+	switch (c->nibbles)
 	{
-		(*(bool *)(c->value)) = !(*(bool *)(c->value));
-		if (c->callback) c->callback(c->callbackarg);
-	} else
-		cc->keyadjust = !cc->keyadjust;
+		case 0:
+			(*(bool *)c->value) = !(*(bool *)c->value);
+			if (c->callback) c->callback(c->callbackarg);
+			break;
+		case CONTROL_NIBBLES_TOGGLED:
+			if (*(float *)c->value > 0.0f) (*(float *)c->value) = 0.0f;
+			else                           (*(float *)c->value) = 1.0f;
+			if (c->callback) c->callback(c->callbackarg);
+			break;
+		default:
+			cc->keyadjust = !cc->keyadjust;
+			break;
+	}
 }
 void revertKeyControl(ControlState *cc)
 {
@@ -411,13 +488,13 @@ void revertKeyControl(ControlState *cc)
 
 	switch (c->nibbles)
 	{
-		case 0: (*(bool *)(c->value)) = c->def; break;
-		case 1: (*(int8_t *)(c->value)) = c->def; break;
-		case 2: (*(uint8_t *)(c->value)) = c->def; break;
-		case 3: (*(int8_t *)(c->value)) = c->def; break;
-		case 4: (*(uint16_t *)(c->value)) = c->def; break;
-		case 5: (*(int16_t *)(c->value)) = c->def; break;
-		case 8: (*(uint32_t *)(c->value)) = c->def; break;
+		case 0: *(bool     *)c->value = (bool    )c->def.i; break;
+		case 1: *(int8_t   *)c->value = (int8_t  )c->def.i; break;
+		case 2: *(uint8_t  *)c->value = (uint8_t )c->def.i; break;
+		case 3: *(int8_t   *)c->value = (int8_t  )c->def.i; break;
+		case 4: *(uint16_t *)c->value = (uint16_t)c->def.i; break;
+		case 5: *(int16_t  *)c->value = (int16_t )c->def.i; break;
+		case 8: *(uint32_t *)c->value = (uint32_t)c->def.i; break;
 	}
 	if (c->callback) c->callback(c->callbackarg);
 }
@@ -425,7 +502,7 @@ void revertKeyControl(ControlState *cc)
 void mouseControls(ControlState *cc, int button, int x, int y)
 {
 	Control *c;
-	int i;
+	int i, preradixdigits;
 	switch (button)
 	{
 		case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
@@ -439,9 +516,16 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 				cc->mouseadjust = 0;
 				cc->fieldpointer = 0;
 				c = &cc->control[cc->cursor];
-				if (c->value && !c->nibbles)
+
+				if (!c->value) break;
+				if (!c->nibbles)
 				{
-					(*(bool *)(c->value)) = !(*(bool *)(c->value));
+					(*(bool *)c->value) = !(*(bool *)c->value);
+					if (c->callback) c->callback(c->callbackarg);
+				} else if (c->nibbles == CONTROL_NIBBLES_TOGGLED)
+				{
+					if (*(float *)c->value > 0.0f) (*(float *)c->value) = 0.0f;
+					else                           (*(float *)c->value) = 1.0f;
 					if (c->callback) c->callback(c->callbackarg);
 				}
 			} break;
@@ -463,8 +547,32 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 					cc->mouseadjust = 1;
 					switch (c->nibbles)
 					{
-						case 0: cc->fieldpointer = 1; break;
-						case 3: case 5: /* use c->nibbles-1 */
+						case 0: case CONTROL_NIBBLES_TOGGLED: cc->fieldpointer = 0; break;
+						case CONTROL_NIBBLES_UNSIGNED_FLOAT:
+							if      (x < c->x)     cc->fieldpointer = 5;
+							else if (x > c->x + 5) cc->fieldpointer = 0;
+							else if (x < c->x + getPreRadixDigits(c->max.f)) cc->fieldpointer = 5 - (x - c->x);
+							else                   cc->fieldpointer = 6 - (x - c->x);
+							break;
+						case CONTROL_NIBBLES_SIGNED_FLOAT:
+							if      (x < c->x+1)   cc->fieldpointer = 5;
+							else if (x > c->x + 6) cc->fieldpointer = 0;
+							else if (x < c->x + 1 + getPreRadixDigits(c->max.f)) cc->fieldpointer = 5 - (x - (c->x+1));
+							else                   cc->fieldpointer = 6 - (x - (c->x+1));
+							break;
+						case CONTROL_NIBBLES_UNSIGNED_INT:
+							preradixdigits = getPreRadixDigits(c->max.f);
+							if      (x < c->x)                   cc->fieldpointer = preradixdigits-1;
+							else if (x >= c->x + preradixdigits) cc->fieldpointer = 0;
+							else                                 cc->fieldpointer = (preradixdigits-1) - (x - c->x);
+							break;
+						case CONTROL_NIBBLES_SIGNED_INT:
+							preradixdigits = getPreRadixDigits(c->max.f);
+							if      (x < c->x+1)                   cc->fieldpointer = preradixdigits-1;
+							else if (x >= c->x+1 + preradixdigits) cc->fieldpointer = 0;
+							else                                   cc->fieldpointer = (preradixdigits-1) - (x - (c->x+1));
+							break;
+						case 3: case 5: /* use c->nibbles - 1 */
 							if      (x < c->x+1)             cc->fieldpointer = c->nibbles-2;
 							else if (x >= c->x + c->nibbles) cc->fieldpointer = 0;
 							else                             cc->fieldpointer = (c->nibbles-2) - (x - (c->x+1));

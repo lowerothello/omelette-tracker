@@ -5,24 +5,21 @@
 - rx0 reaching the beginning of the sample cuts the note
 	- should hold the pointer at 0
 
-- lookback needs proper testing, some macros are probably inexplicably broken for no apparent reason
-	- lookback resets the envelope, cutting long attacks immediately
-		- not sure the solution to this design-wise
-	- bpm macros are really fucked, lookback reads macros it shouldn't be able to see
+lookback
+- lookback resets the envelope, cutting long attacks immediately
+	- not sure the solution to this design-wise
+- bpm macros are really fucked, lookback reads macros it shouldn't be able to see
 
 
 - multithreading is currently (slightly) broken
 	- threads fail to initialize randomly, not sure why (idk pthreads very well)
-		- they also print to stderr when they fail
-- loop ramping should use data from outside the loop range instead of padding the range when possible
+		- they also print to stderr when they fail (think this is caused by the jack wrapper)
 - the first time a channel plays a granular instrument it's much clickier than it is every later time
 	- granular algorithm bug, not present for simple instruments (didn't test wavetable)
 	- exaggerated by O00 calls (not fully eliminated by using pitchedpointer as the time base)
 
 
 - don't like the global octave setting binds (number keys)
-- only apply step when holding alt?
-- the instrument index modes really need to be rethought
 - mode where keyboard shortcuts toggle mute channels, with a popup that links keys with channels
 	- shift+key to solo
 	- dynamic mapping, map to the home row first?
@@ -32,17 +29,7 @@
 binds to jump to the current channel's vtrig/note/inst/nth macro
 	- polyend inspired
 	- toggle vtrig/note/inst/macro visibility
-	- toggle column visual line inclusion
+	- toggle column visual line inclusion?
 
-
-ladspa effects:
-- logarithmic controls are not supported yet, i'm too dumb to implement them
-
-- trackerdraw visual code isn't fully ported to the new macro order
-
-- the escape key is ignored sometimes on the tracker page
-
-- tracker binds for adding a new instrument
-
-- way to retroactively change an instrument's sample
-
+- lv2 atom ports
+- lv2 scale points

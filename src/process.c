@@ -885,7 +885,7 @@ void *process(void *arg)
 	req.tv_nsec = UPDATE_DELAY;
 	while(nanosleep(&req, &req) < 0);
 	continue;
-#endif
+#else /* DEBUG_DISABLE_AUDIO_OUTPUT */
 	/*                        MULTITHREADING                         */
 	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
 	/* honestly half this file probably isn't strictly realtime-safe */
@@ -983,6 +983,38 @@ void *process(void *arg)
 	p->s->sprp = c0sprp;
 	p->s->spr = c0spr;
 
+	/* clear the master and send chain ports */
+	memset(p->s->masteroutput[0], 0, nfptr * sizeof(float));
+	memset(p->s->masteroutput[1], 0, nfptr * sizeof(float));
+	memset(p->s->sendoutput[0], 0, nfptr * sizeof(float));
+	memset(p->s->sendoutput[1], 0, nfptr * sizeof(float));
+
+	/* sum the output from each channel thread */
+	for (uint8_t c = 0; c < p->s->channel->c; c++)
+		if (p->s->channel->v[c].output[0] && p->s->channel->v[c].output[1])
+			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+			{
+				p->s->masteroutput[0][fptr] += p->s->channel->v[c].output[0][fptr] * p->s->channel->v[c].mainmult[0][fptr];
+				p->s->masteroutput[1][fptr] += p->s->channel->v[c].output[1][fptr] * p->s->channel->v[c].mainmult[1][fptr];
+				p->s->sendoutput[0][fptr] += p->s->channel->v[c].output[0][fptr] * p->s->channel->v[c].sendmult[0][fptr];
+				p->s->sendoutput[1][fptr] += p->s->channel->v[c].output[1][fptr] * p->s->channel->v[c].sendmult[1][fptr];
+			}
+
+	/* send chain */
+	for (uint8_t i = 0; i < p->s->send->c; i++)
+		runEffect(nfptr, p->s->send, &p->s->send->v[i]);
+	/* mix the send chain output into the master input */
+	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+	{
+		p->s->masteroutput[0][fptr] += p->s->sendoutput[0][fptr];
+		p->s->masteroutput[1][fptr] += p->s->sendoutput[1][fptr];
+	}
+
+	/* master chain */
+	for (uint8_t i = 0; i < p->s->master->c; i++)
+		runEffect(nfptr, p->s->master, &p->s->master->v[i]);
+#endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
+
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	if (p->w->previewchannel.samplernote != NOTE_VOID
@@ -998,14 +1030,11 @@ void *process(void *arg)
 		memset(pb.out.r, 0, nfptr * sizeof(jack_default_audio_sample_t));
 	}
 
-	/* sum the output from each channel thread */
-	for (uint8_t c = 0; c < p->s->channel->c; c++)
-		if (p->s->channel->v[c].output[0] && p->s->channel->v[c].output[1])
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-			{
-				pb.out.l[fptr] += p->s->channel->v[c].output[0][fptr] * p->s->channel->v[c].mainmult[0][fptr];
-				pb.out.r[fptr] += p->s->channel->v[c].output[1][fptr] * p->s->channel->v[c].mainmult[1][fptr];
-			}
+	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+	{
+		pb.out.l[fptr] += p->s->masteroutput[0][fptr];
+		pb.out.r[fptr] += p->s->masteroutput[1][fptr];
+	}
 
 	/* record */
 	if (p->w->instrumentrecv == INST_REC_LOCK_CONT

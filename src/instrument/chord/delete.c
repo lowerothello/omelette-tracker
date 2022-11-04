@@ -13,5 +13,5 @@ void setChordDeleteInstrument(void)
 	clearTooltip(&tt);
 	setTooltipTitle(&tt, "delete");
 	addTooltipBind(&tt, "delete instrument", 'd', chordDeleteInstrument, NULL);
-	w->chord = 'd';
+	w->chord = 'D';
 }

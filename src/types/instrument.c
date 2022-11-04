@@ -139,8 +139,12 @@ void __addInstrument(Instrument *iv, int8_t algorithm)
 	iv->envelope = 0x00f0;
 	iv->filtercutoff = 0xff;
 
+	iv->midi.channel = -1;
+
 	iv->granular.cyclelength = 0x3fff;
 	iv->granular.rampgrains = 8;
+	iv->granular.beatsensitivity = 0x80;
+	iv->granular.beatdecay = 0xff;
 
 	iv->output[0] =       calloc(buffersize, sizeof(float));
 	iv->output[1] =       calloc(buffersize, sizeof(float));
@@ -239,7 +243,8 @@ int delInstrument(uint8_t index)
 	size_t cutindex = s->instrument->i[index]; /* cast to void* later */
 
 	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c-1) * sizeof(Instrument));
-	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain)); /* copy just the header (.c and .i) */
+
+	memcpy(newinstrument->i, s->instrument->i, sizeof(uint8_t) * INSTRUMENT_MAX);
 
 
 	if (cutindex > 0)

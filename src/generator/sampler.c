@@ -90,7 +90,7 @@ void samplerProcess(uint8_t realinst, Channel *cv, float rp, uint32_t pointer, u
 			if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
 			minimalSamplerProcess(iv->sample, pitchedpointer, localsamplerate, iv->bitdepth, cv->samplernote, l, r);
 			break;
-		case INST_ALG_GRANULAR: granularProcess(iv, cv, rp, pointer, pitchedpointer, l, r); break;
+		case INST_ALG_CYCLIC:    cyclicProcess   (iv, cv, rp, pointer, pitchedpointer, l, r); break;
 		case INST_ALG_WAVETABLE: wavetableProcess(iv, cv, rp, pointer, pitchedpointer, l, r); break;
 	}
 

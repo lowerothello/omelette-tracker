@@ -68,20 +68,37 @@ void addTooltipBind(TooltipState *tt, char *prettyname, int keybind, void (*call
 	tt->entryc++;
 }
 
-void inputTooltip(TooltipState *tt, int input)
+bool inputTooltip(TooltipState *tt, int input)
 {
-	for (int i = 0; i < tt->entryc; i++)
+	switch (input) /* handle counts first */
 	{
-		if (tt->entryv[i].keybind == input)
-		{
-			if (tt->entryv[i].callback)
-				tt->entryv[i].callback(tt->entryv[i].arg);
-			return;
-		}
+		case '0': w->count *= 10; w->count += 0; return 1;
+		case '1': w->count *= 10; w->count += 1; return 1;
+		case '2': w->count *= 10; w->count += 2; return 1;
+		case '3': w->count *= 10; w->count += 3; return 1;
+		case '4': w->count *= 10; w->count += 4; return 1;
+		case '5': w->count *= 10; w->count += 5; return 1;
+		case '6': w->count *= 10; w->count += 6; return 1;
+		case '7': w->count *= 10; w->count += 7; return 1;
+		case '8': w->count *= 10; w->count += 8; return 1;
+		case '9': w->count *= 10; w->count += 9; return 1;
+		default:
+			w->count = MIN(256, w->count);
+
+			for (int i = 0; i < tt->entryc; i++)
+			{
+				if (tt->entryv[i].keybind == tolower(input)) /* TODO: tolower() should be opt in per control */
+				{
+					if (tt->entryv[i].callback)
+						tt->entryv[i].callback(tt->entryv[i].arg);
+					return 0;
+				}
+			} w->count = 0; break;
 	}
 
 	/* no callback triggered */
 	clearTooltip(tt);
+	return 0;
 }
 
 void drawTooltip(TooltipState *tt)

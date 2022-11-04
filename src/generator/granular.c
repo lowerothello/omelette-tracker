@@ -48,7 +48,7 @@ float semitoneShortToMultiplier(int16_t input)
 	else           return powf(M_12_ROOT_2, (input>>12)*12 + (input&0x0fff)*DIV256);
 }
 
-void granularProcess(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void cyclicProcess(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	uint32_t length = MIN(iv->trimlength, iv->sample->length-1 - iv->trimstart);
 	uint32_t loop   = MIN(iv->looplength, length);

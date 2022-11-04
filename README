@@ -5,21 +5,18 @@ omelette is a modern tracker for the terminal. it should compile and run on any
 POSIX compilant system, but i've only tested it on linux.
 
 
-features aren't set in stone, expect mods to be broken on new versions!
-from version 1.0 i'll try not to make as many breaking changes, but until then
-treat this as alpha software!
-
-doc/ has some documentation but it's very unfinished and not kept up to date
-very well, the only up-to-date source of info is the source code itself rn.
+don't expect files saved with the current version to not crash when tried with a
+newer version! the serialization code is awful currently
 
 src/lib/libdrawille: https://github.com/huulivoide/libdrawille
 
 DEPENDS:
-- JACK2                                 - audio input/output
-- libsndfile                            - file loading
-- libdrawille (included as a submodule) - waveform drawing
-- valgrind                              - set NO_VALGRIND in config.h to remove
-- ladspa                                - LADSPA plugin support
+- JACK2       - audio input/output
+- libsndfile  - file loading
+- valgrind    - set NO_VALGRIND in config.h to remove
+- ladspa      - LADSPA plugin support
+- lv2    }
+- lilv   }    - LV2 plugin support
 
 BUILD:
 $ git submodule init ; git submodule update  # fetch libdrawille

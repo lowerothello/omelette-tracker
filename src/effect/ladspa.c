@@ -5,12 +5,11 @@
 
 typedef struct
 {
-	size_t                    descc;
+	uint32_t                  descc;
 	const LADSPA_Descriptor **descv; /* LADSPA plugin descriptions */
-	size_t                    symbolc;
+	uint32_t                  symbolc;
 	void                    **symbolv; /* loaded soname symbol tables */
 } LadspaDB;
-
 LadspaDB ladspa_db;
 
 void initLadspaDB(void)
@@ -75,7 +74,7 @@ void initLadspaDB(void)
 			}
 		}
 	}
-	/* TODO: this realloc is bad and ugly */
+	/* TODO: this realloc is bad and ugly (and bad) */
 	ladspa_db.descv = realloc(ladspa_db.descv, ladspa_db.descc * sizeof(void *));
 
 	closedir(dir);
@@ -94,16 +93,16 @@ typedef struct
 {
 	const LADSPA_Descriptor *desc;
 	LADSPA_Handle            instance;
-	unsigned long            inputc;    /* input audio port count   */
-	unsigned long            outputc;   /* output audio port count  */
-	unsigned long            controlc;  /* input control port count */
-	LADSPA_Data             *controlv;  /* input control ports                 */
-	int8_t                  *controla;  /* control automation mapping          */
-	uint8_t                 *controlp;  /* control pretty printing pointer     */
-	unsigned long            uuid;      /* plugin id, not read from desc cos even if desc is null this needs to be serialized */
+	uint32_t                 inputc;   /* input audio port count   */
+	uint32_t                 outputc;  /* output audio port count  */
+	uint32_t                 controlc; /* input control port count */
+	LADSPA_Data             *controlv; /* input control ports                 */
+	LADSPA_Data             *dummyport;
+	unsigned long            uuid;     /* (TODO: use the plugin label instead?) plugin id, not read from desc cos even if desc is null this needs to be serialized */
 } LadspaState;
 
-unsigned long getLadspaEffectControlCount(Effect *e) { return ((LadspaState *)e->state)->controlc<<1; }
+uint32_t getLadspaEffectControlCount(Effect *e) { return ((LadspaState *)e->state)->controlc;     }
+short    getLadspaEffectHeight      (Effect *e) { return ((LadspaState *)e->state)->controlc + 3; }
 
 void freeLadspaEffect(Effect *e)
 {
@@ -113,94 +112,7 @@ void freeLadspaEffect(Effect *e)
 		s->desc->deactivate(s->instance);
 	s->desc->cleanup(s->instance);
 	if (s->controlv) free(s->controlv);
-	if (s->controla) free(s->controla);
-	if (s->controlp) free(s->controlp);
-}
-
-LADSPA_Data prettyPrintingToLadspaData(uint8_t data, LADSPA_PortRangeHint hint)
-{
-	LADSPA_Data ret = 0.0f;
-	if (LADSPA_IS_HINT_TOGGLED(hint.HintDescriptor))
-	{
-		if (data) return 1.0f;
-		else      return 0.0f;
-	} else if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor))
-	{
-		if (hint.LowerBound < 0.0f) return (int8_t)data;
-		else                        return data;
-	} else if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor))
-	{
-		/* offset signed values */
-		if (hint.LowerBound < 0.0f) ret = ((short)(int8_t)data + 128)*DIV255;
-		else                        ret = data*DIV255;
-
-		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -ret) + 1.0f) * M_1_OVER_0_9;
-		ret = hint.LowerBound*(1.0f - ret) + hint.UpperBound*ret;
-	} else /* assume data shold be between LADSPA_DEF_MIN and LADSPA_DEF_MAX */
-	{
-		ret = data*DIV255;
-		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) ret = (-powf(10.0f, -(ret * 0.9f)) + 1.0f);
-		ret = LADSPA_DEF_MIN + ret * LADSPA_DEF_MAX;
-	}
-
-	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor))
-		ret *= samplerate;
-
-	return ret;
-}
-short ladspaDataToPrettyPrinting(LADSPA_Data data, LADSPA_PortRangeHint hint)
-{
-	LADSPA_Data hold;
-	short ret;
-	if (LADSPA_IS_HINT_TOGGLED(hint.HintDescriptor)) {
-		if (data > 0.0f) return 1;
-		else             return 0;
-	} else if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor))
-		return data;
-
-	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) data /= samplerate;
-
-	if (LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor) && LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor))
-	{
-		hold = (data - hint.LowerBound) / (hint.UpperBound - hint.LowerBound);
-		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) hold = (-powf(10.0f, -hold) + 1.0f) * M_1_OVER_0_9;
-		ret = hold * 255.0f;
-
-		/* offset signed values */
-		if (hint.LowerBound < 0.0f) ret -= 128;
-	} else /* assume data is between LADSPA_DEF_MIN and LADSPA_DEF_MAX */
-	{
-		hold = (data - LADSPA_DEF_MIN) / (LADSPA_DEF_MAX - LADSPA_DEF_MIN);
-		// if (LADSPA_IS_HINT_LOGARITHMIC(hint.HintDescriptor)) hold = (-powf(10.0f, -hold) + 1.0f) * M_1_OVER_0_9;
-		ret = hold * 255.0f;
-	}
-
-	return ret;
-}
-
-/* apply adjustments to the real values */
-void _controlpToV(void *arg)
-{
-	LadspaState *s = arg;
-	unsigned long controlp = 0;
-	for (unsigned long i = 0; i < s->desc->PortCount; i++)
-		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
-		{
-			s->controlv[controlp] = prettyPrintingToLadspaData(s->controlp[controlp], s->desc->PortRangeHints[i]);
-			// s->controlp[controlp] = ladspaDataToPrettyPrinting(s->controlv[controlp], s->desc->PortRangeHints[i]);
-			controlp++;
-		}
-}
-/* apply real values to the adjustable memory */
-void _controlvToP(LadspaState *s)
-{
-	unsigned long controlp = 0;
-	for (unsigned long i = 0; i < s->desc->PortCount; i++)
-		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
-		{
-			s->controlp[controlp] = ladspaDataToPrettyPrinting(s->controlv[controlp], s->desc->PortRangeHints[i]);
-			controlp++;
-		}
+	if (s->dummyport) free(s->dummyport);
 }
 
 LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
@@ -210,7 +122,7 @@ LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
 	LADSPA_Data ret = hint.LowerBound;
 
 	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) ret *= samplerate;
-	if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor)) ret = (int)ret;
+	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret = floorf(ret);
 
 	return ret;
 }
@@ -221,7 +133,7 @@ LADSPA_Data getLadspaPortMax(LADSPA_PortRangeHint hint)
 	LADSPA_Data ret = hint.UpperBound;
 
 	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) ret *= samplerate;
-	if (LADSPA_IS_HINT_INTEGER(hint.HintDescriptor)) ret = (int)ret;
+	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret = floorf(ret);
 
 	return ret;
 }
@@ -229,7 +141,7 @@ LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
 {
 	if (!LADSPA_IS_HINT_HAS_DEFAULT(hint.HintDescriptor)) return 0.0f;
 
-	LADSPA_Data ret;
+	LADSPA_Data ret = 0.0f;
 
 	if (LADSPA_IS_HINT_DEFAULT_0(hint.HintDescriptor)) return 0.0f;
 	if (LADSPA_IS_HINT_DEFAULT_1(hint.HintDescriptor)) return 1.0f;
@@ -250,13 +162,16 @@ LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
 		else                                                 ret = hint.LowerBound*0.25f + hint.UpperBound*0.75f;
 	}
 
+	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) ret *= samplerate;
+	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret = floorf(ret);
+
 	if (LADSPA_IS_HINT_DEFAULT_100(hint.HintDescriptor)) ret = 100.0f;
 	if (LADSPA_IS_HINT_DEFAULT_440(hint.HintDescriptor)) ret = 440.0f;
 
 	return ret;
 }
 
-void _startLadspaEffect(EffectChain *chain, Effect *e)
+void startLadspaEffect(EffectChain *chain, Effect *e)
 {
 	LadspaState *s = e->state;
 
@@ -265,26 +180,30 @@ void _startLadspaEffect(EffectChain *chain, Effect *e)
 
 	/* iterate first to find the size of the control block */
 	s->controlc = 0;
-	for (unsigned long i = 0; i < s->desc->PortCount; i++)
+	for (uint32_t i = 0; i < s->desc->PortCount; i++)
 		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
 			s->controlc++;
 	/* allocate the control block */
 	bool setDefaults = 0; /* only set the defaults if memory isn't yet allocated */
 	if (!s->controlv) { s->controlv = calloc(s->controlc, sizeof(LADSPA_Data)); setDefaults = 1; }
-	if (!s->controla) { s->controla = calloc(s->controlc, sizeof(int8_t)); memset(s->controla, -1, s->controlc * sizeof(int8_t)); }
-	if (!s->controlp)   s->controlp = calloc(s->controlc, sizeof(uint8_t));
 
 	/* iterate again to connect ports */
-	unsigned long controlp = 0;
+	uint32_t controlp = 0;
 	s->inputc = 0;
 	s->outputc = 0;
-	for (unsigned long i = 0; i < s->desc->PortCount; i++)
+	for (uint32_t i = 0; i < s->desc->PortCount; i++)
 	{
-		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
+		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]))
 		{
-			s->desc->connect_port(s->instance, i, &s->controlv[controlp]);
-			if (setDefaults) s->controlv[controlp] = getLadspaPortDef(s->desc->PortRangeHints[i]);
-			controlp++;
+			if (LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
+			{
+				s->desc->connect_port(s->instance, i, &s->controlv[controlp]);
+				if (setDefaults) s->controlv[controlp] = getLadspaPortDef(s->desc->PortRangeHints[i]);
+				controlp++;
+			} else /* TODO: output controls are currently ignored */
+			{
+				s->desc->connect_port(s->instance, i, s->dummyport);
+			}
 		} else if (LADSPA_IS_PORT_AUDIO(s->desc->PortDescriptors[i]))
 		{
 			if (LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
@@ -296,7 +215,7 @@ void _startLadspaEffect(EffectChain *chain, Effect *e)
 
 					s->inputc++;
 				}
-			} else if (LADSPA_IS_PORT_OUTPUT(s->desc->PortDescriptors[i]))
+			} else /* implies output */
 			{
 				if (s->outputc < 2)
 				{
@@ -309,17 +228,18 @@ void _startLadspaEffect(EffectChain *chain, Effect *e)
 		}
 	}
 
-	_controlvToP(s);
-
 	if (s->desc->activate)
 		s->desc->activate(s->instance);
 }
 
 void initLadspaEffect(EffectChain *chain, Effect *e, const LADSPA_Descriptor *desc)
 {
+	e->type = EFFECT_TYPE_LADSPA;
 	e->state = calloc(1, sizeof(LadspaState));
 	((LadspaState *)e->state)->desc = desc;
-	_startLadspaEffect(chain, e);
+	((LadspaState *)e->state)->dummyport = malloc(sizeof(LADSPA_Data) * samplerate);
+
+	startLadspaEffect(chain, e);
 }
 
 void copyLadspaEffect(EffectChain *destchain, Effect *dest, Effect *src)
@@ -329,33 +249,29 @@ void copyLadspaEffect(EffectChain *destchain, Effect *dest, Effect *src)
 	LadspaState *s_dest = dest->state;
 
 	memcpy(s_dest->controlv, s_src->controlv, s_src->controlc * sizeof(LADSPA_Data));
-	_controlvToP(s_dest);
 }
 
 void serializeLadspaEffect(Effect *e, FILE *fp)
 {
 	LadspaState *s = e->state;
 
-	fwrite(&s->uuid, sizeof(unsigned long), 1, fp);
-	fwrite(&s->controlc, sizeof(unsigned long), 1, fp);
+	fwrite(&s->uuid, sizeof(uint32_t), 1, fp);
+	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
 	fwrite(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
-	fwrite(s->controla, sizeof(int8_t), s->controlc, fp);
 }
 void deserializeLadspaEffect(EffectChain *chain, Effect *e, FILE *fp)
 {
+	e->state = calloc(1, sizeof(LadspaState));
 	LadspaState *s = e->state;
 
-	fread(&s->uuid, sizeof(unsigned long), 1, fp);
-	fread(&s->controlc, sizeof(unsigned long), 1, fp);
+	fread(&s->uuid, sizeof(uint32_t), 1, fp);
+	fread(&s->controlc, sizeof(uint32_t), 1, fp);
 	s->controlv = calloc(s->controlc, sizeof(LADSPA_Data));
 	fread(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
-	fread(s->controla, sizeof(int8_t), s->controlc, fp);
 
-	/* TODO: loop up desc */
-	_startLadspaEffect(chain, e);
+	/* TODO: look up desc based on uuid */
+	startLadspaEffect(chain, e);
 }
-
-short getLadspaEffectHeight(Effect *e, short w) { return ((LadspaState *)e->state)->controlc + 3; }
 
 void drawLadspaEffect(Effect *e, ControlState *cc,
 		short x, short w,
@@ -363,50 +279,24 @@ void drawLadspaEffect(Effect *e, ControlState *cc,
 {
 	LadspaState *s = e->state;
 
-	if (ymin <= y && ymax >= y) printf("\033[%d;%dH%.*s", y, MAX(x + 1, x + ((w - (short)strlen(s->desc->Name))>>1)), w - 2, s->desc->Name);
+	if (ymin <= y && ymax >= y)
+	{
+		printf("\033[1m");
+		drawCentreText(x+2, y, w-4, s->desc->Name);
+		printf("\033[22m");
+	}
 
-	unsigned long controlp = 0;
-	for (unsigned long i = 0; i < s->desc->PortCount; i++)
+	uint32_t controlp = 0;
+	for (uint32_t i = 0; i < s->desc->PortCount; i++)
 		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
 		{
-			if (ymin <= y+1 + controlp && ymax >= y+1 + controlp)
-			{
-				printf("\033[%ld;%dH%.*s", y+1 + controlp, x + 1, w - 20, s->desc->PortNames[i]);
-				printf("\033[%ld;%dH%f", y+1 + controlp, x + w - 18, s->controlv[controlp]);
-
-				if (LADSPA_IS_HINT_TOGGLED(s->desc->PortRangeHints[i].HintDescriptor))
-				{
-					printf("\033[%ld;%dH[ ]", y+1 + controlp, x + w - 7);
-					addControl(cc, x + w - 6, y+1 + controlp, &s->controlp[controlp], 0, 0, 1,
-							ladspaDataToPrettyPrinting(getLadspaPortDef(s->desc->PortRangeHints[i]), s->desc->PortRangeHints[i]),
-							0, _controlpToV, s);
-				} else if (LADSPA_IS_HINT_BOUNDED_BELOW(s->desc->PortRangeHints[i].HintDescriptor)
-						&& LADSPA_IS_HINT_BOUNDED_ABOVE(s->desc->PortRangeHints[i].HintDescriptor)
-						&& s->desc->PortRangeHints[i].LowerBound < 0.0f)
-				{ /* signed */
-					printf("\033[%ld;%dH[   ]", y+1 + controlp, x + w - 9);
-					addControl(cc, x + w - 8, y+1 + controlp, &s->controlp[controlp], 3,
-							ladspaDataToPrettyPrinting(s->desc->PortRangeHints[i].LowerBound, s->desc->PortRangeHints[i]),
-							ladspaDataToPrettyPrinting(s->desc->PortRangeHints[i].UpperBound, s->desc->PortRangeHints[i]),
-							ladspaDataToPrettyPrinting(getLadspaPortDef(s->desc->PortRangeHints[i]), s->desc->PortRangeHints[i]),
-							0, _controlpToV, s);
-				} else
-				{ /* unsigned */
-					printf("\033[%ld;%dH[  ]", y+1 + controlp, x + w - 8);
-					addControl(cc, x + w - 7, y+1 + controlp, &s->controlp[controlp], 2,
-							ladspaDataToPrettyPrinting(getLadspaPortMin(s->desc->PortRangeHints[i]), s->desc->PortRangeHints[i]),
-							ladspaDataToPrettyPrinting(getLadspaPortMax(s->desc->PortRangeHints[i]), s->desc->PortRangeHints[i]),
-							ladspaDataToPrettyPrinting(getLadspaPortDef(s->desc->PortRangeHints[i]), s->desc->PortRangeHints[i]),
-							0, _controlpToV, s);
-				}
-
-				printf("\033[%ld;%dH[ ]", y+1 + controlp, x + w - 4);
-				addControl(cc, x + w - 3, y+1 + controlp, &s->controla[controlp], 1, -1, 15, -1, 0, NULL, NULL);
-			} else
-			{
-				addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
-				addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
-			}
+			drawAutogenPluginLine(cc, x, y+1 + controlp, w, ymin, ymax,
+					s->desc->PortNames[i], &s->controlv[controlp],
+					LADSPA_IS_HINT_TOGGLED(s->desc->PortRangeHints[i].HintDescriptor),
+					LADSPA_IS_HINT_INTEGER(s->desc->PortRangeHints[i].HintDescriptor),
+					getLadspaPortMin(s->desc->PortRangeHints[i]),
+					getLadspaPortMax(s->desc->PortRangeHints[i]),
+					getLadspaPortDef(s->desc->PortRangeHints[i]));
 
 			controlp++;
 		}

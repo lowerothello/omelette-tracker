@@ -2,7 +2,6 @@
 
 #define E_E_GRAPH_ROWS 4
 #define E_E_GRAPH_CELLS 34
-const uint8_t equalizerControlCount = 4 * E_E_BANDS;
 
 #define E_E_MODE_PEAK 0
 #define E_E_MODE_LOW  1
@@ -22,41 +21,41 @@ typedef struct
 
 	/* for the time being this is hardcoded to 34cols wide */
 	// ((EqualizerState *)e->state)->canvas = new_canvas(34<<1, 4<<2);
-void initEqualizer(Effect *e)
+void initEqualizer(void **instance)
 {
-	e->state = calloc(1, sizeof(EqualizerState));
+	*instance = calloc(1, sizeof(EqualizerState));
 	for (int i = 0; i < E_E_BANDS; i++)
 	{
-		((EqualizerState *)e->state)->band[i].frequency = 256/E_E_BANDS * i + 128/E_E_BANDS;
-		((EqualizerState *)e->state)->band[i].resonance = 0x7f;
+		((EqualizerState *)*instance)->band[i].frequency = 256/E_E_BANDS * i + 128/E_E_BANDS;
+		((EqualizerState *)*instance)->band[i].resonance = 0x7f;
 	}
 }
-void copyEqualizer(Effect *dest, Effect *src)
+void freeEqualizer(void **instance) { free(*instance); *instance = NULL; }
+
+void copyEqualizer(void **dest, void **src)
 {
 	initEqualizer(dest);
-	memcpy(dest->state, src->state, sizeof(DistortionState));
+	memcpy(*dest, *src, sizeof(DistortionState));
 }
 
-void serializeEqualizer(Effect *e, FILE *fp)
+void serializeEqualizer(void **instance, FILE *fp)
 {
-	fwrite(e->state, sizeof(EqualizerState), 1, fp);
+	fwrite(*instance, sizeof(EqualizerState), 1, fp);
 }
-void deserializeEqualizer(Effect *e, FILE *fp)
+void deserializeEqualizer(void **instance, FILE *fp)
 {
-	initEqualizer(e);
-	fread(e->state, sizeof(EqualizerState), 1, fp);
+	initEqualizer(instance);
+	fread(*instance, sizeof(EqualizerState), 1, fp);
 }
-
-short getEqualizerHeight(Effect *e, short w) { return E_E_GRAPH_ROWS + 7; }
 
 #define E_E_GRAPH_Q_WIDTH_MOD 0.078125f
 #define E_E_GRAPH_GAIN_MOD ((E_E_GRAPH_ROWS<<2)*DIV256)
 // #define E_E_GRAPH_ENABLE
-void drawEqualizer(Effect *e, ControlState *cc,
+void drawEqualizer(void **instance, ControlState *cc,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
-	EqualizerState *s = (EqualizerState *)e->state;
+	EqualizerState *s = *instance;
 
 	const char *text = "# EQUALIZER #";
 	if (ymin <= y+0 && ymax >= y+0) printf("\033[%d;%dH\033[1m%s\033[22m", y+0, x + ((w-(short)strlen(text))>>1), text);
@@ -123,10 +122,11 @@ void drawEqualizer(Effect *e, ControlState *cc,
 	free_buffer(buffer);
 #endif
 
-	short xx;
 	ColumnState cs; resetColumn(&cs, w);
 	for (int i = 0; i < E_E_BANDS; i++)
 		addColumn(&cs, 7);
+
+	short xx;
 	for (int i = 0; i < E_E_BANDS; i++)
 	{
 		xx = x + getNextColumnOffset(&cs);
@@ -134,37 +134,37 @@ void drawEqualizer(Effect *e, ControlState *cc,
 		if (ymin <= y+E_E_GRAPH_ROWS+1 && ymax >= y+E_E_GRAPH_ROWS+1)
 		{
 			printf("\033[%d;%dH%d: [  ]", y+E_E_GRAPH_ROWS+1, xx, i);
-			addControl(cc, xx+4, y+E_E_GRAPH_ROWS+1, &s->band[i].frequency, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+4, y+E_E_GRAPH_ROWS+1, &s->band[i].frequency, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
+		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+2 && ymax >= y+E_E_GRAPH_ROWS+2)
 		{
 			printf("\033[%d;%dHM[    ]", y+E_E_GRAPH_ROWS+2, xx);
-			addControl(cc, xx+2, y+E_E_GRAPH_ROWS+2, &s->band[i].mode, 1, 0, 3, 0, 5, NULL, NULL);
+			addControlInt(cc, xx+2, y+E_E_GRAPH_ROWS+2, &s->band[i].mode, 1, 0, 3, 0, 5, NULL, NULL);
 				setControlPrettyName(cc, "PEAK");
 				setControlPrettyName(cc, " LOW");
 				setControlPrettyName(cc, "HIGH");
 				setControlPrettyName(cc, "BAND");
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+3 && ymax >= y+E_E_GRAPH_ROWS+3)
 		{
 			printf("\033[%d;%dHG:[   ]", y+E_E_GRAPH_ROWS+3, xx);
-			addControl(cc, xx+3, y+E_E_GRAPH_ROWS+3, &s->band[i].gain, 3, -128, 127, 0, 0, NULL, NULL);
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+3, y+E_E_GRAPH_ROWS+3, &s->band[i].gain, 3, -128, 127, 0, 0, NULL, NULL);
+		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+4 && ymax >= y+E_E_GRAPH_ROWS+4)
 		{
 			printf("\033[%d;%dHQ: [  ]", y+E_E_GRAPH_ROWS+4, xx);
-			addControl(cc, xx+4, y+E_E_GRAPH_ROWS+4, &s->band[i].resonance, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
-		} else addControl(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+4, y+E_E_GRAPH_ROWS+4, &s->band[i].resonance, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
+		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
 	}
 }
 
 #define E_E_GAIN_SCALE 8.0f
-void runEqualizer(uint32_t samplecount, EffectChain *chain, Effect *e)
+void runEqualizer(uint32_t samplecount, EffectChain *chain, void **instance)
 {
-	EqualizerState *s = (EqualizerState *)e->state;
+	EqualizerState *s = *instance;
 	float gain;
 
 	for (uint32_t fptr = 0; fptr < samplecount; fptr++)
@@ -183,4 +183,27 @@ void runEqualizer(uint32_t samplecount, EffectChain *chain, Effect *e)
 				case E_E_MODE_BAND: chain->input[0][fptr]  = s->band[i].filter[0].b;        chain->input[1][fptr]  = s->band[i].filter[1].b;        break;
 			}
 		}
+}
+
+NATIVE_Descriptor *equalizerDescriptor(void)
+{
+	NATIVE_Descriptor *ret = malloc(sizeof(NATIVE_Descriptor));
+
+	ret->controlc = 4 * E_E_BANDS;
+	ret->height   = E_E_GRAPH_ROWS + 7;
+
+	const char name[] = "omuQ";
+	const char author[] = "lib";
+	ret->name = malloc((strlen(name)+1) * sizeof(char)); strcpy(ret->name, name);
+	ret->author = malloc((strlen(author)+1) * sizeof(char)); strcpy(ret->author, author);
+
+	ret->init = initEqualizer;
+	ret->free = freeEqualizer;
+	ret->copy = copyEqualizer;
+	ret->serialize = serializeEqualizer;
+	ret->deserialize = deserializeEqualizer;
+	ret->draw = drawEqualizer;
+	ret->run = runEqualizer;
+
+	return ret;
 }

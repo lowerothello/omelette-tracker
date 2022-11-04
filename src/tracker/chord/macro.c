@@ -12,8 +12,7 @@ void chordDelMacro(void *_)
 		if (s->channel->v[w->channel].data.macroc) s->channel->v[w->channel].data.macroc--;
 		if (w->trackerfx > 3 + s->channel->v[w->channel].data.macroc*2)
 			w->trackerfx = 3 + s->channel->v[w->channel].data.macroc*2;
-	}
-	regenGlobalRowc(s);
+	} regenGlobalRowc(s);
 }
 void chordSetMacro(void *_)
 {

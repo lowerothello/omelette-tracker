@@ -20,7 +20,7 @@
  *   removes the dependancy on valgrind by not including
  *   valgrind/valgrind.h, might cause lots of messages to
  *   be printed to stderr when running under valgrind due
- *   to valgrind's scheduler not supporting realtime
+ *   to valgrind's scheduler not understanding realtime
  *   priority threads (or multithreading at all).
  */
 // #define NO_VALGRIND
@@ -29,7 +29,7 @@
  *   executes all channel processing in a single thread
  *   instead of spawning a thread for each channel.
  */
-// #define NO_MULTITHREADING
+#define NO_MULTITHREADING
 
 /* filebrowser starting dir */
 #define SAMPLES_DIR "/media/prod"
@@ -50,7 +50,11 @@
  *   input. in nanoseconds, one million nanoseconds per milisecond.
  */
 
-#define UPDATE_DELAY 10000000
+#define UPDATE_DELAY 10000000 /* max: 100fps */
+
+/* like UPDATE_DELAY but for work threads */
+#define WORK_UPDATE_DELAY 10
+#define WORK_BLOCK_SIZE 100
 
 /* new file bpm */
 #define DEF_BPM 125

@@ -8,7 +8,14 @@ void common_cleanup(int ret)
 	clearControls(&cc);
 	clearTooltip(&tt);
 
+	freeFileBrowser(fbstate);
+	free(fbstate);
+	freePluginBrowser(pbstate);
+	free(pbstate);
+
+	freeNativeDB();
 	freeLadspaDB();
+	freeLV2DB();
 
 	fcntl(0, F_SETFL, 0); /* reset to blocking stdin reads */
 	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
@@ -47,7 +54,6 @@ void cleanup(int ret)
 	{
 		_delInstrument(&w->instrumentbuffer);
 
-		if (w->dir) closedir(w->dir);
 		if (w->recbuffer) free(w->recbuffer);
 		if (w->waveformcanvas) free_canvas(w->waveformcanvas);
 		if (w->waveformbuffer) free_buffer(w->waveformbuffer);
@@ -87,12 +93,9 @@ void init(int argc, char **argv)
 
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking reads */
 
-	/* trap signals */
-	signal(SIGINT, SIG_IGN);
-	signal(SIGTERM, &cleanup);
-	signal(SIGWINCH, &sigwinch);
-
+	initNativeDB();
 	initLadspaDB();
+	initLV2DB();
 
 	/* jack stuffs */
 	p = malloc(sizeof(PlaybackInfo));
@@ -145,18 +148,8 @@ void init(int argc, char **argv)
 	pthread_create(&dummyprocessthread, NULL, process, p);
 #endif
 
-
-#ifdef SAMPLES_DIR
-	strcpy(w->dirpath, SAMPLES_DIR);
-#else
-	getcwd(w->dirpath, sizeof(w->dirpath));
-#endif
-
-	ioctl(1, TIOCGWINSZ, &ws);
-	w->dirx = w->diry = 0;
-	w->dirh = ws.ws_row - 1;
-	w->dirw = ws.ws_col;
-	changeDirectory();
+	fbstate = initFileBrowser(SAMPLES_DIR, sampleLoadCallback);
+	pbstate = initPluginBrowser();
 
 	if (argc > 1)
 	{
@@ -166,6 +159,11 @@ void init(int argc, char **argv)
 		e.callback = cb_reloadFile;
 		pushEvent(&e);
 	} else reapplyBpm(); /* implied by the other branch */
+
+	/* trap signals */
+	signal(SIGINT, SIG_IGN);
+	signal(SIGTERM, &cleanup);
+	signal(SIGWINCH, &sigwinch);
 
 	p->resize = 1;
 }

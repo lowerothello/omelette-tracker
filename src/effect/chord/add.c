@@ -14,38 +14,6 @@ void effectAddDistortionBefore(void *chain) { effectAddTypeBefore((EffectChain *
 void effectAddEqualizerAfter (void *chain) { effectAddTypeAfter ((EffectChain **)chain, 2); }
 void effectAddEqualizerBefore(void *chain) { effectAddTypeBefore((EffectChain **)chain, 2); }
 
-void effectAddExternalAfter(void *chain)
-{
-	w->pluginbrowserbefore = 0;
-	switch (w->page)
-	{
-		case PAGE_CHANNEL_EFFECT:
-			w->page = PAGE_CHANNEL_EFFECT_PLUGINBROWSER;
-			w->pluginbrowserchain = &s->channel->v[w->channel].data.effect;
-			break;
-		case PAGE_INSTRUMENT_EFFECT:
-			w->page = PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER;
-			w->pluginbrowserchain = &s->instrument->v[w->channel].effect;
-			break;
-	} p->redraw = 1;
-}
-void effectAddExternalBefore(void *chain)
-{
-	w->pluginbrowserbefore = 1;
-	switch (w->page)
-	{
-		case PAGE_CHANNEL_EFFECT:
-			w->page = PAGE_CHANNEL_EFFECT_PLUGINBROWSER;
-			w->pluginbrowserchain = &s->channel->v[w->channel].data.effect;
-			break;
-		case PAGE_INSTRUMENT_EFFECT:
-			w->page = PAGE_INSTRUMENT_EFFECT_PLUGINBROWSER;
-			w->pluginbrowserchain = &s->instrument->v[w->channel].effect;
-			break;
-	} p->redraw = 1;
-}
-
-
 void setChordAddEffect(EffectChain **chain)
 {
 	clearTooltip(&tt);

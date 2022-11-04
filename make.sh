@@ -10,6 +10,7 @@ run() {
 	run gcc -o omelette -O0 \
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
+		$(pkg-config --libs --cflags lilv-0) \
 		-lm -Wall -g -pg \
 		src/main.c lib/libdrawille/src/liblibdrawille.a
 	return
@@ -20,6 +21,7 @@ run() {
 	run ${CC:-gcc} -o omelette -O$1 \
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
+		$(pkg-config --libs --cflags lilv-0) \
 		-lm -Wall -g \
 		src/main.c lib/libdrawille/src/liblibdrawille.a
 	return
@@ -29,5 +31,6 @@ echo -e "\033[7m dev build (${CC:-tcc}) \033[27m"
 run ${CC:-tcc} -o omelette -O0 \
 	$(pkg-config --libs --cflags jack) \
 	$(pkg-config --libs --cflags sndfile) \
+		$(pkg-config --libs --cflags lilv-0) \
 	-lm -Wall -g \
 	src/main.c lib/libdrawille/src/liblibdrawille.a

@@ -3,7 +3,8 @@
 
 void trackerInput(int input)
 {
-	int button, x, y, i;
+	int button, x, y, i, j;
+	short chanw;
 	ChannelData *cd = &s->channel->v[w->channel].data;
 	switch (input)
 	{
@@ -14,9 +15,9 @@ void trackerInput(int input)
 					previewNote(' ', INST_VOID);
 					switch (getchar())
 					{
-						case 'P': /* xterm f1 */ showTracker(); break;
+						case 'P': /* xterm f1 */ showTracker   (); break;
 						case 'Q': /* xterm f2 */ showInstrument(); break;
-						case 'S': /* xterm f4 */ showMaster(); break;
+						case 'R': /* xterm f3 */ showMaster    (); break;
 					} p->redraw = 1; break;
 				case '[': /* CSI */
 					previewNote(' ', INST_VOID);
@@ -25,15 +26,15 @@ void trackerInput(int input)
 						case '[':
 							switch (getchar())
 							{
-								case 'A': /* linux f1 */ showTracker(); break;
+								case 'A': /* linux f1 */ showTracker   (); break;
 								case 'B': /* linux f2 */ showInstrument(); break;
-								case 'D': /* linux f4 */ showMaster(); break;
+								case 'C': /* linux f3 */ showMaster    (); break;
 								case 'E': /* linux f5 */ leaveSpecialModes(); startPlayback(); break;
 							} p->redraw = 1; break;
-						case 'A': /* up arrow    */ trackerUpArrow  (1); p->redraw = 1; break;
-						case 'B': /* down arrow  */ trackerDownArrow(1); p->redraw = 1; break;
-						case 'D': /* left arrow  */ trackerLeftArrow (); p->redraw = 1; break;
-						case 'C': /* right arrow */ trackerRightArrow(); p->redraw = 1; break;
+						case 'A': /* up arrow    */ trackerUpArrow  (MAX(1, w->count)); p->redraw = 1; break;
+						case 'B': /* down arrow  */ trackerDownArrow(MAX(1, w->count)); p->redraw = 1; break;
+						case 'D': /* left arrow  */ trackerLeftArrow (MAX(1, w->count)); p->redraw = 1; break;
+						case 'C': /* right arrow */ trackerRightArrow(MAX(1, w->count)); p->redraw = 1; break;
 						case '1': /* mod+arrow / f5 - f8 */
 							switch (getchar())
 							{
@@ -45,16 +46,16 @@ void trackerInput(int input)
 										case '5': /* ctrl+arrow */
 											switch (getchar())
 											{
-												case 'D': /* left  */ channelLeft (); p->redraw = 1; break;
-												case 'C': /* right */ channelRight(); p->redraw = 1; break;
-												case 'A': /* up    */ cycleUp  (); p->redraw = 1; break;
-												case 'B': /* down  */ cycleDown(); p->redraw = 1; break;
+												case 'D': /* left  */ channelLeft (MAX(1, w->count)); p->redraw = 1; break;
+												case 'C': /* right */ channelRight(MAX(1, w->count)); p->redraw = 1; break;
+												case 'A': /* up    */ cycleUp  (MAX(1, w->count)); p->redraw = 1; break;
+												case 'B': /* down  */ cycleDown(MAX(1, w->count)); p->redraw = 1; break;
 											} break;
 										case '2': /* shift+arrow */
 											switch (getchar())
 											{
-												case 'A': /* up    */ shiftUp  (); p->redraw = 1; break;
-												case 'B': /* down  */ shiftDown(); p->redraw = 1; break;
+												case 'A': /* up    */ shiftUp  (MAX(1, w->count)); p->redraw = 1; break;
+												case 'B': /* down  */ shiftDown(MAX(1, w->count)); p->redraw = 1; break;
 											} break;
 										default: getchar(); break;
 									} break;
@@ -62,8 +63,26 @@ void trackerInput(int input)
 							} break;
 						case 'H': /* xterm home */ trackerHome(); p->redraw = 1; break;
 						case '4': /* end        */ if (getchar() == '~') { trackerEnd(); p->redraw = 1; } break;
-						case '5': /* page up    */ trackerUpArrow  (s->rowhighlight); getchar(); p->redraw = 1; break;
-						case '6': /* page down  */ trackerDownArrow(s->rowhighlight); getchar(); p->redraw = 1; break;
+						case '5': /* page up / shift+scrollup */
+							switch (getchar())
+							{
+								case '~': /* page up */ trackerPgUp(1); p->redraw = 1; break;
+								case ';': /* shift+scrollup */
+									getchar(); /* 2 */
+									getchar(); /* ~ */
+									// trackerPgUp(1);
+									p->redraw = 1; break;
+							} break;
+						case '6': /* page dn / shift+scrolldn */
+							switch (getchar())
+							{
+								case '~': /* page dn */ trackerPgDn(1); p->redraw = 1; break;
+								case ';': /* shift+scrolldn */
+									getchar(); /* 2 */
+									getchar(); /* ~ */
+									// trackerPgDn(1);
+									p->redraw = 1; break;
+							} break;
 						case 'M': /* mouse */
 							button = getchar();
 							x = getchar() - 32;
@@ -72,7 +91,7 @@ void trackerInput(int input)
 							short oldtrackerfx = w->trackerfx;
 							uint8_t oldchannel = w->channel;
 
-							short tx = 1 + CHANNEL_LINENO_COLS + 2 + genSfx();
+							short tx = 1 + CHANNEL_LINENO_COLS + 2 + genSfx(CHANNEL_LINENO_COLS);
 
 							switch (button)
 							{
@@ -80,25 +99,15 @@ void trackerInput(int input)
 								case BUTTON3_HOLD: case BUTTON3_HOLD_CTRL:
 									break;
 								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
-									if (w->channeloffset < 0)
-									{
-										if (-w->channeloffset > w->channel) w->channel = 0;
-										else                                w->channel += w->channeloffset;
-									} else
-									{
-										if (w->channeloffset > s->channel->c-1 - w->channel) w->channel = s->channel->c-1;
-										else                                                 w->channel += w->channeloffset;
-									}
-									if (w->fyoffset < 0)
-									{
-										if (-w->fyoffset > w->trackerfy) w->trackerfy = 0;
-										else                             w->trackerfy += w->fyoffset;
-									} else
-									{
-										if (w->fyoffset > s->songlen-1 - w->trackerfy) w->trackerfy = s->songlen-1;
-										else                                           w->trackerfy += w->fyoffset;
-									}
-									w->fyoffset = w->channeloffset = w->fieldpointer = 0;
+									if      (w->channeloffset < 0) channelLeft (-w->channeloffset);
+									else if (w->channeloffset > 0) channelRight( w->channeloffset);
+
+									if      (w->fyoffset < 0) trackerUpArrow  (-w->fyoffset);
+									else if (w->fyoffset > 0) trackerDownArrow( w->fyoffset);
+
+									if      (w->shiftoffset < 0) shiftUp  (-w->shiftoffset);
+									else if (w->shiftoffset > 0) shiftDown( w->shiftoffset);
+									w->fyoffset = w->shiftoffset = w->channeloffset = w->fieldpointer = 0;
 
 									switch (w->mode)
 									{ /* leave mouseadjust mode */
@@ -133,8 +142,8 @@ void trackerInput(int input)
 
 													for (i = 0; i < s->channel->c; i++)
 													{
-														tx += CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.macroc+1);
-														if (i == s->channel->c-1 || tx > x) /* clicked on the tracker row or out of range */
+														chanw = CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.macroc+1);
+														if (i == s->channel->c-1 || tx+chanw > x) /* clicked on channel i */
 														{
 															if (button == BUTTON1_CTRL) { w->step = MIN(15, abs(y - w->centre)); break; }
 
@@ -144,7 +153,7 @@ void trackerInput(int input)
 																	if (w->mode != T_MODE_INSERT) /* suggest normal mode, but allow insert */
 																		w->mode = T_MODE_NORMAL;
 																	break;
-																case BUTTON3: case BUTTON3_CTRL:
+																case BUTTON3:
 																	if (!(w->mode == T_MODE_VISUAL || w->mode == T_MODE_VISUALLINE || w->mode == T_MODE_VISUALREPLACE))
 																	{
 																		w->visualfx = tfxToVfx(oldtrackerfx);
@@ -153,31 +162,34 @@ void trackerInput(int input)
 																		w->mode = T_MODE_VISUAL;
 																	} break;
 															}
-															if (tx-x < 3) /* clicked out of range, on the star column */
+															if (x-tx < CHANNEL_TRIG_COLS-1) /* vtrig column */
+															{
+																w->trackerfx = -1;
+																if (x-tx < 2) w->fieldpointer = 1;
+																else          w->fieldpointer = 0;
+															} else if (x-tx < CHANNEL_TRIG_COLS + 3) /* note column */
+																w->trackerfx = 0;
+															else if (x-tx < CHANNEL_TRIG_COLS + 6) /* inst column */
+															{
+																w->trackerfx = 1;
+																if (x-tx < CHANNEL_TRIG_COLS + 5) w->fieldpointer = 1;
+																else                              w->fieldpointer = 0;
+															} else if (x-tx > CHANNEL_TRIG_COLS + 5 + 4*(s->channel->v[i].data.macroc+1)) /* star column */
 															{
 																w->trackerfx = 3;
 																w->fieldpointer = 0;
-															} else if (tx-x < 3 + 4*(s->channel->v[i].data.macroc+1)) /* a macro column was clicked */
+															} else /* macro column */
 															{
-																if (((tx-x - 1)>>1)&0x1) w->trackerfx = ((tx-x - 1)>>1) + 2;
-																else                     w->trackerfx = ((tx-x - 1)>>1);
-																if (((tx-x - 1) - 1) % 2) w->fieldpointer = 0;
-																else                      w->fieldpointer = 1;
-															} else if (tx-x < 6 + 4*(s->channel->v[i].data.macroc+1))
-															{
-																w->trackerfx = 1;
-																if (tx-x < 4 + 4*(s->channel->v[i].data.macroc+1)) w->fieldpointer = 0;
-																else                                               w->fieldpointer = 1;
-															} else if (tx-x < 10 + 4*(s->channel->v[i].data.macroc+1)) w->trackerfx = 0;
-															else
-															{
-																w->trackerfx = -1;
-																if (tx-x < 12 + 4*(s->channel->v[i].data.macroc+1)) w->fieldpointer = 0;
-																else                                                w->fieldpointer = 1;
+																j = x-tx - (CHANNEL_TRIG_COLS + 6);
+																if ((j>>1)&0x1) w->trackerfx = 3 + ((s->channel->v[i].data.macroc - (j>>2))<<1)+0;
+																else            w->trackerfx = 3 + ((s->channel->v[i].data.macroc - (j>>2))<<1)-1;
+																if (j&0x1) w->fieldpointer = 0;
+																else       w->fieldpointer = 1;
 															}
 
-															w->fyoffset = y - w->centre;
 															w->channeloffset = i - w->channel;
+															if (button == BUTTON3_CTRL) w->shiftoffset = y - w->centre;
+															else                        w->fyoffset    = y - w->centre;
 
 															if (button == BUTTON2 || button == BUTTON2_CTRL)
 															{
@@ -201,13 +213,14 @@ void trackerInput(int input)
 																w->mousex = x;
 															} break;
 														}
+														tx += chanw;
 													}
 											} break;
 										case PAGE_CHANNEL_EFFECT:
 											switch (button)
 											{
-												case WHEEL_UP: case WHEEL_UP_CTRL:     effectCtrlUpArrow  (cd->effect, 1); break;
-												case WHEEL_DOWN: case WHEEL_DOWN_CTRL: effectCtrlDownArrow(cd->effect, 1); break;
+												case WHEEL_UP: case WHEEL_UP_CTRL:     effectPgUp(cd->effect, 1); break;
+												case WHEEL_DOWN: case WHEEL_DOWN_CTRL: effectPgDn(cd->effect, 1); break;
 												default:
 													if (button != BUTTON1_HOLD && button != BUTTON1_HOLD_CTRL)
 														if (trackerMouseHeader(button, x, y, &tx)) break;
@@ -248,11 +261,43 @@ void trackerInput(int input)
 					p->redraw = 1; break;
 			} break;
 		default:
-			switch (w->page)
+			if (w->chord == 'I')
+			{ /* macro insert edge case */
+				changeMacro(input, &w->keyboardmacro, &w->keyboardmacroalt, 0);
+				w->mode = T_MODE_INSERT;
+			} else if (w->chord)
 			{
-				case PAGE_CHANNEL_VARIANT: if (inputChannelVariant(input)) return; break;
-				case PAGE_CHANNEL_EFFECT:  if (inputChannelEffect(cd, input)) return; break;
-			}
+				p->redraw = 1;
+				if (inputTooltip(&tt, input)) return;
+			} else
+			{
+				if (w->mode != T_MODE_INSERT && w->mode != T_MODE_VISUALREPLACE)
+					switch (input) /* handle counts and insrument macros if allowed */
+					{
+						case '0': w->count *= 10; w->count += 0; p->redraw = 1; return;
+						case '1': w->count *= 10; w->count += 1; p->redraw = 1; return;
+						case '2': w->count *= 10; w->count += 2; p->redraw = 1; return;
+						case '3': w->count *= 10; w->count += 3; p->redraw = 1; return;
+						case '4': w->count *= 10; w->count += 4; p->redraw = 1; return;
+						case '5': w->count *= 10; w->count += 5; p->redraw = 1; return;
+						case '6': w->count *= 10; w->count += 6; p->redraw = 1; return;
+						case '7': w->count *= 10; w->count += 7; p->redraw = 1; return;
+						case '8': w->count *= 10; w->count += 8; p->redraw = 1; return;
+						case '9': w->count *= 10; w->count += 9; p->redraw = 1; return;
+
+						case 'b': /* bpm                */ if (w->count) { s->songbpm = MIN(255, MAX(32, w->count)); reapplyBpm(); } w->count = 0; p->redraw = 1; return;
+						// case 'f': /* toggle inst browsr */ w->instrument = emptyInstrument(0); chordAddSample(0); return;
+						// case 'r': /* record inst        */ setChordRecord(); p->redraw = 1; return;
+						// case 'a': /* add empty inst     */ w->instrument = emptyInstrument(0); setChordAddInst(); p->redraw = 1; return;
+						// case 'e': /* add empty inst     */                                     setChordAddInst(); p->redraw = 1; return;
+					}
+
+				switch (w->page)
+				{
+					case PAGE_CHANNEL_VARIANT: if (inputChannelVariant(input)) return; break;
+					case PAGE_CHANNEL_EFFECT:  if (inputChannelEffect(cd, input)) return; break;
+				}
+			} break;
 	}
 	if (w->count) { w->count = 0; p->redraw = 1; }
 	if (w->chord) { w->chord = '\0'; clearTooltip(&tt); p->redraw = 1; }
