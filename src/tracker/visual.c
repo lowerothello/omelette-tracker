@@ -9,6 +9,50 @@ short vfxToTfx(int8_t vfx)
 	return vfx;
 }
 
+/* VMO: visual macro order */
+short tfxToVmo(ChannelData *cd, short tfx)
+{
+	if (tfx < 2) return tfx; /* no change for note and inst columns */
+	if (tfx&0x1) /* macrov */ return (4 + (cd->variant->macroc<<1)) - tfx;
+	else         /* macroc */ return (2 + (cd->variant->macroc<<1)) - tfx;
+}
+/* VMO: visual macro order */
+short vfxToVmo(ChannelData *cd, short vfx)
+{
+	if (vfx < 2) return vfx; /* no change for note and inst columns */
+	return (2 + (cd->variant->macroc<<1)) - vfx;
+}
+
+short vfxVmoMin(short x1, short x2)
+{
+	if (x1 < 2 || x2 < 2) return MIN(x1, x2); /* either are macros */
+	return MAX(x1, x2); /* both are macros */
+}
+short vfxVmoMax(short x1, short x2)
+{
+	if (x1 < 2 || x2 < 2) return MAX(x1, x2); /* either are macros */
+	return MIN(x1, x2); /* both are macros */
+}
+
+/* returns true if (x >= min && x <= max) in visual macro order */
+bool vfxVmoRangeIncl(short min, short max, short x)
+{
+	if (min > 1) /* range is all macros */
+		return (x <= min && x >= max); /* fully inverted */
+
+	if (max > 1) /* range goes from non-macro to macro */
+	{
+		if (x > 1) /* x is in the macro part */
+			return (x >= max);
+		else /* x is in the non-macro part */
+			return (x >= min);
+	}
+
+	/* range goes from non-macro to non-macro */
+	return (x >= min && x <= max); /* not inverted */
+}
+
+
 void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	/* walk over allocated channels and free them */

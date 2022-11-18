@@ -39,7 +39,8 @@ const unsigned char MINOR = 1;
 
 #define LINENO_COLS 7
 
-#define CHANNEL_ROW 5 /* rows above the channel headers */
+#define CHANNEL_ROW 3 /* rows above the channel headers */
+#define PROGRAM_TITLE "omelette tracker"
 
 #define INSTRUMENT_INDEX_COLS 18
 
@@ -87,6 +88,7 @@ void setBpm(uint16_t *, uint8_t);
 void midiNoteOff(jack_nframes_t, uint8_t, uint8_t, uint8_t);
 
 #include "input.c"
+#include "draw.c"
 ControlState cc;
 #include "tooltip.c"
 TooltipState tt;
@@ -117,47 +119,15 @@ TooltipState tt;
 
 #include "tracker/visual.c"
 #include "tracker/tracker.c"
-#include "tracker/draw.c"
+#include "tracker/draw.h"
 #include "tracker/input.c"
 
 #include "init.c"
 
-
-void drawPageIndicator(void)
-{
-	switch (w->page)
-	{
-		case PAGE_CHANNEL_VARIANT:
-			printf("\033[%d;%dH\033[1mchannel\033[m \033[2mINSTRUMENT\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
-			printf("\033[%d;%dH\033[3mvariant\033[m \033[3;2mEFFECT\033[m", 3, (ws.ws_col-14)>>1);
-			break;
-		case PAGE_CHANNEL_EFFECT:
-			printf("\033[%d;%dH\033[1mchannel\033[m \033[2mINSTRUMENT\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
-			printf("\033[%d;%dH\033[3;2mVARIANT\033[m \033[3meffect\033[m", 3, (ws.ws_col-14)>>1);
-			break;
-		case PAGE_INSTRUMENT_SAMPLE:
-			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[1minstrument\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
-			printf("\033[%d;%dH\033[3msample\033[m \033[3;2mEFFECT\033[m", 3, (ws.ws_col-13)>>1); break;
-			break;
-		case PAGE_INSTRUMENT_EFFECT:
-			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[1minstrument\033[m \033[2mEFFECT\033[m", 2, (ws.ws_col-25)>>1);
-			printf("\033[%d;%dH\033[3;2mSAMPLE\033[m \033[3meffect\033[m", 3, (ws.ws_col-13)>>1); break;
-			break;
-		case PAGE_EFFECT_MASTER:
-			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[2mINSTRUMENT\033[m \033[1meffect\033[m", 2, (ws.ws_col-25)>>1);
-			printf("\033[%d;%dH\033[3mmaster\033[m \033[3;2mSEND\033[m", 3, (ws.ws_col-11)>>1); break;
-			break;
-		case PAGE_EFFECT_SEND:
-			printf("\033[%d;%dH\033[2mCHANNEL\033[m \033[2mINSTRUMENT\033[m \033[1meffect\033[m", 2, (ws.ws_col-25)>>1);
-			printf("\033[%d;%dH\033[3;2mMASTER\033[m \033[3msend\033[m", 3, (ws.ws_col-11)>>1); break;
-			break;
-	}
-}
 void drawRuler(void)
 {
-	/* top ruler */
-	printf("\033[0;0H\033[2K\033[1momelette tracker\033[0;%dHv%d.%03d  %d\033[m",
-			ws.ws_col - 15, MAJOR, MINOR, DEBUG);
+	printf("\033[1m\033[0;%ldH%s\033[m", (ws.ws_col - strlen(PROGRAM_TITLE))>>1, PROGRAM_TITLE);
+	printf("\033[1m\033[0;%dHv%d.%03d  %d\033[m", ws.ws_col - 15, MAJOR, MINOR, DEBUG);
 
 	/* bottom ruler */
 	if (w->mode < 255)
@@ -207,7 +177,6 @@ void redraw(void)
 #ifdef ENABLE_BACKGROUND
 		drawBackground();
 #endif
-		drawPageIndicator();
 		drawRuler();
 		switch (w->page)
 		{

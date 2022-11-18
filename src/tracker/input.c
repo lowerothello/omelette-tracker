@@ -221,11 +221,7 @@ void trackerInput(int input)
 											{
 												case WHEEL_UP: case WHEEL_UP_CTRL:     effectPgUp(cd->effect, 1); break;
 												case WHEEL_DOWN: case WHEEL_DOWN_CTRL: effectPgDn(cd->effect, 1); break;
-												default:
-													if (button != BUTTON1_HOLD && button != BUTTON1_HOLD_CTRL)
-														if (trackerMouseHeader(button, x, y, &tx)) break;
-													mouseControls(&cc, button, x, y);
-													break;
+												default: mouseControls(&cc, button, x, y); break;
 											} break;
 									} p->redraw = 1; break;
 							} break;

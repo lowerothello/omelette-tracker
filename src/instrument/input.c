@@ -201,19 +201,6 @@ void instrumentInput(int input)
 												} break;
 											case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL: break; /* ignore */
 											default:
-												if (y == CHANNEL_ROW-2)
-												{
-													switch (w->page)
-													{ /* hacky implementation */
-														case PAGE_INSTRUMENT_SAMPLE: if (x >= ((ws.ws_col-17)>>1) + 9) showInstrument(); break;
-														case PAGE_INSTRUMENT_EFFECT: if (x <  ((ws.ws_col-17)>>1) + 9) showInstrument(); break;
-													} break;
-												} else if (y < CHANNEL_ROW-2)
-												{
-													if (x < ((ws.ws_col-17)>>1) + 7) showTracker();
-													break;
-												}
-
 												switch (button)
 												{
 													case BUTTON2: case BUTTON2_CTRL:

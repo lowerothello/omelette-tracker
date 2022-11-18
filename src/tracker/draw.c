@@ -1,11 +1,8 @@
-#define CHANNEL_LINENO_COLS (LINENO_COLS - 3)
-#define INST_PEEK_COLS 0
-
 /* will populate buffer, buffer should be at least length 4 */
-void noteToString(uint8_t note, char *buffer)
+static void noteToString(uint8_t note, char *buffer)
 {
-	if (note == NOTE_VOID) { snprintf(buffer, 4, "..."); return; }
-	if (note == NOTE_OFF)  { snprintf(buffer, 4, "==="); return; }
+	if (note == NOTE_VOID) { strcpy(buffer, "... "); return; }
+	if (note == NOTE_OFF)  { strcpy(buffer, "=== "); return; }
 
 	char *strnote;
 	char octave;
@@ -40,7 +37,7 @@ void noteToString(uint8_t note, char *buffer)
 		case 9:  octave = '9'; break;
 		default: octave = '?'; break;
 	}
-	snprintf(buffer, 4, "%s%c", strnote, octave);
+	snprintf(buffer, 5, "%s%c ", strnote, octave);
 }
 
 /* generate sfx using dynamic width tracks */
@@ -48,13 +45,13 @@ short genSfx(short minx)
 {
 	short x = minx<<1;
 	short ret = 0;
-	short chanw;
+	short trackw;
 
 	for (int i = 0; i < s->channel->c; i++)
 	{
-		chanw = CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.variant->macroc+1);
-		x += chanw;
-		if (i == w->channel) ret = x - (chanw>>1); /* should only be set once */
+		trackw = CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.variant->macroc+1);
+		x += trackw;
+		if (i == w->channel) ret = x - (trackw>>1); /* should only be set once */
 		/* keep iterating so x is the full width of all channels */
 	}
 	if (x > ws.ws_col)
@@ -67,15 +64,15 @@ short genSfx(short minx)
 	return ret;
 }
 /* generate sfx using constant width channels */
-short genConstSfx(short chanw)
+short genConstSfx(short trackw)
 {
 	short x = 0;
 	short ret = 0;
 
 	for (int i = 0; i < s->channel->c; i++)
 	{
-		x += chanw;
-		if (i == w->channel) ret = x - (chanw>>1); /* should only be set once */
+		x += trackw;
+		if (i == w->channel) ret = x - (trackw>>1); /* should only be set once */
 		/* keep iterating so x is the full width of all channels */
 	}
 	if (x > ws.ws_col)
@@ -88,13 +85,15 @@ short genConstSfx(short chanw)
 	return ret;
 }
 
-void drawGlobalLineNumbers(short x, short minx)
+static void drawGlobalLineNumbers(short x, short minx, short maxx)
 {
 	char buffer[5];
+	short y;
 	for (int i = 0; i < s->songlen; i++)
-		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
+	{
+		y = w->centre - w->trackerfy + i;
+		if (y > CHANNEL_ROW && y < ws.ws_row)
 		{
-			printf("\033[%d;%dH", w->centre - w->trackerfy + i, MAX(x, minx));
 			if (s->playing == PLAYING_CONT && s->playfy == i)                              printf("\033[1m");
 			else if (i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
 
@@ -104,114 +103,72 @@ void drawGlobalLineNumbers(short x, short minx)
 			if (i < STATE_ROWS) snprintf(buffer, 5, "  -%x", STATE_ROWS - i);
 			else                snprintf(buffer, 5, "%04x",  i - STATE_ROWS);
 
-			if (x < minx) { if (x > minx - 4) printf("%s", buffer+(minx - x)); }
-			else                              printf("%.*s", ws.ws_col - x, buffer);
-
+			printCulling(buffer, x, y, minx, maxx);
 			printf("\033[m");
 		}
-}
-
-/* VMO: visual macro order */
-short tfxToVmo(ChannelData *cd, short tfx)
-{
-	if (tfx < 2) return tfx; /* no change for note and inst columns */
-	if (tfx&0x1) /* macrov */ return (4 + (cd->variant->macroc<<1)) - tfx;
-	else         /* macroc */ return (2 + (cd->variant->macroc<<1)) - tfx;
-}
-/* VMO: visual macro order */
-short vfxToVmo(ChannelData *cd, short vfx)
-{
-	if (vfx < 2) return vfx; /* no change for note and inst columns */
-	return (2 + (cd->variant->macroc<<1)) - vfx;
-}
-
-short vfxVmoMin(short x, short y)
-{
-	if (x < 2 || y < 2) return MIN(x, y);
-	return MAX(x, y);
-}
-short vfxVmoMax(short x, short y)
-{
-	if (x < 2 || y < 2) return MAX(x, y); /* either are macros */
-	return MIN(x, y); /* both are macros */
-}
-
-/* returns true if (x >= min && x <= max) in visual macro order */
-bool vfxVmoRangeIncl(short min, short max, short x)
-{
-	if (min > 1) /* range is all macros */
-		return (x <= min && x >= max); /* fully inverted */
-
-	if (max > 1) /* range goes from non-macro to macro */
-	{
-		if (x > 1) /* x is in the macro part */
-			return (x >= max);
-		else /* x is in the non-macro part */
-			return (x >= min);
 	}
-
-	/* range goes from non-macro to non-macro */
-	return (x >= min && x <= max); /* not inverted */
 }
 
-bool startVisual(uint8_t channel, int i, int8_t fieldpointer)
+static bool startVisual(uint8_t channel, int i, int8_t fieldpointer)
 {
 	switch (w->mode)
 	{
 		case T_MODE_VISUAL:
 			if (channel == MIN(w->visualchannel, w->channel)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
-					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
+					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
+					&& ((w->visualchannel == w->channel && fieldpointer == vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)))
+					||  (w->visualchannel != w->channel && fieldpointer == ((w->visualchannel <= w->channel) ? w->visualfx : tfxToVfx(w->trackerfx)))))
 			{
-				if (w->visualchannel == w->channel)
-				{
-					if (fieldpointer == vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)))
-					{ printf("\033[2;7m"); return 1; }
-				} else if (fieldpointer == ((w->visualchannel <= w->channel) ? w->visualfx : tfxToVfx(w->trackerfx)))
-				{ printf("\033[2;7m"); return 1; }
+					printf("\033[2;7m");
+					return 1;
 			} break;
 		case T_MODE_VISUALREPLACE:
 			if (channel == w->channel && fieldpointer == tfxToVfx(w->trackerfx)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
-			{ printf("\033[2;7m"); return 1; }
-			break;
+			{
+				printf("\033[2;7m");
+				return 1;
+			} break;
 		case T_MODE_VISUALLINE:
 			if (channel == MIN(w->visualchannel, w->channel) && fieldpointer == 0
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
-			{ printf("\033[2;7m"); return 1; }
-			break;
+			{
+				printf("\033[2;7m");
+				return 1;
+			} break;
 	} return 0;
 }
-bool stopVisual(uint8_t channel, int i, int8_t fieldpointer)
+static bool stopVisual(uint8_t channel, int i, int8_t fieldpointer)
 {
 	switch (w->mode)
 	{
 		case T_MODE_VISUAL:
 			if (channel == MAX(w->visualchannel, w->channel)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
-					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
+					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
+					&& ((w->visualchannel == w->channel && fieldpointer == vfxVmoMax(w->visualfx, tfxToVfx(w->trackerfx)))
+					||  (w->visualchannel != w->channel && fieldpointer == ((w->visualchannel >= w->channel) ? w->visualfx : tfxToVfx(w->trackerfx)))))
 			{
-				if (w->visualchannel == w->channel)
-				{
-					if (fieldpointer == vfxVmoMax(w->visualfx, tfxToVfx(w->trackerfx)))
-					{ printf("\033[22;27m"); return 1; }
-				} else if (fieldpointer == ((w->visualchannel >= w->channel) ? w->visualfx : tfxToVfx(w->trackerfx)))
-				{ printf("\033[22;27m"); return 1; }
+				printf("\033[22;27m");
+				return 1;
 			} break;
 		case T_MODE_VISUALREPLACE:
 			if (channel == w->channel && fieldpointer == tfxToVfx(w->trackerfx)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
-			{ printf("\033[22;27m"); return 1; }
-			break;
+			{
+				printf("\033[22;27m");
+				return 1;
+			} break;
 	} return 0;
 }
-int ifVisual(uint8_t channel, int i, int8_t fieldpointer)
+static bool ifVisual(uint8_t channel, int i, int8_t fieldpointer)
 {
-	if (   channel >= MIN(w->visualchannel, w->channel)
-	    && channel <= MAX(w->visualchannel, w->channel))
+	if (channel >= MIN(w->visualchannel, w->channel)
+	 && channel <= MAX(w->visualchannel, w->channel))
 	{
 		switch (w->mode)
 		{
@@ -222,28 +179,28 @@ int ifVisual(uint8_t channel, int i, int8_t fieldpointer)
 					if (w->visualchannel == w->channel)
 					{
 						if (vfxVmoRangeIncl(
-									vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)),
-									vfxVmoMax(w->visualfx, tfxToVfx(w->trackerfx)),
-									fieldpointer))
+								vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)),
+								vfxVmoMax(w->visualfx, tfxToVfx(w->trackerfx)),
+								fieldpointer))
 							return 1;
 					} else
 					{
-						if (       channel > MIN(w->visualchannel, w->channel) /* middle channel */
-								&& channel < MAX(w->visualchannel, w->channel))
+						if (channel > MIN(w->visualchannel, w->channel)
+						 && channel < MAX(w->visualchannel, w->channel)) /* middle channel */
 							return 1;
-						else if (channel == MIN(w->visualchannel, w->channel)) /* first channel  */
+						else if (channel == MIN(w->visualchannel, w->channel)) /* first channel */
 						{
 							if (vfxVmoRangeIncl(
-										w->visualchannel == channel ? w->visualfx : tfxToVfx(w->trackerfx),
-										1 + s->channel->v[channel].data.variant->macroc,
-										fieldpointer))
+									w->visualchannel == channel ? w->visualfx : tfxToVfx(w->trackerfx),
+									1 + s->channel->v[channel].data.variant->macroc,
+									fieldpointer))
 								return 1;
-						} else if (channel == MAX(w->visualchannel, w->channel)) /* last channel   */
+						} else if (channel == MAX(w->visualchannel, w->channel)) /* last channel */
 						{
 							if (vfxVmoRangeIncl(
-										TRACKERFX_MIN,
-										w->visualchannel == channel ? w->visualfx : tfxToVfx(w->trackerfx),
-										fieldpointer))
+									TRACKERFX_MIN,
+									w->visualchannel == channel ? w->visualfx : tfxToVfx(w->trackerfx),
+									fieldpointer))
 								return 1;
 						}
 					}
@@ -264,32 +221,32 @@ int ifVisual(uint8_t channel, int i, int8_t fieldpointer)
 	} return 0;
 }
 
-void setRowIntensity(ChannelData *cd, int i)
+static void setRowIntensity(ChannelData *cd, int i)
 {
 	if (cd->mute || i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
 	else if (s->playing == PLAYING_CONT && s->playfy == i)                                printf("\033[1m");
 }
 
-void drawStarColumn(unsigned short x)
+static void drawStarColumn(short x, short minx, short maxx)
 {
+	char buffer[4];
 	for (int i = 0; i < s->songlen; i++)
 		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
 		{
-			printf("\033[%d;%dH", w->centre - w->trackerfy + i, x);
-			if (i < STATE_ROWS)                                              printf("   ");
-			else if (s->playing == PLAYING_CONT && s->playfy == i)           printf(" - ");
-			else if (s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight)) printf(" * ");
-			else                                                             printf("   ");
+			if (i < STATE_ROWS)                                              strcpy(buffer, " ");
+			else if (s->playing == PLAYING_CONT && s->playfy == i)           strcpy(buffer, "-");
+			else if (s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight)) strcpy(buffer, "*");
+			else                                                             strcpy(buffer, " ");
+			printCulling(buffer, x, w->centre - w->trackerfy + i, minx, maxx);
 		}
 }
 
 /* minx is the xpos where the start of the channel will get clipped at */
 #define TRACK_HEADER_LEN 8
-void drawTrackHeader(uint8_t channel, short x, short minx, short maxx)
+static void drawTrackHeader(uint8_t channel, short x, short minx, short maxx)
 {
 	ChannelData *cd = &s->channel->v[channel].data;
 
-	/* TODO: track line underline */
 	char headerbuffer[9];
 	snprintf(headerbuffer, 9, "TRACK %02x", channel);
 
@@ -297,44 +254,41 @@ void drawTrackHeader(uint8_t channel, short x, short minx, short maxx)
 	else          printf("\033[1m");
 	if (s->channel->v[channel].triggerflash) printf("\033[3%dm", channel%6 + 1);
 	if (channel == w->channel + w->channeloffset) printf("\033[7m");
-	if (x <= maxx)
-	{
-		if (x < minx) { if (x > minx - 10) printf("\033[%d;%dH%s", CHANNEL_ROW, minx, headerbuffer+(minx - x)); }
-		else                               printf("\033[%d;%dH%.*s", CHANNEL_ROW, x, maxx+1 - x, headerbuffer);
-	}
+	printCulling(headerbuffer, x, CHANNEL_ROW, minx, maxx);
 
 	printf("\033[m");
 }
 
-short drawChannel(uint8_t channel, short bx, short minx, short maxx)
+static short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 {
 	if (channel >= s->channel->c) return 0;
 
 	Row *r;
-	char buffer[16];
+	// char buffer[16];
+	char *buffer = calloc(16, sizeof(char));
 
-	Variant *v;
-	int gcvret;
+	// Variant *v;
+	// int gcvret;
 	ChannelData *cd = &s->channel->v[channel].data;
 
-	/* for (int i = 0; i < s->songlen; i++)
-		if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row) */
-
-	short x;
+	short x, y;
 	int lineno;
 	if (bx <= maxx && bx + CHANNEL_TRIG_COLS + 9 + 4*(cd->variant->macroc+1) > minx)
 	{
 		for (int i = 0; i < s->songlen; i++)
-			if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
+		{
+			y = w->centre - w->trackerfy + i;
+			if (y > CHANNEL_ROW && y < ws.ws_row)
 			{
 				x = bx;
 
-				printf("\033[%d;%dH", w->centre - w->trackerfy + i, MAX(minx, x));
-
 				if (ifVisual(channel, i, -1)) printf("\033[2;7m");
 
-				if (cd->variant->trig[i].index == VARIANT_OFF) { printf("\033[1m"); strcpy(buffer, " ==  "); }
-				else if (cd->variant->trig[i].index != VARIANT_VOID)
+				if (cd->variant->trig[i].index == VARIANT_OFF)
+				{
+					printf("\033[1m");
+					strcpy(buffer, " ==  ");
+				} else if (cd->variant->trig[i].index != VARIANT_VOID)
 				{
 					printf("\033[1;3%dm", cd->variant->trig[i].index%6 + 1);
 					if (cd->variant->trig[i].flags&C_VTRIG_LOOP) snprintf(buffer, 6, "l%02x  ", cd->variant->trig[i].index);
@@ -346,13 +300,12 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 					if (lineno == -1) strcpy(buffer, " ..  ");
 					else              snprintf(buffer, 6, " %02x  ", lineno);
 				}
-
-				if (x < minx) { if (x > minx - 5) printf("%s", buffer+(minx - x)); }
-				else                              printf("%.*s", maxx - x, buffer);
+				printCulling(buffer, x, y, minx, maxx);
 
 				if (x+5 < maxx && x+4 > minx)
 				{ /* box drawing variant range thing idk what to call it tbh */
 				  /* drawn separately cos multibyte chars break things       */
+				  /* TODO: should use printCulling() or otherwise have a \033[y;xH write */
 					lineno = getVariantChainVariant(NULL, cd->variant, i);
 					if (lineno != -1)
 						printf("\033[1D\033[22;3%dm│", cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1);
@@ -367,10 +320,10 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 				setRowIntensity(cd, i);
 
 				/* use underline to split up variants more visually */
-				gcvret = getVariantChainVariant(&v, cd->variant, i);
-				if ((i < s->songlen-1 && (cd->variant->trig[i+1].index < VARIANT_MAX || (cd->variant->trig[i+1].index == VARIANT_OFF && gcvret != -1)))
-						|| (gcvret != -1 && (gcvret%(v->rowc+1) == v->rowc)))
-					printf("\033[1;%d]\033[4m", cd->variant->trig[i+1].index%6 + 1); /* linux console-specific underline colour setting, TODO: untested */
+				// gcvret = getVariantChainVariant(&v, cd->variant, i);
+				// if ((i < s->songlen-1 && (cd->variant->trig[i+1].index < VARIANT_MAX || (cd->variant->trig[i+1].index == VARIANT_OFF && gcvret != -1)))
+				// 		|| (gcvret != -1 && (gcvret%(v->rowc+1) == v->rowc)))
+				// 	printf("\033[1;%d]\033[4m", cd->variant->trig[i+1].index%6 + 1); /* linux console-specific underline colour setting, TODO: untested */
 
 				if (ifVisual(channel, i, 0)) printf("\033[2;7m");
 
@@ -379,11 +332,8 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 					if (r->note != NOTE_VOID)
 					{
 						noteToString(r->note, buffer);
-						if (cd->mute)
-						{
-							if (x < minx) { if (x > minx - 3) printf("%s", buffer+(minx - x)); }
-							else                              printf("%.*s", maxx - x, buffer);
-						} else
+						if (cd->mute) printCulling(buffer, x, y, minx, maxx);
+						else
 						{
 							if (ifVisual(channel, i, 0))
 							{
@@ -392,15 +342,14 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 							}
 							if (instrumentSafe(s, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");
-							if (x < minx) { if (x > minx - 3) printf("%s", buffer+(minx - x)); }
-							else                              printf("%.*s", maxx - x, buffer);
+							printCulling(buffer, x, y, minx, maxx);
 							printf("\033[37m");
 							if (ifVisual(channel, i, 0)) printf("\033[2m");
 						}
 					} else
 					{
-						if (x < minx) { if (x > minx - 3) printf("%s", "..."+(minx - x)); }
-						else                              printf("%.*s", maxx - x, "...");
+						strcpy(buffer, "... ");
+						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(channel, i, 0);
 					setRowIntensity(cd, i);
@@ -410,8 +359,7 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 
 				if (x <= maxx)
 				{
-					if (x-1 >= minx) printf(" ");
-					snprintf(buffer, 3, "%02x", r->inst);
+					snprintf(buffer, 4, "%02x ", r->inst);
 					startVisual(channel, i, 1);
 					if (r->inst != INST_VOID)
 					{
@@ -424,19 +372,14 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 							}
 							if (instrumentSafe(s, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");
-							if (x < minx) { if (x > minx - 2) printf("%s", buffer+(minx - x)); }
-							else                              printf("%.*s", maxx - x, buffer);
+							printCulling(buffer, x, y, minx, maxx);
 							printf("\033[22;37m");
 							if (ifVisual(channel, i, 1)) printf("\033[2m");
-						} else
-						{
-							if (x < minx) { if (x > minx - 2) printf("%s", buffer+(minx - x)); }
-							else                              printf("%.*s", maxx - x, buffer);
-						}
+						} else printCulling(buffer, x, y, minx, maxx);
 					} else
 					{
-						if (x < minx) { if (x > minx - 2) printf("%s", ".."+(minx - x)); }
-						else                              printf("%.*s", maxx - x, "..");
+						strcpy(buffer, ".. ");
+						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(channel, i, 1);
 					setRowIntensity(cd, i);
@@ -448,7 +391,6 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 				{
 					if (x <= maxx)
 					{
-						if (x-1 >= minx) printf(" ");
 						startVisual(channel, i, 2+j);
 						if (r->macro[j].c)
 						{
@@ -459,27 +401,22 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 								   if (r->macro[j].alt) printf("\033[3;27m");
 							} else if (r->macro[j].alt) printf("\033[3;7m");
 
-							snprintf(buffer, 3, "%02x", r->macro[j].v);
+							snprintf(buffer, 5, "%c%02x ", r->macro[j].c, r->macro[j].v);
 							if (cd->mute)
-							{
-								if (x   >= minx) printf("%c", r->macro[j].c);
-								if (x+1 <  minx) { if (x+1 > minx - 2) printf("%s", buffer+(minx - (x+1))); }
-								else                                   printf("%.*s", maxx - (x+1), buffer);
-							} else
+								printCulling(buffer, x, y, minx, maxx);
+							else
 							{
 								/* TODO: macro colour groups */
 								printf("\033[35m");
-								if (x   >= minx) printf("%c", r->macro[j].c);
-								if (x+1 <  minx) { if (x+1 > minx - 2) printf("%s", buffer+(minx - (x+1))); }
-								else                                   printf("%.*s", maxx - (x+1), buffer);
+								printCulling(buffer, x, y, minx, maxx);
 							}
 
 							if (ifVisual(channel, i, 2+j)) printf("\033[23;2;7;37m");
 							else                           printf("\033[23;27;37m");
 						} else
 						{
-							if (x < minx) { if (x > minx - 3) printf("%s", "..."+(minx - x)); }
-							else                              printf("%.*s", maxx - x, "...");
+							strcpy(buffer, "... ");
+							printCulling(buffer, x, y, minx, maxx);
 						}
 						stopVisual(channel, i, 2+j);
 						setRowIntensity(cd, i);
@@ -488,42 +425,21 @@ short drawChannel(uint8_t channel, short bx, short minx, short maxx)
 				}
 
 				printf("\033[m"); /* clear attributes before row highlighting */
-
-				x--;
-
-				if (x <= maxx)
-				{
-					if (s->playing == PLAYING_CONT && s->playfy == i)
-					{
-						if (x < minx) { if (x > minx - 2)
-							printf("%s", " - "+(minx - x)); }
-						else printf("%.*s", maxx - x, " - ");
-					} else if (s->rowhighlight && i >= STATE_ROWS && !((i-STATE_ROWS) % s->rowhighlight))
-					{
-						if (x < minx) { if (x > minx - 2)
-							printf("%s", " * "+(minx - x)); }
-						else printf("%.*s", maxx - x, " * ");
-					} else
-					{
-						if (x < minx) { if (x > minx - 2)
-							printf("%s", "   "+(minx - x)); }
-						else printf("%.*s", maxx - x, "   ");
-					}
-				}
-
-				printf(" ");
 			}
-	} return CHANNEL_TRIG_COLS + 8 + 4*(cd->variant->macroc+1);
+		}
+	}
+	free(buffer);
+	return CHANNEL_TRIG_COLS + 8 + 4*(cd->variant->macroc+1);
 }
 
 /* returns the xpos at the start of the cursor channel */
-short drawTrackerBody(short sfx, short x, short minx, short maxx)
+static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 {
 	short ret = 0;
 
-	drawGlobalLineNumbers(x + MAX(sfx, 0), 1);
+	drawGlobalLineNumbers(x+MAX(sfx, 0), 1+MAX(sfx, 0), minx+MAX(sfx, 0));
 	x += CHANNEL_LINENO_COLS;
-	if (sfx >= 0 && x+sfx > 0) drawStarColumn(x+sfx);
+	drawStarColumn(x+sfx + 1, minx, maxx);
 	x += 2;
 
 	for (int i = 0; i < s->channel->c; i++)
@@ -532,14 +448,15 @@ short drawTrackerBody(short sfx, short x, short minx, short maxx)
 			ret = x;
 
 		x += drawChannel(i, x+sfx, minx, maxx);
+		drawStarColumn(x+sfx - 1, minx, maxx);
 	}
-	if (sfx < 0 && minx > 1)
+	if (sfx < 0)
 	{
 		for (int i = 0; i < s->songlen; i++)
 			if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
-				printf("\033[%d;%dH^", w->centre - w->trackerfy + i, minx - 1);
+				printf("\033[%d;%dH^", w->centre - w->trackerfy + i, minx);
 	}
-	if (x + sfx > maxx && maxx > 0)
+	if (x + sfx > maxx)
 	{
 		for (int i = 0; i < s->songlen; i++)
 			if (w->centre - w->trackerfy + i > CHANNEL_ROW && w->centre - w->trackerfy + i < ws.ws_row)
@@ -571,7 +488,7 @@ void drawTracker(void)
 				x += 8 + 4*(s->channel->v[i].data.variant->macroc+1) + CHANNEL_TRIG_COLS;
 			}
 
-			sx = drawTrackerBody(sfx, 1, LINENO_COLS, ws.ws_col - INST_PEEK_COLS);
+			sx = drawTrackerBody(sfx, 1, LINENO_COLS-1, ws.ws_col - INST_PEEK_COLS); /* TODO: the -1 here is a dirty hack */
 			// drawInstrumentIndex(ws.ws_col - 2);
 
 			y = w->centre + w->fyoffset;

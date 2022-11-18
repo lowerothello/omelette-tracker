@@ -512,33 +512,17 @@ void leaveSpecialModes(void)
 
 int trackerMouseHeader(int button, int x, int y, short *tx)
 {
-	if (y == CHANNEL_ROW-2)
-	{
-		switch (w->page)
-		{ /* hacky implementation */
-			case PAGE_CHANNEL_VARIANT: if (x >= ((ws.ws_col-17)>>1) + 9) showTracker(); break;
-			case PAGE_CHANNEL_EFFECT:  if (x <  ((ws.ws_col-17)>>1) + 9) showTracker(); break;
-		} return 1;
-	} else if (y < CHANNEL_ROW-2)
-	{
-		if (x >= ((ws.ws_col-17)>>1) + 7) showInstrument();
-		return 1;
-	} else if (y <= CHANNEL_ROW)
-	{
+	if (y <= CHANNEL_ROW)
 		for (int i = 0; i < s->channel->c; i++)
 		{
-			*tx += CHANNEL_TRIG_COLS;
-			*tx += 8 + 4*(s->channel->v[i].data.variant->macroc+1);
+			*tx += CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.variant->macroc+1);
 			if (*tx > x)
-			{
 				switch (button)
 				{
-					case BUTTON1: case BUTTON1_CTRL: w->channeloffset = i - w->channel; break;
-					case BUTTON2: case BUTTON2_CTRL: toggleChannelSolo(i); break;
-					case BUTTON3: case BUTTON3_CTRL: toggleChannelMute(i); break;
-				} break;
-			}
-		} return 1;
-	}
+					case BUTTON1: case BUTTON1_CTRL: w->channeloffset = i - w->channel; return 1;
+					case BUTTON2: case BUTTON2_CTRL: toggleChannelSolo(i); return 1;
+					case BUTTON3: case BUTTON3_CTRL: toggleChannelMute(i); return 1;
+				}
+		}
 	return 0;
 }

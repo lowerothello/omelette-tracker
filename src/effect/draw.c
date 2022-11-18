@@ -43,12 +43,8 @@ void drawEffects(EffectChain *chain, ControlState *cc, bool selected, short x, s
 		printf("\033[m");
 
 		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
-		if (x <= ws.ws_col)
-		{
-			if      (x >= 1)                          printf("\033[%d;%dH%.*s", y+1, x, (ws.ws_col+1) - x, NULL_EFFECT_TEXT);
-			else if (x-1 > -strlen(NULL_EFFECT_TEXT)) printf("\033[%d;%dH%s", y+1, 1, NULL_EFFECT_TEXT+(1-x)); /* x is less than 1 so this is always safe */
-		}
+		printCulling(NULL_EFFECT_TEXT, x, y+1, 1, ws.ws_col);
 
-		printf("\033[%d;%dH", y+1, MAX(1, MIN(ws.ws_col, x)));
+		printf("\033[%d;%dH", y+1, MAX(1, MIN(ws.ws_col, x))); /* visual cursor */
 	}
 }
