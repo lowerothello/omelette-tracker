@@ -1,20 +1,3 @@
-#define MIN_EFFECT_WIDTH 38
-
-enum {
-	EFFECT_TYPE_NATIVE,
-	EFFECT_TYPE_LADSPA,
-	EFFECT_TYPE_LV2,
-	EFFECT_TYPE_CLAP, /* TODO */
-} EFFECT_TYPE;
-
-#include "../effect/autogenui.c"
-
-/* IMPORTANT NOTE: effects should not register any more than 16 controls */
-/* TODO: fix this, controls should be dynamically allocated              */
-#include "../effect/native.c"
-#include "../effect/ladspa.c"
-#include "../effect/lv2.c"
-
 void freeEffect(Effect *e)
 {
 	if (!e || !e->state) return;
@@ -100,7 +83,7 @@ EffectChain *_addEffect(EffectChain *chain, unsigned long pluginindex, uint8_t c
 
 	return ret;
 }
-void cb_addEffect(Event *e)
+static void cb_addEffect(Event *e)
 {
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
@@ -138,7 +121,7 @@ EffectChain *_delEffect(EffectChain *chain, uint8_t chordindex)
 
 	return ret;
 }
-void cb_delEffect(Event *e)
+static void cb_delEffect(Event *e)
 {
 	freeEffect(&((EffectChain *)e->src)->v[(size_t)e->callbackarg]);
 	free(e->src); e->src = NULL;
@@ -260,8 +243,7 @@ short getEffectHeight(Effect *e)
 	return 0;
 }
 
-void drawBoundingBox(short x, short y, short w, short h,
-		short xmin, short xmax, short ymin, short ymax)
+void drawBoundingBox(short x, short y, short w, short h, short xmin, short xmax, short ymin, short ymax)
 {
 	int i;
 	if (ymin <= y && ymax >= y)
@@ -286,9 +268,7 @@ void drawBoundingBox(short x, short y, short w, short h,
 		}
 }
 
-int drawEffect(Effect *e, ControlState *cc, bool selected,
-		short x, short w,
-		short y, short ymin, short ymax)
+int drawEffect(Effect *e, ControlState *cc, bool selected, short x, short w, short y, short ymin, short ymax)
 {
 	if (!e) return 0;
 

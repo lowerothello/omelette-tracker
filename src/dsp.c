@@ -1,9 +1,4 @@
-#define C5_FREQ 261.63 /* set this to the resonant frequency of your favourite rock for best results */
-
-/* the threshold where processing is no longer necessary */
-/* to avoid denormals and otherwise wasted cycles        */
-#define NOISE_GATE 0.00001
-
+#define C5_FREQ 261.63f /* set this to the resonant frequency of your favourite rock for best results */
 
 /* premultiplied divisions */
 #define DIV4096 0.000244140625f
@@ -40,29 +35,3 @@ void runSVFilter(SVFilter *s, float input, float cutoff, float q)
 
 float triosc(float phase)
 { return (fabsf(fmodf(phase + 0.75f, 1.0f) - 0.5f) * 4.0f) - 1.0f; }
-
-float wavefolder(float input)
-{
-	while (input < -1.0f || input > 1.0f)
-	{
-		if (input >  1.0f) input =  1.0f - input +  1.0f;
-		if (input < -1.0f) input = -1.0f - input + -1.0f;
-	}
-	return input;
-}
-float wavewrapper(float input, float maxrange)
-{
-	while (input >  maxrange) input -= maxrange;
-	while (input < -maxrange) input += maxrange;
-	return input;
-}
-float signedunsigned(float input)
-{
-	if (input > 0.0f) return input - 0.0f;
-	else              return input + 1.0f;
-}
-float rectify(float input)
-{ return (fabsf(input) * 2.0f) - 1.0f; }
-
-float thirddegreepolynomial(float input)
-{ return 1.5f*input - 0.5f*input*input*input; }

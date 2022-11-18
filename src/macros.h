@@ -1,4 +1,4 @@
-char ifMacro(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r, char m, bool alt, char (*callback)(jack_nframes_t, uint16_t *, int, Channel *, Row));
+/* ifMacro() is declared in types/channel.h TODO: it should be declared here */
 bool changeMacro(int input, char *dest, bool *destalt, bool alt);
 int changeMacroVtrig(int input, char *dest, bool *destalt, bool alt);
 void descMacro(char c, uint8_t v, bool alt);

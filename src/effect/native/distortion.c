@@ -1,10 +1,12 @@
+enum {
+	E_D_ALG_HARDCLIP,
+	E_D_ALG_SOFTCLIP,
+	E_D_ALG_WAVEFOLD,
+	E_D_ALG_WAVEWRAP,
+	E_D_ALG_RECTIFY,
+	E_D_ALG_SIGNCONV,
+} E_D_ALG;
 
-#define E_D_ALG_HARDCLIP 0
-#define E_D_ALG_SOFTCLIP 1
-#define E_D_ALG_WAVEFOLD 2
-#define E_D_ALG_WAVEWRAP 5
-#define E_D_ALG_RECTIFY  6
-#define E_D_ALG_SIGNCONV 7
 typedef struct
 {
 	int8_t   bias;
@@ -67,33 +69,59 @@ void drawDistortion(void **instance, ControlState *cc,
 	if (ymin <= y+1 && ymax >= y+1)
 	{
 		printf("\033[%d;%dHalgorithm [        ]", y+1, xx);
-		addControlInt(cc, xx+11, y+1, &s->algorithm, 1, 0, 5, 0, 8, NULL, NULL);
-			setControlPrettyName(cc, "HARDCLIP");
-			setControlPrettyName(cc, "SOFTCLIP");
-			setControlPrettyName(cc, "WAVEFOLD");
-			setControlPrettyName(cc, "WAVEWRAP");
-			setControlPrettyName(cc, " RECTIFY");
-			setControlPrettyName(cc, "SIGNCONV");
-	} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+		addControlInt(cc, xx+11, y+1, &s->algorithm, 1, 0, 5, 0, 8, 6, NULL, NULL);
+			addScalePointInt(cc, "HARDCLIP", E_D_ALG_HARDCLIP);
+			addScalePointInt(cc, "SOFTCLIP", E_D_ALG_SOFTCLIP);
+			addScalePointInt(cc, "WAVEFOLD", E_D_ALG_WAVEFOLD);
+			addScalePointInt(cc, "WAVEWRAP", E_D_ALG_WAVEWRAP);
+			addScalePointInt(cc, " RECTIFY", E_D_ALG_RECTIFY );
+			addScalePointInt(cc, "SIGNCONV", E_D_ALG_SIGNCONV);
+	} else addControlDummy(cc);
 	if (ymin <= y+2 && ymax >= y+2)
 	{
 		printf("\033[%d;%dHbias:       [   ][ ]", y+2, xx);
-		addControlInt(cc, xx+13, y+2, &s->bias,       3, -128, 127, 0, 0, NULL, NULL);
-		addControlInt(cc, xx+18, y+2, &s->biasstereo, 0, 0, 1, 0, 0, NULL, NULL);
-	} else { addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL); addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL); }
+		addControlInt(cc, xx+13, y+2, &s->bias,       3, -128, 127, 0, 0, 0, NULL, NULL);
+		addControlInt(cc, xx+18, y+2, &s->biasstereo, 0, 0, 1, 0, 0, 0, NULL, NULL);
+	} else { addControlDummy(cc); addControlDummy(cc); }
 	if (ymin <= y+3 && ymax >= y+3)
 	{
 		printf("\033[%d;%dHparallel:  [   ][  ]", y+3, xx);
-		addControlInt(cc, xx+12, y+3, &s->filterparallel, 3, -128, 127, 0, 0, NULL, NULL);
-		addControlInt(cc, xx+17, y+3, &s->gainparallel,   2, 0x0, 0xff, 0x0, 0, NULL, NULL);
-	} else { addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL); addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL); }
+		addControlInt(cc, xx+12, y+3, &s->filterparallel, 3, -128, 127, 0, 0, 0, NULL, NULL);
+		addControlInt(cc, xx+17, y+3, &s->gainparallel,   2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL);
+	} else { addControlDummy(cc); addControlDummy(cc); }
 
 	/* right column */
 	xx = x + getNextColumnOffset(&cs);
-	if (ymin <= y+1 && ymax >= y+1) { printf("\033[%d;%dHdrive:  [  ]", y+1, xx); addControlInt(cc, xx+9, y+1, &s->drive,   2, 0x0, 0xff, 0x0, 0, NULL, NULL); } else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
-	if (ymin <= y+2 && ymax >= y+2) { printf("\033[%d;%dHgate:   [  ]", y+2, xx); addControlInt(cc, xx+9, y+2, &s->gate,    2, 0x0, 0xff, 0x0, 0, NULL, NULL); } else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
-	if (ymin <= y+3 && ymax >= y+3) { printf("\033[%d;%dHrectify:[  ]", y+3, xx); addControlInt(cc, xx+9, y+3, &s->rectify, 2, 0x0, 0xff, 0x0, 0, NULL, NULL); } else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+	if (ymin <= y+1 && ymax >= y+1) { printf("\033[%d;%dHdrive:  [  ]", y+1, xx); addControlInt(cc, xx+9, y+1, &s->drive,   2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc);
+	if (ymin <= y+2 && ymax >= y+2) { printf("\033[%d;%dHgate:   [  ]", y+2, xx); addControlInt(cc, xx+9, y+2, &s->gate,    2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc);
+	if (ymin <= y+3 && ymax >= y+3) { printf("\033[%d;%dHrectify:[  ]", y+3, xx); addControlInt(cc, xx+9, y+3, &s->rectify, 2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc);
 }
+
+
+float wavefolder(float input)
+{
+	while (input < -1.0f || input > 1.0f)
+	{
+		if (input >  1.0f) input =  1.0f - input +  1.0f;
+		if (input < -1.0f) input = -1.0f - input + -1.0f;
+	}
+	return input;
+}
+float wavewrapper(float input, float maxrange)
+{
+	while (input >  maxrange) input -= maxrange;
+	while (input < -maxrange) input += maxrange;
+	return input;
+}
+float signedunsigned(float input)
+{
+	if (input > 0.0f) return input - 0.0f;
+	else              return input + 1.0f;
+}
+float rectify(float input)
+{ return (fabsf(input) * 2.0f) - 1.0f; }
+float thirddegreepolynomial(float input)
+{ return 1.5f*input - 0.5f*input*input*input; }
 
 #define DRIVE_COEF 1.02214f
 void runDistortion(uint32_t samplecount, EffectChain *chain, void **instance)

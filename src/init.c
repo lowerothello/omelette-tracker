@@ -1,3 +1,7 @@
+#ifdef DEBUG_DISABLE_AUDIO_OUTPUT
+pthread_t dummyprocessthread;
+#endif
+
 void common_cleanup(int ret)
 {
 	if (w) { free(w); w = NULL; }
@@ -55,14 +59,12 @@ void cleanup(int ret)
 		_delInstrument(&w->instrumentbuffer);
 
 		if (w->recbuffer) free(w->recbuffer);
-		if (w->waveformcanvas) free_canvas(w->waveformcanvas);
-		if (w->waveformbuffer) free_buffer(w->waveformbuffer);
+
+		freeWaveform();
 
 		clearChanneldata(s, &w->channelbuffer);
 
-		__delChannel(&w->previewchannel);
-		if (w->previewchannel.data.trig) free(w->previewchannel.data.trig);
-		if (w->previewchannel.data.songv) free(w->previewchannel.data.songv);
+		_delChannel(s, &w->previewchannel);
 		if (w->previewsample) free(w->previewsample);
 
 		for (short i = 0; i < w->pbchannelc; i++)
@@ -125,7 +127,7 @@ void init(int argc, char **argv)
 	if (!w) { puts("out of memory"); common_cleanup(1); }
 	w->octave = 4;
 	w->defvariantlength = 0x7;
-	w->channelbuffer.macroc = 1;
+	// w->channelbuffer.variant->macroc = 1;
 	w->channelbuffer.effect = newEffectChain(NULL, NULL);
 	w->trackerfy = STATE_ROWS;
 
@@ -137,8 +139,9 @@ void init(int argc, char **argv)
 
 	/* need to be called before the jack client is activated */
 	initBackground();
-	__addChannel   (&w->previewchannel);
 	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
+	__addChannel(&w->previewchannel);
+	initChannelData(s, &w->previewchannel.data);
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT

@@ -53,7 +53,7 @@ void delSong(Song *cs)
 	free(cs->sendpluginoutput[1]);
 
 	for (int i = 0; i < cs->channel->c; i++)
-		_delChannel(&cs->channel->v[i]);
+		_delChannel(cs, &cs->channel->v[i]);
 	free(cs->channel);
 
 	for (int i = 0; i < cs->instrument->c; i++)

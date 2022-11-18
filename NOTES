@@ -1,9 +1,7 @@
-- change the cursor shape to help differentiate modes
-	- especially for replace modes
 - Ixy isn't always smoothed properly over trigs, should be fixed by Gxx-like slew
 
-- rx0 reaching the beginning of the sample cuts the note
-	- should hold the pointer at 0
+- step should apply for push fields after 2 chars have been pushed
+- yy should respect the vtrig column
 
 lookback
 - lookback resets the envelope, cutting long attacks immediately
@@ -22,7 +20,6 @@ lookback
 - don't like the global octave setting binds (number keys)
 - mode where keyboard shortcuts toggle mute channels, with a popup that links keys with channels
 	- shift+key to solo
-	- dynamic mapping, map to the home row first?
 - resident tooltip popup, togglable with '?'
 	- requires a huge rewrite to how input is handled
 

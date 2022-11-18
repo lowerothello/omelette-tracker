@@ -12,54 +12,75 @@ void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
 		short ymin, short ymax,
 		const char *name, float *value,
 		bool toggled, bool integer,
-		float min, float max, float def)
+		float min, float max, float def,
+		char *prefix, char *postfix,
+		uint32_t scalepointlen, uint32_t scalepointcount)
 {
 	short controloffset = w;
 	if (ymin <= y && ymax >= y)
 	{
+		if (postfix)
+		{
+			controloffset -= strlen(postfix);
+			if (controloffset >= 0)
+				printf("\033[%d;%dH%s", y, x + controloffset - 1, postfix);
+		}
+
 		if (toggled) /* boolean */
 		{
-			controloffset = w - 3;
+			controloffset -= 3;
 			addControlFloat(cc, x + controloffset, y,
 					value, CONTROL_NIBBLES_TOGGLED,
-					min, max, def, 0, NULL, NULL);
+					min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 		} else if (min != NAN && max != NAN && min < 0.0f)
 		{ /* signed */
 			if (integer) /* signed int */
 			{
-				controloffset = w - 3 - getPreRadixDigits(max);
+				controloffset -= 3 + getPreRadixDigits(max);
 				addControlFloat(cc, x + controloffset, y,
 						value, CONTROL_NIBBLES_SIGNED_INT,
-						min, max, def, 0, NULL, NULL);
+						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			} else /* signed float */
 			{
-				controloffset = w - 10;
+				controloffset -= 10;
 				addControlFloat(cc, x + controloffset, y,
 						value, CONTROL_NIBBLES_SIGNED_FLOAT,
-						min, max, def, 0, NULL, NULL);
+						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			}
 		} else
 		{ /* unsigned */
 			if (integer) /* unsigned int */
 			{
-				controloffset = w - 2 - getPreRadixDigits(max);
+				controloffset -= 2 + getPreRadixDigits(max);
 				addControlFloat(cc, x + controloffset, y,
 						value, CONTROL_NIBBLES_UNSIGNED_INT,
-						min, max, def, 0, NULL, NULL);
+						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			} else /* unsigned float */
 			{
-				controloffset = w - 9;
+				controloffset -= 9;
 				addControlFloat(cc, x + controloffset, y,
 						value, CONTROL_NIBBLES_UNSIGNED_FLOAT,
-						min, max, def, 0, NULL, NULL);
+						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			}
 		}
 
-		controloffset -= 3; /* 2 for [], 1 for the whitespace separator */
+		controloffset -= 1;
 
-		if (x+1 >= 1)
-			printf("\033[%d;%dH%.*s", y, x+1, MIN(controloffset, ws.ws_col - x), name);
-		else if (x+1 + MIN(controloffset, (int)strlen(name)) > 1)
-			printf("\033[%d;%dH%.*s", y, x, controloffset-x, name-x);
-	} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+		if (prefix)
+		{
+			controloffset -= strlen(prefix);
+			if (controloffset >= 0)
+				printf("\033[%d;%dH%s", y, x + controloffset, prefix);
+		}
+
+		controloffset -= 2;
+
+		if (controloffset >= 0)
+		{
+			if (x+1 >= 1)
+				printf("\033[%d;%dH%.*s", y, x+1, MIN(controloffset, ws.ws_col - x), name);
+			else if (x+1 + MIN(controloffset, (int)strlen(name)) > 1)
+				printf("\033[%d;%dH%.*s", y, x, controloffset-x, name-x);
+		}
+	} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL);
 }

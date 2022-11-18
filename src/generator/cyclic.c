@@ -1,54 +1,48 @@
-/* clamps within range and loop, returns output samples */
-void trimloop(double ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t decimate, Instrument *iv, uint8_t stereochannel, short *output)
+void drawCyclic(ControlState *cc, Instrument *iv)
 {
-	if (loop)
-	{ /* if there is a loop range */
-		if (iv->pingpong)
-		{ /* ping-pong loop */
-			if (ptr > length)
-			{
-				ptr = fmod(ptr - length, loop<<1);
-				if (ptr > loop) /* walking forwards  */ ptr = (length - loop) + (ptr - loop);
-				else            /* walking backwards */ ptr = length - ptr;
-			}
+	short x = INSTRUMENT_INDEX_COLS + ((ws.ws_col - INSTRUMENT_INDEX_COLS - 38)>>1) +1;
+	short y = ws.ws_row - 12;
 
-			if (iv->sample->channels == 1) getSample(ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
-		} else
-		{ /* crossfaded forwards loop */
-			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * iv->loopramp*DIV255;
-			if (ptr > length) ptr = (length - loop) + looprampmax + fmod(ptr - length, loop - looprampmax);
+	drawWaveform(iv, x, y);
+	printf("\033[%d;%dH + [          ] +   offset: [        ]", y+4, x);
+	printf("\033[%d;%dHunison:  [ ][ ][ ]  length: [        ]", y+5, x);
+	printf("\033[%d;%dHrev/ramp:  [  ][ ]  loop:   [        ]", y+6, x);
+	printf("\033[%d;%dHcycle:  [    ][  ]  pp/ramp:   [ ][  ]", y+7, x);
+	printf("\033[%d;%dHtime:   [ ][     ]                    ", y+8, x);
+	printf("\033[%d;%dH                     -    PITCH     - ", y+9, x);
+	printf("\033[%d;%dHpan jitter:   [  ]  root: [   ][     ]", y+10, x);
+	printf("\033[%d;%dHptr jitter:   [  ]  jitter: [  ][ ][ ]", y+11, x);
 
-			if (ptr > length - looprampmax)
-			{
-				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
-				float ramppointer = (ptr - (loop - looprampmax));
-				if (iv->sample->channels == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample, output);
-				else                           getSampleLoopRamp((ptr+iv->trimstart)*iv->sample->channels + stereochannel,
-				                                                         ramppointer*iv->sample->channels + stereochannel, lerp, decimate, iv->bitdepth, iv->sample, output);
-			} else
-			{
-				if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-				else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
-			}
-		}
-	} else
-	{
-		if (ptr < length)
-		{
-			if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
-		}
-	}
+	/* granular */
+	addControlInt(cc, x+12, y+6, &iv->granular.reversegrains,     2, 0x0,    0xff,   0,      0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+16, y+6, &iv->granular.rampgrains,        1, 0x0,    0xf,    8,      0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+9,  y+7, &iv->granular.cyclelength,       4, 0x0,    0xffff, 0x3fff, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+15, y+7, &iv->granular.cyclelengthjitter, 2, 0x0,    0xff,   0x0,    0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+9,  y+8, &iv->granular.notestretch,       0, 0,      1,      0,      0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+12, y+8, &iv->granular.timestretch,       5, 0x8bff, 0x7bff, 0,      0, 0, instrumentSamplerControlCallback, NULL);
+
+	/* range */
+	iv->trimlength = MIN(iv->trimlength, iv->sample->length-1);
+	iv->looplength = MIN(iv->looplength, iv->sample->length-1);
+	addControlInt(cc, x+29, y+4, &iv->trimstart,  8, 0x0, iv->sample->length-1,                    0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+29, y+5, &iv->trimlength, 8, 0x0, iv->sample->length-1, iv->sample->length-1, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+29, y+6, &iv->looplength, 8, 0x0, iv->trimlength,                          0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+32, y+7, &iv->pingpong,   0, 0,   1,    0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+35, y+7, &iv->loopramp,   2, 0x0, 0xff, 0, 0, 0, instrumentSamplerControlCallback, NULL);
+
+	/* jitter */
+	addControlInt(cc, x+15, y+10, &iv->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+15, y+11, &iv->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, instrumentSamplerControlCallback, NULL);
+
+	/* pitch */
+	addControlInt(cc, x+27, y+10, &iv->granular.pitchstereo,       3, -128,   127,    0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+32, y+10, &iv->granular.pitchshift,        5, 0x8bff, 0x7bff, 0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+29, y+11, &iv->granular.pitchjitter,       2, 0x00,   0xff,   0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+33, y+11, &iv->granular.pitchoctaverange,  1, 0x0,    0xf,    0, 0, 0, instrumentSamplerControlCallback, NULL);
+	addControlInt(cc, x+36, y+11, &iv->granular.pitchoctavechance, 1, 0x0,    0xf,    0, 0, 0, instrumentSamplerControlCallback, NULL);
 }
 
-float semitoneShortToMultiplier(int16_t input)
-{
-	if (input < 0) return powf(M_12_ROOT_2, -((abs(input)>>12)*12 + (abs(input)&0x0fff)*DIV256));
-	else           return powf(M_12_ROOT_2, (input>>12)*12 + (input&0x0fff)*DIV256);
-}
-
-void cyclicProcess(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void processCyclic(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	uint32_t length = MIN(iv->trimlength, iv->sample->length-1 - iv->trimstart);
 	uint32_t loop   = MIN(iv->looplength, length);

@@ -2,15 +2,17 @@ typedef struct {
 	LilvWorld *world;
 
 	/* ports */
-	LilvNode  *audio_port;
-	LilvNode  *control_port;
-	LilvNode  *cv_port;
-	LilvNode  *input_port;
-	LilvNode  *output_port;
-	LilvNode  *toggled;
-	LilvNode  *integer;
-	LilvNode  *enumeration;
-	LilvNode  *sampleRate;
+	LilvNode *audio_port;
+	LilvNode *control_port;
+	LilvNode *cv_port;
+	LilvNode *input_port;
+	LilvNode *output_port;
+	LilvNode *toggled;
+	LilvNode *integer;
+	LilvNode *enumeration;
+	LilvNode *sampleRate;
+	LilvNode *units_unit;
+	LilvNode *units_render;
 } LV2DB;
 LV2DB lv2_db;
 
@@ -29,6 +31,8 @@ void initLV2DB(void)
 	lv2_db.integer      = lilv_new_uri(lv2_db.world, LV2_CORE__integer);
 	lv2_db.enumeration  = lilv_new_uri(lv2_db.world, LV2_CORE__enumeration);
 	lv2_db.sampleRate   = lilv_new_uri(lv2_db.world, LV2_CORE__sampleRate);
+	lv2_db.units_unit   = lilv_new_uri(lv2_db.world, LV2_UNITS__unit);
+	lv2_db.units_render = lilv_new_uri(lv2_db.world, LV2_UNITS__render);
 }
 
 void freeLV2DB(void)
@@ -42,6 +46,8 @@ void freeLV2DB(void)
 	lilv_node_free(lv2_db.integer);
 	lilv_node_free(lv2_db.enumeration);
 	lilv_node_free(lv2_db.sampleRate);
+	lilv_node_free(lv2_db.units_unit);
+	lilv_node_free(lv2_db.units_render);
 	lilv_world_free(lv2_db.world);
 }
 
@@ -293,18 +299,23 @@ void drawLV2Effect(Effect *e, ControlState *cc,
 {
 	LV2State *s = e->state;
 
-	LilvNode *node, *def, *min, *max;
-
-	node = lilv_plugin_get_name(s->plugin);
+	LilvNode *name;
+	name = lilv_plugin_get_name(s->plugin);
 	if (ymin <= y && ymax >= y)
 	{
 		printf("\033[1m");
-		drawCentreText(x+2, y, w-4, lilv_node_as_string(node));
+		drawCentreText(x+2, y, w-4, lilv_node_as_string(name));
 		printf("\033[22m");
 	}
-	lilv_node_free(node);
+	lilv_node_free(name);
+
+	LilvNode *def, *min, *max, *unit, *render;
+	LilvScalePoints *scalepoints;
+	char *prefix, *postfix, *subptr;
+	const char *srender = NULL;
 
 	uint32_t controlp = 0;
+	uint32_t scalepointlen, scalepointcount, splen;
 	const LilvPort *lpo;
 	for (uint32_t i = 0; i < lilv_plugin_get_num_ports(s->plugin); i++)
 	{
@@ -312,19 +323,68 @@ void drawLV2Effect(Effect *e, ControlState *cc,
 		if (lilv_port_is_a(s->plugin, lpo, lv2_db.control_port)
 		 && lilv_port_is_a(s->plugin, lpo, lv2_db.input_port))
 		{
-			node = lilv_port_get_name(s->plugin, lpo);
+			prefix = NULL;
+			postfix = NULL;
+			scalepointlen = scalepointcount = 0;
 			lilv_port_get_range(s->plugin, lpo, &def, &min, &max);
-			drawAutogenPluginLine(cc, x, y+1 + controlp, w, ymin, ymax,
-					lilv_node_as_string(node), &s->controlv[controlp],
-					lilv_port_has_property(s->plugin, lpo, lv2_db.toggled),
-					lilv_port_has_property(s->plugin, lpo, lv2_db.integer),
-					getLV2PortMin(s, lpo, min),
-					getLV2PortMax(s, lpo, max),
-					getLV2PortDef(s, lpo, def));
-			lilv_node_free(node);
+
+			/* prefix/postfix */
+			// render = lilv_port_get(s->plugin, lpo, lv2_db.units_render);
+			unit = lilv_port_get(s->plugin, lpo, lv2_db.units_unit);
+			if (unit)
+			{
+				render = lilv_world_get(lv2_db.world, unit, lv2_db.units_render, NULL);
+				if (render)
+				{
+					srender = lilv_node_as_string(render);
+					if ((subptr = strstr(srender, "%f")))
+					{
+						if (subptr > srender) /* prefix present */
+						{
+							prefix = calloc(subptr - srender + 2, sizeof(char));
+							strncpy(prefix, srender, subptr - srender);
+						}
+						if (strlen(srender) - (subptr - srender) > 2) /* postfix present */
+						{
+							postfix = calloc(strlen(srender) - (subptr - srender) - 1, sizeof(char));
+							strcpy(postfix, subptr + 2);
+						}
+					}
+					lilv_node_free(render);
+				}
+				lilv_node_free(unit);
+			}
+
+
+			name = lilv_port_get_name(s->plugin, lpo);
+			scalepoints = lilv_port_get_scale_points(s->plugin, lpo);
+			if (scalepoints)
+			{
+				scalepointcount = lilv_scale_points_size(scalepoints);
+				LILV_FOREACH(scale_points, j, scalepoints)
+				{
+					splen = lilv_node_as_int(
+							lilv_scale_point_get_label(
+								lilv_scale_points_get(
+									scalepoints, j)));
+					scalepointlen = MAX(scalepointlen, splen);
+				} lilv_scale_points_free(scalepoints);
+			} else
+				drawAutogenPluginLine(cc, x, y+1 + controlp, w, ymin, ymax,
+						lilv_node_as_string(name), &s->controlv[controlp],
+						lilv_port_has_property(s->plugin, lpo, lv2_db.toggled),
+						lilv_port_has_property(s->plugin, lpo, lv2_db.integer),
+						getLV2PortMin(s, lpo, min),
+						getLV2PortMax(s, lpo, max),
+						getLV2PortDef(s, lpo, def),
+						prefix, postfix, scalepointlen, scalepointcount);
+
+			lilv_node_free(name);
 			if (def) lilv_node_free(def);
 			if (min) lilv_node_free(min);
 			if (max) lilv_node_free(max);
+			if (prefix) free(prefix);
+			if (postfix) free(postfix);
 
 			controlp++;
 		}

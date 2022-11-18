@@ -24,6 +24,7 @@
 #include <lv2.h>
 // #include <lv2/port-props/port-props.h>
 #include <lv2/urid/urid.h>
+#include <lv2/units/units.h>
 
 /* libdrawille */
 #include "../lib/libdrawille/src/Canvas.h"
@@ -42,7 +43,7 @@ const unsigned char MINOR = 1;
 
 #define INSTRUMENT_INDEX_COLS 18
 
-#define RECORD_LENGTH 600 /* record length, in seconds */
+#define RECORD_LENGTH 600 /* max record length, in seconds */
 
 int DEBUG;
 
@@ -50,7 +51,6 @@ jack_nframes_t samplerate, buffersize;
 jack_nframes_t rampmax;
 
 jack_client_t *client;
-pthread_t dummyprocessthread;
 
 struct termios origterm;
 struct winsize ws;
@@ -70,30 +70,27 @@ void showMaster    (void);
 #endif
 
 #include "command.c"
+
 #include "dsp.c"
-
-#include "event.h" /* event declares */
-
 #include "buttons.h"
+
+#include "event.h"
+
+#include "column.c"
 #include "control.c"
+
 #include "types/types.c"
+
+#include "macros.h"
 
 void setBpm(uint16_t *, uint8_t);
 void midiNoteOff(jack_nframes_t, uint8_t, uint8_t, uint8_t);
-void debug_dumpChannelState(Song *);
-
-#include "macros.h"
 
 #include "input.c"
 ControlState cc;
 #include "tooltip.c"
 TooltipState tt;
-#include "column.c"
 
-#include "types/effect.c"
-#include "types/channel.c"
-#include "types/instrument.c"
-#include "types/song.c"
 #include "types/file.c"
 
 #include "browser.c"
@@ -102,8 +99,10 @@ TooltipState tt;
 
 #include "event.c" /* event handlers */
 
-#include "background.c"
+#include "instrument/waveform.c"
 #include "generator/sampler.c"
+
+#include "background.c"
 #include "process.c"
 #include "macros.c"
 
@@ -195,7 +194,10 @@ void drawRuler(void)
 void redraw(void)
 {
 	fcntl(0, F_SETFL, 0); /* blocking */
-	puts("\033[2J\033[?25h");
+	/* "CSI 2 J"     clears the screen              */
+	/* "CSI ? 2 5 h"  ensures the cursor is visible  */
+	/* "CSI 2   q" sets the cursor shape to block */
+	puts("\033[2J\033[?25h\033[2 q");
 
 	if (ws.ws_row < 14 + CHANNEL_ROW || ws.ws_col < 38 + INSTRUMENT_INDEX_COLS - 1)
 	{
@@ -407,23 +409,7 @@ void resize(int _)
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->centre = (ws.ws_row>>1) + 1;
 
-	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1)<<1;
-	// if (ws.ws_col - INSTRUMENT_INDEX_COLS < 57)
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 13)<<2;
-	/* else
-		w->waveformh = (ws.ws_row - CHANNEL_ROW - 6)<<2; */
-
-	if (w->waveformcanvas) { free_canvas(w->waveformcanvas); w->waveformcanvas = NULL; }
-	if (w->waveformbuffer) { free_buffer(w->waveformbuffer); w->waveformbuffer = NULL; }
-
-	if (w->waveformw > 0 && w->waveformh > 0)
-		w->waveformcanvas = new_canvas(w->waveformw, w->waveformh);
-
-	if (w->waveformcanvas)
-		w->waveformbuffer = new_buffer(w->waveformcanvas);
-
-	w->waveformdrawpointer = 0;
-
+	resizeWaveform();
 	resizeBackground(b);
 	resizeBrowser(fbstate,
 			INSTRUMENT_INDEX_COLS + 2,         /* x */

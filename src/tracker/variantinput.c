@@ -10,14 +10,14 @@ int inputChannelVariantEscape(int input)
 			switch (w->mode)
 			{
 				case T_MODE_VISUAL:     addPartPattern( MAX(1, w->count)*12, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 1, 1); break;
-				case T_MODE_VISUALLINE: addPartPattern( MAX(1, w->count)*12, TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 1, 0); break;
+				case T_MODE_VISUALLINE: addPartPattern( MAX(1, w->count)*12, TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 1, 0); break;
 				case T_MODE_NORMAL: case T_MODE_INSERT: addPartPattern(MAX(1, w->count)*12, tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 1, 1); break;
 			} regenGlobalRowc(s); return 1;
 		case 24: /* alt+^x */
 			switch (w->mode)
 			{
 				case T_MODE_VISUAL:     addPartPattern(-MAX(1, w->count)*12, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 1, 1); break;
-				case T_MODE_VISUALLINE: addPartPattern(-MAX(1, w->count)*12, TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 1, 0); break;
+				case T_MODE_VISUALLINE: addPartPattern(-MAX(1, w->count)*12, TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 1, 0); break;
 				case T_MODE_NORMAL: case T_MODE_INSERT: addPartPattern(-MAX(1, w->count)*12, tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 1, 1); break;
 			} regenGlobalRowc(s); return 1;
 		default: /* alt macros */
@@ -59,7 +59,7 @@ int inputChannelVariantEscape(int input)
 							} regenGlobalRowc(s); return ret;
 						} break;
 					case T_MODE_VISUAL:     if (input == '~') { altTildePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); return 1; } break;
-					case T_MODE_VISUALLINE: if (input == '~') { altTildePartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); return 1; } break;
+					case T_MODE_VISUALLINE: if (input == '~') { altTildePartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); return 1; } break;
 				}
 	} return 0;
 }
@@ -82,8 +82,8 @@ int inputChannelVariant(int input)
 				case 'f': /* toggle song follow */ w->follow = !w->follow; if (s->playing) w->trackerfy = s->playfy; p->redraw = 1; break;
 				case 'I': /* macro insert mode  */ w->chord = 'I'; p->redraw = 1; return 1;
 				case 'i': /* enter insert mode  */ w->mode = T_MODE_INSERT; p->redraw = 1; break;
-				// case 'u': /* undo               */ popPatternHistory(s->patterni[s->trig[w->songfy].index]); p->redraw = 1; break;
-				// case 18:  /* redo               */ unpopPatternHistory(s->patterni[s->trig[w->songfy].index]); p->redraw = 1; break;
+				// case 'u': /* undo               */ popPatternHistory(s->patterni[s->variant->trig[w->songfy].index]); p->redraw = 1; break;
+				// case 18:  /* redo               */ unpopPatternHistory(s->patterni[s->variant->trig[w->songfy].index]); p->redraw = 1; break;
 				case 'k': /* up arrow           */ trackerUpArrow  (MAX(1, w->count)); p->redraw = 1; break;
 				case 'j': /* down arrow         */ trackerDownArrow(MAX(1, w->count)); p->redraw = 1; break;
 				case 'h': /* left arrow         */ trackerLeftArrow (MAX(1, w->count)); p->redraw = 1; break;
@@ -159,8 +159,8 @@ int inputChannelVariant(int input)
 							{
 								case 1:   /* ^a         */ addPartPattern( MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
 								case 24:  /* ^x         */ addPartPattern(-MAX(1, w->count), tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy, w->trackerfy, w->channel, w->channel, 0, 1); break;
-								case 'a': /* add empty  */ setChannelTrig(cd, w->trackerfy, _duplicateEmptyVariantIndex(cd, cd->trig[w->trackerfy].index)); break;
-								case '.': /* vtrig loop */ i = getPrevVtrig(cd, w->trackerfy); if (i != -1) cd->trig[i].flags ^= C_VTRIG_LOOP; break;
+								case 'a': /* add empty  */ setVariantChainTrig(&cd->variant, w->trackerfy, dupEmptyVariantIndex(cd->variant, cd->variant->trig[w->trackerfy].index)); break;
+								case '.': /* vtrig loop */ i = getVariantChainPrevVtrig(cd->variant, w->trackerfy); if (i != -1) cd->variant->trig[i].flags ^= C_VTRIG_LOOP; break;
 							} break;
 						case 0: /* note */
 							switch (input)
@@ -205,7 +205,11 @@ int inputChannelVariant(int input)
 						trackerDownArrow(w->step);
 						break;
 					case 1:  /* instrument */ insertInst(r, input); regenGlobalRowc(s); break;
-					default: /* macro      */ insertMacro(&r->macro[(w->trackerfx - 2)>>1], input, 0); regenGlobalRowc(s); break;
+					default: /* macro      */
+						insertMacro(&r->macro[(w->trackerfx - 2)>>1], input, 0);
+						regenGlobalRowc(s);
+						if (!(w->trackerfx&1)) trackerDownArrow(w->step); /* TODO: ugly re-check for something already checked in insertMacro() */
+						break;
 				} break;
 		case T_MODE_VISUALREPLACE:
 			if (input == '\n' || input == '\r') /* mute */ { toggleChannelMute(w->channel); p->redraw = 1; }
@@ -277,31 +281,31 @@ int inputChannelVariant(int input)
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     tildePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
-						case T_MODE_VISUALLINE: tildePartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: tildePartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
 					} break;
 				case 'i': /* interpolate */
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     interpolatePartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
-						case T_MODE_VISUALLINE: interpolatePartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: interpolatePartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
 					} break;
 				case '%': /* random */
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     randPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
-						case T_MODE_VISUALLINE: randPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: randPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
 					} break;
 				case 1: /* ^a */
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     addPartPattern( MAX(1, w->count), MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 0, 1); break;
-						case T_MODE_VISUALLINE: addPartPattern( MAX(1, w->count), TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 0, 0); break;
+						case T_MODE_VISUALLINE: addPartPattern( MAX(1, w->count), TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 0, 0); break;
 					} regenGlobalRowc(s); break;
 				case 24: /* ^x */
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     addPartPattern(-MAX(1, w->count), MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 0, 1); break;
-						case T_MODE_VISUALLINE: addPartPattern(-MAX(1, w->count), TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 0, 0); break;
+						case T_MODE_VISUALLINE: addPartPattern(-MAX(1, w->count), TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel), 0, 0); break;
 					} regenGlobalRowc(s); break;
 				case 'b': /* bounce visual line to sample */
 					bouncePartPattern(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy),
@@ -316,7 +320,7 @@ int inputChannelVariant(int input)
 					vminrow = MIN(w->trackerfy, w->visualfy);
 					/* loop to find the lowest common free index */
 					for (i = MIN(w->channel, w->visualchannel); i <= MAX(w->channel, w->visualchannel); i++)
-						vindex = MAX(vindex, _getEmptyVariantIndex(&s->channel->v[i].data, vindex));
+						vindex = MAX(vindex, getEmptyVariantIndex(s->channel->v[i].data.variant, vindex));
 
 					/* loop to actually rip */
 					for (i = MIN(w->channel, w->visualchannel); i <= MAX(w->channel, w->visualchannel); i++)
@@ -324,16 +328,16 @@ int inputChannelVariant(int input)
 						vlength = MIN(VARIANT_ROWMAX, MAX(w->trackerfy, w->visualfy) - vminrow);
 						cd = &s->channel->v[i].data;
 
-						addVariant(cd, vindex, vlength);
+						addVariant(&cd->variant, vindex, vlength);
 
 						/* move rows to the new variant */
-						for (j = 0; j < vlength; j++)
+						for (j = 0; j <= vlength; j++)
 						{
 							r = getChannelRow(cd, vminrow + j);
-							memcpy(&cd->variantv[cd->varianti[vindex]]->rowv[j], r, sizeof(Row));
+							memcpy(&cd->variant->v[cd->variant->i[vindex]]->rowv[j], r, sizeof(Row));
 
 							/* only clear the source row if it's in the global variant */
-							if (getChannelVariant(NULL, cd, vminrow + j) == -1)
+							if (getVariantChainVariant(NULL, cd->variant, vminrow + j) == -1)
 							{
 								memset(r, 0, sizeof(Row));
 								r->note = NOTE_VOID;
@@ -342,18 +346,18 @@ int inputChannelVariant(int input)
 						}
 
 						/* unnecessarily complex edge case handling */
-						if (cd->trig[vminrow + vlength].index == VARIANT_VOID)
+						if (cd->variant->trig[vminrow + vlength].index == VARIANT_VOID)
 							for (j = vminrow + vlength; j > vminrow; j--)
-								if (cd->trig[j].index != VARIANT_VOID)
+								if (cd->variant->trig[j].index != VARIANT_VOID)
 								{
-									if (cd->varianti[cd->trig[j].index] != VARIANT_VOID && j + cd->variantv[cd->varianti[cd->trig[j].index]]->rowc > vminrow + vlength)
+									if (cd->variant->i[cd->variant->trig[j].index] != VARIANT_VOID && j + cd->variant->v[cd->variant->i[cd->variant->trig[j].index]]->rowc > vminrow + vlength)
 									{
-										cd->trig[vminrow + vlength].index = cd->trig[j].index;
+										cd->variant->trig[vminrow + vlength].index = cd->variant->trig[j].index;
 										// TODO: set vtrig offset to align this correctly
 									} break;
 								}
 
-						setChannelTrig(cd, vminrow, vindex);
+						setVariantChainTrig(&cd->variant, vminrow, vindex);
 					} regenGlobalRowc(s); break;
 				case 'd': case 'x': case 127: case '\b': /* pattern cut */
 					switch (w->mode)
@@ -363,8 +367,8 @@ int inputChannelVariant(int input)
 							delPartPattern (MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 							break;
 						case T_MODE_VISUALLINE:
-							yankPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
-							delPartPattern (TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							yankPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
+							delPartPattern (TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel));
 							break;
 					}
 					w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
@@ -376,7 +380,7 @@ int inputChannelVariant(int input)
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     yankPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
-						case T_MODE_VISUALLINE: yankPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: yankPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
 					}
 					w->trackerfx = MIN(w->trackerfx, vfxToTfx(w->visualfx));
 					w->trackerfy = MIN(w->trackerfy, w->visualfy);
@@ -387,7 +391,7 @@ int inputChannelVariant(int input)
 					switch (w->mode)
 					{
 						case T_MODE_VISUAL:     loopPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
-						case T_MODE_VISUALLINE: loopPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
+						case T_MODE_VISUALLINE: loopPartPattern(TRACKERFX_VISUAL_MIN, 2+cd->variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->channel, w->visualchannel), MAX(w->channel, w->visualchannel)); break;
 					}
 					w->mode = T_MODE_NORMAL;
 					p->redraw = 1; break;

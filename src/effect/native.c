@@ -1,9 +1,9 @@
-typedef struct
-{
+typedef struct {
 	uint8_t controlc;
 	short   height;
 	char   *name;
 	char   *author;
+	bool    instrument;
 	void        (*init)(void **instance);
 	void        (*free)(void **instance); /* should free the instance */
 	void        (*copy)(void **dest, void **src);
@@ -13,14 +13,12 @@ typedef struct
 	void         (*run)(uint32_t samplecount, EffectChain *chain, void **instance);
 } NATIVE_Descriptor;
 
-typedef struct
-{
+typedef struct {
 	NATIVE_Descriptor *desc;
 	void              *instance;
 } NativeState;
 
-typedef struct
-{
+typedef struct {
 	uint32_t            descc;
 	NATIVE_Descriptor **descv;
 } NativeDB;
@@ -60,8 +58,7 @@ void initNativeEffect(Effect *e, NATIVE_Descriptor *desc)
 }
 void freeNativeEffect(Effect *e)
 {
-	((NativeState *)e->state)->desc->free(
-		&((NativeState *)e->state)->instance);
+	((NativeState *)e->state)->desc->free(&((NativeState *)e->state)->instance);
 }
 
 void copyNativeEffect(Effect *dest, Effect *src)

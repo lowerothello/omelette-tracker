@@ -1,7 +1,7 @@
 char ifMacro(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r, char m, bool alt, char (*callback)(jack_nframes_t, uint16_t *, int, Channel *, Row))
 {
 	char ret = 0;
-	for (int i = 0; i <= cv->data.macroc; i++)
+	for (int i = 0; i <= cv->data.variant->macroc; i++)
 		if (r.macro[i].c == m && r.macro[i].alt == alt)
 			ret = callback(fptr, spr, r.macro[i].v, cv, r);
 	return ret;
@@ -235,8 +235,7 @@ char Cc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	if (!m)
 	{ /* cut now */
 		ramp(cv, 0.0f, p->s->instrument->i[cv->samplerinst]); /* TODO: proper rowprogress */
-		triggerNote(cv, NOTE_OFF, cv->r.inst);
-		triggerMidi(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
+		triggerNote(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 		cv->cutsamples = 0;
 		return 1;
 	} else /* cut later */
@@ -260,8 +259,7 @@ char Dc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	if (!m) return 0;
 	cv->delaysamples = *spr * m*DIV256;
 	cv->delaynote = r.note;
-	if (r.inst == INST_VOID) cv->delayinst = cv->r.inst;
-	else                     cv->delayinst = r.inst;
+	cv->delayinst = r.inst;
 	return 1;
 }
 
@@ -335,7 +333,7 @@ char Rc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	cv->rtrigpitchedpointer = cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
 	cv->rtrigblocksize = m>>4;
 	if (m&0xf) cv->rtrigsamples = *spr / (m&0xf);
-	else      cv->rtrigsamples = *spr * (cv->rtrigblocksize+1);
+	else       cv->rtrigsamples = *spr * (cv->rtrigblocksize+1);
 	return 1;
 }
 char rc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)

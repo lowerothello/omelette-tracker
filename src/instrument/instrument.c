@@ -31,15 +31,6 @@ int sampleExportCallback(char *command, unsigned char *mode)
 	free(buffer);
 	return 0;
 }
-void resetWaveform(void)
-{
-	// if (s->instrument->i[w->instrument] < s->instrument->c)
-	if (instrumentSafe(s, w->instrument))
-	{
-		w->waveformdrawpointer = 0;
-		p->redraw = 1;
-	}
-}
 /* TODO: sample could already be loaded into p->semarg, reparent if so */
 void sampleLoadCallback(char *path)
 {

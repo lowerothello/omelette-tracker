@@ -296,7 +296,8 @@ void drawLadspaEffect(Effect *e, ControlState *cc,
 					LADSPA_IS_HINT_INTEGER(s->desc->PortRangeHints[i].HintDescriptor),
 					getLadspaPortMin(s->desc->PortRangeHints[i]),
 					getLadspaPortMax(s->desc->PortRangeHints[i]),
-					getLadspaPortDef(s->desc->PortRangeHints[i]));
+					getLadspaPortDef(s->desc->PortRangeHints[i]),
+					NULL, NULL, 0, 0);
 
 			controlp++;
 		}

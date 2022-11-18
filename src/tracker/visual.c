@@ -26,13 +26,13 @@ void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	for (uint8_t i = 0; i <= c2-c1; i++)
 	{
 		cd = &s->channel->v[c1+i].data;
-		w->pbvariantv[i] = _copyVariant(NULL, y2-y1 + 1);
+		w->pbvariantv[i] = dupVariant(NULL, y2-y1 + 1);
 		for (uint16_t j = 0; j <= y2-y1; j++)
 			w->pbvariantv[i]->rowv[j] = *getChannelRow(cd, y1+j);
 
 		w->vbtrig[i] = calloc(y2-y1 + 1, sizeof(Vtrig));
 		for (uint16_t j = 0; j <= y2-y1; j++)
-			w->vbtrig[i][j] = cd->trig[y1+j];
+			w->vbtrig[i][j] = cd->variant->trig[y1+j];
 	}
 }
 void putPartPattern(void)
@@ -76,12 +76,12 @@ void putPartPattern(void)
 				src = getVariantRow(w->pbvariantv[0], j);
 				if (w->pbfx[0] <= -1 && w->pbfx[1] >= -1)
 				{
-					cd->trig[w->trackerfy+j] = w->vbtrig[0][j];
-					addVariant(cd, cd->trig[w->trackerfy+j].index, w->defvariantlength);
+					cd->variant->trig[w->trackerfy+j] = w->vbtrig[0][j];
+					addVariant(&cd->variant, cd->variant->trig[w->trackerfy+j].index, w->defvariantlength);
 				}
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0) dest->note = src->note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) dest->inst = src->inst;
-				for (k = 0; k <= cd->macroc; k++)
+				for (k = 0; k <= cd->variant->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2)
 					{
 						dest->macro[k].c = src->macro[k].c;
@@ -106,12 +106,12 @@ void putPartPattern(void)
 					{
 						if (w->pbfx[0] <= -1)
 						{
-							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
-							addVariant(cd, cd->trig[w->trackerfy+j].index, w->defvariantlength);
+							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
+							addVariant(&cd->variant, cd->variant->trig[w->trackerfy+j].index, w->defvariantlength);
 						}
 						if (w->pbfx[0] <= 0) dest->note = src->note;
 						if (w->pbfx[0] <= 1) dest->inst = src->inst;
-						for (k = 0; k <= cd->macroc; k++)
+						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[0] <= k+2)
 							{
 								dest->macro[k].c = src->macro[k].c;
@@ -122,12 +122,12 @@ void putPartPattern(void)
 					{
 						if (w->pbfx[0] >= -1)
 						{
-							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
-							addVariant(cd, cd->trig[w->trackerfy+j].index, w->defvariantlength);
+							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
+							addVariant(&cd->variant, cd->variant->trig[w->trackerfy+j].index, w->defvariantlength);
 						}
 						if (w->pbfx[1] >= 0) dest->note = src->note;
 						if (w->pbfx[1] >= 1) dest->inst = src->inst;
-						for (k = 0; k <= cd->macroc; k++)
+						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[1] >= k+2)
 							{
 								dest->macro[k].c = src->macro[k].c;
@@ -136,8 +136,8 @@ void putPartPattern(void)
 							}
 					} else
 					{
-						cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
-						addVariant(cd, cd->trig[w->trackerfy+j].index, w->defvariantlength);
+						cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
+						addVariant(&cd->variant, cd->variant->trig[w->trackerfy+j].index, w->defvariantlength);
 						*dest = *src;
 					}
 				}
@@ -188,10 +188,10 @@ void mixPutPartPattern(void)
 				dest = getChannelRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				if (w->pbfx[0] <= -1 && w->pbfx[1] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
-					cd->trig[w->trackerfy+j] = w->vbtrig[0][j];
+					cd->variant->trig[w->trackerfy+j] = w->vbtrig[0][j];
 				if (w->pbfx[0] <= 0 && w->pbfx[1] >= 0 && src->note != NOTE_VOID) dest->note = src->note;
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-				for (k = 0; k <= cd->macroc; k++)
+				for (k = 0; k <= cd->variant->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2 && src->macro[k].c)
 					{
 						dest->macro[k].c =   src->macro[k].c;
@@ -215,10 +215,10 @@ void mixPutPartPattern(void)
 					if (i == 0) // first channel
 					{
 						if (w->pbfx[0] <= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
-							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
+							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
 						if (w->pbfx[0] <= 0 && src->note != NOTE_VOID) dest->note = src->note;
 						if (w->pbfx[0] <= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-						for (k = 0; k <= cd->macroc; k++)
+						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[0] <= k+2 && src->macro[k].c)
 							{
 								dest->macro[k].c =   src->macro[k].c;
@@ -228,10 +228,10 @@ void mixPutPartPattern(void)
 					} else if (i == w->pbchannelc-1) // last channel
 					{
 						if (w->pbfx[0] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
-							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
+							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
 						if (w->pbfx[1] >= 0 && src->note != NOTE_VOID) dest->note = src->note;
 						if (w->pbfx[1] >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-						for (k = 0; k <= cd->macroc; k++)
+						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[1] >= k+2 && src->macro[k].c)
 							{
 								dest->macro[k].c =   src->macro[k].c;
@@ -241,10 +241,10 @@ void mixPutPartPattern(void)
 					} else // middle channel
 					{
 						if (w->vbtrig[0][j].index != VARIANT_VOID)
-							cd->trig[w->trackerfy+j] = w->vbtrig[i][j];
+							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
 						if (src->note != NOTE_VOID) dest->note = src->note;
 						if (src->inst != INST_VOID) dest->inst = src->inst;
-						for (k = 0; k <= cd->macroc; k++)
+						for (k = 0; k <= cd->variant->macroc; k++)
 							if (src->macro[k].c)
 							{
 								dest->macro[k].c =   src->macro[k].c;
@@ -265,11 +265,11 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 	if (c1 == c2) /* only one channel */
 		for (j = y1; j <= y2; j++)
 		{
-			if (x1 <= -1 && x2 >= -1) setChannelTrig(&s->channel->v[c1].data, j, VARIANT_VOID);
+			if (x1 <= -1 && x2 >= -1) setVariantChainTrig(&s->channel->v[c1].data.variant, j, VARIANT_VOID);
 			r = getChannelRow(&s->channel->v[c1].data, j);
 			if (x1 <= 0 && x2 >= 0) r->note = NOTE_VOID;
 			if (x1 <= 1 && x2 >= 1) r->inst = INST_VOID;
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					r->macro[k].c   = 0;
@@ -283,11 +283,11 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 			{
 				if (i == c1) /* first channel */
 				{
-					if (x1 <= -1) setChannelTrig(&s->channel->v[i].data, j, VARIANT_VOID);
+					if (x1 <= -1) setVariantChainTrig(&s->channel->v[i].data.variant, j, VARIANT_VOID);
 					r = getChannelRow(&s->channel->v[i].data, j);
 					if (x1 <= 0) r->note = NOTE_VOID;
 					if (x1 <= 1) r->inst = INST_VOID;
-					for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+					for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 						if (x1 <= k+2)
 						{
 							r->macro[k].c   = 0;
@@ -296,11 +296,11 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 						}
 				} else if (i == c2) /* last channel */
 				{
-					if (x1 >= -1) setChannelTrig(&s->channel->v[i].data, j, VARIANT_VOID);
+					if (x1 >= -1) setVariantChainTrig(&s->channel->v[i].data.variant, j, VARIANT_VOID);
 					r = getChannelRow(&s->channel->v[i].data, j);
 					if (x2 >= 0) r->note = NOTE_VOID;
 					if (x2 >= 1) r->inst = INST_VOID;
-					for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+					for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 						if (x2 >= k+2)
 						{
 							r->macro[k].c   = 0;
@@ -309,7 +309,7 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 						}
 				} else /* middle channel */
 				{
-					setChannelTrig(&s->channel->v[i].data, j, VARIANT_VOID);
+					setVariantChainTrig(&s->channel->v[i].data.variant, j, VARIANT_VOID);
 					r = getChannelRow(&s->channel->v[i].data, j);
 					memset(r, 0, sizeof(Row));
 					r->note = NOTE_VOID;
@@ -324,8 +324,8 @@ void loopPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	if (c1 == c2) /* only one channel */
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			if (x1 <= -1 && x2 >= -1 && s->channel->v[c1].data.trig[j].index != VARIANT_VOID)
-				s->channel->v[c1].data.trig[j].flags ^= C_VTRIG_LOOP;
+			if (x1 <= -1 && x2 >= -1 && s->channel->v[c1].data.variant->trig[j].index != VARIANT_VOID)
+				s->channel->v[c1].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
 		}
 	else for (uint8_t i = c1; i <= c2; i++)
 		if (i < s->channel->c)
@@ -333,8 +333,8 @@ void loopPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 			{
 				if ((i == c1 && x1 <= -1) /* first channel */
 				 || (i != c1))            /* other channel */
-					if (s->channel->v[i].data.trig[j].index != VARIANT_VOID)
-						s->channel->v[i].data.trig[j].flags ^= C_VTRIG_LOOP;
+					if (s->channel->v[i].data.variant->trig[j].index != VARIANT_VOID)
+						s->channel->v[i].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
 			}
 		else break;
 	regenGlobalRowc(s);
@@ -352,9 +352,9 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 			r = getChannelRow(&s->channel->v[c1].data, j);
 			if (x1 <= 0 && x2 >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 		if (noteonly) continue;
-			if (x1 <= -1 && x2 >= -1 && affectvtrig) setChannelTrig(&s->channel->v[c1].data, j, s->channel->v[c1].data.trig[j].index + value);
+			if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->channel->v[c1].data.variant, j, s->channel->v[c1].data.variant->trig[j].index + value);
 			if (x1 <= 1 && x2 >= 1 && r->inst != INST_VOID) r->inst += value;
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
@@ -371,9 +371,9 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 					{
 						if (x1 <= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 					if (noteonly) continue;
-						if (x1 <= -1 && x2 >= -1 && affectvtrig) setChannelTrig(&s->channel->v[i].data, j, s->channel->v[i].data.trig[j].index + value);
+						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->channel->v[i].data.variant, j, s->channel->v[i].data.variant->trig[j].index + value);
 						if (x1 <= 1 && r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
@@ -383,9 +383,9 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 					{
 						if (x2 >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 					if (noteonly) continue;
-						if (x1 <= -1 && x2 >= -1 && affectvtrig) setChannelTrig(&s->channel->v[i].data, j, s->channel->v[i].data.trig[j].index + value);
+						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->channel->v[i].data.variant, j, s->channel->v[i].data.variant->trig[j].index + value);
 						if (x2 >= 1 && r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
@@ -395,9 +395,9 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 					{
 						if (r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 					if (noteonly) continue;
-						if (affectvtrig) setChannelTrig(&s->channel->v[i].data, j, s->channel->v[i].data.trig[j].index + value);
+						if (affectvtrig) setVariantChainTrig(&s->channel->v[i].data.variant, j, s->channel->v[i].data.variant->trig[j].index + value);
 						if (r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 						{
 							if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
 							else                                 r->macro[k].v += value;
@@ -417,7 +417,7 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 		for (j = y1; j <= y2; j++)
 		{
 			r = getChannelRow(&s->channel->v[c1].data, j);
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && isalpha(r->macro[k].c))
 					changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt);
 		}
@@ -428,15 +428,15 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 				{
 					r = getChannelRow(&s->channel->v[i].data, j);
 					if (i == c1) /* first channel */
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++) {
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
 							if (x1 <= k+2 && isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt); }
 					else if (i == c2) /* last channel */
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++) {
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
 							if (x2 >= k+2 && isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt); }
 					else /* middle channel */
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt);
 				}
@@ -454,7 +454,7 @@ void altTildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, u
 		for (j = y1; j <= y2; j++)
 		{
 			r = getChannelRow(&s->channel->v[c1].data, j);
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && isalpha(r->macro[k].c))
 					changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt);
 		}
@@ -465,15 +465,15 @@ void altTildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, u
 				{
 					r = getChannelRow(&s->channel->v[i].data, j);
 					if (i == c1) /* first channel */
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++) {
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
 							if (x1 <= k+2 && isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt); }
 					else if (i == c2) /* last channel */
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++) {
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
 							if (x2 >= k+2 && isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt); }
 					else /* middle channel */
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt);
 				}
@@ -505,7 +505,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 				else if (r2->inst == INST_VOID) r->inst = r1->inst;
 				else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 			}
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -534,7 +534,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 							else if (r2->inst == INST_VOID) r->inst = r1->inst;
 							else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 						}
-						for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -555,7 +555,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 							else if (r2->inst == INST_VOID) r->inst = r1->inst;
 							else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 						}
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -572,7 +572,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 						else if (r2->inst == INST_VOID) r->inst = r1->inst;
 						else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 						{
 							r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
 							r->macro[k].v =  r1->macro[k].v + ((r2->macro[k].v - r1->macro[k].v) / (float)(y2-y1)) * (j-y1);
@@ -601,7 +601,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 				for (k = 0; k < INSTRUMENT_MAX; k++)
 					if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 			}
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && r->macro[k].c)
 					r->macro[k].v = rand()%256;
 		}
@@ -622,7 +622,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (x1 <= k+2 && r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					} else if (i == c2) /* last channel */
@@ -636,7 +636,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 								if (s->instrument->i[k] == randinst)
 								{ r->inst = k; break; }
 						}
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (x2 >= k+2 && r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					} else /* middle channel */
@@ -649,7 +649,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
-						for (k = 0; k <= s->channel->v[i].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
 							if (r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					}
@@ -688,7 +688,7 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					for (j = y1; j < y2; j++)
@@ -734,7 +734,7 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								for (j = y1; j < y2; j++)
@@ -773,7 +773,7 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c2].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[c2].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								for (j = y1; j < y2; j++)
@@ -835,7 +835,7 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					for (j = y2-1; j >= y1; j--)
@@ -882,7 +882,7 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c1].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								for (j = y2-1; j >= y1; j--)
@@ -921,7 +921,7 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c2].data.macroc; k++)
+						for (k = 0; k <= s->channel->v[c2].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								for (j = y2-1; j >= y1; j--)
@@ -1007,7 +1007,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
 		{
 			r = getChannelRow(&cv[chnl].data, row);
-			preprocessRow(0, &spr, 0, &cv[chnl], *r);
+			processRow(0, &spr, 0, &cv[chnl], *r);
 		}
 		if (s->bpmcachelen > row && s->bpmcache[row] != -1) Bc(fptr, &spr, s->bpmcache[row], NULL, *r);
 
@@ -1019,7 +1019,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 				if (sprp >= spr) break;
 				for (chnl = 0; chnl <= c2-c1; chnl++)
 				{
-					playChannel(0, fptr, &spr, fptr, &cv[chnl]);
+					playChannel(fptr, &spr, fptr, &cv[chnl]); /* TODO: shouldn't trigger midi */
 					sample->data[((bufptr+sprp)<<1)+0] += cv[chnl].output[0][fptr]*cv[chnl].mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
 					sample->data[((bufptr+sprp)<<1)+1] += cv[chnl].output[1][fptr]*cv[chnl].mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
 				} sprp++;
@@ -1034,7 +1034,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		for (uint8_t i = 0; i < cv[chnl].data.effect->c; i++)
 			runEffect(buflen, cv[chnl].data.effect, &cv[chnl].data.effect->v[i]);
 
-		_delChannel(&cv[chnl]);
+		_delChannel(s, &cv[chnl]);
 	} free(cv);
 
 	/* init the instrument */

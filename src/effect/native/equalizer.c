@@ -3,10 +3,13 @@
 #define E_E_GRAPH_ROWS 4
 #define E_E_GRAPH_CELLS 34
 
-#define E_E_MODE_PEAK 0
-#define E_E_MODE_LOW  1
-#define E_E_MODE_HIGH 2
-#define E_E_MODE_BAND 3
+enum {
+	E_E_MODE_PEAK,
+	E_E_MODE_LOW,
+	E_E_MODE_HIGH,
+	E_E_MODE_BAND,
+} E_E_MODE;
+
 typedef struct
 {
 	struct
@@ -134,30 +137,30 @@ void drawEqualizer(void **instance, ControlState *cc,
 		if (ymin <= y+E_E_GRAPH_ROWS+1 && ymax >= y+E_E_GRAPH_ROWS+1)
 		{
 			printf("\033[%d;%dH%d: [  ]", y+E_E_GRAPH_ROWS+1, xx, i);
-			addControlInt(cc, xx+4, y+E_E_GRAPH_ROWS+1, &s->band[i].frequency, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
-		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+4, y+E_E_GRAPH_ROWS+1, &s->band[i].frequency, 2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL);
+		} else addControlDummy(cc);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+2 && ymax >= y+E_E_GRAPH_ROWS+2)
 		{
 			printf("\033[%d;%dHM[    ]", y+E_E_GRAPH_ROWS+2, xx);
-			addControlInt(cc, xx+2, y+E_E_GRAPH_ROWS+2, &s->band[i].mode, 1, 0, 3, 0, 5, NULL, NULL);
-				setControlPrettyName(cc, "PEAK");
-				setControlPrettyName(cc, " LOW");
-				setControlPrettyName(cc, "HIGH");
-				setControlPrettyName(cc, "BAND");
-		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+2, y+E_E_GRAPH_ROWS+2, &s->band[i].mode, 1, 0, 3, 0, 5, 4, NULL, NULL);
+				addScalePointInt(cc, "PEAK", E_E_MODE_PEAK);
+				addScalePointInt(cc, " LOW", E_E_MODE_LOW );
+				addScalePointInt(cc, "HIGH", E_E_MODE_HIGH);
+				addScalePointInt(cc, "BAND", E_E_MODE_BAND);
+		} else addControlDummy(cc);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+3 && ymax >= y+E_E_GRAPH_ROWS+3)
 		{
 			printf("\033[%d;%dHG:[   ]", y+E_E_GRAPH_ROWS+3, xx);
-			addControlInt(cc, xx+3, y+E_E_GRAPH_ROWS+3, &s->band[i].gain, 3, -128, 127, 0, 0, NULL, NULL);
-		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+3, y+E_E_GRAPH_ROWS+3, &s->band[i].gain, 3, -128, 127, 0, 0, 0, NULL, NULL);
+		} else addControlDummy(cc);
 
 		if (ymin <= y+E_E_GRAPH_ROWS+4 && ymax >= y+E_E_GRAPH_ROWS+4)
 		{
 			printf("\033[%d;%dHQ: [  ]", y+E_E_GRAPH_ROWS+4, xx);
-			addControlInt(cc, xx+4, y+E_E_GRAPH_ROWS+4, &s->band[i].resonance, 2, 0x0, 0xff, 0x0, 0, NULL, NULL);
-		} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, NULL, NULL);
+			addControlInt(cc, xx+4, y+E_E_GRAPH_ROWS+4, &s->band[i].resonance, 2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL);
+		} else addControlDummy(cc);
 	}
 }
 

@@ -126,10 +126,10 @@ void toggleRecording(uint8_t inst, char cue)
 	} p->redraw = 1;
 }
 
-void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->redraw = 1; }
-void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
-void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
-void cb_addPutInstrument      (Event *e) { free(e->src); e->src = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->redraw = 1; }
+static void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->redraw = 1; }
+static void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
+static void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
+static void cb_addPutInstrument      (Event *e) { free(e->src); e->src = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->redraw = 1; }
 /* __ layer of abstraction for initializing instrumentbuffer */
 void __addInstrument(Instrument *iv, int8_t algorithm)
 {
@@ -183,7 +183,7 @@ typedef struct
 	Sample *buffer;
 	uint8_t index;
 } InstrumentAddReparentArg;
-void cb_addReparentInstrument(Event *e)
+static void cb_addReparentInstrument(Event *e)
 {
 	InstrumentAddReparentArg *castarg = e->callbackarg;
 	free(e->src); e->src = NULL;
@@ -229,7 +229,7 @@ void putInstrument(uint8_t index)
 	else copyInstrument(&s->instrument->v[s->instrument->i[index]], &w->instrumentbuffer);
 }
 
-void cb_delInstrument(Event *e)
+static void cb_delInstrument(Event *e)
 {
 	_delInstrument(&((InstrumentChain *)e->src)->v[(size_t)e->callbackarg]);
 	free(e->src); e->src = NULL;

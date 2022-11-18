@@ -1,3 +1,15 @@
+/* the threshold where processing is no longer necessary */
+/* to avoid denormals and otherwise wasted cycles        */
+#define NOISE_GATE 0.00001f
+
+enum {
+	SAMPLE_CHANNELS_STEREO,
+	SAMPLE_CHANNELS_LEFT,
+	SAMPLE_CHANNELS_RIGHT,
+	SAMPLE_CHANNELS_MIX,
+	SAMPLE_CHANNELS_SWAP,
+} SAMPLE_CHANNELS;
+
 /* downsampling approximation                 */
 /* not perfectly accurate cos floats are used */
 uint32_t calcDecimate(uint8_t decimate, uint32_t pointer)
@@ -22,6 +34,57 @@ void getSampleLoopRamp(uint32_t ptr, uint32_t rptr, float lerp, uint8_t decimate
 	uint8_t shift = 0xf - bitdepth;
 	*output += ((s->data[ptr]>>shift)<<shift)*(1.0f - lerp) + ((s->data[rptr]>>shift)<<shift)*lerp;
 }
+
+/* clamps within range and loop, returns output samples */
+void trimloop(double ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t decimate, Instrument *iv, uint8_t stereochannel, short *output)
+{
+	if (loop)
+	{ /* if there is a loop range */
+		if (iv->pingpong)
+		{ /* ping-pong loop */
+			if (ptr > length)
+			{
+				ptr = fmod(ptr - length, loop<<1);
+				if (ptr > loop) /* walking forwards  */ ptr = (length - loop) + (ptr - loop);
+				else            /* walking backwards */ ptr = length - ptr;
+			}
+
+			if (iv->sample->channels == 1) getSample(ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
+		} else
+		{ /* crossfaded forwards loop */
+			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * iv->loopramp*DIV255;
+			if (ptr > length) ptr = (length - loop) + looprampmax + fmod(ptr - length, loop - looprampmax);
+
+			if (ptr > length - looprampmax)
+			{
+				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
+				float ramppointer = (ptr - (loop - looprampmax));
+				if (iv->sample->channels == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample, output);
+				else                           getSampleLoopRamp((ptr+iv->trimstart)*iv->sample->channels + stereochannel,
+				                                                         ramppointer*iv->sample->channels + stereochannel, lerp, decimate, iv->bitdepth, iv->sample, output);
+			} else
+			{
+				if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+				else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
+			}
+		}
+	} else
+	{
+		if (ptr < length)
+		{
+			if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
+		}
+	}
+}
+
+float semitoneShortToMultiplier(int16_t input)
+{
+	if (input < 0) return powf(M_12_ROOT_2, -((abs(input)>>12)*12 + (abs(input)&0x0fff)*DIV256));
+	else           return powf(M_12_ROOT_2, (input>>12)*12 + (input&0x0fff)*DIV256);
+}
+
 
 #define ENVELOPE_A_STEP 0.02f
 #define ENVELOPE_A_MIN  0.00f
@@ -54,24 +117,12 @@ bool envelope(uint16_t env, Channel *cv, uint32_t pointer, float *envgain)
 	return 0;
 }
 
-#include "granular.c"
-#include "wavetable.c" /* needs to be after declaring envelope() */
-
-void minimalSamplerProcess(Sample *sample, uint32_t pointer, uint8_t decimate, int8_t bitdepth, short note, short *l, short *r)
-{
-	float calcrate = (float)sample->rate / (float)samplerate;
-	float calcpitch = powf(M_12_ROOT_2, note - NOTE_C5);
-
-	if (sample->channels == 1)
-	{
-		getSample(pointer*calcrate*calcpitch, decimate, bitdepth, sample, l);
-		getSample(pointer*calcrate*calcpitch, decimate, bitdepth, sample, r);
-	} else
-	{
-		getSample(pointer*calcrate*calcpitch * sample->channels + 0, decimate, bitdepth, sample, l);
-		getSample(pointer*calcrate*calcpitch * sample->channels + 1, decimate, bitdepth, sample, r);
-	}
-}
+#include "minimal.c"
+#include "midi.c"
+#include "cyclic.c"
+#include "tonal.c"
+#include "beat.c"
+#include "wavetable.c"
 
 void samplerProcess(uint8_t realinst, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
@@ -88,19 +139,20 @@ void samplerProcess(uint8_t realinst, Channel *cv, float rp, uint32_t pointer, u
 		case INST_ALG_SIMPLE:
 			localsamplerate = iv->samplerate; if (cv->localsamplerate != -1) localsamplerate = cv->localsamplerate;
 			if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
-			minimalSamplerProcess(iv->sample, pitchedpointer, localsamplerate, iv->bitdepth, cv->samplernote, l, r);
+			processMinimal(iv->sample, pitchedpointer, localsamplerate, iv->bitdepth, cv->samplernote, l, r);
 			break;
-		case INST_ALG_CYCLIC:    cyclicProcess   (iv, cv, rp, pointer, pitchedpointer, l, r); break;
-		case INST_ALG_WAVETABLE: wavetableProcess(iv, cv, rp, pointer, pitchedpointer, l, r); break;
+		case INST_ALG_CYCLIC:    processCyclic   (iv, cv, rp, pointer, pitchedpointer, l, r); break;
+		case INST_ALG_WAVETABLE: processWavetable(iv, cv, rp, pointer, pitchedpointer, l, r); break;
 	}
 
 	short hold;
 	switch (iv->channelmode)
 	{
-		case 1: *r = *l; break;                       /* mono left    */
-		case 2: *l = *r; break;                       /* mono right   */
-		case 3: *l = *r = ((*l>>1) + (*r>>1)); break; /* mono mix     */
-		case 4: hold = *l; *l = *r; *r = hold; break; /* channel swap */
+		case SAMPLE_CHANNELS_STEREO: break;
+		case SAMPLE_CHANNELS_LEFT:   *r = *l; break;
+		case SAMPLE_CHANNELS_RIGHT:  *l = *r; break;
+		case SAMPLE_CHANNELS_MIX:    *l = *r = ((*l>>1) + (*r>>1)); break;
+		case SAMPLE_CHANNELS_SWAP:   hold = *l; *l = *r; *r = hold; break;
 	}
 
 	if (iv->invert) { *l *= -1; *r *= -1; }

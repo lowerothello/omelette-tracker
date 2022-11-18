@@ -142,7 +142,7 @@ void trackerInput(int input)
 
 													for (i = 0; i < s->channel->c; i++)
 													{
-														chanw = CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.macroc+1);
+														chanw = CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.variant->macroc+1);
 														if (i == s->channel->c-1 || tx+chanw > x) /* clicked on channel i */
 														{
 															if (button == BUTTON1_CTRL) { w->step = MIN(15, abs(y - w->centre)); break; }
@@ -174,15 +174,15 @@ void trackerInput(int input)
 																w->trackerfx = 1;
 																if (x-tx < CHANNEL_TRIG_COLS + 5) w->fieldpointer = 1;
 																else                              w->fieldpointer = 0;
-															} else if (x-tx > CHANNEL_TRIG_COLS + 5 + 4*(s->channel->v[i].data.macroc+1)) /* star column */
+															} else if (x-tx > CHANNEL_TRIG_COLS + 5 + 4*(s->channel->v[i].data.variant->macroc+1)) /* star column */
 															{
 																w->trackerfx = 3;
 																w->fieldpointer = 0;
 															} else /* macro column */
 															{
 																j = x-tx - (CHANNEL_TRIG_COLS + 6);
-																if ((j>>1)&0x1) w->trackerfx = 3 + ((s->channel->v[i].data.macroc - (j>>2))<<1)+0;
-																else            w->trackerfx = 3 + ((s->channel->v[i].data.macroc - (j>>2))<<1)-1;
+																if ((j>>1)&0x1) w->trackerfx = 3 + ((s->channel->v[i].data.variant->macroc - (j>>2))<<1)+0;
+																else            w->trackerfx = 3 + ((s->channel->v[i].data.variant->macroc - (j>>2))<<1)-1;
 																if (j&0x1) w->fieldpointer = 0;
 																else       w->fieldpointer = 1;
 															}
