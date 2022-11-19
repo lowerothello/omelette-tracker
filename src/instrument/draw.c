@@ -7,7 +7,7 @@ void drawInstrumentIndex(short bx)
 	char buffer[11];
 	short x;
 	for (int i = 0; i < INSTRUMENT_MAX; i++)
-		if (w->centre - w->instrument + i > CHANNEL_ROW && w->centre - w->instrument + i < ws.ws_row)
+		if (w->centre - w->instrument + i > TRACK_ROW && w->centre - w->instrument + i < ws.ws_row)
 		{
 			x = bx;
 
@@ -90,7 +90,7 @@ void drawInstrument(void)
 		switch (w->page)
 		{
 			case PAGE_INSTRUMENT_SAMPLE: drawInstrumentSampler(iv); break;
-			case PAGE_INSTRUMENT_EFFECT: drawEffects(iv->effect, &cc, 1, INSTRUMENT_INDEX_COLS+1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW); break;
+			case PAGE_INSTRUMENT_EFFECT: drawEffects(iv->effect, &cc, 1, INSTRUMENT_INDEX_COLS+1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), TRACK_ROW); break;
 		}
 	} else
 	{

@@ -2,7 +2,7 @@ void setBpm(uint16_t *spr, uint8_t newbpm)
 { *spr = samplerate * (60.f / newbpm) / p->s->rowhighlight; }
 
 /* freewheel to fill up the ramp buffer */
-void ramp(Channel *cv, float rp, uint8_t realinstrument)
+void ramp(Track *cv, float rp, uint8_t realinstrument)
 {
 	if (cv->rampbuffer)
 	{
@@ -45,43 +45,43 @@ void ramp(Channel *cv, float rp, uint8_t realinstrument)
 	} cv->rampindex = 0;
 }
 
-void midiNoteOff(jack_nframes_t fptr, uint8_t midichannel, uint8_t note, uint8_t velocity)
+void midiNoteOff(jack_nframes_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
 {
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	if (note != NOTE_VOID && note != NOTE_OFF)
 	{
-		jack_midi_data_t event[3] = {0b10000000 | midichannel, note, velocity};
+		jack_midi_data_t event[3] = {0b10000000 | miditrack, note, velocity};
 		jack_midi_event_write(pb.midiout, fptr, event, 3);
 	}
 #endif
 }
-void midiNoteOn(jack_nframes_t fptr, uint8_t midichannel, uint8_t note, uint8_t velocity)
+void midiNoteOn(jack_nframes_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
 {
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	if (note != NOTE_VOID && note != NOTE_OFF)
 	{
-		jack_midi_data_t event[3] = {0b10010000 | midichannel, note, velocity};
+		jack_midi_data_t event[3] = {0b10010000 | miditrack, note, velocity};
 		jack_midi_event_write(pb.midiout, fptr, event, 3);
 	}
 #endif
 }
 
-void midiPC(jack_nframes_t fptr, uint8_t midichannel, uint8_t program)
+void midiPC(jack_nframes_t fptr, uint8_t miditrack, uint8_t program)
 {
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
-	jack_midi_data_t event[2] = {0b11000000 | midichannel, program};
+	jack_midi_data_t event[2] = {0b11000000 | miditrack, program};
 	jack_midi_event_write(pb.midiout, fptr, event, 2);
 #endif
 }
-void midiCC(jack_nframes_t fptr, uint8_t midichannel, uint8_t controller, uint8_t value)
+void midiCC(jack_nframes_t fptr, uint8_t miditrack, uint8_t controller, uint8_t value)
 {
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
-	jack_midi_data_t event[3] = {0b10110000 | midichannel, controller, value};
+	jack_midi_data_t event[3] = {0b10110000 | miditrack, controller, value};
 	jack_midi_event_write(pb.midiout, fptr, event, 3);
 #endif
 }
 
-bool triggerMidi(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
+bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
 	if (note != NOTE_VOID && !cv->data.mute && instrumentSafe(p->s, inst))
 	{
@@ -89,14 +89,14 @@ bool triggerMidi(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note
 		if (iv->algorithm == INST_ALG_MIDI)
 		{
 			/* always stop the prev. note */
-			midiNoteOff(fptr, iv->midi.channel, oldnote, (cv->gain.rand>>4)<<3);
-			midiNoteOn (fptr, iv->midi.channel, note,    (cv->gain.rand>>4)<<3);
+			midiNoteOff(fptr, iv->midi.track, oldnote, (cv->gain.rand>>4)<<3);
+			midiNoteOn (fptr, iv->midi.track, note,    (cv->gain.rand>>4)<<3);
 			return 1;
 		}
 	} return 0;
 }
 
-void triggerNote(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note, short inst)
+void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	triggerMidi(fptr, cv, oldnote, note, inst);
 
@@ -146,14 +146,14 @@ void triggerNote(jack_nframes_t fptr, Channel *cv, uint8_t oldnote, uint8_t note
 				cv->filter.res[0] =  cv->filter.res[1] = cv->filter.randres[0] =  cv->filter.randres[1] = iv->filterresonance;
 				iv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* instrument trig flash */
 			}
-			cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* channel trig flash */
+			cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* track trig flash */
 			p->redraw = 1;
 		}
 	}
 }
 
 
-void handleLocalMacros(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r)
+void handleLocalMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 {
 	ifMacro(fptr, spr, cv, r, 'F', 0, &Fc);    /* filter cutoff            */
 	ifMacro(fptr, spr, cv, r, 'f', 0, &fc);    /* smooth filter cutoff     */
@@ -180,7 +180,7 @@ void handleLocalMacros(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r)
 	ifMacro(fptr, spr, cv, r, 'x', 0, &xc);    /* smooth local samplerate  */
 }
 
-void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r)
+void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 {
 	if (cv->gain.target != -1)
 	{
@@ -241,7 +241,7 @@ void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r)
 	ifMacro(fptr, spr, cv, r, 's', 0, &sc);    /* smooth send        */
 	ifMacro(fptr, spr, cv, r, 's', 1, &altsc); /* smooth send jitter */
 }
-void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Channel *cv, Row r)
+void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 {
 	char ret;
 
@@ -316,7 +316,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Channel *cv, Row 
 	}
 }
 
-void postSampler(jack_nframes_t fptr, Channel *cv, float rp, float lf, float rf)
+void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
 {
 	/* filter */
 	float cutoff_l = cv->filter.randcut[0]*DIV255;
@@ -425,7 +425,7 @@ void postSampler(jack_nframes_t fptr, Channel *cv, float rp, float lf, float rf)
 	}
 }
 
-void playChannelLookback(jack_nframes_t fptr, uint16_t *spr, Channel *cv)
+void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 {
 	uint16_t sprs = 0; /* spr start    */
 	uint16_t sprp;     /* spr progress */
@@ -503,7 +503,7 @@ void playChannelLookback(jack_nframes_t fptr, uint16_t *spr, Channel *cv)
 		}
 	}
 }
-void playChannel(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Channel *cv)
+void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *cv)
 {
 	short li = 0;
 	short ri = 0;
@@ -657,9 +657,9 @@ void playChannel(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Channe
 	}
 }
 
-void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Channel *cv)
+void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 {
-	clearChannelRuntime(cv);
+	clearTrackRuntime(cv);
 
 	/* for every row before the current one */
 	Row *r;
@@ -668,19 +668,19 @@ void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Channel *cv)
 		/* scope lookback notes within the most recent vtrig */
 		if (cv->data.variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_OFF; cv->envgain = 0.0f; }
 
-		r = getChannelRow(&cv->data, i);
+		r = getTrackRow(&cv->data, i);
 		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) Bc(fptr, spr, p->s->bpmcache[i], cv, *r);
 		processRow(fptr, spr, 0, cv, *r);
-		playChannelLookback(fptr, spr, cv);
+		playTrackLookback(fptr, spr, cv);
 	}
 }
 
-void _channelThreadRoutine(Channel *cv, uint16_t *spr, uint16_t *sprp, uint16_t *playfy, bool readrows)
+void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16_t *playfy, bool readrows)
 {
 	Row *r;
 	for (jack_nframes_t fptr = 0; fptr < buffersize; fptr++) /* TODO: probably shouldn't rely on buffersize here */
 	{
-		playChannel(fptr, spr, *sprp, cv);
+		playTrack(fptr, spr, *sprp, cv);
 
 		/* next row */
 		if ((*sprp)++ > *spr)
@@ -709,34 +709,34 @@ void _channelThreadRoutine(Channel *cv, uint16_t *spr, uint16_t *sprp, uint16_t 
 					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START) p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT;
 				}
 
-				/* preprocess channel */
-				r = getChannelRow(&cv->data, *playfy);
+				/* preprocess track */
+				r = getTrackRow(&cv->data, *playfy);
 				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) Bc(fptr, spr, p->s->bpmcache[*playfy], cv, *r);
 				processRow(fptr, spr, 1, cv, *r);
 			}
 		}
 	}
 
-	/* channel insert effects */
-	if (cv->data.effect) /* previewchannel doesn't have any effects so this check is required */
+	/* track insert effects */
+	if (cv->data.effect) /* previewtrack doesn't have any effects so this check is required */
 		for (uint8_t i = 0; i < cv->data.effect->c; i++)
 			runEffect(buffersize, cv->data.effect, &cv->data.effect->v[i]);
 }
 
-void *channelThreadRoutine(void *arg)
+void *trackThreadRoutine(void *arg)
 {
 	uint16_t spr = p->s->spr;
 	uint16_t sprp = p->s->sprp;
 	uint16_t playfy = p->s->playfy;
-	_channelThreadRoutine(arg, &spr, &sprp, &playfy, 1);
+	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 1);
 	return NULL;
 }
-void *previewChannelThreadRoutine(void *arg) /* don't try to read rows that don't exist */
+void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that don't exist */
 {
 	uint16_t spr = p->s->spr;
 	uint16_t sprp = p->s->sprp;
 	uint16_t playfy = p->s->playfy;
-	_channelThreadRoutine(arg, &spr, &sprp, &playfy, 0);
+	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
 	return NULL;
 }
 
@@ -750,7 +750,7 @@ void *process(void *arg)
 	while (1) {
 #endif
 	PlaybackInfo *p = arg;
-	Channel *cv;
+	Track *cv;
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	pb.in.l =    jack_port_get_buffer(p->in.l,    nfptr);
@@ -776,15 +776,15 @@ void *process(void *arg)
 	{
 		case PTRIG_NORMAL:
 			/* start instrument preview */
-			triggerNote(0, &p->w->previewchannel, p->w->previewchannel.r.note, NOTE_OFF, p->w->previewchannel.r.inst);
-			clearChannelRuntime(&p->w->previewchannel);
+			triggerNote(0, &p->w->previewtrack, p->w->previewtrack.r.note, NOTE_OFF, p->w->previewtrack.r.inst);
+			clearTrackRuntime(&p->w->previewtrack);
 
-			processRow(0, &p->s->spr, 1, &p->w->previewchannel, p->w->previewrow);
+			processRow(0, &p->s->spr, 1, &p->w->previewtrack, p->w->previewrow);
 			p->w->previewtrigger = PTRIG_OK;
 			break;
 		case PTRIG_FILE:
 			// ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
-			triggerNote(0, &p->w->previewchannel, p->w->previewchannel.r.note, p->w->previewrow.note, INST_FILEPREVIEW);
+			triggerNote(0, &p->w->previewtrack, p->w->previewtrack.r.note, p->w->previewrow.note, INST_FILEPREVIEW);
 			p->w->previewtrigger = PTRIG_OK;
 			break;
 	}
@@ -796,19 +796,19 @@ void *process(void *arg)
 		p->s->sprp = 0;
 
 		/* stop preview */
-		p->w->previewchannel.r.note = p->w->previewchannel.samplernote = NOTE_VOID;
-		p->w->previewchannel.r.inst = p->w->previewchannel.samplerinst = INST_VOID;
+		p->w->previewtrack.r.note = p->w->previewtrack.samplernote = NOTE_VOID;
+		p->w->previewtrack.r.inst = p->w->previewtrack.samplerinst = INST_VOID;
 
 		/* TODO: also stop the sampler's follower note */
 		/* TODO: is it worth it to multithread this?   */
-		/* clear the channels */
-		for (uint8_t c = 0; c < p->s->channel->c; c++)
+		/* clear the tracks */
+		for (uint8_t c = 0; c < p->s->track->c; c++)
 		{
-			cv = &p->s->channel->v[c];
+			cv = &p->s->track->v[c];
 			triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 			lookback(0, &p->s->spr, p->s->playfy, cv);
-			processRow(0, &p->s->spr, 1, &p->s->channel->v[c], *getChannelRow(&p->s->channel->v[c].data, p->s->playfy));
+			processRow(0, &p->s->spr, 1, &p->s->track->v[c], *getTrackRow(&p->s->track->v[c].data, p->s->playfy));
 		}
 
 
@@ -820,11 +820,11 @@ void *process(void *arg)
 		p->redraw=1;
 	} else if (p->s->playing == PLAYING_PREP_STOP)
 	{
-		/* stop channels */
-		Channel *cv;
-		for (uint8_t i = 0; i < p->s->channel->c; i++)
+		/* stop tracks */
+		Track *cv;
+		for (uint8_t i = 0; i < p->s->track->c; i++)
 		{
-			cv = &p->s->channel->v[i];
+			cv = &p->s->track->v[i];
 			cv->delaysamples = 0;
 			cv->cutsamples = 0;
 			if (instrumentSafe(p->s, cv->samplerinst))
@@ -852,90 +852,90 @@ void *process(void *arg)
 	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
 	/* honestly half this file probably isn't strictly realtime-safe */
 #ifndef NO_MULTITHREADING
-	jack_native_thread_t thread_ids   [p->s->channel->c]; /* index 0 is the preview channel */
-	bool                 thread_failed[p->s->channel->c]; /* if the thread failed to initialize, try REALLY hard not to segfault */
-	memset(thread_failed, 0, sizeof(bool) * p->s->channel->c); /* gcc probably makes this static or smth */
+	jack_native_thread_t thread_ids   [p->s->track->c]; /* index 0 is the preview track */
+	bool                 thread_failed[p->s->track->c]; /* if the thread failed to initialize, try REALLY hard not to segfault */
+	memset(thread_failed, 0, sizeof(bool) * p->s->track->c); /* gcc probably makes this static or smth */
 #endif
 
-	/* handle the preview channel first in a thread */
-	if (p->w->previewchannel.samplernote != NOTE_VOID
-			&& p->w->previewchannel.samplerinst != INST_VOID)
+	/* handle the preview track first in a thread */
+	if (p->w->previewtrack.samplernote != NOTE_VOID
+			&& p->w->previewtrack.samplerinst != INST_VOID)
 	{
 #ifdef NO_MULTITHREADING
-		previewChannelThreadRoutine(&p->w->previewchannel);
+		previewTrackThreadRoutine(&p->w->previewtrack);
 #else
 #ifndef NO_VALGRIND
 		if (RUNNING_ON_VALGRIND)
-			previewChannelThreadRoutine(&p->w->previewchannel);
+			previewTrackThreadRoutine(&p->w->previewtrack);
 		else
 #endif
 			/* try spawning a thread, if it fails then do the work in this thread */
 			if (jack_client_create_thread(client, &thread_ids[0],
 					jack_client_real_time_priority(client), jack_is_realtime(client),
-					previewChannelThreadRoutine, &p->w->previewchannel))
+					previewTrackThreadRoutine, &p->w->previewtrack))
 			{
 				thread_failed[0] = 1;
-				previewChannelThreadRoutine(&p->w->previewchannel);
+				previewTrackThreadRoutine(&p->w->previewtrack);
 			}
 #endif
 	}
 
-	/* spawn threads for each channel except for channel 0 */
-	for (uint8_t i = 1; i < p->s->channel->c; i++)
+	/* spawn threads for each track except for track 0 */
+	for (uint8_t i = 1; i < p->s->track->c; i++)
 	{
 #ifdef NO_MULTITHREADING
-		channelThreadRoutine(&p->s->channel->v[i]);
+		trackThreadRoutine(&p->s->track->v[i]);
 #else
 #ifndef NO_VALGRIND
 		if (RUNNING_ON_VALGRIND)
-			channelThreadRoutine(&p->s->channel->v[i]);
+			trackThreadRoutine(&p->s->track->v[i]);
 		else
 #endif
 			/* try spawning a thread, if it fails then do the work in this thread */
 			if (jack_client_create_thread(client, &thread_ids[i],
 					jack_client_real_time_priority(client), jack_is_realtime(client),
-					channelThreadRoutine, &p->s->channel->v[i]))
+					trackThreadRoutine, &p->s->track->v[i]))
 			{
 				thread_failed[i] = 1;
-				channelThreadRoutine(&p->s->channel->v[i]);
+				trackThreadRoutine(&p->s->track->v[i]);
 			}
 #endif
 	}
 
-	/* run channel 0 in this thread */
+	/* run track 0 in this thread */
 	uint16_t c0spr = p->s->spr;
 	uint16_t c0sprp = p->s->sprp;
 	uint16_t c0playfy = p->s->playfy;
-	if (p->s->channel->c)
-		_channelThreadRoutine(&p->s->channel->v[0], &c0spr, &c0sprp, &c0playfy, 1);
+	if (p->s->track->c)
+		_trackThreadRoutine(&p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
 
-	/* join with the channel threads */
+	/* join with the track threads */
 #ifndef NO_MULTITHREADING
 #ifndef NO_VALGRIND
 	if (!RUNNING_ON_VALGRIND)
 #endif
-		for (uint8_t i = 1; i < p->s->channel->c; i++)
+		for (uint8_t i = 1; i < p->s->track->c; i++)
 			if (!thread_failed[i])
 				pthread_join(thread_ids[i], NULL);
 #endif
 
 
-	/* join with the prevew channel thread */
+	/* join with the prevew track thread */
 #ifndef NO_MULTITHREADING
 #ifndef NO_VALGRIND
 	if (!RUNNING_ON_VALGRIND && !thread_failed[0]
-			&& p->w->previewchannel.samplernote != NOTE_VOID
-			&& p->w->previewchannel.samplerinst != INST_VOID)
+			&& p->w->previewtrack.samplernote != NOTE_VOID
+			&& p->w->previewtrack.samplerinst != INST_VOID)
 #else
 	if (!thread_failed[0]
-			&& p->w->previewchannel.samplernote != NOTE_VOID
-			&& p->w->previewchannel.samplerinst != INST_VOID)
+			&& p->w->previewtrack.samplernote != NOTE_VOID
+			&& p->w->previewtrack.samplerinst != INST_VOID)
 #endif
 		pthread_join(thread_ids[0], NULL);
 #endif
 
 
-	/* apply the new sprp and playfy channel0 calculated */
+	/* apply the new sprp and playfy track0 calculated */
 	if (c0playfy != p->s->playfy)
 	{
 		if (p->w->follow) p->w->trackerfy = c0playfy;
@@ -951,15 +951,15 @@ void *process(void *arg)
 	memset(p->s->sendoutput[0], 0, nfptr * sizeof(float));
 	memset(p->s->sendoutput[1], 0, nfptr * sizeof(float));
 
-	/* sum the output from each channel thread */
-	for (uint8_t c = 0; c < p->s->channel->c; c++)
-		if (p->s->channel->v[c].output[0] && p->s->channel->v[c].output[1])
+	/* sum the output from each track thread */
+	for (uint8_t c = 0; c < p->s->track->c; c++)
+		if (p->s->track->v[c].output[0] && p->s->track->v[c].output[1])
 			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				p->s->masteroutput[0][fptr] += p->s->channel->v[c].output[0][fptr] * p->s->channel->v[c].mainmult[0][fptr];
-				p->s->masteroutput[1][fptr] += p->s->channel->v[c].output[1][fptr] * p->s->channel->v[c].mainmult[1][fptr];
-				p->s->sendoutput[0][fptr] += p->s->channel->v[c].output[0][fptr] * p->s->channel->v[c].sendmult[0][fptr];
-				p->s->sendoutput[1][fptr] += p->s->channel->v[c].output[1][fptr] * p->s->channel->v[c].sendmult[1][fptr];
+				p->s->masteroutput[0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].mainmult[0][fptr];
+				p->s->masteroutput[1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].mainmult[1][fptr];
+				p->s->sendoutput[0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].sendmult[0][fptr];
+				p->s->sendoutput[1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].sendmult[1][fptr];
 			}
 
 	/* send chain */
@@ -979,12 +979,12 @@ void *process(void *arg)
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
-	if (p->w->previewchannel.samplernote != NOTE_VOID
-			&& p->w->previewchannel.samplerinst != INST_VOID)
+	if (p->w->previewtrack.samplernote != NOTE_VOID
+			&& p->w->previewtrack.samplerinst != INST_VOID)
 		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			pb.out.l[fptr] = p->w->previewchannel.output[0][fptr] * p->w->previewchannel.mainmult[0][fptr];
-			pb.out.r[fptr] = p->w->previewchannel.output[1][fptr] * p->w->previewchannel.mainmult[1][fptr];
+			pb.out.l[fptr] = p->w->previewtrack.output[0][fptr] * p->w->previewtrack.mainmult[0][fptr];
+			pb.out.r[fptr] = p->w->previewtrack.output[1][fptr] * p->w->previewtrack.mainmult[1][fptr];
 		}
 	else
 	{
@@ -1039,11 +1039,11 @@ void *process(void *arg)
 			p->s->instrument->v[i].triggerflash--;
 		}
 
-	for (int i = 0; i < p->s->channel->c; i++)
-		if (p->s->channel->v[i].triggerflash)
+	for (int i = 0; i < p->s->track->c; i++)
+		if (p->s->track->v[i].triggerflash)
 		{
-			if (p->s->channel->v[i].triggerflash == 1) p->redraw = 1;
-			p->s->channel->v[i].triggerflash--;
+			if (p->s->track->v[i].triggerflash == 1) p->redraw = 1;
+			p->s->track->v[i].triggerflash--;
 		}
 
 #ifdef DEBUG_DISABLE_AUDIO_OUTPUT

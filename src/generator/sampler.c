@@ -3,12 +3,12 @@
 #define NOISE_GATE 0.00001f
 
 enum {
-	SAMPLE_CHANNELS_STEREO,
-	SAMPLE_CHANNELS_LEFT,
-	SAMPLE_CHANNELS_RIGHT,
-	SAMPLE_CHANNELS_MIX,
-	SAMPLE_CHANNELS_SWAP,
-} SAMPLE_CHANNELS;
+	SAMPLE_TRACKS_STEREO,
+	SAMPLE_TRACKS_LEFT,
+	SAMPLE_TRACKS_RIGHT,
+	SAMPLE_TRACKS_MIX,
+	SAMPLE_TRACKS_SWAP,
+} SAMPLE_TRACKS;
 
 /* downsampling approximation                 */
 /* not perfectly accurate cos floats are used */
@@ -23,8 +23,8 @@ void getSample(uint32_t ptr, uint8_t decimate, int8_t bitdepth, Sample *s, short
 {
 	ptr = calcDecimate(decimate, ptr);
 	uint8_t shift = 0xf - bitdepth;
-	// if (ptr <= s->length * s->channels) *output += (s->data[ptr]>>shift)<<shift;
-	if (ptr <= (s->length-1) * s->channels) *output += (s->data[ptr]>>shift)<<shift;
+	// if (ptr <= s->length * s->tracks) *output += (s->data[ptr]>>shift)<<shift;
+	if (ptr <= (s->length-1) * s->tracks) *output += (s->data[ptr]>>shift)<<shift;
 }
 
 void getSampleLoopRamp(uint32_t ptr, uint32_t rptr, float lerp, uint8_t decimate, int8_t bitdepth, Sample *s, short *output)
@@ -36,7 +36,7 @@ void getSampleLoopRamp(uint32_t ptr, uint32_t rptr, float lerp, uint8_t decimate
 }
 
 /* clamps within range and loop, returns output samples */
-void trimloop(double ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t decimate, Instrument *iv, uint8_t stereochannel, short *output)
+void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t decimate, Instrument *iv, uint8_t stereotrack, short *output)
 {
 	if (loop)
 	{ /* if there is a loop range */
@@ -49,8 +49,8 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t d
 				else            /* walking backwards */ ptr = length - ptr;
 			}
 
-			if (iv->sample->channels == 1) getSample(ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
+			if (iv->sample->tracks == 1) getSample(ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+			else                           getSample((ptr+iv->trimstart)*iv->sample->tracks + stereotrack, decimate, iv->bitdepth, iv->sample, output);
 		} else
 		{ /* crossfaded forwards loop */
 			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * iv->loopramp*DIV255;
@@ -60,21 +60,21 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Channel *cv, uint8_t d
 			{
 				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
 				float ramppointer = (ptr - (loop - looprampmax));
-				if (iv->sample->channels == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample, output);
-				else                           getSampleLoopRamp((ptr+iv->trimstart)*iv->sample->channels + stereochannel,
-				                                                         ramppointer*iv->sample->channels + stereochannel, lerp, decimate, iv->bitdepth, iv->sample, output);
+				if (iv->sample->tracks == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample, output);
+				else                           getSampleLoopRamp((ptr+iv->trimstart)*iv->sample->tracks + stereotrack,
+				                                                         ramppointer*iv->sample->tracks + stereotrack, lerp, decimate, iv->bitdepth, iv->sample, output);
 			} else
 			{
-				if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-				else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
+				if (iv->sample->tracks == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+				else                           getSample((ptr+iv->trimstart)*iv->sample->tracks + stereotrack, decimate, iv->bitdepth, iv->sample, output);
 			}
 		}
 	} else
 	{
 		if (ptr < length)
 		{
-			if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereochannel, decimate, iv->bitdepth, iv->sample, output);
+			if (iv->sample->tracks == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
+			else                           getSample((ptr+iv->trimstart)*iv->sample->tracks + stereotrack, decimate, iv->bitdepth, iv->sample, output);
 		}
 	}
 }
@@ -92,7 +92,7 @@ float semitoneShortToMultiplier(int16_t input)
 #define ENVELOPE_D_STEP 0.13f
 #define ENVELOPE_D_MIN  0.01f
 /* returns true if the envelope has finished, sets cv->envgain to the gain multiplier */
-bool envelope(uint16_t env, Channel *cv, uint32_t pointer, float *envgain)
+bool envelope(uint16_t env, Track *cv, uint32_t pointer, float *envgain)
 {
 	uint32_t a = (((env & 0xf000) >> 12)+ENVELOPE_A_MIN) * ENVELOPE_A_STEP * samplerate;
 	uint32_t d = (((env & 0x0f00) >> 8 )+ENVELOPE_D_MIN) * ENVELOPE_D_STEP * samplerate;
@@ -124,7 +124,7 @@ bool envelope(uint16_t env, Channel *cv, uint32_t pointer, float *envgain)
 #include "beat.c"
 #include "wavetable.c"
 
-void samplerProcess(uint8_t realinst, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	Instrument *iv = &p->s->instrument->v[realinst];
 	if (!iv->sample->length || iv->algorithm == INST_ALG_MIDI) return; /* TODO: optimize midi further in process.c */
@@ -146,13 +146,13 @@ void samplerProcess(uint8_t realinst, Channel *cv, float rp, uint32_t pointer, u
 	}
 
 	short hold;
-	switch (iv->channelmode)
+	switch (iv->trackmode)
 	{
-		case SAMPLE_CHANNELS_STEREO: break;
-		case SAMPLE_CHANNELS_LEFT:   *r = *l; break;
-		case SAMPLE_CHANNELS_RIGHT:  *l = *r; break;
-		case SAMPLE_CHANNELS_MIX:    *l = *r = ((*l>>1) + (*r>>1)); break;
-		case SAMPLE_CHANNELS_SWAP:   hold = *l; *l = *r; *r = hold; break;
+		case SAMPLE_TRACKS_STEREO: break;
+		case SAMPLE_TRACKS_LEFT:   *r = *l; break;
+		case SAMPLE_TRACKS_RIGHT:  *l = *r; break;
+		case SAMPLE_TRACKS_MIX:    *l = *r = ((*l>>1) + (*r>>1)); break;
+		case SAMPLE_TRACKS_SWAP:   hold = *l; *l = *r; *r = hold; break;
 	}
 
 	if (iv->invert) { *l *= -1; *r *= -1; }

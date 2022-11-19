@@ -15,7 +15,7 @@ void resetWaveform(void)
 void resizeWaveform(void)
 {
 	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1)<<1;
-	w->waveformh = (ws.ws_row - CHANNEL_ROW - 13)<<2;
+	w->waveformh = (ws.ws_row - TRACK_ROW - 13)<<2;
 
 	if (w->waveformcanvas) { free_canvas(w->waveformcanvas); w->waveformcanvas = NULL; }
 	if (w->waveformbuffer) { free_buffer(w->waveformbuffer); w->waveformbuffer = NULL; }
@@ -69,7 +69,7 @@ void *walkWaveformRoutine(void *arg)
 	double divmaxj = 1.0f / (double)width;
 	float o = (float)w->waveformh * 0.5f;
 	float sample;
-	float channelmix = 1.0f / (float)iv->sample->channels;
+	float trackmix = 1.0f / (float)iv->sample->tracks;
 	struct timespec req;
 
 	while (w->waveformdrawpointer < width)
@@ -82,8 +82,8 @@ void *walkWaveformRoutine(void *arg)
 		xx = (float)l * divmaxj * (float)w->waveformw;
 
 		sample = 0.0f;
-		for (i = 0; i < iv->sample->channels; i++) /* mix all channels */
-			sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * channelmix);
+		for (i = 0; i < iv->sample->tracks; i++) /* mix all tracks */
+			sample += (iv->sample->data[(offset + k) * iv->sample->tracks + i] * trackmix);
 		sample = (sample*DIVSHRT) * o + o;
 
 		set_pixel(w->waveformcanvas, 1, xx, sample);
@@ -118,7 +118,7 @@ void drawWaveform(Instrument *iv, short x, short y)
 
 		size_t k, xx;
 		uint32_t l;
-		float channelmix = 1.0f / (float)iv->sample->channels;
+		float trackmix = 1.0f / (float)iv->sample->tracks;
 		double divmaxj = 1.0f / (float)width;
 		float o = (float)w->waveformh * 0.5f;
 		float sample;
@@ -135,8 +135,8 @@ void drawWaveform(Instrument *iv, short x, short y)
 				xx = (float)l * divmaxj * (float)w->waveformw;
 
 				sample = 0.0f;
-				for (uint8_t i = 0; i < iv->sample->channels; i++) /* mix all channels */
-					sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * channelmix);
+				for (uint8_t i = 0; i < iv->sample->tracks; i++) /* mix all tracks */
+					sample += (iv->sample->data[(offset + k) * iv->sample->tracks + i] * trackmix);
 				sample = (sample*DIVSHRT) * o + o;
 
 				set_pixel(w->waveformcanvas, 1, xx, sample);
@@ -163,6 +163,6 @@ void drawWaveform(Instrument *iv, short x, short y)
 
 		draw(w->waveformcanvas, w->waveformbuffer);
 		for (size_t i = 0; w->waveformbuffer[i] != NULL; i++)
-			printf("\033[%ld;%dH%s", CHANNEL_ROW+1 + i, INSTRUMENT_INDEX_COLS, w->waveformbuffer[i]);
+			printf("\033[%ld;%dH%s", TRACK_ROW+1 + i, INSTRUMENT_INDEX_COLS, w->waveformbuffer[i]);
 	}
 }

@@ -39,7 +39,7 @@ const unsigned char MINOR = 1;
 
 #define LINENO_COLS 7
 
-#define CHANNEL_ROW 3 /* rows above the channel headers */
+#define TRACK_ROW 3 /* rows above the track headers */
 #define PROGRAM_TITLE "omelette tracker"
 
 #define INSTRUMENT_INDEX_COLS 18
@@ -169,7 +169,7 @@ void redraw(void)
 	/* "CSI 2   q" sets the cursor shape to block */
 	puts("\033[2J\033[?25h\033[2 q");
 
-	if (ws.ws_row < 14 + CHANNEL_ROW || ws.ws_col < 38 + INSTRUMENT_INDEX_COLS - 1)
+	if (ws.ws_row < 14 + TRACK_ROW || ws.ws_col < 38 + INSTRUMENT_INDEX_COLS - 1)
 	{
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 	} else
@@ -180,7 +180,7 @@ void redraw(void)
 		drawRuler();
 		switch (w->page)
 		{
-			case PAGE_CHANNEL_VARIANT: case PAGE_CHANNEL_EFFECT:      drawTracker();             break;
+			case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT:      drawTracker();             break;
 			case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: drawInstrument();          break;
 			case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:           drawMaster();              break;
 			case PAGE_PLUGINBROWSER:                                  drawPluginEffectBrowser(); break;
@@ -204,7 +204,7 @@ void filebrowserEditCallback(char *path)
 		e.callback = cb_reloadFile;
 		pushEvent(&e);
 	}
-	w->page = PAGE_CHANNEL_VARIANT;
+	w->page = PAGE_TRACK_VARIANT;
 }
 /* void commandTabCallback(char *text)
 {
@@ -271,16 +271,16 @@ void showTracker(void)
 {
 	switch (w->page)
 	{
-		case PAGE_CHANNEL_VARIANT:
+		case PAGE_TRACK_VARIANT:
 			w->effectscroll = 0;
 			w->mode = T_MODE_NORMAL;
-			w->page = PAGE_CHANNEL_EFFECT;
+			w->page = PAGE_TRACK_EFFECT;
 			break;
-		case PAGE_CHANNEL_EFFECT:
-			w->page = PAGE_CHANNEL_VARIANT;
+		case PAGE_TRACK_EFFECT:
+			w->page = PAGE_TRACK_VARIANT;
 			break;
 		default:
-			w->page = PAGE_CHANNEL_VARIANT;
+			w->page = PAGE_TRACK_VARIANT;
 			w->mode = T_MODE_NORMAL;
 			break;
 	}
@@ -342,7 +342,7 @@ int input(void)
 					setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
 					// setCommand(&w->command, &commandCallback, NULL, &commandTabCallback, 1, ":", "");
 					w->oldmode = w->mode;
-					if (w->page == PAGE_CHANNEL_VARIANT)
+					if (w->page == PAGE_TRACK_VARIANT)
 						switch (w->mode)
 						{
 							case T_MODE_VISUAL:
@@ -364,7 +364,7 @@ int input(void)
 				default:
 					switch (w->page)
 					{
-						case PAGE_CHANNEL_VARIANT: case PAGE_CHANNEL_EFFECT:      trackerInput(input);             break;
+						case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT:      trackerInput(input);             break;
 						case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: instrumentInput(input);          break;
 						case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:           masterInput(input);              break;
 						case PAGE_PLUGINBROWSER:                                  pluginEffectBrowserInput(input); break;
@@ -382,14 +382,14 @@ void resize(int _)
 	resizeBackground(b);
 	resizeBrowser(fbstate,
 			INSTRUMENT_INDEX_COLS + 2,         /* x */
-			CHANNEL_ROW + 1,                   /* y */
+			TRACK_ROW + 1,                   /* y */
 			ws.ws_col - INSTRUMENT_INDEX_COLS, /* w */
-			ws.ws_row - CHANNEL_ROW - 1);      /* h */
+			ws.ws_row - TRACK_ROW - 1);      /* h */
 	resizeBrowser(pbstate,
 			1,                            /* x */
-			CHANNEL_ROW + 1,              /* y */
+			TRACK_ROW + 1,              /* y */
 			ws.ws_col,                    /* w */
-			ws.ws_row - CHANNEL_ROW - 1); /* h */
+			ws.ws_row - TRACK_ROW - 1); /* h */
 
 	p->redraw = 1;
 }
@@ -431,7 +431,7 @@ int main(int argc, char **argv)
 				{
 					Sample *sample = malloc(sizeof(Sample) + (w->recptr<<1)*sizeof(short));
 					sample->length = w->recptr;
-					sample->channels = 2;
+					sample->tracks = 2;
 					sample->rate = sample->defrate = samplerate;
 					memcpy(&sample->data, w->recbuffer, (w->recptr<<1)*sizeof(short));
 					free(w->recbuffer); w->recbuffer = NULL;

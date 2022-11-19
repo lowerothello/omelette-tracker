@@ -1,4 +1,4 @@
-char ifMacro(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r, char m, bool alt, char (*callback)(jack_nframes_t, uint16_t *, int, Channel *, Row))
+char ifMacro(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m, bool alt, char (*callback)(jack_nframes_t, uint16_t *, int, Track *, Row))
 {
 	char ret = 0;
 	for (int i = 0; i <= cv->data.variant->macroc; i++)
@@ -211,7 +211,7 @@ void descMacro(char c, uint8_t v, bool alt)
 }
 
 
-char _Vc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char _Vc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->vibrato = m&0xf;
 	if (!cv->vibratosamples) /* reset the phase if starting */
@@ -220,17 +220,17 @@ char _Vc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	cv->vibratosamplepointer = MIN(cv->vibratosamplepointer, cv->vibratosamples - 1);
 	return 1;
 }
-char Vc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Vc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 { return _Vc(fptr, spr, m, cv, r); }
 
-char Bc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Bc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (m == 0) setBpm(spr, p->s->songbpm);
 	else        setBpm(spr, MAX(32, m));
 	return 0;
 }
 
-char Cc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Cc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (!m)
 	{ /* cut now */
@@ -243,7 +243,7 @@ char Cc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	return 0;
 }
 
-char Pc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Pc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (cv->portamentosamplepointer > cv->portamentosamples)
 	{
@@ -254,7 +254,7 @@ char Pc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	} return 1;
 }
 
-char Dc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Dc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (!m) return 0;
 	cv->delaysamples = *spr * m*DIV256;
@@ -263,9 +263,9 @@ char Dc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	return 1;
 }
 
-char Gc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->gain.base = cv->gain.rand = m; return 1; }
-char gc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->gain.target = m; return 1; }
-char altGc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Gc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->gain.base = cv->gain.rand = m; return 1; }
+char gc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->gain.target = m; return 1; }
+char altGc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	signed char stereo = rand()%((m>>4)+1);
 	cv->gain.rand =
@@ -273,7 +273,7 @@ char altGc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 		+ MAX(0, (cv->gain.base&0xf) - stereo - rand()%((m&0x0f)+1));
 	return 1;
 }
-char altgc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altgc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->gain.target_rand = 1;
 	signed char stereo = rand()%((m>>4)+1);
@@ -283,9 +283,9 @@ char altgc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	return 1;
 }
 
-char Sc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->send.base = cv->send.rand = m; return 1; }
-char sc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->send.target = m; return 1; }
-char altSc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Sc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->send.base = cv->send.rand = m; return 1; }
+char sc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->send.target = m; return 1; }
+char altSc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	signed char stereo = rand()%((m>>4)+1);
 	cv->send.rand =
@@ -293,7 +293,7 @@ char altSc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 		+ MAX(0, (cv->send.base&0xf) - stereo - rand()%((m&0x0f)+1));
 	return 1;
 }
-char altsc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altsc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->send.target_rand = 1;
 	signed char stereo = rand()%((m>>4)+1);
@@ -303,7 +303,7 @@ char altsc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	return 1;
 }
 
-char _altRc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char _altRc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (m)
 	{
@@ -317,17 +317,17 @@ char _altRc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 		return 1;
 	} return 0;
 }
-char altRc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altRc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->data.rtrig_rev = 0;
 	return _altRc(fptr, spr, m, cv, r);
 }
-char altrc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altrc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->data.rtrig_rev = 1;
 	return _altRc(fptr, spr, m, cv, r);
 }
-char Rc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Rc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->rtrigpointer = cv->rtrigcurrentpointer = cv->pointer;
 	cv->rtrigpitchedpointer = cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
@@ -336,41 +336,41 @@ char Rc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	else       cv->rtrigsamples = *spr * (cv->rtrigblocksize+1);
 	return 1;
 }
-char rc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char rc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->data.rtrig_rev = 1;
 	return Rc(fptr, spr, m, cv, r);
 }
 
-char pc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char pc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 { cv->microtonalfinetune = m*DIV255; return 0; }
 
-char percentc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) /* returns true to NOT play */
+char percentc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) /* returns true to NOT play */
 {
 	if (rand()%256 > m) return 1;
 	else                return 0;
 }
 
-char midicctargetc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->midiccindex = m%128; return 1; }
-char midipcc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char midicctargetc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->midiccindex = m%128; return 1; }
+char midipcc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (!cv->data.mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 	{
 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
-		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.channel, m%128);
+		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.track, m%128);
 	} return 1;
 }
-char midiccc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char midiccc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->midicc = m%128;
 	if (cv->midiccindex != -1 && !cv->data.mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 	{
 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
-		if (iv->algorithm == INST_ALG_MIDI) midiCC(fptr, iv->midi.channel, cv->midiccindex, cv->midicc);
+		if (iv->algorithm == INST_ALG_MIDI) midiCC(fptr, iv->midi.track, cv->midiccindex, cv->midicc);
 	} return 1;
 }
 
-char _Oc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char _Oc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
@@ -383,18 +383,18 @@ char _Oc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 		}
 	} return 0;
 }
-char Oc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Oc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->data.reverse = 0;
 	return _Oc(fptr, spr, m, cv, r);
 }
-char oc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char oc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->data.reverse = 1;
 	if (m) return _Oc(fptr, spr, m, cv, r);
 	return 0;
 }
-char altOc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altOc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
@@ -415,32 +415,32 @@ char altOc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	} return 0;
 }
 /* TODO: should never reverse in place, kinda important cos this case ramps wrongly */
-char altoc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altoc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->data.reverse = !cv->data.reverse;
 	return altOc(fptr, spr, m, cv, r);
 }
 
-char Fc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Fc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.cut[0] = cv->filter.randcut[0] =  m&0xf0;
 	cv->filter.cut[1] = cv->filter.randcut[1] = (m&0x0f)<<4;
 	return 1;
 }
-char fc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char fc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.targetcut[0] =  m&0xf0;
 	cv->filter.targetcut[1] = (m&0x0f)<<4;
 	return 1;
 }
-char altFc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altFc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	short stereo = rand()%((m&0xf0)+1);
 	cv->filter.randcut[0] = MAX(0, cv->filter.cut[0] - stereo - rand()%(((m&0x0f)<<4)+1));
 	cv->filter.randcut[1] = MAX(0, cv->filter.cut[1] - stereo - rand()%(((m&0x0f)<<4)+1));
 	return 1;
 }
-char altfc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altfc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.targetcut_rand = 1;
 	short stereo = rand()%((m&0xf0)+1);
@@ -449,26 +449,26 @@ char altfc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	return 1;
 }
 
-char Zc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Zc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.res[0] = cv->filter.randres[0] =  m&0xf0;
 	cv->filter.res[1] = cv->filter.randres[1] = (m&0x0f)<<4;
 	return 1;
 }
-char zc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char zc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.targetres[0] =  m&0xf0;
 	cv->filter.targetres[1] = (m&0x0f)<<4;
 	return 1;
 }
-char altZc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altZc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	short stereo = rand()%((m&0xf0)+1);
 	cv->filter.randres[0] = MAX(0, cv->filter.res[0] - stereo - rand()%(((m&0x0f)<<4)+1));
 	cv->filter.randres[1] = MAX(0, cv->filter.res[1] - stereo - rand()%(((m&0x0f)<<4)+1));
 	return 1;
 }
-char altzc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char altzc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.targetres_rand = 1;
 	short stereo = rand()%((m&0xf0)+1);
@@ -477,29 +477,29 @@ char altzc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	return 1;
 }
 
-char Mc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Mc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.mode[0] = (m&0x70)>>4; /* ignore the '8' bit */
 	cv->filter.mode[1] =  m&0x07;     /* ignore the '8' bit */
 	return 1;
 }
-char mc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char mc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->filter.targetmode[0] = (m&0x70)>>4; /* ignore the '8' bit */
 	cv->filter.targetmode[1] =  m&0x07;     /* ignore the '8' bit */
 	return 1;
 }
 
-char Xc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->localsamplerate = m; return 1; }
-char xc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->targetlocalsamplerate = m; return 1; }
+char Xc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->localsamplerate = m; return 1; }
+char xc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->targetlocalsamplerate = m; return 1; }
 
-char Ec(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->localenvelope = m;         return 1; }
-char ec(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->localsustain = m;          return 1; }
-char Hc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->localpitchshift = m;       return 1; }
-char hc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->targetlocalpitchshift = m; return 1; }
-char Wc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->localpitchwidth = m;       return 1; }
-char wc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r) { cv->targetlocalpitchwidth = m; return 1; }
-char Lc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char Ec(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->localenvelope = m;         return 1; }
+char ec(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->localsustain = m;          return 1; }
+char Hc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->localpitchshift = m;       return 1; }
+char hc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->targetlocalpitchshift = m; return 1; }
+char Wc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->localpitchwidth = m;       return 1; }
+char wc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->targetlocalpitchwidth = m; return 1; }
+char Lc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
@@ -509,7 +509,7 @@ char Lc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
 	}
 	return 1;
 }
-char lc(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char lc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{

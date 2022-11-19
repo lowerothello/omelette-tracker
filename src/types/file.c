@@ -49,21 +49,21 @@ int writeSong(char *path)
 	fwrite(&samplerate, sizeof(jack_nframes_t), 1, fp);
 	fputc(s->songbpm, fp);
 	fputc(s->instrument->c, fp);
-	fputc(s->channel->c, fp);
+	fputc(s->track->c, fp);
 	fputc(s->rowhighlight, fp);
 	fwrite(&s->songlen, sizeof(uint16_t), 1, fp);
 	fwrite(s->loop, sizeof(uint16_t), 2, fp);
 
-	/* channels */
+	/* tracks */
 #ifdef DEBUG_LOGS
-	fprintf(debugfp, "%02x channel(s) expected\n", s->channel->c);
+	fprintf(debugfp, "%02x track(s) expected\n", s->track->c);
 #endif
-	for (i = 0; i < s->channel->c; i++)
+	for (i = 0; i < s->track->c; i++)
 	{
 #ifdef DEBUG_LOGS
-		fprintf(debugfp, "CHANNEL %02x - 0x%zx\n", i, ftell(fp));
+		fprintf(debugfp, "TRACK %02x - 0x%zx\n", i, ftell(fp));
 #endif
-		serializeChannel(s, &s->channel->v[i], fp);
+		serializeTrack(s, &s->track->v[i], fp);
 	}
 
 	/* instrument->i */
@@ -154,16 +154,16 @@ Song *readSong(char *path)
 	cs->songbpm = fgetc(fp);
 
 	uint8_t tempinstrumentc = fgetc(fp);
-	uint8_t tempchannelc = fgetc(fp);
+	uint8_t temptrackc = fgetc(fp);
 	cs->rowhighlight = fgetc(fp);
 	fread(&cs->songlen, sizeof(uint16_t), 1, fp);
 	fread(cs->loop, sizeof(uint16_t), 2, fp);
 
-	cs->channel = calloc(1, sizeof(ChannelChain) + tempchannelc * sizeof(Channel));
-	cs->channel->c = tempchannelc;
-	/* channels */
-	for (i = 0; i < cs->channel->c; i++)
-		deserializeChannel(cs, &cs->channel->v[i], fp, filemajor, fileminor);
+	cs->track = calloc(1, sizeof(TrackChain) + temptrackc * sizeof(Track));
+	cs->track->c = temptrackc;
+	/* tracks */
+	for (i = 0; i < cs->track->c; i++)
+		deserializeTrack(cs, &cs->track->v[i], fp, filemajor, fileminor);
 
 	/* instruments */
 	cs->instrument = calloc(1, sizeof(InstrumentChain) + tempinstrumentc * sizeof(Instrument));

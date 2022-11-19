@@ -21,7 +21,7 @@ Song *_addSong(void)
 	return cs;
 }
 
-#define STARTING_CHANNELC 4 /* how many channels to allocate for new files */
+#define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
 Song *addSong(void)
 {
 	Song *ret = _addSong();
@@ -29,11 +29,11 @@ Song *addSong(void)
 	ret->instrument = calloc(1, sizeof(InstrumentChain));
 	memset(ret->instrument->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
 
-	ret->channel = calloc(1, sizeof(ChannelChain) + STARTING_CHANNELC * sizeof(Channel));
+	ret->track = calloc(1, sizeof(TrackChain) + STARTING_TRACKC * sizeof(Track));
 	regenGlobalRowc(ret);
-	ret->channel->c = STARTING_CHANNELC;
-	for (uint8_t i = 0; i < STARTING_CHANNELC; i++)
-		_addChannel(ret, &ret->channel->v[i]);
+	ret->track->c = STARTING_TRACKC;
+	for (uint8_t i = 0; i < STARTING_TRACKC; i++)
+		_addTrack(ret, &ret->track->v[i]);
 
 	return ret;
 }
@@ -52,9 +52,9 @@ void delSong(Song *cs)
 	free(cs->sendpluginoutput[0]);
 	free(cs->sendpluginoutput[1]);
 
-	for (int i = 0; i < cs->channel->c; i++)
-		_delChannel(cs, &cs->channel->v[i]);
-	free(cs->channel);
+	for (int i = 0; i < cs->track->c; i++)
+		_delTrack(cs, &cs->track->v[i]);
+	free(cs->track);
 
 	for (int i = 0; i < cs->instrument->c; i++)
 		_delInstrument(&cs->instrument->v[i]);

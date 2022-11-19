@@ -11,10 +11,10 @@ void drawInstrumentSampler(Instrument *iv)
 		{
 			clearControls(&cc);
 
-			printf("\033[%d;%dH%ds", CHANNEL_ROW - 1, ws.ws_col - 10, (int)((iv->sample->length * (float)iv->sample->rate/(float)samplerate) / samplerate) + 1);
+			printf("\033[%d;%dH%ds", TRACK_ROW - 1, ws.ws_col - 10, (int)((iv->sample->length * (float)iv->sample->rate/(float)samplerate) / samplerate) + 1);
 
 			drawWaveform(iv, x, y);
-			printf("\033[%d;%dHC5 rate: [        ]  channel: [      ]", y+0, x);
+			printf("\033[%d;%dHC5 rate: [        ]  track: [      ]", y+0, x);
 			printf("\033[%d;%dHquality: [ ][ ][  ]  gain:    [ ][   ]", y+1, x);
 			printf("\033[%d;%dHgain env:    [    ]  [    ]:  [  ][  ]", y+2, x);
 
@@ -23,12 +23,12 @@ void drawInstrumentSampler(Instrument *iv)
 			addControlInt(&cc, x+13, y+1, &iv->bitdepth,    1, 0x0, 0xf,    0xf,    0, 0, instrumentSamplerControlCallback, NULL);
 			addControlInt(&cc, x+16, y+1, &iv->samplerate,  2, 0x0, 0xff,   0xff,   0, 0, instrumentSamplerControlCallback, NULL);
 			addControlInt(&cc, x+14, y+2, &iv->envelope,    4, 0x0, 0xffff, 0x00f0, 0, 0, instrumentSamplerControlCallback, NULL);
-			addControlInt(&cc, x+31, y+0, &iv->channelmode, 1, 0,   4,      0,      6, 5, instrumentSamplerControlCallback, NULL);
-				addScalePointInt(&cc, "STEREO", SAMPLE_CHANNELS_STEREO);
-				addScalePointInt(&cc, "  LEFT", SAMPLE_CHANNELS_LEFT  );
-				addScalePointInt(&cc, " RIGHT", SAMPLE_CHANNELS_RIGHT );
-				addScalePointInt(&cc, "   MIX", SAMPLE_CHANNELS_MIX   );
-				addScalePointInt(&cc, "  SWAP", SAMPLE_CHANNELS_SWAP  );
+			addControlInt(&cc, x+31, y+0, &iv->trackmode, 1, 0,   4,      0,      6, 5, instrumentSamplerControlCallback, NULL);
+				addScalePointInt(&cc, "STEREO", SAMPLE_TRACKS_STEREO);
+				addScalePointInt(&cc, "  LEFT", SAMPLE_TRACKS_LEFT  );
+				addScalePointInt(&cc, " RIGHT", SAMPLE_TRACKS_RIGHT );
+				addScalePointInt(&cc, "   MIX", SAMPLE_TRACKS_MIX   );
+				addScalePointInt(&cc, "  SWAP", SAMPLE_TRACKS_SWAP  );
 			addControlInt(&cc, x+31, y+1, &iv->invert,     0, 0,    1,   0, 0, 0, instrumentSamplerControlCallback, NULL);
 			addControlInt(&cc, x+34, y+1, &iv->gain,       3, -128, 127, 0, 0, 0, instrumentSamplerControlCallback, NULL);
 			addControlInt(&cc, x+22, y+2, &iv->filtermode, 1, 0,    7,   0, 4, 8, instrumentSamplerControlCallback, NULL);

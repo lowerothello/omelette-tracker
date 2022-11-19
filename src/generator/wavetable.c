@@ -55,7 +55,7 @@ void drawWavetable(ControlState *cc, Instrument *iv)
 #define LFO_MAX_S 0.1f
 #define LFO_MIN_S 10.0f
 
-void processWavetable(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	float hold;
 	float calcrate = (float)iv->sample->rate / (float)samplerate;
@@ -110,14 +110,14 @@ void processWavetable(Instrument *iv, Channel *cv, float rp, uint32_t pointer, u
 	uint8_t localsamplerate = iv->samplerate; if (cv->localsamplerate != -1) localsamplerate = cv->localsamplerate;
 	if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
 
-	if (iv->sample->channels == 1)
+	if (iv->sample->tracks == 1)
 	{
 		getSample(pointersnap + (uint32_t)(wtphase*framelen) *calcrate, localsamplerate, iv->bitdepth, iv->sample, l);
 		getSample(pointersnap + (uint32_t)(wtphase*framelen) *calcrate, localsamplerate, iv->bitdepth, iv->sample, r);
 	} else
 	{
-		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->channels + 0, localsamplerate, iv->bitdepth, iv->sample, l);
-		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->channels + 1, localsamplerate, iv->bitdepth, iv->sample, r);
+		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->tracks + 0, localsamplerate, iv->bitdepth, iv->sample, l);
+		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->tracks + 1, localsamplerate, iv->bitdepth, iv->sample, r);
 	}
 
 	hold = powf(2.0f, lfogain * iv->wavetable.lfo.gain*DIV256 * -1.0f);

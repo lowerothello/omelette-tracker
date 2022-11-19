@@ -5,8 +5,8 @@ void drawMaster(void)
 {
 	switch (w->page)
 	{
-		case PAGE_EFFECT_MASTER: drawEffects(s->master, &cc, 1, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW + 2); break;
-		case PAGE_EFFECT_SEND:   drawEffects(s->send,   &cc, 1, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), CHANNEL_ROW + 2); break;
+		case PAGE_EFFECT_MASTER: drawEffects(s->master, &cc, 1, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), TRACK_ROW + 2); break;
+		case PAGE_EFFECT_SEND:   drawEffects(s->send,   &cc, 1, (INSTRUMENT_INDEX_COLS+1)>>1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), TRACK_ROW + 2); break;
 	}
 }
 

@@ -26,8 +26,8 @@
 // #define NO_VALGRIND
 
 /* NO_MULTITHREADING
- *   executes all channel processing in a single thread
- *   instead of spawning a thread for each channel.
+ *   executes all track processing in a single thread
+ *   instead of spawning a thread for each track.
  */
 #define NO_MULTITHREADING
 

@@ -93,7 +93,7 @@ void _previewNote(Window *cw, int key, uint8_t inst)
 }
 void previewNote(int key, uint8_t inst)
 {
-	if (p->w->page == PAGE_CHANNEL_VARIANT && p->s->playing) return;
+	if (p->w->page == PAGE_TRACK_VARIANT && p->s->playing) return;
 	_previewNote(w, key, inst);
 	w->previewtrigger = PTRIG_NORMAL;
 }

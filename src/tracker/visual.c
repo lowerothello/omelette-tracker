@@ -10,14 +10,14 @@ short vfxToTfx(int8_t vfx)
 }
 
 /* VMO: visual macro order */
-short tfxToVmo(ChannelData *cd, short tfx)
+short tfxToVmo(TrackData *cd, short tfx)
 {
 	if (tfx < 2) return tfx; /* no change for note and inst columns */
 	if (tfx&0x1) /* macrov */ return (4 + (cd->variant->macroc<<1)) - tfx;
 	else         /* macroc */ return (2 + (cd->variant->macroc<<1)) - tfx;
 }
 /* VMO: visual macro order */
-short vfxToVmo(ChannelData *cd, short vfx)
+short vfxToVmo(TrackData *cd, short vfx)
 {
 	if (vfx < 2) return vfx; /* no change for note and inst columns */
 	return (2 + (cd->variant->macroc<<1)) - vfx;
@@ -55,8 +55,8 @@ bool vfxVmoRangeIncl(short min, short max, short x)
 
 void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	/* walk over allocated channels and free them */
-	for (short i = 0; i < w->pbchannelc; i++)
+	/* walk over allocated tracks and free them */
+	for (short i = 0; i < w->pbtrackc; i++)
 	{
 		free(w->pbvariantv[i]);
 		free(w->vbtrig[i]);
@@ -64,15 +64,15 @@ void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 
 	w->pbfx[0] = x1;
 	w->pbfx[1] = x2;
-	w->pbchannelc = c2-c1 + 1;
+	w->pbtrackc = c2-c1 + 1;
 
-	ChannelData *cd;
+	TrackData *cd;
 	for (uint8_t i = 0; i <= c2-c1; i++)
 	{
-		cd = &s->channel->v[c1+i].data;
+		cd = &s->track->v[c1+i].data;
 		w->pbvariantv[i] = dupVariant(NULL, y2-y1 + 1);
 		for (uint16_t j = 0; j <= y2-y1; j++)
-			w->pbvariantv[i]->rowv[j] = *getChannelRow(cd, y1+j);
+			w->pbvariantv[i]->rowv[j] = *getTrackRow(cd, y1+j);
 
 		w->vbtrig[i] = calloc(y2-y1 + 1, sizeof(Vtrig));
 		for (uint16_t j = 0; j <= y2-y1; j++)
@@ -85,12 +85,12 @@ void putPartPattern(void)
 	int k;
 	Row *dest, *src;
 	char targetmacro;
-	ChannelData *cd;
+	TrackData *cd;
 
-	if (!w->pbchannelc) return;
-	if (w->pbchannelc == 1) // only one channel
+	if (!w->pbtrackc) return;
+	if (w->pbtrackc == 1) // only one track
 	{
-		cd = &s->channel->v[w->channel].data;
+		cd = &s->track->v[w->track].data;
 		if (w->pbfx[0] > 1 && w->pbfx[1] > 1) /* just macro columns */
 		{
 			if (w->trackerfx < 2) targetmacro = 0;
@@ -101,7 +101,7 @@ void putPartPattern(void)
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(cd, w->trackerfy+j);
+				dest = getTrackRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				for (k = 0; k <= w->pbfx[1] - w->pbfx[0]; k++)
 				{
@@ -116,7 +116,7 @@ void putPartPattern(void)
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(cd, w->trackerfy+j);
+				dest = getTrackRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				if (w->pbfx[0] <= -1 && w->pbfx[1] >= -1)
 				{
@@ -136,17 +136,17 @@ void putPartPattern(void)
 		}
 	} else
 	{
-		for (i = 0; i < w->pbchannelc; i++)
+		for (i = 0; i < w->pbtrackc; i++)
 		{
-			cd = &s->channel->v[w->channel+i].data;
-			if (w->channel+i < s->channel->c)
+			cd = &s->track->v[w->track+i].data;
+			if (w->track+i < s->track->c)
 				for (j = 0; j < w->pbvariantv[i]->rowc; j++)
 				{
 					if (w->trackerfy + j >= s->songlen) break;
-					dest = getChannelRow(cd, w->trackerfy+j);
+					dest = getTrackRow(cd, w->trackerfy+j);
 					src = getVariantRow(w->pbvariantv[i], j);
 
-					if (i == 0) // first channel
+					if (i == 0) // first track
 					{
 						if (w->pbfx[0] <= -1)
 						{
@@ -162,7 +162,7 @@ void putPartPattern(void)
 								dest->macro[k].v = src->macro[k].v;
 								dest->macro[k].alt = src->macro[k].alt;
 							}
-					} else if (i == w->pbchannelc-1) // last channel
+					} else if (i == w->pbtrackc-1) // last track
 					{
 						if (w->pbfx[0] >= -1)
 						{
@@ -195,12 +195,12 @@ void mixPutPartPattern(void)
 	int k;
 	Row *dest, *src;
 	char targetmacro;
-	ChannelData *cd;
+	TrackData *cd;
 
-	if (!w->pbchannelc) return;
-	if (w->pbchannelc == 1) // only one channel
+	if (!w->pbtrackc) return;
+	if (w->pbtrackc == 1) // only one track
 	{
-		cd = &s->channel->v[w->channel].data;
+		cd = &s->track->v[w->track].data;
 		if (w->pbfx[0] > 1 && w->pbfx[1] > 1) /* just macro columns */
 		{
 			if (w->trackerfx < 2) targetmacro = 0;
@@ -211,7 +211,7 @@ void mixPutPartPattern(void)
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(cd, w->trackerfy+j);
+				dest = getTrackRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				for (k = 0; k <= w->pbfx[1] - w->pbfx[0]; k++)
 				{
@@ -229,7 +229,7 @@ void mixPutPartPattern(void)
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 			{
 				if (w->trackerfy + j >= s->songlen) break;
-				dest = getChannelRow(cd, w->trackerfy+j);
+				dest = getTrackRow(cd, w->trackerfy+j);
 				src = getVariantRow(w->pbvariantv[0], j);
 				if (w->pbfx[0] <= -1 && w->pbfx[1] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
 					cd->variant->trig[w->trackerfy+j] = w->vbtrig[0][j];
@@ -246,17 +246,17 @@ void mixPutPartPattern(void)
 		}
 	} else
 	{
-		for (i = 0; i < w->pbchannelc; i++)
+		for (i = 0; i < w->pbtrackc; i++)
 		{
-			cd = &s->channel->v[w->channel+i].data;
-			if (w->channel+i < s->channel->c)
+			cd = &s->track->v[w->track+i].data;
+			if (w->track+i < s->track->c)
 				for (j = 0; j < w->pbvariantv[i]->rowc; j++)
 				{
 					if (w->trackerfy + j >= s->songlen) break;
-					dest = getChannelRow(cd, w->trackerfy+j);
+					dest = getTrackRow(cd, w->trackerfy+j);
 					src = getVariantRow(w->pbvariantv[i], j);
 
-					if (i == 0) // first channel
+					if (i == 0) // first track
 					{
 						if (w->pbfx[0] <= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
 							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
@@ -269,7 +269,7 @@ void mixPutPartPattern(void)
 								dest->macro[k].v =   src->macro[k].v;
 								dest->macro[k].alt = src->macro[k].alt;
 							}
-					} else if (i == w->pbchannelc-1) // last channel
+					} else if (i == w->pbtrackc-1) // last track
 					{
 						if (w->pbfx[0] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
 							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
@@ -282,7 +282,7 @@ void mixPutPartPattern(void)
 								dest->macro[k].v =   src->macro[k].v;
 								dest->macro[k].alt = src->macro[k].alt;
 							}
-					} else // middle channel
+					} else // middle track
 					{
 						if (w->vbtrig[0][j].index != VARIANT_VOID)
 							cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
@@ -306,14 +306,14 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 	uint8_t i, j;
 	Row *r;
 	int k;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 		for (j = y1; j <= y2; j++)
 		{
-			if (x1 <= -1 && x2 >= -1) setVariantChainTrig(&s->channel->v[c1].data.variant, j, VARIANT_VOID);
-			r = getChannelRow(&s->channel->v[c1].data, j);
+			if (x1 <= -1 && x2 >= -1) setVariantChainTrig(&s->track->v[c1].data.variant, j, VARIANT_VOID);
+			r = getTrackRow(&s->track->v[c1].data, j);
 			if (x1 <= 0 && x2 >= 0) r->note = NOTE_VOID;
 			if (x1 <= 1 && x2 >= 1) r->inst = INST_VOID;
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					r->macro[k].c   = 0;
@@ -322,39 +322,39 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 				}
 		}
 	else for (i = c1; i <= c2; i++)
-		if (i < s->channel->c)
+		if (i < s->track->c)
 			for (j = y1; j <= y2; j++)
 			{
-				if (i == c1) /* first channel */
+				if (i == c1) /* first track */
 				{
-					if (x1 <= -1) setVariantChainTrig(&s->channel->v[i].data.variant, j, VARIANT_VOID);
-					r = getChannelRow(&s->channel->v[i].data, j);
+					if (x1 <= -1) setVariantChainTrig(&s->track->v[i].data.variant, j, VARIANT_VOID);
+					r = getTrackRow(&s->track->v[i].data, j);
 					if (x1 <= 0) r->note = NOTE_VOID;
 					if (x1 <= 1) r->inst = INST_VOID;
-					for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+					for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 						if (x1 <= k+2)
 						{
 							r->macro[k].c   = 0;
 							r->macro[k].v   = 0;
 							r->macro[k].alt = 0;
 						}
-				} else if (i == c2) /* last channel */
+				} else if (i == c2) /* last track */
 				{
-					if (x1 >= -1) setVariantChainTrig(&s->channel->v[i].data.variant, j, VARIANT_VOID);
-					r = getChannelRow(&s->channel->v[i].data, j);
+					if (x1 >= -1) setVariantChainTrig(&s->track->v[i].data.variant, j, VARIANT_VOID);
+					r = getTrackRow(&s->track->v[i].data, j);
 					if (x2 >= 0) r->note = NOTE_VOID;
 					if (x2 >= 1) r->inst = INST_VOID;
-					for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+					for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 						if (x2 >= k+2)
 						{
 							r->macro[k].c   = 0;
 							r->macro[k].v   = 0;
 							r->macro[k].alt = 0;
 						}
-				} else /* middle channel */
+				} else /* middle track */
 				{
-					setVariantChainTrig(&s->channel->v[i].data.variant, j, VARIANT_VOID);
-					r = getChannelRow(&s->channel->v[i].data, j);
+					setVariantChainTrig(&s->track->v[i].data.variant, j, VARIANT_VOID);
+					r = getTrackRow(&s->track->v[i].data, j);
 					memset(r, 0, sizeof(Row));
 					r->note = NOTE_VOID;
 					r->inst = INST_VOID;
@@ -365,20 +365,20 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 }
 void loopPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			if (x1 <= -1 && x2 >= -1 && s->channel->v[c1].data.variant->trig[j].index != VARIANT_VOID)
-				s->channel->v[c1].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
+			if (x1 <= -1 && x2 >= -1 && s->track->v[c1].data.variant->trig[j].index != VARIANT_VOID)
+				s->track->v[c1].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
 		}
 	else for (uint8_t i = c1; i <= c2; i++)
-		if (i < s->channel->c)
+		if (i < s->track->c)
 			for (uint8_t j = y1; j <= y2; j++)
 			{
-				if ((i == c1 && x1 <= -1) /* first channel */
-				 || (i != c1))            /* other channel */
-					if (s->channel->v[i].data.variant->trig[j].index != VARIANT_VOID)
-						s->channel->v[i].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
+				if ((i == c1 && x1 <= -1) /* first track */
+				 || (i != c1))            /* other track */
+					if (s->track->v[i].data.variant->trig[j].index != VARIANT_VOID)
+						s->track->v[i].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
 			}
 		else break;
 	regenGlobalRowc(s);
@@ -389,16 +389,16 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 	uint8_t i, j;
 	int k;
 	Row *r;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			r = getChannelRow(&s->channel->v[c1].data, j);
+			r = getTrackRow(&s->track->v[c1].data, j);
 			if (x1 <= 0 && x2 >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 		if (noteonly) continue;
-			if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->channel->v[c1].data.variant, j, s->channel->v[c1].data.variant->trig[j].index + value);
+			if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->track->v[c1].data.variant, j, s->track->v[c1].data.variant->trig[j].index + value);
 			if (x1 <= 1 && x2 >= 1 && r->inst != INST_VOID) r->inst += value;
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
@@ -407,41 +407,41 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 		}
 	} else
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c)
+			if (i < s->track->c)
 				for (j = y1; j <= y2; j++)
 				{
-					r = getChannelRow(&s->channel->v[i].data, j);
-					if (i == c1) /* first channel */
+					r = getTrackRow(&s->track->v[i].data, j);
+					if (i == c1) /* first track */
 					{
 						if (x1 <= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 					if (noteonly) continue;
-						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->channel->v[i].data.variant, j, s->channel->v[i].data.variant->trig[j].index + value);
+						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->track->v[i].data.variant, j, s->track->v[i].data.variant->trig[j].index + value);
 						if (x1 <= 1 && r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
 								else                                 r->macro[k].v += value;
 							}
-					} else if (i == c2) /* last channel */
+					} else if (i == c2) /* last track */
 					{
 						if (x2 >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 					if (noteonly) continue;
-						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->channel->v[i].data.variant, j, s->channel->v[i].data.variant->trig[j].index + value);
+						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->track->v[i].data.variant, j, s->track->v[i].data.variant->trig[j].index + value);
 						if (x2 >= 1 && r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
 								else                                 r->macro[k].v += value;
 							}
-					} else /* middle channel */
+					} else /* middle track */
 					{
 						if (r->note != NOTE_VOID && r->note != NOTE_OFF) r->note += value;
 					if (noteonly) continue;
-						if (affectvtrig) setVariantChainTrig(&s->channel->v[i].data.variant, j, s->channel->v[i].data.variant->trig[j].index + value);
+						if (affectvtrig) setVariantChainTrig(&s->track->v[i].data.variant, j, s->track->v[i].data.variant->trig[j].index + value);
 						if (r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 						{
 							if (linkMacroNibbles(r->macro[k].c)) r->macro[k].v += value*16;
 							else                                 r->macro[k].v += value;
@@ -456,31 +456,31 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 	uint8_t i, j;
 	int k;
 	Row *r;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			r = getChannelRow(&s->channel->v[c1].data, j);
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			r = getTrackRow(&s->track->v[c1].data, j);
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && isalpha(r->macro[k].c))
 					changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt);
 		}
 	} else
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c)
+			if (i < s->track->c)
 				for (j = y1; j <= y2; j++)
 				{
-					r = getChannelRow(&s->channel->v[i].data, j);
-					if (i == c1) /* first channel */
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
+					r = getTrackRow(&s->track->v[i].data, j);
+					if (i == c1) /* first track */
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++) {
 							if (x1 <= k+2 && isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt); }
-					else if (i == c2) /* last channel */
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
+					else if (i == c2) /* last track */
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++) {
 							if (x2 >= k+2 && isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt); }
-					else /* middle channel */
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+					else /* middle track */
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c, &r->macro[k].alt, r->macro[k].alt);
 				}
@@ -493,31 +493,31 @@ void altTildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, u
 	uint8_t i, j;
 	int k;
 	Row *r;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			r = getChannelRow(&s->channel->v[c1].data, j);
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			r = getTrackRow(&s->track->v[c1].data, j);
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && isalpha(r->macro[k].c))
 					changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt);
 		}
 	} else
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c)
+			if (i < s->track->c)
 				for (j = y1; j <= y2; j++)
 				{
-					r = getChannelRow(&s->channel->v[i].data, j);
-					if (i == c1) /* first channel */
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
+					r = getTrackRow(&s->track->v[i].data, j);
+					if (i == c1) /* first track */
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++) {
 							if (x1 <= k+2 && isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt); }
-					else if (i == c2) /* last channel */
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++) {
+					else if (i == c2) /* last track */
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++) {
 							if (x2 >= k+2 && isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt); }
-					else /* middle channel */
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+					else /* middle track */
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c, &r->macro[k].alt, !r->macro[k].alt);
 				}
@@ -530,13 +530,13 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 	uint8_t i, j;
 	int k;
 	Row *r, *r1, *r2;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
-		r1 = getChannelRow(&s->channel->v[c1].data, y1);
-		r2 = getChannelRow(&s->channel->v[c1].data, y2);
+		r1 = getTrackRow(&s->track->v[c1].data, y1);
+		r2 = getTrackRow(&s->track->v[c1].data, y2);
 		for (j = y1; j <= y2; j++)
 		{
-			r = getChannelRow(&s->channel->v[c1].data, j);
+			r = getTrackRow(&s->track->v[c1].data, j);
 			if (x1 <= 0 && x2 >= 0)
 			{
 				if      (r1->note == NOTE_VOID) r->note = r2->note;
@@ -549,7 +549,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 				else if (r2->inst == INST_VOID) r->inst = r1->inst;
 				else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 			}
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -558,13 +558,13 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 		}
 	} else
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c) {
-				r1 = getChannelRow(&s->channel->v[i].data, y1);
-				r2 = getChannelRow(&s->channel->v[i].data, y2);
+			if (i < s->track->c) {
+				r1 = getTrackRow(&s->track->v[i].data, y1);
+				r2 = getTrackRow(&s->track->v[i].data, y2);
 				for (j = y1; j <= y2; j++)
 				{
-					r = getChannelRow(&s->channel->v[i].data, j);
-					if (i == c1) /* first channel */
+					r = getTrackRow(&s->track->v[i].data, j);
+					if (i == c1) /* first track */
 					{
 						if (x1 <= 0)
 						{
@@ -578,14 +578,14 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 							else if (r2->inst == INST_VOID) r->inst = r1->inst;
 							else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 						}
-						for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
 								r->macro[k].v =  r1->macro[k].v + ((r2->macro[k].v - r1->macro[k].v) / (float)(y2-y1)) * (j-y1);
 							}
 					}
-					else if (i == c2) /* last channel */
+					else if (i == c2) /* last track */
 					{
 						if (x2 >= 0)
 						{
@@ -599,14 +599,14 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 							else if (r2->inst == INST_VOID) r->inst = r1->inst;
 							else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 						}
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
 								r->macro[k].v =  r1->macro[k].v + ((r2->macro[k].v - r1->macro[k].v) / (float)(y2-y1)) * (j-y1);
 							}
 					}
-					else /* middle channel */
+					else /* middle track */
 					{
 						if      (r1->note == NOTE_VOID) r->note = r2->note;
 						else if (r2->note == NOTE_VOID) r->note = r1->note;
@@ -616,7 +616,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 						else if (r2->inst == INST_VOID) r->inst = r1->inst;
 						else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 						{
 							r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
 							r->macro[k].v =  r1->macro[k].v + ((r2->macro[k].v - r1->macro[k].v) / (float)(y2-y1)) * (j-y1);
@@ -632,11 +632,11 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	uint8_t i, j, randinst;
 	int k;
 	Row *r;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
 		for (j = y1; j <= y2; j++)
 		{
-			r = getChannelRow(&s->channel->v[c1].data, j);
+			r = getTrackRow(&s->track->v[c1].data, j);
 			if (x1 <= 0 && x2 >= 0) r->note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
 			if (x1 <= 1 && x2 >= 1 && r->note != NOTE_VOID)
 			{
@@ -645,18 +645,18 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 				for (k = 0; k < INSTRUMENT_MAX; k++)
 					if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 			}
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && r->macro[k].c)
 					r->macro[k].v = rand()%256;
 		}
 	} else
 	{
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c)
+			if (i < s->track->c)
 				for (j = y1; j <= y2; j++)
 				{
-					r = getChannelRow(&s->channel->v[i].data, j);
-					if (i == c1) /* first channel */
+					r = getTrackRow(&s->track->v[i].data, j);
+					if (i == c1) /* first track */
 					{
 						if (x1 <= 0) r->note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
 						if (x1 <= 1 && r->note != NOTE_VOID)
@@ -666,10 +666,10 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (x1 <= k+2 && r->macro[k].c)
 								r->macro[k].v = rand()%256;
-					} else if (i == c2) /* last channel */
+					} else if (i == c2) /* last track */
 					{
 						if (x2 >= 0) r->note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
 						if (x2 >= 1 && r->note != NOTE_VOID)
@@ -680,10 +680,10 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 								if (s->instrument->i[k] == randinst)
 								{ r->inst = k; break; }
 						}
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (x2 >= k+2 && r->macro[k].c)
 								r->macro[k].v = rand()%256;
-					} else /* middle channel */
+					} else /* middle track */
 					{
 						r->note = MIN(NOTE_A10-1, rand()%36 +MIN(7, w->octave)*12);
 						if (r->note != NOTE_VOID)
@@ -693,7 +693,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
-						for (k = 0; k <= s->channel->v[i].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[i].data.variant->macroc; k++)
 							if (r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					}
@@ -706,18 +706,18 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 	uint8_t i;
 	int j, k, l;
 	Row hold, *r0, *r1, *r2;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
 		for (l = 0; l < MAX(1, w->count); l++)
 		{
-			hold = *getChannelRow(&s->channel->v[c1].data, y1);
-			r2 =    getChannelRow(&s->channel->v[c1].data, y2);
+			hold = *getTrackRow(&s->track->v[c1].data, y1);
+			r2 =    getTrackRow(&s->track->v[c1].data, y2);
 			if (x1 <= 0 && x2 >= 0)
 			{
 				for (j = y1; j < y2; j++)
 				{
-					r0 = getChannelRow(&s->channel->v[c1].data, j+0);
-					r1 = getChannelRow(&s->channel->v[c1].data, j+1);
+					r0 = getTrackRow(&s->track->v[c1].data, j+0);
+					r1 = getTrackRow(&s->track->v[c1].data, j+1);
 					r0->note = r1->note;
 				}
 				r2->note = hold.note;
@@ -726,19 +726,19 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 			{
 				for (j = y1; j < y2; j++)
 				{
-					r0 = getChannelRow(&s->channel->v[c1].data, j+0);
-					r1 = getChannelRow(&s->channel->v[c1].data, j+1);
+					r0 = getTrackRow(&s->track->v[c1].data, j+0);
+					r1 = getTrackRow(&s->track->v[c1].data, j+1);
 					r0->inst = r1->inst;
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					for (j = y1; j < y2; j++)
 					{
-						r0 = getChannelRow(&s->channel->v[c1].data, j+0);
-						r1 = getChannelRow(&s->channel->v[c1].data, j+1);
+						r0 = getTrackRow(&s->track->v[c1].data, j+0);
+						r1 = getTrackRow(&s->track->v[c1].data, j+1);
 						r0->macro[k].c =   r1->macro[k].c;
 						r0->macro[k].v =   r1->macro[k].v;
 						r0->macro[k].alt = r1->macro[k].alt;
@@ -751,19 +751,19 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 	} else
 	{
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c)
+			if (i < s->track->c)
 			{
-				hold = *getChannelRow(&s->channel->v[i].data, y1);
-				r2 =    getChannelRow(&s->channel->v[i].data, y2);
-				if (i == c1) /* first channel */
+				hold = *getTrackRow(&s->track->v[i].data, y1);
+				r2 =    getTrackRow(&s->track->v[i].data, y2);
+				if (i == c1) /* first track */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						if (x1 <= 0)
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+0);
-								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0 = getTrackRow(&s->track->v[i].data, j+0);
+								r1 = getTrackRow(&s->track->v[i].data, j+1);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -772,19 +772,19 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+0);
-								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0 = getTrackRow(&s->track->v[i].data, j+0);
+								r1 = getTrackRow(&s->track->v[i].data, j+1);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								for (j = y1; j < y2; j++)
 								{
-									r0 = getChannelRow(&s->channel->v[i].data, j+0);
-									r1 = getChannelRow(&s->channel->v[i].data, j+1);
+									r0 = getTrackRow(&s->track->v[i].data, j+0);
+									r1 = getTrackRow(&s->track->v[i].data, j+1);
 									r0->macro[k].c =   r1->macro[k].c;
 									r0->macro[k].v =   r1->macro[k].v;
 									r0->macro[k].alt = r1->macro[k].alt;
@@ -794,15 +794,15 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
-				else if (i == c2) /* last channel */
+				else if (i == c2) /* last track */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						if (x2 >= 0)
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+0);
-								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0 = getTrackRow(&s->track->v[i].data, j+0);
+								r1 = getTrackRow(&s->track->v[i].data, j+1);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -811,19 +811,19 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+0);
-								r1 = getChannelRow(&s->channel->v[i].data, j+1);
+								r0 = getTrackRow(&s->track->v[i].data, j+0);
+								r1 = getTrackRow(&s->track->v[i].data, j+1);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c2].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[c2].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								for (j = y1; j < y2; j++)
 								{
-									r0 = getChannelRow(&s->channel->v[i].data, j+0);
-									r1 = getChannelRow(&s->channel->v[i].data, j+1);
+									r0 = getTrackRow(&s->track->v[i].data, j+0);
+									r1 = getTrackRow(&s->track->v[i].data, j+1);
 									r0->macro[k].c =   r1->macro[k].c;
 									r0->macro[k].v =   r1->macro[k].v;
 									r0->macro[k].alt = r1->macro[k].alt;
@@ -833,13 +833,13 @@ void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, ui
 								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
-				else /* middle channel */
+				else /* middle track */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						for (j = y1; j < y2; j++)
 						{
-							r0 = getChannelRow(&s->channel->v[i].data, j+0);
-							r1 = getChannelRow(&s->channel->v[i].data, j+1);
+							r0 = getTrackRow(&s->track->v[i].data, j+0);
+							r1 = getTrackRow(&s->track->v[i].data, j+1);
 							*r0 = *r1;
 						}
 						*r2 = hold;
@@ -852,19 +852,19 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 	uint8_t i;
 	int j, k, l;
 	Row hold, *r0, *r1, *r2;
-	if (c1 == c2) /* only one channel */
+	if (c1 == c2) /* only one track */
 	{
 		for (l = 0; l < MAX(1, w->count); l++)
 		{
-			hold = *getChannelRow(&s->channel->v[c1].data, y2);
-			r2 =    getChannelRow(&s->channel->v[c1].data, y1);
+			hold = *getTrackRow(&s->track->v[c1].data, y2);
+			r2 =    getTrackRow(&s->track->v[c1].data, y1);
 
 			if (x1 <= 0 && x2 >= 0)
 			{
 				for (j = y2-1; j >= y1; j--)
 				{
-					r0 = getChannelRow(&s->channel->v[c1].data, j+1);
-					r1 = getChannelRow(&s->channel->v[c1].data, j+0);
+					r0 = getTrackRow(&s->track->v[c1].data, j+1);
+					r1 = getTrackRow(&s->track->v[c1].data, j+0);
 					r0->note = r1->note;
 				}
 				r2->note = hold.note;
@@ -873,19 +873,19 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 			{
 				for (j = y2-1; j >= y1; j--)
 				{
-					r0 = getChannelRow(&s->channel->v[c1].data, j+1);
-					r1 = getChannelRow(&s->channel->v[c1].data, j+0);
+					r0 = getTrackRow(&s->track->v[c1].data, j+1);
+					r1 = getTrackRow(&s->track->v[c1].data, j+0);
 					r0->inst = r1->inst;
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+			for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					for (j = y2-1; j >= y1; j--)
 					{
-						r0 = getChannelRow(&s->channel->v[c1].data, j+1);
-						r1 = getChannelRow(&s->channel->v[c1].data, j+0);
+						r0 = getTrackRow(&s->track->v[c1].data, j+1);
+						r1 = getTrackRow(&s->track->v[c1].data, j+0);
 						r0->macro[k].c =   r1->macro[k].c;
 						r0->macro[k].v =   r1->macro[k].v;
 						r0->macro[k].alt = r1->macro[k].alt;
@@ -898,20 +898,20 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 	} else
 	{
 		for (i = c1; i <= c2; i++)
-			if (i < s->channel->c)
+			if (i < s->track->c)
 			{
-				hold = *getChannelRow(&s->channel->v[i].data, y2);
-				r2 =    getChannelRow(&s->channel->v[i].data, y1);
+				hold = *getTrackRow(&s->track->v[i].data, y2);
+				r2 =    getTrackRow(&s->track->v[i].data, y1);
 
-				if (i == c1) /* first channel */
+				if (i == c1) /* first track */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						if (x1 <= 0)
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+1);
-								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0 = getTrackRow(&s->track->v[i].data, j+1);
+								r1 = getTrackRow(&s->track->v[i].data, j+0);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -920,19 +920,19 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+1);
-								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0 = getTrackRow(&s->track->v[i].data, j+1);
+								r1 = getTrackRow(&s->track->v[i].data, j+0);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c1].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[c1].data.variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								for (j = y2-1; j >= y1; j--)
 								{
-									r0 = getChannelRow(&s->channel->v[i].data, j+1);
-									r1 = getChannelRow(&s->channel->v[i].data, j+0);
+									r0 = getTrackRow(&s->track->v[i].data, j+1);
+									r1 = getTrackRow(&s->track->v[i].data, j+0);
 									r0->macro[k].c =   r1->macro[k].c;
 									r0->macro[k].v =   r1->macro[k].v;
 									r0->macro[k].alt = r1->macro[k].alt;
@@ -942,15 +942,15 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
-				else if (i == c2) /* last channel */
+				else if (i == c2) /* last track */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						if (x2 >= 0)
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+1);
-								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0 = getTrackRow(&s->track->v[i].data, j+1);
+								r1 = getTrackRow(&s->track->v[i].data, j+0);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -959,19 +959,19 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getChannelRow(&s->channel->v[i].data, j+1);
-								r1 = getChannelRow(&s->channel->v[i].data, j+0);
+								r0 = getTrackRow(&s->track->v[i].data, j+1);
+								r1 = getTrackRow(&s->track->v[i].data, j+0);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->channel->v[c2].data.variant->macroc; k++)
+						for (k = 0; k <= s->track->v[c2].data.variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								for (j = y2-1; j >= y1; j--)
 								{
-									r0 = getChannelRow(&s->channel->v[i].data, j+1);
-									r1 = getChannelRow(&s->channel->v[i].data, j+0);
+									r0 = getTrackRow(&s->track->v[i].data, j+1);
+									r1 = getTrackRow(&s->track->v[i].data, j+0);
 									r0->macro[k].c =   r1->macro[k].c;
 									r0->macro[k].v =   r1->macro[k].v;
 									r0->macro[k].alt = r1->macro[k].alt;
@@ -981,13 +981,13 @@ void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, 
 								r2->macro[k].alt = hold.macro[k].alt;
 							}
 					}
-				else /* middle channel */
+				else /* middle track */
 					for (l = 0; l < MAX(1, w->count); l++)
 					{
 						for (j = y2-1; j >= y1; j--)
 						{
-							r0 = getChannelRow(&s->channel->v[i].data, j+1);
-							r1 = getChannelRow(&s->channel->v[i].data, j+0);
+							r0 = getTrackRow(&s->track->v[i].data, j+1);
+							r1 = getTrackRow(&s->track->v[i].data, j+0);
 							*r0 = *r1;
 						}
 						*r2 = hold;
@@ -1011,32 +1011,32 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	jack_nframes_t buflen, bufptr, fptr;
 	uint16_t spr, sprp;
 
-	/* allocate temp channel state */
-	Channel *cv;
-	cv = calloc(c2-c1 + 1, sizeof(Channel));
+	/* allocate temp track state */
+	Track *cv;
+	cv = calloc(c2-c1 + 1, sizeof(Track));
 	for (chnl = 0; chnl <= c2-c1; chnl++)
 	{
-		_addChannel(s, &cv[chnl]);
-		copyChanneldata(&cv[chnl].data, &s->channel->v[c1+chnl].data);
+		_addTrack(s, &cv[chnl]);
+		copyTrackdata(&cv[chnl].data, &s->track->v[c1+chnl].data);
 	}
 
 	/* calculate the buffer length needed */
 	setBpm(&spr, s->songbpm);
 	for (row = 0; row < y1; row++)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacro(0, &spr, &cv[chnl], *getChannelRow(&cv[chnl].data, row), 'B', 0, &Bc);
+			ifMacro(0, &spr, &cv[chnl], *getTrackRow(&cv[chnl].data, row), 'B', 0, &Bc);
 	buflen = 0;
 	for (row = y1; row <= y2; row++)
 	{
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacro(0, &spr, &cv[chnl], *getChannelRow(&cv[chnl].data, row), 'B', 0, &Bc);
+			ifMacro(0, &spr, &cv[chnl], *getTrackRow(&cv[chnl].data, row), 'B', 0, &Bc);
 		buflen += spr;
 	}
 
 	/* allocate the sample buffer */
 	Sample *sample = malloc(sizeof(Sample) + (buflen<<1) * sizeof(short));
 	sample->length = buflen;
-	sample->channels = 2;
+	sample->tracks = 2;
 	sample->rate = sample->defrate = samplerate;
 
 	/* lookback */
@@ -1050,7 +1050,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	{
 		for (chnl = 0; chnl <= c2-c1; chnl++)
 		{
-			r = getChannelRow(&cv[chnl].data, row);
+			r = getTrackRow(&cv[chnl].data, row);
 			processRow(0, &spr, 0, &cv[chnl], *r);
 		}
 		if (s->bpmcachelen > row && s->bpmcache[row] != -1) Bc(fptr, &spr, s->bpmcache[row], NULL, *r);
@@ -1063,7 +1063,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 				if (sprp >= spr) break;
 				for (chnl = 0; chnl <= c2-c1; chnl++)
 				{
-					playChannel(fptr, &spr, fptr, &cv[chnl]); /* TODO: shouldn't trigger midi */
+					playTrack(fptr, &spr, fptr, &cv[chnl]); /* TODO: shouldn't trigger midi */
 					sample->data[((bufptr+sprp)<<1)+0] += cv[chnl].output[0][fptr]*cv[chnl].mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
 					sample->data[((bufptr+sprp)<<1)+1] += cv[chnl].output[1][fptr]*cv[chnl].mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
 				} sprp++;
@@ -1071,14 +1071,14 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		} bufptr += sprp;
 	}
 
-	/* run channnel insert effects then free temp channel state */
+	/* run channnel insert effects then free temp track state */
 	for (chnl = 0; chnl <= c2-c1; chnl++)
 	{
 		/* TODO: do this buffersize-wise, using buflen will overflow the plugin ports */
 		for (uint8_t i = 0; i < cv[chnl].data.effect->c; i++)
 			runEffect(buflen, cv[chnl].data.effect, &cv[chnl].data.effect->v[i]);
 
-		_delChannel(s, &cv[chnl]);
+		_delTrack(s, &cv[chnl]);
 	} free(cv);
 
 	/* init the instrument */

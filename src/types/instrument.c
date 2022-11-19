@@ -12,8 +12,8 @@ void copyInstrument(Instrument *dest, Instrument *src) /* TODO: should be atomic
 
 	if (src->sample)
 	{ /* only copy sampledata if it exists */
-		dest->sample = malloc(sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->channels);
-		memcpy(dest->sample, src->sample, sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->channels);
+		dest->sample = malloc(sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->tracks);
+		memcpy(dest->sample, src->sample, sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->tracks);
 	}
 
 	dest->effect = hold_effect;
@@ -77,10 +77,10 @@ Sample *applySampleEffects(Instrument *iv, Sample *sample)
 		block = MIN(buffersize, sample->length - ptr);
 		for (i = 0; i < block; i++)
 		{
-			if (sample->channels > 1)
+			if (sample->tracks > 1)
 			{
-				iv->output[0][i] = sample->data[(ptr + i)*sample->channels + 0];
-				iv->output[1][i] = sample->data[(ptr + i)*sample->channels + 1];
+				iv->output[0][i] = sample->data[(ptr + i)*sample->tracks + 0];
+				iv->output[1][i] = sample->data[(ptr + i)*sample->tracks + 1];
 			} else
 			{
 				iv->output[0][i] = sample->data[(ptr + i)];
@@ -139,7 +139,7 @@ void __addInstrument(Instrument *iv, int8_t algorithm)
 	iv->envelope = 0x00f0;
 	iv->filtercutoff = 0xff;
 
-	iv->midi.channel = -1;
+	iv->midi.track = -1;
 
 	iv->granular.cyclelength = 0x3fff;
 	iv->granular.rampgrains = 8;
@@ -306,7 +306,7 @@ Sample *_loadSample(char *path)
 			fread(&ret->data, sizeof(short), buf.st_size / sizeof(short), fp);
 			fclose(fp);
 
-			ret->channels = 1;
+			ret->tracks = 1;
 			ret->length = buf.st_size / sizeof(short);
 			ret->rate = ret->defrate = 12000;
 		}
@@ -323,7 +323,7 @@ Sample *_loadSample(char *path)
 			/* read the whole file into memory */
 			sf_readf_short(sndfile, ret->data, sfinfo.frames);
 			ret->length = sfinfo.frames;
-			ret->channels = sfinfo.channels;
+			ret->tracks = sfinfo.channels;
 			ret->rate = ret->defrate = sfinfo.samplerate;
 			sf_close(sndfile);
 		}
@@ -356,8 +356,8 @@ void loadSample(uint8_t index, char *path) /* TODO: atomicity */
 void serializeInstrument(Instrument *iv, FILE *fp)
 {
 	fwrite(&iv->sample->length, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->sample->channels, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
+	fwrite(&iv->sample->tracks, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->trackmode, sizeof(int8_t), 1, fp);
 	fwrite(&iv->sample->rate, sizeof(uint32_t), 1, fp);
 	fwrite(&iv->sample->defrate, sizeof(uint32_t), 1, fp);
 	fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
@@ -379,7 +379,7 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->algorithm, sizeof(int8_t), 1, fp);
 
 	/* midi */
-	fwrite(&iv->midi.channel, sizeof(int8_t), 1, fp);
+	fwrite(&iv->midi.track, sizeof(int8_t), 1, fp);
 
 	/* granular */
 	fwrite(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
@@ -415,7 +415,7 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
 
 	if (iv->sample->length)
-		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->channels, fp);
+		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->tracks, fp);
 
 	serializeEffectChain(iv->effect, fp);
 }
@@ -424,8 +424,8 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	Sample *newsample = malloc(sizeof(Sample));
 	if (major == 0 && minor < 99) fseek(fp, sizeof(uint32_t), SEEK_CUR);
 	fread(&newsample->length, sizeof(uint32_t), 1, fp);
-	fread(&newsample->channels, sizeof(uint8_t), 1, fp);
-	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
+	fread(&newsample->tracks, sizeof(uint8_t), 1, fp);
+	fread(&iv->trackmode, sizeof(int8_t), 1, fp);
 	fread(&newsample->rate, sizeof(uint32_t), 1, fp);    newsample->rate *= ratemultiplier;
 	fread(&newsample->defrate, sizeof(uint32_t), 1, fp); newsample->defrate *= ratemultiplier;
 	fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
@@ -447,7 +447,7 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	fread(&iv->algorithm, sizeof(int8_t), 1, fp);
 
 	/* midi */
-	fread(&iv->midi.channel, sizeof(int8_t), 1, fp);
+	fread(&iv->midi.track, sizeof(int8_t), 1, fp);
 
 	/* granular */
 	fread(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
@@ -482,9 +482,9 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	fread(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
 	fread(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
 
-	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->channels);
+	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->tracks);
 	if (newsample->length)
-		fread(newsample->data, sizeof(short), newsample->length*newsample->channels, fp);
+		fread(newsample->data, sizeof(short), newsample->length*newsample->tracks, fp);
 	iv->sample = newsample;
 
 	deserializeEffectChain(&iv->effect, fp, major, minor);

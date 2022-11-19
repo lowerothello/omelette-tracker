@@ -62,12 +62,12 @@ void cleanup(int ret)
 
 		freeWaveform();
 
-		clearChanneldata(s, &w->channelbuffer);
+		clearTrackdata(s, &w->trackbuffer);
 
-		_delChannel(s, &w->previewchannel);
+		_delTrack(s, &w->previewtrack);
 		if (w->previewsample) free(w->previewsample);
 
-		for (short i = 0; i < w->pbchannelc; i++)
+		for (short i = 0; i < w->pbtrackc; i++)
 		{
 			free(w->pbvariantv[i]);
 			free(w->vbtrig[i]);
@@ -82,18 +82,16 @@ void sigwinch(int _) { p->resize = 1; }
 
 void init(int argc, char **argv)
 {
-	/* seed rand */
-	srand(time(NULL));
+	srand(time(NULL)); /* seed rand */
 	puts("\033[?1049h"); /* switch to the back buffer */
 	puts("\033[?1002h"); /* enable mouse events */
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking stdin reads */
 
 	struct termios term;
 	tcgetattr(1, &term);
 	origterm = term;
 	term.c_lflag &= (~ECHO & ~ICANON);
 	tcsetattr(1, TCSANOW, &term); /* disable ECHO and ICANON */
-
-	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking reads */
 
 	initNativeDB();
 	initLadspaDB();
@@ -127,8 +125,8 @@ void init(int argc, char **argv)
 	if (!w) { puts("out of memory"); common_cleanup(1); }
 	w->octave = 4;
 	w->defvariantlength = 0x7;
-	// w->channelbuffer.variant->macroc = 1;
-	w->channelbuffer.effect = newEffectChain(NULL, NULL);
+	// w->trackbuffer.variant->macroc = 1;
+	w->trackbuffer.effect = newEffectChain(NULL, NULL);
 	w->trackerfy = STATE_ROWS;
 
 	s = addSong();
@@ -140,8 +138,8 @@ void init(int argc, char **argv)
 	/* need to be called before the jack client is activated */
 	initBackground();
 	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
-	__addChannel(&w->previewchannel);
-	initChannelData(s, &w->previewchannel.data);
+	__addTrack(&w->previewtrack);
+	initTrackData(s, &w->previewtrack.data);
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT

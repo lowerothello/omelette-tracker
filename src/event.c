@@ -40,7 +40,7 @@ bool mainM_SEM(void)
 bool processM_SEM(void)
 {
 	void *hold;
-	Channel *cv;
+	Track *cv;
 	Instrument *iv;
 	if (p->eventc)
 	{
@@ -66,16 +66,16 @@ bool processM_SEM(void)
 				p->eventv[0].sem = M_SEM_DONE;
 				break;
 
-			case M_SEM_CHANNEL_MUTE:
-				for (uint8_t c = 0; c < p->s->channel->c; c++)
+			case M_SEM_TRACK_MUTE:
+				for (uint8_t c = 0; c < p->s->track->c; c++)
 				{
-					cv = &p->s->channel->v[c];
+					cv = &p->s->track->v[c];
 					if (cv->data.mute && instrumentSafe(p->s, cv->r.inst))
 					{
 						iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
-						if (iv->midi.channel != -1)
+						if (iv->midi.track != -1)
 						{
-							midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->gain.rand>>4)<<3);
+							midiNoteOff(0, iv->midi.track, cv->r.note, (cv->gain.rand>>4)<<3);
 							cv->r.note = NOTE_VOID;
 						}
 					}
@@ -94,7 +94,7 @@ void cb_reloadFile(Event *e)
 	p->s = s;
 	if (s->loop[1]) w->trackerfy = s->loop[0];
 	else            w->trackerfy = STATE_ROWS;
-	w->page = PAGE_CHANNEL_VARIANT;
+	w->page = PAGE_TRACK_VARIANT;
 	regenGlobalRowc(s);
 	reapplyBpm();
 }

@@ -16,7 +16,7 @@ PlaybackInfo *p;
 
 #include "effect.h"
 #include "variant.h"
-#include "channel.h"
+#include "track.h"
 #include "instrument.h"
 
 #include "song.h"
@@ -28,7 +28,7 @@ Window *w;
 
 #include "effect.c"
 #include "variant.c"
-#include "channel.c"
+#include "track.c"
 #include "instrument.c"
 
 typedef struct {

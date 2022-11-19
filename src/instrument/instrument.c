@@ -18,14 +18,14 @@ int sampleExportCallback(char *command, unsigned char *mode)
 
 	sfinfo.samplerate = iv->sample->rate;
 	sfinfo.frames = iv->sample->length;
-	sfinfo.channels = iv->sample->channels;
+	sfinfo.channels = iv->sample->tracks;
 
 	sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
 	sndfile = sf_open(fileExtension(buffer, ".wav"), SFM_WRITE, &sfinfo);
 	if (sndfile == NULL) { free(buffer); return 1; }
 
 	// write the sample data to disk
-	sf_writef_short(sndfile, iv->sample->data, iv->sample->length * iv->sample->channels);
+	sf_writef_short(sndfile, iv->sample->data, iv->sample->length * iv->sample->tracks);
 	sf_close(sndfile);
 
 	free(buffer);

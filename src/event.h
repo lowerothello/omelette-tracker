@@ -11,7 +11,7 @@ enum {
 	M_SEM_BLOCK_CALLBACK,                 /* call p->semcallback() and block the main thread */
 	M_SEM_SWAP_PREVIEWSAMPLE_PREVIEW_REQ, /* swap e->swap1 and e->swap2 then preview note e->callbackarg */ /* TODO: kinda jank */
 	M_SEM_BPM,          /* reapply the song bpm             */
-	M_SEM_CHANNEL_MUTE, /* apply channel mutes to midi data */
+	M_SEM_TRACK_MUTE, /* apply track mutes to midi data */
 } M_SEM;
 
 typedef struct event

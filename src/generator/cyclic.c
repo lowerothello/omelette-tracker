@@ -42,7 +42,7 @@ void drawCyclic(ControlState *cc, Instrument *iv)
 	addControlInt(cc, x+36, y+11, &iv->granular.pitchoctavechance, 1, 0x0,    0xf,    0, 0, 0, instrumentSamplerControlCallback, NULL);
 }
 
-void processCyclic(Instrument *iv, Channel *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	uint32_t length = MIN(iv->trimlength, iv->sample->length-1 - iv->trimstart);
 	uint32_t loop   = MIN(iv->looplength, length);

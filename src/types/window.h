@@ -11,8 +11,8 @@ enum { /* TODO: port to the event system */
 } INST_REC;
 
 enum { /* pages */
-	PAGE_CHANNEL_VARIANT,
-	PAGE_CHANNEL_EFFECT,
+	PAGE_TRACK_VARIANT,
+	PAGE_TRACK_EFFECT,
 	PAGE_INSTRUMENT_SAMPLE,
 	PAGE_INSTRUMENT_EFFECT,
 	PAGE_EFFECT_MASTER,
@@ -43,14 +43,14 @@ enum {
 #define TRACKERFX_MIN -1
 #define TRACKERFX_VISUAL_MIN 0
 typedef struct _Window {
-	Variant *pbvariantv[CHANNEL_MAX];
-	Vtrig   *vbtrig    [CHANNEL_MAX];
-	uint8_t  pbchannelc; /* how many channels are in the pattern buffer */
+	Variant *pbvariantv[TRACK_MAX];
+	Vtrig   *vbtrig    [TRACK_MAX];
+	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */
 	int8_t   pbfx[2];    /* patternbuffer horizontal clipping region */
 	Instrument instrumentbuffer; /* instrument paste buffer */
 	uint8_t    defvariantlength;
 
-	ChannelData channelbuffer; /* channel paste buffer */
+	TrackData trackbuffer; /* track paste buffer */
 
 	char filepath[COMMAND_LENGTH];
 
@@ -60,12 +60,12 @@ typedef struct _Window {
 	unsigned char  mode, oldmode;
 	unsigned short centre;
 	uint8_t        pattern;    /* focused pattern */
-	uint8_t        channel;    /* focused channel */
+	uint8_t        track;    /* focused track */
 	short          instrument; /* focused instrument, TODO: should be a uint8_t */
 
 	uint16_t       trackerfy, visualfy;
 	int8_t         trackerfx, visualfx;
-	uint8_t        visualchannel;
+	uint8_t        visualtrack;
 
 	short          effectscroll;
 
@@ -79,7 +79,7 @@ typedef struct _Window {
 
 	short       fyoffset;
 	short       shiftoffset; /* TODO */
-	signed char channeloffset;
+	signed char trackoffset;
 	signed char fieldpointer;
 
 	Canvas  *waveformcanvas;
@@ -98,7 +98,7 @@ typedef struct _Window {
 	bool     follow;
 
 	Row     previewrow;
-	Channel previewchannel;
+	Track   previewtrack;
 	Sample *previewsample; /* used by the filebrowser to soft load samples */
 	char    previewtrigger;
 

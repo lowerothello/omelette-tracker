@@ -1,7 +1,7 @@
 #define SONG_MAX 65535
 #define STATE_ROWS 4
 
-#define CHANNEL_MAX 32
+#define TRACK_MAX 32
 typedef struct {
 	VariantChain *variant;
 
@@ -12,10 +12,10 @@ typedef struct {
 	bool rtrig_rev;
 
 	EffectChain *effect;
-} ChannelData; /* raw sequence data */
+} TrackData; /* raw sequence data */
 
 typedef struct {
-	ChannelData data; /* saved to disk */
+	TrackData data; /* saved to disk */
 
 	/* runtime state */
 	uint32_t pointer;        /* clock */
@@ -23,7 +23,7 @@ typedef struct {
 
 	/* gain */
 	struct {
-		uint8_t base; /* unsigned nibble per channel */
+		uint8_t base; /* unsigned nibble per track */
 		uint8_t rand; /* base override for the altGxy macro */
 		short   target;      /* smoothing target, committed to both rand and base */
 		bool    target_rand; /* target should be commited to rand but NOT to base */
@@ -111,38 +111,38 @@ typedef struct {
 	float *sendmult[2]; /* apply post-effects in parallel with mainmult */
 
 	uint32_t triggerflash;
-} Channel;
+} Track;
 
 typedef struct {
-	uint8_t c;   /* channel count  */
-	Channel v[]; /* channel values */
-} ChannelChain;
+	uint8_t c;   /* track count  */
+	Track v[]; /* track values */
+} TrackChain;
 
 
 /* TODO: holy shit this api is ugly, refine and document */
 
 void regenGlobalRowc(struct _Song *cs);
 
-/* clears the playback state of a channel */
-void clearChannelRuntime(Channel *cv);
+/* clears the playback state of a track */
+void clearTrackRuntime(Track *cv);
 
-void initChannelData(struct _Song *cs, ChannelData *cd); /* TODO: should be atomic */
-void clearChanneldata(struct _Song *cs, ChannelData *cd); /* TODO: should be atomic */
-void __addChannel(Channel *cv); /* __ layer of abstraction for initializing previewchannel */
-void  _addChannel(struct _Song *cs, Channel *cv);
-void debug_dumpChannelState(struct _Song *cs);
-int addChannel(struct _Song *cs, uint8_t index, uint16_t count);
-void _delChannel(struct _Song *cs, Channel *cv);
-void delChannel(uint8_t index, uint16_t count);
-void copyChanneldata(ChannelData *dest, ChannelData *src); /* TODO: atomicity */
-Row *getChannelRow(ChannelData *cd, uint16_t index);
-char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r);
+void initTrackData(struct _Song *cs, TrackData *cd); /* TODO: should be atomic */
+void clearTrackdata(struct _Song *cs, TrackData *cd); /* TODO: should be atomic */
+void __addTrack(Track *cv); /* __ layer of abstraction for initializing previewtrack */
+void  _addTrack(struct _Song *cs, Track *cv);
+void debug_dumpTrackState(struct _Song *cs);
+int addTrack(struct _Song *cs, uint8_t index, uint16_t count);
+void _delTrack(struct _Song *cs, Track *cv);
+void delTrack(uint8_t index, uint16_t count);
+void copyTrackdata(TrackData *dest, TrackData *src); /* TODO: atomicity */
+Row *getTrackRow(TrackData *cd, uint16_t index);
+char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
 void regenBpmCache(struct _Song *cs);
 void regenGlobalRowc(struct _Song *cs);
 void cycleVariantUp(Variant *v, uint16_t bound);
 void cycleVariantDown(Variant *v, uint16_t bound);
-void serializeChannel(struct _Song *cs, Channel *cv, FILE *fp);
-void deserializeChannel(struct _Song *cs, Channel *cv, FILE *fp, uint8_t major, uint8_t minor);
+void serializeTrack(struct _Song *cs, Track *cv, FILE *fp);
+void deserializeTrack(struct _Song *cs, Track *cv, FILE *fp, uint8_t major, uint8_t minor);
 
 /* TODO: should be declared in macros.h */
-char ifMacro(jack_nframes_t fptr, uint16_t *spr, Channel *cv, Row r, char m, bool alt, char (*callback)(jack_nframes_t, uint16_t *, int, Channel *, Row));
+char ifMacro(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m, bool alt, char (*callback)(jack_nframes_t, uint16_t *, int, Track *, Row));

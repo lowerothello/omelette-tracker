@@ -225,7 +225,7 @@ int getVariantChainVariant(Variant **output, VariantChain *vc, uint16_t index)
 		return index - i;
 	} return -1; /* fallback */
 }
-int getChannelVariantNoLoop(Variant **output, VariantChain *vc, uint16_t index)
+int getTrackVariantNoLoop(Variant **output, VariantChain *vc, uint16_t index)
 {
 	int i = getVariantChainPrevVtrig(vc, index);
 	if (i != -1 && vc->trig[i].index != VARIANT_OFF

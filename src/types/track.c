@@ -1,5 +1,5 @@
-/* clears the playback state of a channel */
-void clearChannelRuntime(Channel *cv)
+/* clears the playback state of a track */
+void clearTrackRuntime(Track *cv)
 {
 	cv->r.note = cv->samplernote = NOTE_VOID;
 	cv->r.inst = cv->samplerinst = INST_VOID;
@@ -31,7 +31,7 @@ void clearChannelRuntime(Channel *cv)
 }
 
 /* clears the global variant and frees all local variants */
-void initChannelData(Song *cs, ChannelData *cd) /* TODO: should be atomic */
+void initTrackData(Song *cs, TrackData *cd) /* TODO: should be atomic */
 {
 
 	freeVariantChain(&cd->variant);
@@ -50,14 +50,14 @@ void initChannelData(Song *cs, ChannelData *cd) /* TODO: should be atomic */
 	if (cd->effect) clearEffectChain(cd->effect);
 }
 
-void clearChanneldata(Song *cs, ChannelData *cd) /* TODO: should be atomic */
+void clearTrackdata(Song *cs, TrackData *cd) /* TODO: should be atomic */
 {
-	initChannelData(cs, cd);
+	initTrackData(cs, cd);
 	freeVariantChain(&cd->variant);
 	if (cd->effect) { free(cd->effect); cd->effect = NULL; }
 }
 
-void __addChannel(Channel *cv) /* __ layer of abstraction for initializing previewchannel */
+void __addTrack(Track *cv) /* __ layer of abstraction for initializing previewtrack */
 {
 	cv->rampindex = rampmax;
 	cv->rampbuffer = malloc(sizeof(short) * rampmax * 2); /* *2 for stereo */
@@ -69,33 +69,33 @@ void __addChannel(Channel *cv) /* __ layer of abstraction for initializing previ
 	cv->mainmult[1] = calloc(buffersize, sizeof(float));
 	cv->sendmult[0] = calloc(buffersize, sizeof(float));
 	cv->sendmult[1] = calloc(buffersize, sizeof(float));
-	clearChannelRuntime(cv);
+	clearTrackRuntime(cv);
 }
 
-void _addChannel(Song *cs, Channel *cv)
+void _addTrack(Song *cs, Track *cv)
 {
-	__addChannel(cv);
+	__addTrack(cv);
 
 	cv->data.effect = newEffectChain(cv->output, cv->pluginoutput);
 
 	// resizeVariantChain(cv->data.variant, cs->songlen); /* TODO: unnecessary? */
-	initChannelData(cs, &cv->data);
+	initTrackData(cs, &cv->data);
 }
 
-void debug_dumpChannelState(Song *cs)
+void debug_dumpTrackState(Song *cs)
 {
 #ifdef DEBUG_LOGS
-	FILE *fp = fopen(".oml_channeldump", "w");
+	FILE *fp = fopen(".oml_trackdump", "w");
 
-	fprintf(fp, "===== CHANNEL DUMP =====\n");
-	fprintf(fp, "s->channel: %p\n", cs->channel);
-	fprintf(fp, "channelc:   %02x\n\n", cs->channel->c);
+	fprintf(fp, "===== TRACK DUMP =====\n");
+	fprintf(fp, "s->track: %p\n", cs->track);
+	fprintf(fp, "trackc:   %02x\n\n", cs->track->c);
 
-	for (int i = 0; i < cs->channel->c; i++)
+	for (int i = 0; i < cs->track->c; i++)
 	{
-		fprintf(fp, "CHANNEL %02x:\n", i);
-		fprintf(fp, "length: %d\n", getSignificantRowc(cs->channel->v[i].data.variant));
-		fprintf(fp, "output[0]: %p\n", cs->channel->v[i].data.effect->output[0]);
+		fprintf(fp, "TRACK %02x:\n", i);
+		fprintf(fp, "length: %d\n", getSignificantRowc(cs->track->v[i].data.variant));
+		fprintf(fp, "output[0]: %p\n", cs->track->v[i].data.effect->output[0]);
 		fprintf(fp, "\n");
 	}
 
@@ -104,49 +104,49 @@ void debug_dumpChannelState(Song *cs)
 #endif
 }
 
-static void cb_addChannel(Event *e)
+static void cb_addTrack(Event *e)
 {
 	free(e->src); e->src = NULL;
 	regenGlobalRowc(s); /* sets p->redraw */
 }
-int addChannel(Song *cs, uint8_t index, uint16_t count)
+int addTrack(Song *cs, uint8_t index, uint16_t count)
 { /* fully atomic */
 	/* scale down count if necessary */
-	/* if (         (index + count) - (int)s->channel->c < 0)
-		count += (index + count) - (int)s->channel->c; */
-	if (cs->channel->c + count > CHANNEL_MAX) return 1; /* TODO: should add fewer channels if the requested amount wouldn't fit */
+	/* if (         (index + count) - (int)s->track->c < 0)
+		count += (index + count) - (int)s->track->c; */
+	if (cs->track->c + count > TRACK_MAX) return 1; /* TODO: should add fewer tracks if the requested amount wouldn't fit */
 
-	ChannelChain *newchannel = calloc(1, sizeof(ChannelChain) + (cs->channel->c+count) * sizeof(Channel));
-	newchannel->c = cs->channel->c;
+	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (cs->track->c+count) * sizeof(Track));
+	newtrack->c = cs->track->c;
 
 	if (index)
-		memcpy(&newchannel->v[0],
-				&cs->channel->v[0],
-				index * sizeof(Channel));
+		memcpy(&newtrack->v[0],
+				&cs->track->v[0],
+				index * sizeof(Track));
 
-	if (index < cs->channel->c)
-		memcpy(&newchannel->v[index+count],
-				&cs->channel->v[index],
-				(cs->channel->c - index) * sizeof(Channel));
+	if (index < cs->track->c)
+		memcpy(&newtrack->v[index+count],
+				&cs->track->v[index],
+				(cs->track->c - index) * sizeof(Track));
 
-	/* allocate new channels */
+	/* allocate new tracks */
 	for (uint16_t i = 0; i < count; i++)
-		_addChannel(cs, &newchannel->v[index+i]);
+		_addTrack(cs, &newtrack->v[index+i]);
 
-	newchannel->c += count;
+	newtrack->c += count;
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void **)&s->channel;
-	e.src = newchannel;
-	e.callback = cb_addChannel;
+	e.dest = (void **)&s->track;
+	e.src = newtrack;
+	e.callback = cb_addTrack;
 	pushEvent(&e);
 	return 0;
 }
 
-void _delChannel(Song *cs, Channel *cv)
+void _delTrack(Song *cs, Track *cv)
 {
-	clearChanneldata(cs, &cv->data);
+	clearTrackdata(cs, &cv->data);
 	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
 	if (cv->output      [0]) { free(cv->output      [0]); cv->output      [0] = NULL; }
 	if (cv->output      [1]) { free(cv->output      [1]); cv->output      [1] = NULL; }
@@ -158,49 +158,49 @@ void _delChannel(Song *cs, Channel *cv)
 	if (cv->sendmult[1]) { free(cv->sendmult[1]); cv->sendmult[1] = NULL; }
 }
 
-static void cb_delChannel(Event *e)
+static void cb_delTrack(Event *e)
 {
 	uint16_t count = (size_t)e->callbackarg & 0xffff;
 	uint8_t index = ((size_t)e->callbackarg & 0xff0000) >> 16;
 	for (uint16_t i = 0; i < count; i++)
-		_delChannel(s, &((ChannelChain *)e->src)->v[index+i]);
+		_delTrack(s, &((TrackChain *)e->src)->v[index+i]);
 	free(e->src); e->src = NULL;
-	if (w->channel > s->channel->c-1)
-		w->channel = s->channel->c-1;
+	if (w->track > s->track->c-1)
+		w->track = s->track->c-1;
 
 	regenGlobalRowc(s); /* sets p->redraw */
 }
-void delChannel(uint8_t index, uint16_t count)
+void delTrack(uint8_t index, uint16_t count)
 { /* fully atomic */
 	/* scale down count if necessary */
-	if (         (int)s->channel->c - MAX(1, index) - count < 0)
-		count += (int)s->channel->c - MAX(1, index) - count;
-	/* TODO: if the last channel would be deleted then call clearChanneldata(s, &s->channel->v[0].data) instead */
+	if (         (int)s->track->c - MAX(1, index) - count < 0)
+		count += (int)s->track->c - MAX(1, index) - count;
+	/* TODO: if the last track would be deleted then call clearTrackdata(s, &s->track->v[0].data) instead */
 	/*       currently MAX(1, index) stops this from ever happening */
 
-	ChannelChain *newchannel = calloc(1, sizeof(ChannelChain) + (s->channel->c - count) * sizeof(Channel));
-	newchannel->c = s->channel->c - count;
+	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (s->track->c - count) * sizeof(Track));
+	newtrack->c = s->track->c - count;
 
 	if (index)
-		memcpy(&newchannel->v[0],
-				&s->channel->v[0],
-				index * sizeof(Channel));
+		memcpy(&newtrack->v[0],
+				&s->track->v[0],
+				index * sizeof(Track));
 
-	if (index < s->channel->c)
-		memcpy(&newchannel->v[index],
-				&s->channel->v[index+count],
-				(s->channel->c - index - count) * sizeof(Channel));
+	if (index < s->track->c)
+		memcpy(&newtrack->v[index],
+				&s->track->v[index+count],
+				(s->track->c - index - count) * sizeof(Track));
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void **)&s->channel;
-	e.src = newchannel;
-	e.callback = cb_delChannel;
+	e.dest = (void **)&s->track;
+	e.src = newtrack;
+	e.callback = cb_delTrack;
 	e.callbackarg = (void *)((((size_t)index)<<16) + (size_t)count);
 	pushEvent(&e);
 }
 
-void copyChanneldata(ChannelData *dest, ChannelData *src) /* TODO: atomicity */
+void copyTrackdata(TrackData *dest, TrackData *src) /* TODO: atomicity */
 {
 	freeVariantChain(&dest->variant);
 	dest->variant = dupVariantChain(src->variant);
@@ -214,7 +214,7 @@ void copyChanneldata(ChannelData *dest, ChannelData *src) /* TODO: atomicity */
 	copyEffectChain(&dest->effect, src->effect);
 }
 
-Row *getChannelRow(ChannelData *cd, uint16_t index)
+Row *getTrackRow(TrackData *cd, uint16_t index)
 {
 	int i = getVariantChainPrevVtrig(cd->variant, index);
 	if (i != -1 && cd->variant->trig[i].index != VARIANT_OFF
@@ -225,13 +225,13 @@ Row *getChannelRow(ChannelData *cd, uint16_t index)
 		return getVariantRow(cd->variant->main, index);
 }
 
-char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Channel *cv, Row r)
+char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 { /* use fptr as the songlen index, and *spr as a pointer to the new bpm cache */
 	((short *)spr)[fptr] = m;
 	return 0;
 }
 static void cb_regenBpmCache(Event *e)
-{ /* using cb_addChannel for this causes a loop */
+{ /* using cb_addTrack for this causes a loop */
 	free(e->src); e->src = NULL;
 
 	s->bpmcachelen = (uint16_t)(size_t)e->callbackarg;
@@ -244,8 +244,8 @@ void regenBpmCache(Song *cs)
 	memset(newbpmcache, -1, sizeof(short) * cs->songlen);
 
 	for (uint16_t i = 0; i < cs->songlen; i++)
-		for (uint8_t j = 0; j < cs->channel->c; j++)
-			ifMacro(i, (uint16_t *)newbpmcache, &cs->channel->v[j], *getChannelRow(&cs->channel->v[j].data, i), 'B', 0, &checkBpmCache);
+		for (uint8_t j = 0; j < cs->track->c; j++)
+			ifMacro(i, (uint16_t *)newbpmcache, &cs->track->v[j], *getTrackRow(&cs->track->v[j].data, i), 'B', 0, &checkBpmCache);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
@@ -259,8 +259,8 @@ void regenBpmCache(Song *cs)
 void regenGlobalRowc(Song *cs)
 {
 	cs->songlen = STATE_ROWS;
-	for (uint8_t i = 0; i < cs->channel->c; i++)
-		cs->songlen = MAX(cs->songlen, getSignificantRowc(cs->channel->v[i].data.variant));
+	for (uint8_t i = 0; i < cs->track->c; i++)
+		cs->songlen = MAX(cs->songlen, getSignificantRowc(cs->track->v[i].data.variant));
 
 	/* both zeroed out if the loop range is unset              */
 	/* only check loop1 cos loop1 is always greater than loop0 */
@@ -269,8 +269,8 @@ void regenGlobalRowc(Song *cs)
 
 	cs->songlen += 4*cs->rowhighlight;
 
-	for (uint8_t i = 0; i < cs->channel->c; i++)
-		resizeVariantChain(cs->channel->v[i].data.variant, cs->songlen);
+	for (uint8_t i = 0; i < cs->track->c; i++)
+		resizeVariantChain(cs->track->v[i].data.variant, cs->songlen);
 
 	w->trackerfy = MIN(cs->songlen-1, w->trackerfy);
 
@@ -294,7 +294,7 @@ void cycleVariantDown(Variant *v, uint16_t bound)
 	regenGlobalRowc(s);
 }
 
-void serializeChannel(Song *cs, Channel *cv, FILE *fp)
+void serializeTrack(Song *cs, Track *cv, FILE *fp)
 {
 	fputc(cv->data.mute, fp);
 	fputc(cv->data.variant->macroc, fp);
@@ -309,9 +309,9 @@ void serializeChannel(Song *cs, Channel *cv, FILE *fp)
 
 	serializeEffectChain(cv->data.effect, fp);
 }
-void deserializeChannel(Song *cs, Channel *cv, FILE *fp, uint8_t major, uint8_t minor)
+void deserializeTrack(Song *cs, Track *cv, FILE *fp, uint8_t major, uint8_t minor)
 {
-	_addChannel(cs, cv);
+	_addTrack(cs, cv);
 	cv->data.mute = fgetc(fp);
 	cv->data.variant->macroc = fgetc(fp);
 	for (int i = 0; i < VARIANT_MAX; i++)

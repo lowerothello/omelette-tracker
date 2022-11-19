@@ -1,7 +1,7 @@
 void chordYankRow(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
-	yankPartPattern(0, 2+cd->variant->macroc, w->trackerfy, w->trackerfy+MAX(1, w->count)-1, w->channel, w->channel);
+	TrackData *cd = &s->track->v[w->track].data;
+	yankPartPattern(0, 2+cd->variant->macroc, w->trackerfy, w->trackerfy+MAX(1, w->count)-1, w->track, w->track);
 	trackerDownArrow(MAX(1, w->count));
 	p->redraw = 1;
 }

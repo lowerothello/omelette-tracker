@@ -1,6 +1,6 @@
-typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .channels) */
+typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .tracks) */
 	uint32_t length;
-	uint8_t  channels;
+	uint8_t  tracks;
 	uint32_t rate; /* rate to play C5 at */
 	uint32_t defrate; /* rate to return to when the rate control is reset */
 	short    data[];
@@ -36,7 +36,7 @@ enum {
 typedef struct {
 	Sample *sample;
 
-	int8_t channelmode;
+	int8_t trackmode;
 
 	/* quality */
 	uint8_t  samplerate;  /* percent of c5rate to actually use */
@@ -60,7 +60,7 @@ typedef struct {
 
 	/* midi */
 	struct {
-		int8_t channel;
+		int8_t track;
 	} midi;
 
 	/* granular */

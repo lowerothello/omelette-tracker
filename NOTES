@@ -18,8 +18,6 @@ lookback
 
 
 - don't like the global octave setting binds (number keys)
-- mode where keyboard shortcuts toggle mute channels, with a popup that links keys with channels
-	- shift+key to solo
 - resident tooltip popup, togglable with '?'
 	- requires a huge rewrite to how input is handled
 

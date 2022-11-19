@@ -8,10 +8,10 @@ typedef struct _Song {
 	/* instruments */
 	InstrumentChain *instrument;
 
-	/* channels */
-	ChannelChain *channel;
-	short        *bpmcache; /* bpm change caching so multithreading isn't hell */
-	uint16_t      bpmcachelen; /* how far into bpmcache it's safe to index */
+	/* tracks */
+	TrackChain *track;
+	short      *bpmcache;    /* bpm change caching so multithreading isn't hell */
+	uint16_t    bpmcachelen; /* how far into bpmcache it's safe to index */
 
 	/* song pointers */
 	uint16_t playfy;  /* analogous to window->trackerfy */

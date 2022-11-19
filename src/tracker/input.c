@@ -5,7 +5,7 @@ void trackerInput(int input)
 {
 	int button, x, y, i, j;
 	short chanw;
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	switch (input)
 	{
 		case '\033': /* escape */
@@ -46,8 +46,8 @@ void trackerInput(int input)
 										case '5': /* ctrl+arrow */
 											switch (getchar())
 											{
-												case 'D': /* left  */ channelLeft (MAX(1, w->count)); p->redraw = 1; break;
-												case 'C': /* right */ channelRight(MAX(1, w->count)); p->redraw = 1; break;
+												case 'D': /* left  */ trackLeft (MAX(1, w->count)); p->redraw = 1; break;
+												case 'C': /* right */ trackRight(MAX(1, w->count)); p->redraw = 1; break;
 												case 'A': /* up    */ cycleUp  (MAX(1, w->count)); p->redraw = 1; break;
 												case 'B': /* down  */ cycleDown(MAX(1, w->count)); p->redraw = 1; break;
 											} break;
@@ -89,9 +89,9 @@ void trackerInput(int input)
 							y = getchar() - 32;
 
 							short oldtrackerfx = w->trackerfx;
-							uint8_t oldchannel = w->channel;
+							uint8_t oldtrack = w->track;
 
-							short tx = 1 + CHANNEL_LINENO_COLS + 2 + genSfx(CHANNEL_LINENO_COLS);
+							short tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS);
 
 							switch (button)
 							{
@@ -99,15 +99,15 @@ void trackerInput(int input)
 								case BUTTON3_HOLD: case BUTTON3_HOLD_CTRL:
 									break;
 								case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
-									if      (w->channeloffset < 0) channelLeft (-w->channeloffset);
-									else if (w->channeloffset > 0) channelRight( w->channeloffset);
+									if      (w->trackoffset < 0) trackLeft (-w->trackoffset);
+									else if (w->trackoffset > 0) trackRight( w->trackoffset);
 
 									if      (w->fyoffset < 0) trackerUpArrow  (-w->fyoffset);
 									else if (w->fyoffset > 0) trackerDownArrow( w->fyoffset);
 
 									if      (w->shiftoffset < 0) shiftUp  (-w->shiftoffset);
 									else if (w->shiftoffset > 0) shiftDown( w->shiftoffset);
-									w->fyoffset = w->shiftoffset = w->channeloffset = w->fieldpointer = 0;
+									w->fyoffset = w->shiftoffset = w->trackoffset = w->fieldpointer = 0;
 
 									switch (w->mode)
 									{ /* leave mouseadjust mode */
@@ -118,7 +118,7 @@ void trackerInput(int input)
 								default:
 									switch (w->page)
 									{
-										case PAGE_CHANNEL_VARIANT:
+										case PAGE_TRACK_VARIANT:
 											switch (button)
 											{
 												case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
@@ -140,10 +140,10 @@ void trackerInput(int input)
 													if (y > ws.ws_row - 1) break; /* ignore clicking out of range */
 													w->follow = 0;
 
-													for (i = 0; i < s->channel->c; i++)
+													for (i = 0; i < s->track->c; i++)
 													{
-														chanw = CHANNEL_TRIG_COLS + 8 + 4*(s->channel->v[i].data.variant->macroc+1);
-														if (i == s->channel->c-1 || tx+chanw > x) /* clicked on channel i */
+														chanw = TRACK_TRIG_COLS + 8 + 4*(s->track->v[i].data.variant->macroc+1);
+														if (i == s->track->c-1 || tx+chanw > x) /* clicked on track i */
 														{
 															if (button == BUTTON1_CTRL) { w->step = MIN(15, abs(y - w->centre)); break; }
 
@@ -158,36 +158,36 @@ void trackerInput(int input)
 																	{
 																		w->visualfx = tfxToVfx(oldtrackerfx);
 																		w->visualfy = w->trackerfy;
-																		w->visualchannel = oldchannel;
+																		w->visualtrack = oldtrack;
 																		w->mode = T_MODE_VISUAL;
 																	} break;
 															}
-															if (x-tx < CHANNEL_TRIG_COLS-1) /* vtrig column */
+															if (x-tx < TRACK_TRIG_COLS-1) /* vtrig column */
 															{
 																w->trackerfx = -1;
 																if (x-tx < 2) w->fieldpointer = 1;
 																else          w->fieldpointer = 0;
-															} else if (x-tx < CHANNEL_TRIG_COLS + 3) /* note column */
+															} else if (x-tx < TRACK_TRIG_COLS + 3) /* note column */
 																w->trackerfx = 0;
-															else if (x-tx < CHANNEL_TRIG_COLS + 6) /* inst column */
+															else if (x-tx < TRACK_TRIG_COLS + 6) /* inst column */
 															{
 																w->trackerfx = 1;
-																if (x-tx < CHANNEL_TRIG_COLS + 5) w->fieldpointer = 1;
+																if (x-tx < TRACK_TRIG_COLS + 5) w->fieldpointer = 1;
 																else                              w->fieldpointer = 0;
-															} else if (x-tx > CHANNEL_TRIG_COLS + 5 + 4*(s->channel->v[i].data.variant->macroc+1)) /* star column */
+															} else if (x-tx > TRACK_TRIG_COLS + 5 + 4*(s->track->v[i].data.variant->macroc+1)) /* star column */
 															{
 																w->trackerfx = 3;
 																w->fieldpointer = 0;
 															} else /* macro column */
 															{
-																j = x-tx - (CHANNEL_TRIG_COLS + 6);
-																if ((j>>1)&0x1) w->trackerfx = 3 + ((s->channel->v[i].data.variant->macroc - (j>>2))<<1)+0;
-																else            w->trackerfx = 3 + ((s->channel->v[i].data.variant->macroc - (j>>2))<<1)-1;
+																j = x-tx - (TRACK_TRIG_COLS + 6);
+																if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i].data.variant->macroc - (j>>2))<<1)+0;
+																else            w->trackerfx = 3 + ((s->track->v[i].data.variant->macroc - (j>>2))<<1)-1;
 																if (j&0x1) w->fieldpointer = 0;
 																else       w->fieldpointer = 1;
 															}
 
-															w->channeloffset = i - w->channel;
+															w->trackoffset = i - w->track;
 															if (button == BUTTON3_CTRL) w->shiftoffset = y - w->centre;
 															else                        w->fyoffset    = y - w->centre;
 
@@ -195,18 +195,18 @@ void trackerInput(int input)
 															{
 																if (w->trackerfx == 0)
 																{
-																	yankPartPattern(0, 1, w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->channel+w->channeloffset, w->channel+w->channeloffset);
-																	delPartPattern (0, 1, w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->channel+w->channeloffset, w->channel+w->channeloffset);
+																	yankPartPattern(0, 1, w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->track+w->trackoffset, w->track+w->trackoffset);
+																	delPartPattern (0, 1, w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->track+w->trackoffset, w->track+w->trackoffset);
 																} else
 																{
-																	yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->channel+w->channeloffset, w->channel+w->channeloffset);
-																	delPartPattern (tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->channel+w->channeloffset, w->channel+w->channeloffset);
+																	yankPartPattern(tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->track+w->trackoffset, w->track+w->trackoffset);
+																	delPartPattern (tfxToVfx(w->trackerfx), tfxToVfx(w->trackerfx), w->trackerfy+w->fyoffset, w->trackerfy+w->fyoffset, w->track+w->trackoffset, w->track+w->trackoffset);
 																} break;
 															}
 
 															/* enter adjust */
 															if ((button == BUTTON1 || button == BUTTON1_CTRL)
-																	&& w->fyoffset == 0 && w->trackerfx == oldtrackerfx && w->channeloffset == 0)
+																	&& w->fyoffset == 0 && w->trackerfx == oldtrackerfx && w->trackoffset == 0)
 															{
 																w->oldmode = w->mode;
 																w->mode = T_MODE_MOUSEADJUST;
@@ -216,7 +216,7 @@ void trackerInput(int input)
 														tx += chanw;
 													}
 											} break;
-										case PAGE_CHANNEL_EFFECT:
+										case PAGE_TRACK_EFFECT:
 											switch (button)
 											{
 												case WHEEL_UP: case WHEEL_UP_CTRL:     effectPgUp(cd->effect, 1); break;
@@ -241,13 +241,13 @@ void trackerInput(int input)
 					i = 0; /* silly way to finagle an exit status out of a case switch */
 					switch (w->page)
 					{
-						case PAGE_CHANNEL_VARIANT: i = inputChannelVariantEscape(input); break;
-						// case PAGE_CHANNEL_EFFECT:  i = inputChannelEffectEscape(cd, input); break;
+						case PAGE_TRACK_VARIANT: i = inputTrackVariantEscape(input); break;
+						// case PAGE_TRACK_EFFECT:  i = inputTrackEffectEscape(cd, input); break;
 					} if (i) break;
 
 					previewNote(' ', INST_VOID);
 					cc.mouseadjust = cc.keyadjust = 0;
-					if (w->page == PAGE_CHANNEL_VARIANT)
+					if (w->page == PAGE_TRACK_VARIANT)
 						switch (w->mode)
 						{
 							case T_MODE_VISUALREPLACE: w->mode = T_MODE_VISUAL; break;
@@ -290,8 +290,8 @@ void trackerInput(int input)
 
 				switch (w->page)
 				{
-					case PAGE_CHANNEL_VARIANT: if (inputChannelVariant(input)) return; break;
-					case PAGE_CHANNEL_EFFECT:  if (inputChannelEffect(cd, input)) return; break;
+					case PAGE_TRACK_VARIANT: if (inputTrackVariant(input)) return; break;
+					case PAGE_TRACK_EFFECT:  if (inputTrackEffect(cd, input)) return; break;
 				}
 			} break;
 	}

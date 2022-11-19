@@ -1,6 +1,6 @@
 void chordRowScaleToCursor(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainPrevVtrig(cd->variant, w->trackerfy);
 	if (gcvret == -1 || cd->variant->trig[gcvret].index == VARIANT_OFF) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[gcvret].index];
@@ -12,7 +12,7 @@ void chordRowScaleToCursor(void *_)
 }
 void chordRowLengthToCount(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -27,7 +27,7 @@ void chordRowLengthToCount(void *_)
 }
 void chordRowIncrementLength(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -42,7 +42,7 @@ void chordRowIncrementLength(void *_)
 }
 void chordRowDecrementLength(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -57,7 +57,7 @@ void chordRowDecrementLength(void *_)
 }
 void chordRowCopyDown(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -74,7 +74,7 @@ void chordRowCopyDown(void *_)
 }
 void chordRowDiscardHalf(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -89,7 +89,7 @@ void chordRowDiscardHalf(void *_)
 }
 void chordRowAddBlanks(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -106,7 +106,7 @@ void chordRowAddBlanks(void *_)
 }
 void chordRowDiscardEveryOther(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
@@ -123,7 +123,7 @@ void chordRowDiscardEveryOther(void *_)
 }
 void chordRowBurn(void *_)
 {
-	ChannelData *cd = &s->channel->v[w->channel].data;
+	TrackData *cd = &s->track->v[w->track].data;
 	int gcvret = getVariantChainVariant(NULL, cd->variant, w->trackerfy);
 	if (gcvret == -1) return;
 	uint8_t vvi = cd->variant->trig[w->trackerfy - gcvret].index;
@@ -141,7 +141,7 @@ void chordRowBurn(void *_)
 		if (getVariantChainVariant(NULL, cd->variant, (w->trackerfy - gcvret) + i) != -1)
 			break;
 
-		memcpy(getChannelRow(cd, (w->trackerfy - gcvret) + i), &cd->variant->v[vi]->rowv[i], sizeof(Row));
+		memcpy(getTrackRow(cd, (w->trackerfy - gcvret) + i), &cd->variant->v[vi]->rowv[i], sizeof(Row));
 	}
 
 	pruneVariant(&cd->variant, vvi);

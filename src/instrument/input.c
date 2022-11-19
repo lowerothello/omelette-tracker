@@ -165,10 +165,10 @@ void instrumentInput(int input)
 									break;
 								default:
 									if (w->page == PAGE_INSTRUMENT_SAMPLE && instrumentSafe(s, w->instrument) && w->showfilebrowser
-											&& y > CHANNEL_ROW-2 && x >= INSTRUMENT_INDEX_COLS)
+											&& y > TRACK_ROW-2 && x >= INSTRUMENT_INDEX_COLS)
 										browserMouse(fbstate, button, x, y);
 									else if (cc.mouseadjust || (instrumentSafe(s, w->instrument)
-												&& y > CHANNEL_ROW-2 && x >= INSTRUMENT_INDEX_COLS))
+												&& y > TRACK_ROW-2 && x >= INSTRUMENT_INDEX_COLS))
 									{
 										switch (button)
 										{
