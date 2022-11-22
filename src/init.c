@@ -7,7 +7,6 @@ void common_cleanup(int ret)
 	if (w) { free(w); w = NULL; }
 	if (s) { delSong(s); s = NULL; }
 	if (p) { free(p); p = NULL; }
-	if (b) { freeBackground(b); b = NULL; }
 
 	clearControls(&cc);
 	clearTooltip(&tt);
@@ -136,7 +135,6 @@ void init(int argc, char **argv)
 	p->w = w;
 
 	/* need to be called before the jack client is activated */
-	initBackground();
 	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
 	__addTrack(&w->previewtrack);
 	initTrackData(s, &w->previewtrack.data);

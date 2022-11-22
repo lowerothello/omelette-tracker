@@ -542,6 +542,7 @@ void drawTracker(void)
 
 				x += MIN_EFFECT_WIDTH;
 			}
+
 			drawEffects(s->track->v[w->track+w->trackoffset].data.effect, &cc, 1, sx, MIN_EFFECT_WIDTH-2, TRACK_ROW + 1);
 
 			drawControls(&cc);

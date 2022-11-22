@@ -4,7 +4,7 @@ void freeEffect(Effect *e)
 
 	switch (e->type)
 	{
-		case EFFECT_TYPE_NATIVE: freeNativeEffect(e); break;
+		case EFFECT_TYPE_NATIVE: freeNativeEffect(&native_db, e); break;
 		case EFFECT_TYPE_LADSPA: freeLadspaEffect(e); break;
 		case EFFECT_TYPE_LV2:    freeLV2Effect   (e); break;
 	}
@@ -36,13 +36,12 @@ void clearEffectChain(EffectChain *chain)
 	chain->c = 0;
 }
 
-
 uint8_t getEffectControlCount(Effect *e)
 {
 	if (e)
 		switch (e->type)
 		{
-			case EFFECT_TYPE_NATIVE: return getNativeEffectControlCount(e);
+			case EFFECT_TYPE_NATIVE: return getNativeEffectControlCount(&native_db, e);
 			case EFFECT_TYPE_LADSPA: return getLadspaEffectControlCount(e);
 			case EFFECT_TYPE_LV2:    return getLV2EffectControlCount   (e);
 		}
@@ -66,7 +65,7 @@ EffectChain *_addEffect(EffectChain *chain, unsigned long pluginindex, uint8_t c
 				(chain->c - chordindex) * sizeof(Effect));
 
 	if (pluginindex < native_db.descc) /* native */
-		initNativeEffect(&ret->v[chordindex], native_db.descv[pluginindex]);
+		initNativeEffect(&native_db, &ret->v[chordindex], pluginindex);
 	else if (pluginindex < native_db.descc + ladspa_db.descc) /* ladspa */
 		initLadspaEffect(ret, &ret->v[chordindex], ladspa_db.descv[pluginindex - native_db.descc]);
 	else /* lv2 */
@@ -88,7 +87,6 @@ static void cb_addEffect(Event *e)
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
 }
-/* pluginindex is only read for external effect types (ladspa, lv2, clap, etc.) */
 void addEffect(EffectChain **chain, unsigned long pluginindex, uint8_t chordindex, void (*cb)(Event *))
 { /* fully atomic */
 	if ((*chain)->c < EFFECT_CHAIN_LEN)
@@ -167,9 +165,9 @@ void copyEffect(EffectChain *destchain, Effect *dest, Effect *src)
 	freeEffect(dest);
 	switch (src->type)
 	{
-		case EFFECT_TYPE_NATIVE: copyNativeEffect(dest, src);            break;
-		case EFFECT_TYPE_LADSPA: copyLadspaEffect(destchain, dest, src); break;
-		case EFFECT_TYPE_LV2:    copyLV2Effect   (destchain, dest, src); break;
+		case EFFECT_TYPE_NATIVE: copyNativeEffect(&native_db, dest, src); break;
+		case EFFECT_TYPE_LADSPA: copyLadspaEffect(destchain, dest, src);  break;
+		case EFFECT_TYPE_LV2:    copyLV2Effect   (destchain, dest, src);  break;
 	}
 }
 void copyEffectChain(EffectChain **dest, EffectChain *src)
@@ -194,9 +192,9 @@ void serializeEffect(Effect *e, FILE *fp)
 
 	switch (e->type)
 	{
-		case EFFECT_TYPE_NATIVE: serializeNativeEffect(e, fp); break;
-		case EFFECT_TYPE_LADSPA: serializeLadspaEffect(e, fp); break;
-		case EFFECT_TYPE_LV2:    serializeLV2Effect   (e, fp); break;
+		case EFFECT_TYPE_NATIVE: serializeNativeEffect(&native_db, e, fp); break;
+		case EFFECT_TYPE_LADSPA: serializeLadspaEffect(e, fp);             break;
+		case EFFECT_TYPE_LV2:    serializeLV2Effect   (e, fp);             break;
 	}
 }
 void serializeEffectChain(EffectChain *chain, FILE *fp)
@@ -213,9 +211,9 @@ void deserializeEffect(EffectChain *chain, Effect *e, FILE *fp, uint8_t major, u
 
 	switch (e->type)
 	{
-		case EFFECT_TYPE_NATIVE: deserializeNativeEffect(e, fp);        break;
-		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect(chain, e, fp); break;
-		case EFFECT_TYPE_LV2:    deserializeLV2Effect   (chain, e, fp); break;
+		case EFFECT_TYPE_NATIVE: deserializeNativeEffect(&native_db, e, fp); break;
+		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect(chain, e, fp);      break;
+		case EFFECT_TYPE_LV2:    deserializeLV2Effect   (chain, e, fp);      break;
 	}
 }
 void deserializeEffectChain(EffectChain **chain, FILE *fp, uint8_t major, uint8_t minor)
@@ -236,7 +234,7 @@ short getEffectHeight(Effect *e)
 	if (e)
 		switch (e->type)
 		{
-			case EFFECT_TYPE_NATIVE: return getNativeEffectHeight(e);
+			case EFFECT_TYPE_NATIVE: return getNativeEffectHeight(&native_db, e);
 			case EFFECT_TYPE_LADSPA: return getLadspaEffectHeight(e);
 			case EFFECT_TYPE_LV2:    return getLV2EffectHeight   (e);
 		}
@@ -274,9 +272,9 @@ int drawEffect(Effect *e, ControlState *cc, bool selected, short x, short w, sho
 
 	switch (e->type)
 	{
-		case EFFECT_TYPE_NATIVE: drawNativeEffect(e, cc, x, w, y, ymin, ymax); break;
-		case EFFECT_TYPE_LADSPA: drawLadspaEffect(e, cc, x, w, y, ymin, ymax); break;
-		case EFFECT_TYPE_LV2:    drawLV2Effect   (e, cc, x, w, y, ymin, ymax); break;
+		case EFFECT_TYPE_NATIVE: drawNativeEffect(&native_db, e, cc, x, w, y, ymin, ymax); break;
+		case EFFECT_TYPE_LADSPA: drawLadspaEffect(            e, cc, x, w, y, ymin, ymax); break;
+		case EFFECT_TYPE_LV2:    drawLV2Effect   (            e, cc, x, w, y, ymin, ymax); break;
 	}
 	short ret = getEffectHeight(e);
 
@@ -294,8 +292,8 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	if (!e) return;
 	switch (e->type)
 	{
-		case EFFECT_TYPE_NATIVE: runNativeEffect(samplecount, chain, e); break;
-		case EFFECT_TYPE_LADSPA: runLadspaEffect(samplecount, chain, e); break;
-		case EFFECT_TYPE_LV2:    runLV2Effect   (samplecount, chain, e); break;
+		case EFFECT_TYPE_NATIVE: runNativeEffect(&native_db, samplecount, chain, e); break;
+		case EFFECT_TYPE_LADSPA: runLadspaEffect(            samplecount, chain, e); break;
+		case EFFECT_TYPE_LV2:    runLV2Effect   (            samplecount, chain, e); break;
 	}
 }

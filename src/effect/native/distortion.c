@@ -27,35 +27,17 @@ typedef struct
 } DistortionState;
 
 
-void initDistortion(void **instance)
+void initDistortion(NativeState *state)
 {
-	*instance = calloc(1, sizeof(DistortionState));
-	((DistortionState *)*instance)->gainparallel = 0xff;
-	((DistortionState *)*instance)->dcblockcutoff = 1.0f - (130.0f / samplerate);
-}
-void freeDistortion(void **instance) { free(*instance); *instance = NULL; }
-
-void copyDistortion(void **dest, void **src)
-{
-	initDistortion(dest);
-	memcpy(*dest, *src, sizeof(DistortionState));
+	((DistortionState *)state->instance)->gainparallel = 0xff;
+	((DistortionState *)state->instance)->dcblockcutoff = 1.0f - (130.0f / samplerate);
 }
 
-void serializeDistortion(void **instance, FILE *fp)
-{
-	fwrite(*instance, sizeof(DistortionState), 1, fp);
-}
-void deserializeDistortion(void **instance, FILE *fp)
-{
-	initDistortion(instance);
-	fread(*instance, sizeof(DistortionState), 1, fp);
-}
-
-void drawDistortion(void **instance, ControlState *cc,
+void drawDistortion(NativeState *state, ControlState *cc,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
-	DistortionState *s = *instance;
+	DistortionState *s = state->instance;
 
 	short xx;
 	ColumnState cs; resetColumn(&cs, w);
@@ -76,25 +58,25 @@ void drawDistortion(void **instance, ControlState *cc,
 			addScalePointInt(cc, "WAVEWRAP", E_D_ALG_WAVEWRAP);
 			addScalePointInt(cc, " RECTIFY", E_D_ALG_RECTIFY );
 			addScalePointInt(cc, "SIGNCONV", E_D_ALG_SIGNCONV);
-	} else addControlDummy(cc);
+	} else addControlDummy(cc, 0, 0);
 	if (ymin <= y+2 && ymax >= y+2)
 	{
 		printf("\033[%d;%dHbias:       [   ][ ]", y+2, xx);
 		addControlInt(cc, xx+13, y+2, &s->bias,       3, -128, 127, 0, 0, 0, NULL, NULL);
 		addControlInt(cc, xx+18, y+2, &s->biasstereo, 0, 0, 1, 0, 0, 0, NULL, NULL);
-	} else { addControlDummy(cc); addControlDummy(cc); }
+	} else { addControlDummy(cc, 0, 0); addControlDummy(cc, 0, 0); }
 	if (ymin <= y+3 && ymax >= y+3)
 	{
 		printf("\033[%d;%dHparallel:  [   ][  ]", y+3, xx);
 		addControlInt(cc, xx+12, y+3, &s->filterparallel, 3, -128, 127, 0, 0, 0, NULL, NULL);
 		addControlInt(cc, xx+17, y+3, &s->gainparallel,   2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL);
-	} else { addControlDummy(cc); addControlDummy(cc); }
+	} else { addControlDummy(cc, 0, 0); addControlDummy(cc, 0, 0); }
 
 	/* right column */
 	xx = x + getNextColumnOffset(&cs);
-	if (ymin <= y+1 && ymax >= y+1) { printf("\033[%d;%dHdrive:  [  ]", y+1, xx); addControlInt(cc, xx+9, y+1, &s->drive,   2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc);
-	if (ymin <= y+2 && ymax >= y+2) { printf("\033[%d;%dHgate:   [  ]", y+2, xx); addControlInt(cc, xx+9, y+2, &s->gate,    2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc);
-	if (ymin <= y+3 && ymax >= y+3) { printf("\033[%d;%dHrectify:[  ]", y+3, xx); addControlInt(cc, xx+9, y+3, &s->rectify, 2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc);
+	if (ymin <= y+1 && ymax >= y+1) { printf("\033[%d;%dHdrive:  [  ]", y+1, xx); addControlInt(cc, xx+9, y+1, &s->drive,   2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc, 0, 0);
+	if (ymin <= y+2 && ymax >= y+2) { printf("\033[%d;%dHgate:   [  ]", y+2, xx); addControlInt(cc, xx+9, y+2, &s->gate,    2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc, 0, 0);
+	if (ymin <= y+3 && ymax >= y+3) { printf("\033[%d;%dHrectify:[  ]", y+3, xx); addControlInt(cc, xx+9, y+3, &s->rectify, 2, 0x0, 0xff, 0x0, 0, 0, NULL, NULL); } else addControlDummy(cc, 0, 0);
 }
 
 
@@ -219,21 +201,18 @@ void runDistortion(uint32_t samplecount, EffectChain *chain, void **instance)
 
 NATIVE_Descriptor *distortionDescriptor(void)
 {
-	NATIVE_Descriptor *ret = malloc(sizeof(NATIVE_Descriptor));
+	NATIVE_Descriptor *ret = calloc(1, sizeof(NATIVE_Descriptor));
 
 	ret->controlc = 8;
 	ret->height   = 6;
+	ret->instance_size = sizeof(DistortionState);
 
-	const char name[] = "omuDIST";
+	const char name[] = "distortion";
 	const char author[] = "lib";
 	ret->name = malloc((strlen(name)+1) * sizeof(char)); strcpy(ret->name, name);
 	ret->author = malloc((strlen(author)+1) * sizeof(char)); strcpy(ret->author, author);
 
 	ret->init = initDistortion;
-	ret->free = freeDistortion;
-	ret->copy = copyDistortion;
-	ret->serialize = serializeDistortion;
-	ret->deserialize = deserializeDistortion;
 	ret->draw = drawDistortion;
 	ret->run = runDistortion;
 

@@ -1,82 +1,19 @@
 #include "sampleinput.c"
 
-void instrumentUpArrow(int count)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentSampleUpArrow(count); break;
-		case PAGE_INSTRUMENT_EFFECT: effectUpArrow(count); break;
-	}
-}
-void instrumentDownArrow(int count)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentSampleDownArrow(count); break;
-		case PAGE_INSTRUMENT_EFFECT: effectDownArrow(count); break;
-	}
-}
-void instrumentPgUp(int count)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentUpArrow(ws.ws_row>>1); break;
-		case PAGE_INSTRUMENT_EFFECT: effectPgUp(s->instrument->v[s->instrument->i[w->instrument]].effect, count); break;
-	}
-}
-void instrumentPgDn(int count)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentDownArrow(ws.ws_row>>1); break;
-		case PAGE_INSTRUMENT_EFFECT: effectPgDn(s->instrument->v[s->instrument->i[w->instrument]].effect, count); break;
-	}
-}
-void instrumentLeftArrow(void)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentSampleLeftArrow(); break;
-		case PAGE_INSTRUMENT_EFFECT: effectLeftArrow(); break;
-	}
-}
-void instrumentRightArrow(void)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentSampleRightArrow(); break;
-		case PAGE_INSTRUMENT_EFFECT: effectRightArrow(); break;
-	}
-}
+void instrumentPgUp(int count) { instrumentUpArrow((ws.ws_row>>1) * count); }
+void instrumentPgDn(int count) { instrumentDownArrow((ws.ws_row>>1) * count); }
+
 void instrumentCtrlUpArrow(int count)
 {
 	w->instrument -= count;
 	if (w->instrument < 0) w->instrument = 0;
-	w->effectscroll = 0;
 	resetWaveform();
 }
 void instrumentCtrlDownArrow(int count)
 {
 	w->instrument += count;
 	if (w->instrument > 254) w->instrument = 254;
-	w->effectscroll = 0;
 	resetWaveform();
-}
-void instrumentHome(void)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentSampleHome(); break;
-		case PAGE_INSTRUMENT_EFFECT: effectHome(); break;
-	}
-}
-void instrumentEnd(void)
-{
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE: instrumentSampleEnd(); break;
-		case PAGE_INSTRUMENT_EFFECT: effectEnd(); break;
-	}
 }
 
 void instrumentInput(int input)
@@ -164,7 +101,7 @@ void instrumentInput(int input)
 								case BUTTON3_HOLD: case BUTTON3_HOLD_CTRL:
 									break;
 								default:
-									if (w->page == PAGE_INSTRUMENT_SAMPLE && instrumentSafe(s, w->instrument) && w->showfilebrowser
+									if (instrumentSafe(s, w->instrument) && w->showfilebrowser
 											&& y > TRACK_ROW-2 && x >= INSTRUMENT_INDEX_COLS)
 										browserMouse(fbstate, button, x, y);
 									else if (cc.mouseadjust || (instrumentSafe(s, w->instrument)
@@ -183,12 +120,12 @@ void instrumentInput(int input)
 											case WHEEL_UP: case WHEEL_UP_CTRL:
 												if (w->instrument > WHEEL_SPEED) w->instrument -= WHEEL_SPEED;
 												else                             w->instrument = 0;
-												w->effectscroll = 0; resetWaveform();
+												resetWaveform();
 												break;
 											case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 												if (w->instrument < 254 - WHEEL_SPEED) w->instrument += WHEEL_SPEED;
 												else                                   w->instrument = 254;
-												w->effectscroll = 0; resetWaveform();
+												resetWaveform();
 												break;
 											case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 												if (w->fyoffset)
@@ -196,7 +133,7 @@ void instrumentInput(int input)
 													if ((short)w->instrument + w->fyoffset < 0)        w->instrument = 0;
 													else if ((short)w->instrument + w->fyoffset > 254) w->instrument = 254;
 													else                                               w->instrument += w->fyoffset;
-													w->effectscroll = 0; resetWaveform();
+													resetWaveform();
 													w->fyoffset = 0;
 												} break;
 											case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL: break; /* ignore */
@@ -208,7 +145,7 @@ void instrumentInput(int input)
 														{
 															yankInstrument(w->instrument + y - w->centre);
 															delInstrument (w->instrument + y - w->centre);
-															w->effectscroll = 0; resetWaveform();
+															resetWaveform();
 														}
 													case BUTTON1: case BUTTON1_CTRL:
 														w->fyoffset = y - w->centre;
@@ -260,12 +197,7 @@ void instrumentInput(int input)
 						setCommand(&w->command, &sampleExportCallback, NULL, NULL, 0, "File name: ", "");
 						w->mode = 255;
 						p->redraw = 1; break; */
-					default:
-						switch (w->page)
-						{
-							case PAGE_INSTRUMENT_SAMPLE: if (inputInstrumentSample(input)) return; break;
-							case PAGE_INSTRUMENT_EFFECT: if (instrumentSafe(s, w->instrument) && inputEffect(&s->instrument->v[s->instrument->i[w->instrument]].effect, input)) return; break; /* shell-like && as a gate */
-						} break;
+					default: if (inputInstrumentSample(input)) return; break;
 				}
 			break;
 	}

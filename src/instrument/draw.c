@@ -87,11 +87,7 @@ void drawInstrument(void)
 	if (instrumentSafe(s, w->instrument))
 	{
 		iv = &s->instrument->v[s->instrument->i[w->instrument]];
-		switch (w->page)
-		{
-			case PAGE_INSTRUMENT_SAMPLE: drawInstrumentSampler(iv); break;
-			case PAGE_INSTRUMENT_EFFECT: drawEffects(iv->effect, &cc, 1, INSTRUMENT_INDEX_COLS+1, ws.ws_col - (INSTRUMENT_INDEX_COLS+1), TRACK_ROW); break;
-		}
+		drawInstrumentSampler(iv);
 	} else
 	{
 		const char *text = "PRESS 'a' TO ADD AN INSTRUMENT";

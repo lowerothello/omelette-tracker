@@ -140,7 +140,7 @@ bool variantPopulated(VariantChain *vc, uint8_t index)
 	for (int i = 0; i < vc->v[vc->i[index]]->rowc; i++)
 	{
 		if (vc->v[vc->i[index]]->rowv[i].note != NOTE_VOID) return 1;
-		for (short j = 0; j < vc->macroc+1; j++)
+		for (short j = 0; j <= vc->macroc; j++)
 			if (vc->v[vc->i[index]]->rowv[i].macro[j].c) return 1;
 	} return 0;
 }

@@ -1,22 +1,22 @@
+/* memcpying the instance should be safe */
 typedef struct {
-	uint8_t controlc;
-	short   height;
-	char   *name;
-	char   *author;
-	bool    instrument;
-	void        (*init)(void **instance);
-	void        (*free)(void **instance); /* should free the instance */
-	void        (*copy)(void **dest, void **src);
-	void   (*serialize)(void **instance, FILE *fp);
-	void (*deserialize)(void **instance, FILE *fp);
-	void        (*draw)(void **instance, ControlState *cc, short x, short w, short y, short ymin, short ymax);
-	void         (*run)(uint32_t samplecount, EffectChain *chain, void **instance);
-} NATIVE_Descriptor;
+	uint32_t desc;     /* index in (NativeDB).descv */
+	void    *instance; /* malleable data */
+	void    *opaque;   /* static data, things like buffer pointers */
+} NativeState;
 
 typedef struct {
-	NATIVE_Descriptor *desc;
-	void              *instance;
-} NativeState;
+	uint8_t       controlc;
+	short         height;
+	char         *name;
+	char         *author;
+	bool          instrument;
+	size_t        instance_size;
+	void        (*init)(NativeState *state); /* should init instance and allocate opaque */
+	void        (*free)(NativeState *state); /* should free opaque */
+	void        (*draw)(NativeState *state, ControlState *cc, short x, short w, short y, short ymin, short ymax);
+	void         (*run)(uint32_t samplecount, EffectChain *chain, void **instance);
+} NATIVE_Descriptor;
 
 typedef struct {
 	uint32_t            descc;
@@ -49,50 +49,52 @@ void freeNativeDB(void)
 	free(native_db.descv);
 }
 
-void initNativeEffect(Effect *e, NATIVE_Descriptor *desc)
+void initNativeEffect(NativeDB *db, Effect *e, uint32_t desc)
 {
 	e->type = EFFECT_TYPE_NATIVE;
 	e->state = calloc(1, sizeof(NativeState));
 	((NativeState *)e->state)->desc = desc;
-	desc->init(&((NativeState *)e->state)->instance);
+	((NativeState *)e->state)->instance = calloc(1, db->descv[desc]->instance_size);
+	db->descv[desc]->init((NativeState *)e->state);
 }
-void freeNativeEffect(Effect *e)
+void freeNativeEffect(NativeDB *db, Effect *e)
 {
-	((NativeState *)e->state)->desc->free(&((NativeState *)e->state)->instance);
+	if (db->descv[((NativeState *)e->state)->desc]->free)
+		db->descv[((NativeState *)e->state)->desc]->free((NativeState *)e->state);
+	free(((NativeState *)e->state)->instance);
 }
 
-void copyNativeEffect(Effect *dest, Effect *src)
+void copyNativeEffect(NativeDB *db, Effect *dest, Effect *src)
 {
-	dest->state = calloc(1, sizeof(NativeState));
-	((NativeState *)dest->state)->desc = ((NativeState *)src->state)->desc;
-
-	((NativeState *)dest->state)->desc->copy(
-		&((NativeState *)dest->state)->instance,
-		&((NativeState *)src ->state)->instance);
+	NativeState *dests = dest->state;
+	NativeState *srcs = src->state;
+	initNativeEffect(db, dest, srcs->desc);
+	memcpy(dests->instance, srcs->instance, db->descv[srcs->desc]->instance_size);
 }
 
-uint8_t getNativeEffectControlCount(Effect *e) { return ((NATIVE_Descriptor *)((NativeState *)e->state)->desc)->controlc; }
-uint8_t getNativeEffectHeight      (Effect *e) { return ((NATIVE_Descriptor *)((NativeState *)e->state)->desc)->height;   }
+uint8_t getNativeEffectControlCount(NativeDB *db, Effect *e) { return db->descv[((NativeState *)e->state)->desc]->controlc; }
+uint8_t getNativeEffectHeight      (NativeDB *db, Effect *e) { return db->descv[((NativeState *)e->state)->desc]->height;   }
 
-void serializeNativeEffect(Effect *e, FILE *fp)
+void serializeNativeEffect(NativeDB *db, Effect *e, FILE *fp)
 {
-	((NativeState *)e->state)->desc->serialize(&((NativeState *)e->state)->instance, fp);
+	fwrite(&((NativeState *)e->state)->desc, sizeof(uint32_t), 1, fp);
+	fwrite(((NativeState *)e->state)->instance, db->descv[((NativeState *)e->state)->desc]->instance_size, 1, fp);
 }
-void deserializeNativeEffect(Effect *e, FILE *fp)
+void deserializeNativeEffect(NativeDB *db, Effect *e, FILE *fp)
 {
-	((NativeState *)e->state)->desc->deserialize(&((NativeState *)e->state)->instance, fp);
+	fread(&((NativeState *)e->state)->desc, sizeof(uint32_t), 1, fp);
+	initNativeEffect(db, e, ((NativeState *)e->state)->desc);
+	fread(((NativeState *)e->state)->instance, db->descv[((NativeState *)e->state)->desc]->instance_size, 1, fp);
 }
 
-void drawNativeEffect(Effect *e, ControlState *cc,
+void drawNativeEffect(NativeDB *db, Effect *e, ControlState *cc,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
-	((NativeState *)e->state)->desc->draw(&((NativeState *)e->state)->instance,
-		cc, x, w, y, ymin, ymax);
+	db->descv[((NativeState *)e->state)->desc]->draw( (NativeState *)e->state, cc, x, w, y, ymin, ymax);
 }
 
-void runNativeEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
+void runNativeEffect(NativeDB *db, uint32_t samplecount, EffectChain *chain, Effect *e)
 {
-	((NativeState *)e->state)->desc->run(samplecount, chain,
-		&((NativeState *)e->state)->instance);
+	db->descv[((NativeState *)e->state)->desc]->run(samplecount, chain, &((NativeState *)e->state)->instance);
 }

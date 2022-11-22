@@ -22,7 +22,6 @@
 #include <ladspa.h>
 #include <lilv/lilv.h>
 #include <lv2.h>
-// #include <lv2/port-props/port-props.h>
 #include <lv2/urid/urid.h>
 #include <lv2/units/units.h>
 
@@ -81,6 +80,8 @@ void showMaster    (void);
 #include "control.c"
 
 #include "types/types.c"
+#include "file/file.c"
+
 
 #include "macros.h"
 
@@ -93,8 +94,6 @@ ControlState cc;
 #include "tooltip.c"
 TooltipState tt;
 
-#include "types/file.c"
-
 #include "browser.c"
 #include "filebrowser.c"
 #include "effect/pluginbrowser.c"
@@ -104,7 +103,6 @@ TooltipState tt;
 #include "instrument/waveform.c"
 #include "generator/sampler.c"
 
-#include "background.c"
 #include "process.c"
 #include "macros.c"
 
@@ -174,16 +172,13 @@ void redraw(void)
 		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
 	} else
 	{
-#ifdef ENABLE_BACKGROUND
-		drawBackground();
-#endif
 		drawRuler();
 		switch (w->page)
 		{
-			case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT:      drawTracker();             break;
-			case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: drawInstrument();          break;
-			case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:           drawMaster();              break;
-			case PAGE_PLUGINBROWSER:                                  drawPluginEffectBrowser(); break;
+			case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT: drawTracker();             break;
+			case PAGE_INSTRUMENT:                            drawInstrument();          break;
+			case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:  drawMaster();              break;
+			case PAGE_PLUGINBROWSER:                         drawPluginEffectBrowser(); break;
 		}
 		drawCommand(&w->command, w->mode);
 	}
@@ -219,11 +214,11 @@ int commandCallback(char *command, unsigned char *mode)
 	wordSplit(buffer, command, 0);
 	if      (!strcmp(buffer, "q"))   { free(buffer); buffer = NULL; return 1; }
 	else if (!strcmp(buffer, "q!"))  { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSong(buffer); }
+	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSong(s, buffer); }
 	else if (!strcmp(buffer, "wq"))
 	{
 		wordSplit(buffer, command, 1);
-		if (!writeSong(buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
+		if (!writeSong(s, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
 	} else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
@@ -289,20 +284,9 @@ void showTracker(void)
 void showInstrument(void)
 {
 	w->showfilebrowser = 0;
-	switch (w->page)
-	{
-		case PAGE_INSTRUMENT_SAMPLE:
-			w->effectscroll = 0;
-			w->page = PAGE_INSTRUMENT_EFFECT;
-			break;
-		case PAGE_INSTRUMENT_EFFECT:
-			w->page = PAGE_INSTRUMENT_SAMPLE;
-			break;
-		default:
-			w->page = PAGE_INSTRUMENT_SAMPLE;
-			w->mode = I_MODE_NORMAL;
-			break;
-	}
+	w->page = PAGE_INSTRUMENT;
+	w->mode = I_MODE_NORMAL;
+
 	if (s->instrument->i[w->instrument] != INSTRUMENT_VOID)
 		resetWaveform();
 	freePreviewSample();
@@ -364,10 +348,10 @@ int input(void)
 				default:
 					switch (w->page)
 					{
-						case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT:      trackerInput(input);             break;
-						case PAGE_INSTRUMENT_SAMPLE: case PAGE_INSTRUMENT_EFFECT: instrumentInput(input);          break;
-						case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:           masterInput(input);              break;
-						case PAGE_PLUGINBROWSER:                                  pluginEffectBrowserInput(input); break;
+						case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT: trackerInput(input);             break;
+						case PAGE_INSTRUMENT:                            instrumentInput(input);          break;
+						case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:  masterInput(input);              break;
+						case PAGE_PLUGINBROWSER:                         pluginEffectBrowserInput(input); break;
 					} break;
 			}
 	} return 0;
@@ -379,7 +363,6 @@ void resize(int _)
 	w->centre = (ws.ws_row>>1) + 1;
 
 	resizeWaveform();
-	resizeBackground(b);
 	resizeBrowser(fbstate,
 			INSTRUMENT_INDEX_COLS + 2,         /* x */
 			TRACK_ROW + 1,                   /* y */
@@ -412,12 +395,7 @@ int main(int argc, char **argv)
 		if (!mainM_SEM())
 		{
 			if (p->resize) { p->resize = 0; resize(0); }
-#ifdef ENABLE_BACKGROUND
-			/* imply p->redraw if background is on */
-			redraw();
-#else
-			if (p->redraw) { p->redraw = 0; redraw(); }
-#endif
+			if (p->redraw) { p->redraw = 0; redraw();  }
 
 			/* finish freeing the record buffer */
 			if (w->instrumentrecv == INST_REC_LOCK_CANCEL)

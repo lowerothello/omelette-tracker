@@ -73,9 +73,9 @@ bool processM_SEM(void)
 					if (cv->data.mute && instrumentSafe(p->s, cv->r.inst))
 					{
 						iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
-						if (iv->midi.track != -1)
+						if (iv->midi.channel != -1)
 						{
-							midiNoteOff(0, iv->midi.track, cv->r.note, (cv->gain.rand>>4)<<3);
+							midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->gain.rand>>4)<<3);
 							cv->r.note = NOTE_VOID;
 						}
 					}

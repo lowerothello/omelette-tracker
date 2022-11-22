@@ -33,7 +33,7 @@ void setChordTrack(void) {
 	setTooltipTitle(&tt, "track");
 	addTooltipBind(&tt, "clear track ", 'c', chordClearTrack,  NULL);
 	addTooltipBind(&tt, "add track   ", 'a', chordAddTrack,    NULL);
-	addTooltipBind(&tt, "add before    ", 'A', chordAddBefore,     NULL);
+	addTooltipBind(&tt, "add before  ", 'A', chordAddBefore,   NULL);
 	addTooltipBind(&tt, "delete track", 'd', chordDeleteTrack, NULL);
 	addTooltipBind(&tt, "copy track  ", 'y', chordCopyTrack,   NULL);
 	addTooltipBind(&tt, "paste track ", 'p', chordPasteTrack,  NULL);

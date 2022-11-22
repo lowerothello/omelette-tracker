@@ -357,7 +357,7 @@ char midipcc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 	if (!cv->data.mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 	{
 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
-		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.track, m%128);
+		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.channel, m%128);
 	} return 1;
 }
 char midiccc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
@@ -366,7 +366,7 @@ char midiccc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 	if (cv->midiccindex != -1 && !cv->data.mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 	{
 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
-		if (iv->algorithm == INST_ALG_MIDI) midiCC(fptr, iv->midi.track, cv->midiccindex, cv->midicc);
+		if (iv->algorithm == INST_ALG_MIDI) midiCC(fptr, iv->midi.channel, cv->midiccindex, cv->midicc);
 	} return 1;
 }
 

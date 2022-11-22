@@ -11,6 +11,7 @@ typedef struct {
 #define INST_VOID 255
 #define INST_FILEPREVIEW -1 /* signed, be careful with this */
 /* TODO: MACRO_VOID */
+
 typedef struct {
 	uint8_t note; /* MIDI compatible  | NOTE_* declares */
 	uint8_t inst; /* instrument index | INST_* declares */
@@ -36,6 +37,7 @@ typedef struct {
 	Vtrig   *trig;           /* variant triggers        */
 	Variant *main;           /* main fallback variant   */
 	uint8_t  macroc;         /* macro column count      */
+	uint8_t  notec;          /* note column count       */
 	uint8_t  c;              /* variant contents length */
 	uint8_t  i[VARIANT_MAX]; /* variant index/backref   */
 	Variant *v[];            /* variant contents        */

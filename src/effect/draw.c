@@ -45,6 +45,6 @@ void drawEffects(EffectChain *chain, ControlState *cc, bool selected, short x, s
 		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
 		printCulling(NULL_EFFECT_TEXT, x, y+1, 1, ws.ws_col);
 
-		printf("\033[%d;%dH", y+1, MAX(1, MIN(ws.ws_col, x))); /* visual cursor */
+		addControlDummy(cc, MAX(1, MIN(ws.ws_col, x)), y+1);
 	}
 }

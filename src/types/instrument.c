@@ -3,11 +3,6 @@ void copyInstrument(Instrument *dest, Instrument *src) /* TODO: should be atomic
 	if (dest->sample)
 	{ free(dest->sample); dest->sample = NULL; }
 
-	EffectChain *hold_effect = dest->effect;
-	/* TODO: this holding is awkward to extend and ugly */
-	float *hold_output      [2]; memcpy(&hold_output,       &dest->output,       sizeof(float *) * 2);
-	float *hold_pluginoutput[2]; memcpy(&hold_pluginoutput, &dest->pluginoutput, sizeof(float *) * 2);
-
 	memcpy(dest, src, sizeof(Instrument));
 
 	if (src->sample)
@@ -15,11 +10,6 @@ void copyInstrument(Instrument *dest, Instrument *src) /* TODO: should be atomic
 		dest->sample = malloc(sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->tracks);
 		memcpy(dest->sample, src->sample, sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->tracks);
 	}
-
-	dest->effect = hold_effect;
-	memcpy(&dest->output,       &hold_output,       sizeof(float *) * 2);
-	memcpy(&dest->pluginoutput, &hold_pluginoutput, sizeof(float *) * 2);
-	copyEffectChain(&dest->effect, src->effect);
 }
 
 /* frees the contents of an instrument */
@@ -27,17 +17,6 @@ void _delInstrument(Instrument *iv)
 {
 	if (iv->sample) free(iv->sample);
 	iv->sample = NULL;
-
-	if (iv->output[0])       { free(iv->output[0]); iv->output[0] = NULL; }
-	if (iv->output[1])       { free(iv->output[1]); iv->output[1] = NULL; }
-	if (iv->pluginoutput[0]) { free(iv->pluginoutput[0]); iv->pluginoutput[0] = NULL; }
-	if (iv->pluginoutput[1]) { free(iv->pluginoutput[1]); iv->pluginoutput[1] = NULL; }
-
-	if (iv->effect)
-	{
-		clearEffectChain(iv->effect);
-		free(iv->effect);
-	}
 }
 
 bool instrumentSafe(Song *cs, short index)
@@ -60,47 +39,6 @@ void reparentSample(Instrument *iv, Sample *sample)
 	iv->trimlength = sample->length-1;
 	iv->wavetable.framelength = (sample->length-1)>>8; /* /256 */
 	iv->looplength = 0;
-}
-
-/* TODO: use this function */
-Sample *applySampleEffects(Instrument *iv, Sample *sample)
-{
-	uint32_t block, i;
-	uint8_t j;
-
-	Sample *ret = malloc(sizeof(Sample) + sizeof(short)*(sample->length<<1)); /* always run in stereo */
-	memcpy(ret, sample, sizeof(Sample));
-
-	uint32_t ptr = 0;
-	while (ptr < sample->length)
-	{
-		block = MIN(buffersize, sample->length - ptr);
-		for (i = 0; i < block; i++)
-		{
-			if (sample->tracks > 1)
-			{
-				iv->output[0][i] = sample->data[(ptr + i)*sample->tracks + 0];
-				iv->output[1][i] = sample->data[(ptr + i)*sample->tracks + 1];
-			} else
-			{
-				iv->output[0][i] = sample->data[(ptr + i)];
-				iv->output[1][i] = sample->data[(ptr + i)];
-			}
-		}
-
-		for (j = 0; j < iv->effect->c; j++)
-			runEffect(block, iv->effect, &iv->effect->v[j]);
-
-		for (i = 0; i < block; i++)
-		{
-			ret->data[((ptr + i)<<1) + 0] = iv->output[0][i];
-			ret->data[((ptr + i)<<1) + 1] = iv->output[1][i];
-		}
-
-		ptr += buffersize;
-	}
-
-	return ret;
 }
 
 void toggleRecording(uint8_t inst, char cue)
@@ -126,7 +64,7 @@ void toggleRecording(uint8_t inst, char cue)
 	} p->redraw = 1;
 }
 
-static void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; if (w->page == PAGE_INSTRUMENT_SAMPLE) w->mode = I_MODE_NORMAL; p->redraw = 1; }
+static void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; w->mode = I_MODE_NORMAL; p->redraw = 1; }
 static void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
 static void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
 static void cb_addPutInstrument      (Event *e) { free(e->src); e->src = NULL; copyInstrument(&s->instrument->v[s->instrument->i[(size_t)e->callbackarg]], &w->instrumentbuffer); p->redraw = 1; }
@@ -139,18 +77,13 @@ void __addInstrument(Instrument *iv, int8_t algorithm)
 	iv->envelope = 0x00f0;
 	iv->filtercutoff = 0xff;
 
-	iv->midi.track = -1;
+	iv->midi.channel = -1;
 
 	iv->granular.cyclelength = 0x3fff;
 	iv->granular.rampgrains = 8;
 	iv->granular.beatsensitivity = 0x80;
 	iv->granular.beatdecay = 0xff;
 
-	iv->output[0] =       calloc(buffersize, sizeof(float));
-	iv->output[1] =       calloc(buffersize, sizeof(float));
-	iv->pluginoutput[0] = calloc(buffersize, sizeof(float));
-	iv->pluginoutput[1] = calloc(buffersize, sizeof(float));
-	iv->effect = newEffectChain(iv->output, iv->pluginoutput);
 	iv->sample = calloc(1, sizeof(Sample));
 }
 InstrumentChain *_addInstrument(uint8_t index, int8_t algorithm)
@@ -379,7 +312,7 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->algorithm, sizeof(int8_t), 1, fp);
 
 	/* midi */
-	fwrite(&iv->midi.track, sizeof(int8_t), 1, fp);
+	fwrite(&iv->midi.channel, sizeof(int8_t), 1, fp);
 
 	/* granular */
 	fwrite(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
@@ -416,8 +349,6 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 
 	if (iv->sample->length)
 		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->tracks, fp);
-
-	serializeEffectChain(iv->effect, fp);
 }
 void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor)
 {
@@ -447,7 +378,7 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	fread(&iv->algorithm, sizeof(int8_t), 1, fp);
 
 	/* midi */
-	fread(&iv->midi.track, sizeof(int8_t), 1, fp);
+	fread(&iv->midi.channel, sizeof(int8_t), 1, fp);
 
 	/* granular */
 	fread(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
@@ -486,6 +417,4 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	if (newsample->length)
 		fread(newsample->data, sizeof(short), newsample->length*newsample->tracks, fp);
 	iv->sample = newsample;
-
-	deserializeEffectChain(&iv->effect, fp, major, minor);
 }

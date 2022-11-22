@@ -60,7 +60,7 @@ typedef struct {
 
 	/* midi */
 	struct {
-		int8_t track;
+		int8_t channel;
 	} midi;
 
 	/* granular */
@@ -117,11 +117,6 @@ typedef struct {
 			int8_t pdyn;
 		} lfo;
 	} wavetable;
-
-	/* effects */
-	EffectChain *effect;
-	float *output[2];       /* used by effects */
-	float *pluginoutput[2]; /* some external plugins need to read and write from separate buffers */
 
 	uint32_t triggerflash;
 } Instrument;

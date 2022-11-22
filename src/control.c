@@ -84,7 +84,7 @@ void clearControls(ControlState *cc)
 }
 
 /* min/max/def/nibbles should already be set */
-void _addControl(ControlState *cc, short x, short y,
+static void _addControl(ControlState *cc, short x, short y,
 		void *value, uint32_t scalepointlen, uint32_t scalepointcount,
 		void (*callback)(void *), void *callbackarg)
 {
@@ -125,14 +125,14 @@ void addControlFloat(ControlState *cc, short x, short y, void *value, int8_t nib
 	_addControl(cc, x, y, value, scalepointlen, scalepointcount, callback, callbackarg);
 }
 
-void addControlDummy(ControlState *cc)
+void addControlDummy(ControlState *cc, short x, short y)
 {
 	cc->control[cc->controlc].min.i = 0;
 	cc->control[cc->controlc].max.i = 0;
 	cc->control[cc->controlc].def.i = 0;
 	cc->control[cc->controlc].nibbles = 0;
 
-	_addControl(cc, 0, 0, NULL, 0, 0, NULL, NULL);
+	_addControl(cc, x, y, NULL, 0, 0, NULL, NULL);
 }
 
 /* applies retroactively to the previously registered control */

@@ -89,8 +89,8 @@ bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 		if (iv->algorithm == INST_ALG_MIDI)
 		{
 			/* always stop the prev. note */
-			midiNoteOff(fptr, iv->midi.track, oldnote, (cv->gain.rand>>4)<<3);
-			midiNoteOn (fptr, iv->midi.track, note,    (cv->gain.rand>>4)<<3);
+			midiNoteOff(fptr, iv->midi.channel, oldnote, (cv->gain.rand>>4)<<3);
+			midiNoteOn (fptr, iv->midi.channel, note,    (cv->gain.rand>>4)<<3);
 			return 1;
 		}
 	} return 0;
@@ -180,6 +180,14 @@ void handleLocalMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 	ifMacro(fptr, spr, cv, r, 'x', 0, &xc);    /* smooth local samplerate  */
 }
 
+#define AA(TYPE, I) \
+	if (cv->filter.target##TYPE[I] != -1) \
+	{ \
+		if (cv->filter.target##TYPE##_rand) cv->filter.rand##TYPE[I] = cv->filter.target##TYPE[I]; \
+		else                                cv->filter.TYPE[I] = cv->filter.rand##TYPE[I] = cv->filter.target##TYPE[I]; \
+		cv->filter.target##TYPE[I] = -1; \
+	}
+
 void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 {
 	if (cv->gain.target != -1)
@@ -204,33 +212,8 @@ void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 	if (cv->filter.targetmode[0] != -1) { cv->filter.mode[0] = cv->filter.targetmode[0]; cv->filter.targetmode[0] = -1; }
 	if (cv->filter.targetmode[1] != -1) { cv->filter.mode[1] = cv->filter.targetmode[1]; cv->filter.targetmode[1] = -1; }
 
-	if (cv->filter.targetcut[0] != -1)
-	{
-		if (cv->filter.targetcut_rand) cv->filter.randcut[0] = cv->filter.targetcut[0];
-		else                           cv->filter.cut[0] = cv->filter.randcut[0] = cv->filter.targetcut[0];
-		cv->filter.targetcut[0] = -1;
-	}
-	if (cv->filter.targetcut[1] != -1)
-	{
-		if (cv->filter.targetcut_rand) cv->filter.randcut[1] = cv->filter.targetcut[1];
-		else                           cv->filter.cut[1] = cv->filter.randcut[1] = cv->filter.targetcut[1];
-		cv->filter.targetcut[1] = -1;
-	}
-	cv->filter.targetcut_rand = 0;
-
-	if (cv->filter.targetcut[0] != -1)
-	{
-		if (cv->filter.targetres_rand) cv->filter.randres[0] = cv->filter.targetres[0];
-		else                           cv->filter.res[0] = cv->filter.randres[0] = cv->filter.targetres[0];
-		cv->filter.targetres[0] = -1;
-	}
-	if (cv->filter.targetcut[1] != -1)
-	{
-		if (cv->filter.targetres_rand) cv->filter.randres[1] = cv->filter.targetres[1];
-		else                           cv->filter.res[1] = cv->filter.randres[1] = cv->filter.targetres[1];
-		cv->filter.targetres[1] = -1;
-	}
-	cv->filter.targetres_rand = 0;
+	AA(cut, 0); AA(cut, 1); cv->filter.targetcut_rand = 0;
+	AA(res, 0); AA(res, 1); cv->filter.targetres_rand = 0;
 
 	if (cv->targetlocalsamplerate != -1) { cv->localsamplerate = cv->targetlocalsamplerate; cv->targetlocalsamplerate = -1; }
 	if (cv->targetlocalpitchshift != -1) { cv->localpitchshift = cv->targetlocalpitchshift; cv->targetlocalpitchshift = -1; }
@@ -243,8 +226,6 @@ void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 }
 void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 {
-	char ret;
-
 	for (int i = 0; i <= cv->data.variant->macroc; i++)
 		cv->r.macro[i] = r.macro[i];
 
@@ -252,7 +233,8 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 
 	if (cv->rtrigsamples)
 	{
-		if (cv->rtrigblocksize > 0 || cv->rtrigblocksize == -1) cv->rtrigblocksize--;
+		if (cv->rtrigblocksize > 0 || cv->rtrigblocksize == -1)
+			cv->rtrigblocksize--;
 		else
 		{
 			cv->data.rtrig_rev = 0;
@@ -260,8 +242,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 		}
 	}
 
-	ret = ifMacro(fptr, spr, cv, r, 'V', 0, &Vc);
-	if (!ret) cv->vibratosamples = 0;
+	if (!ifMacro(fptr, spr, cv, r, 'V', 0, &Vc)) cv->vibratosamples = 0;
 
 	if (ifMacro(fptr, spr, cv, r, '%', 0, &percentc)) return;
 
@@ -279,36 +260,33 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 	if      (r.note != NOTE_VOID && r.inst == INST_VOID) r.inst = cv->r.inst;
 	else if (r.inst != INST_VOID && r.note == NOTE_VOID) r.note = cv->r.note;
 
-	ret = ifMacro(fptr, spr, cv, r, 'C', 0, &Cc); /* cut */
-	if (!ret && r.note != NOTE_VOID) { ret = ifMacro(fptr, spr, cv, r, 'P', 0, &Pc); /* portamento */
-		if (!ret)                    { ret = ifMacro(fptr, spr, cv, r, 'D', 0, &Dc); /* delay      */
-			if (!ret)
-			{
-				if (instrumentSafe(p->s, cv->r.inst))
-					ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
-				triggerNote(fptr, cv, cv->r.note, r.note, r.inst);
-			}
-		}
+	if ((!ifMacro(fptr, spr, cv, r, 'C', 0, &Cc) && r.note != NOTE_VOID)
+			&& !ifMacro(fptr, spr, cv, r, 'P', 0, &Pc)
+			&& !ifMacro(fptr, spr, cv, r, 'D', 0, &Dc))
+	{
+		if (instrumentSafe(p->s, cv->r.inst))
+			ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
+		triggerNote(fptr, cv, cv->r.note, r.note, r.inst);
 	}
 
 	if (cv->pointer && instrumentSafe(p->s, cv->samplerinst)
-			&&(ifMacro(fptr, spr, cv, r, 'F', 0, &DUMMY)
-			|| ifMacro(fptr, spr, cv, r, 'Z', 0, &DUMMY)
-			|| ifMacro(fptr, spr, cv, r, 'O', 0, &DUMMY)
-			|| ifMacro(fptr, spr, cv, r, 'o', 0, &ocPRERAMP)
-			|| ifMacro(fptr, spr, cv, r, 'U', 0, &DUMMY)
-			|| ifMacro(fptr, spr, cv, r, 'u', 0, &DUMMY)))
+			&& (ifMacro(fptr, spr, cv, r, 'F', 0, &DUMMY)
+			||  ifMacro(fptr, spr, cv, r, 'Z', 0, &DUMMY)
+			||  ifMacro(fptr, spr, cv, r, 'O', 0, &DUMMY)
+			||  ifMacro(fptr, spr, cv, r, 'o', 0, &ocPRERAMP)
+			||  ifMacro(fptr, spr, cv, r, 'U', 0, &DUMMY)
+			||  ifMacro(fptr, spr, cv, r, 'u', 0, &DUMMY)))
 		ramp(cv, 0.0f, p->s->instrument->i[cv->samplerinst]);
 
 	handleLocalMacros(fptr, spr, cv, r);
 
 	ifMacro(fptr, spr, cv, r, 'p', 0, &pc); /* microtonal offset  */
 
-	/* retrigger macros */
-	if (       !ifMacro(fptr, spr, cv, r, 'r', 1, &altrc)  /* bw retrigger       */
-	        && !ifMacro(fptr, spr, cv, r, 'R', 1, &altRc)  /* retrigger          */
-	        && !ifMacro(fptr, spr, cv, r, 'r', 0, &rc))    /* bw block retrigger */
-		ifMacro(fptr, spr, cv, r, 'R', 0, &Rc);            /* block retrigger    */
+	/* retrigger macros, TODO: not formatted very clearly */
+	if (!ifMacro(fptr, spr, cv, r, 'r', 1, &altrc) /* bw retrigger       */
+	 && !ifMacro(fptr, spr, cv, r, 'R', 1, &altRc) /* retrigger          */
+	 && !ifMacro(fptr, spr, cv, r, 'r', 0, &rc))   /* bw block retrigger */
+		ifMacro(fptr, spr, cv, r, 'R', 0, &Rc);    /* block retrigger    */
 	if (cv->rtrigsamples && cv->rtrigblocksize == -2)
 	{ /* clean up if the last row had an altRxx and this row doesn't */
 		cv->data.rtrig_rev = 0;
@@ -576,9 +554,13 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 			{
 				processMinimal(p->w->previewsample, cv->pointer, 0xff, 0xf, cv->samplernote, &li, &ri);
 				cv->pointer++;
-				postSampler(fptr, cv, rowprogress, li*DIVSHRT, ri*DIVSHRT);
-			} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
-			break;
+				cv->output[0][fptr] = li*DIVSHRT;
+				cv->output[1][fptr] = ri*DIVSHRT;
+			} else
+			{
+				cv->output[0][fptr] = 0.0f;
+				cv->output[1][fptr] = 0.0f;
+			} break;
 		default:
 			if (instrumentSafe(p->s, cv->samplerinst))
 			{
@@ -948,8 +930,8 @@ void *process(void *arg)
 	/* clear the master and send chain ports */
 	memset(p->s->masteroutput[0], 0, nfptr * sizeof(float));
 	memset(p->s->masteroutput[1], 0, nfptr * sizeof(float));
-	memset(p->s->sendoutput[0], 0, nfptr * sizeof(float));
-	memset(p->s->sendoutput[1], 0, nfptr * sizeof(float));
+	memset(p->s->sendoutput  [0], 0, nfptr * sizeof(float));
+	memset(p->s->sendoutput  [1], 0, nfptr * sizeof(float));
 
 	/* sum the output from each track thread */
 	for (uint8_t c = 0; c < p->s->track->c; c++)
@@ -958,8 +940,8 @@ void *process(void *arg)
 			{
 				p->s->masteroutput[0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].mainmult[0][fptr];
 				p->s->masteroutput[1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].mainmult[1][fptr];
-				p->s->sendoutput[0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].sendmult[0][fptr];
-				p->s->sendoutput[1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].sendmult[1][fptr];
+				p->s->sendoutput  [0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].sendmult[0][fptr];
+				p->s->sendoutput  [1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].sendmult[1][fptr];
 			}
 
 	/* send chain */
@@ -1025,10 +1007,6 @@ void *process(void *arg)
 		}
 	}
 
-	/* background visualization */
-#ifdef ENABLE_BACKGROUND
-	updateBackground(nfptr, pb.out.l, pb.out.r);
-#endif /* ENABLE_BACKGROUND */
 #endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
 
 	/* triggerflash animations */

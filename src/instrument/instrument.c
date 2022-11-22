@@ -36,7 +36,7 @@ void sampleLoadCallback(char *path)
 {
 	if (path) loadSample(w->instrument, path);
 
-	w->page = PAGE_INSTRUMENT_SAMPLE;
+	w->page = PAGE_INSTRUMENT;
 	w->mode = I_MODE_NORMAL;
 	w->showfilebrowser = 0;
 	resetWaveform();

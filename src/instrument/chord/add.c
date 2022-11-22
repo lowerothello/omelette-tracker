@@ -1,5 +1,5 @@
-void chordAddSample(void *_) { addInstrument(w->instrument, INST_ALG_CYCLIC, cb_addInstrument); w->page = PAGE_INSTRUMENT_SAMPLE; w->showfilebrowser = 1; p->redraw = 1; }
-void chordAddMIDI  (void *_) { addInstrument(w->instrument, INST_ALG_MIDI,   cb_addInstrument); w->page = PAGE_INSTRUMENT_SAMPLE; p->redraw = 1; }
+void chordAddSample(void *_) { addInstrument(w->instrument, INST_ALG_CYCLIC, cb_addInstrument); w->showfilebrowser = 1; p->redraw = 1; }
+void chordAddMIDI  (void *_) { addInstrument(w->instrument, INST_ALG_MIDI,   cb_addInstrument); p->redraw = 1; }
 
 void chordRecordToggle(void *_)
 {

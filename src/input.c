@@ -23,7 +23,7 @@ int charToKmode(int key, bool GXXstyle, uint8_t *macrov, uint8_t *note)
 		case '4': if (GXXstyle) *macrov = 0xff; else *macrov = 0xf0; return 1;  case '$': *macrov = ((*macrov>>4)<<4) + 0xf; return 1;
 
 		case ' ': if (note) *note = NOTE_OFF;  return 0;
-		default:  if (note) *note = NOTE_VOID; return 0;
+		default : if (note) *note = NOTE_VOID; return 0;
 	}
 }
 
@@ -33,45 +33,45 @@ int charToNote(int key, uint8_t *note)
 {
 	switch (key)
 	{
-		case 'q':  *note = MIN(NOTE_A10-1, 0  +w->octave*12); return 0;  case 'Q': *note = MIN(NOTE_A10-1, 0  +w->octave*12); return 1;
-		case 'w':  *note = MIN(NOTE_A10-1, 1  +w->octave*12); return 0;  case 'W': *note = MIN(NOTE_A10-1, 1  +w->octave*12); return 1;
-		case 'e':  *note = MIN(NOTE_A10-1, 2  +w->octave*12); return 0;  case 'E': *note = MIN(NOTE_A10-1, 2  +w->octave*12); return 1;
-		case 'r':  *note = MIN(NOTE_A10-1, 3  +w->octave*12); return 0;  case 'R': *note = MIN(NOTE_A10-1, 3  +w->octave*12); return 1;
-		case 't':  *note = MIN(NOTE_A10-1, 4  +w->octave*12); return 0;  case 'T': *note = MIN(NOTE_A10-1, 4  +w->octave*12); return 1;
-		case 'y':  *note = MIN(NOTE_A10-1, 5  +w->octave*12); return 0;  case 'Y': *note = MIN(NOTE_A10-1, 5  +w->octave*12); return 1;
-		case 'u':  *note = MIN(NOTE_A10-1, 6  +w->octave*12); return 0;  case 'U': *note = MIN(NOTE_A10-1, 6  +w->octave*12); return 1;
-		case 'i':  *note = MIN(NOTE_A10-1, 7  +w->octave*12); return 0;  case 'I': *note = MIN(NOTE_A10-1, 7  +w->octave*12); return 1;
-		case 'o':  *note = MIN(NOTE_A10-1, 8  +w->octave*12); return 0;  case 'O': *note = MIN(NOTE_A10-1, 8  +w->octave*12); return 1;
-		case 'p':  *note = MIN(NOTE_A10-1, 9  +w->octave*12); return 0;  case 'P': *note = MIN(NOTE_A10-1, 9  +w->octave*12); return 1;
-		case '[':  *note = MIN(NOTE_A10-1, 10 +w->octave*12); return 0;  case '{': *note = MIN(NOTE_A10-1, 10 +w->octave*12); return 1;
-		case ']':  *note = MIN(NOTE_A10-1, 11 +w->octave*12); return 0;  case '}': *note = MIN(NOTE_A10-1, 11 +w->octave*12); return 1;
+		case 'q' : *note = MIN(NOTE_A10-1, 0  +w->octave*12); return 0;  case 'Q': *note = MIN(NOTE_A10-1, 0  +w->octave*12); return 1;
+		case 'w' : *note = MIN(NOTE_A10-1, 1  +w->octave*12); return 0;  case 'W': *note = MIN(NOTE_A10-1, 1  +w->octave*12); return 1;
+		case 'e' : *note = MIN(NOTE_A10-1, 2  +w->octave*12); return 0;  case 'E': *note = MIN(NOTE_A10-1, 2  +w->octave*12); return 1;
+		case 'r' : *note = MIN(NOTE_A10-1, 3  +w->octave*12); return 0;  case 'R': *note = MIN(NOTE_A10-1, 3  +w->octave*12); return 1;
+		case 't' : *note = MIN(NOTE_A10-1, 4  +w->octave*12); return 0;  case 'T': *note = MIN(NOTE_A10-1, 4  +w->octave*12); return 1;
+		case 'y' : *note = MIN(NOTE_A10-1, 5  +w->octave*12); return 0;  case 'Y': *note = MIN(NOTE_A10-1, 5  +w->octave*12); return 1;
+		case 'u' : *note = MIN(NOTE_A10-1, 6  +w->octave*12); return 0;  case 'U': *note = MIN(NOTE_A10-1, 6  +w->octave*12); return 1;
+		case 'i' : *note = MIN(NOTE_A10-1, 7  +w->octave*12); return 0;  case 'I': *note = MIN(NOTE_A10-1, 7  +w->octave*12); return 1;
+		case 'o' : *note = MIN(NOTE_A10-1, 8  +w->octave*12); return 0;  case 'O': *note = MIN(NOTE_A10-1, 8  +w->octave*12); return 1;
+		case 'p' : *note = MIN(NOTE_A10-1, 9  +w->octave*12); return 0;  case 'P': *note = MIN(NOTE_A10-1, 9  +w->octave*12); return 1;
+		case '[' : *note = MIN(NOTE_A10-1, 10 +w->octave*12); return 0;  case '{': *note = MIN(NOTE_A10-1, 10 +w->octave*12); return 1;
+		case ']' : *note = MIN(NOTE_A10-1, 11 +w->octave*12); return 0;  case '}': *note = MIN(NOTE_A10-1, 11 +w->octave*12); return 1;
 
-		case 'a':  *note = MIN(NOTE_A10-1, 12 +w->octave*12); return 0;  case 'A': *note = MIN(NOTE_A10-1, 12 +w->octave*12); return 1;
-		case 's':  *note = MIN(NOTE_A10-1, 13 +w->octave*12); return 0;  case 'S': *note = MIN(NOTE_A10-1, 13 +w->octave*12); return 1;
-		case 'd':  *note = MIN(NOTE_A10-1, 14 +w->octave*12); return 0;  case 'D': *note = MIN(NOTE_A10-1, 14 +w->octave*12); return 1;
-		case 'f':  *note = MIN(NOTE_A10-1, 15 +w->octave*12); return 0;  case 'F': *note = MIN(NOTE_A10-1, 15 +w->octave*12); return 1;
-		case 'g':  *note = MIN(NOTE_A10-1, 16 +w->octave*12); return 0;  case 'G': *note = MIN(NOTE_A10-1, 16 +w->octave*12); return 1;
-		case 'h':  *note = MIN(NOTE_A10-1, 17 +w->octave*12); return 0;  case 'H': *note = MIN(NOTE_A10-1, 17 +w->octave*12); return 1;
-		case 'j':  *note = MIN(NOTE_A10-1, 18 +w->octave*12); return 0;  case 'J': *note = MIN(NOTE_A10-1, 18 +w->octave*12); return 1;
-		case 'k':  *note = MIN(NOTE_A10-1, 19 +w->octave*12); return 0;  case 'K': *note = MIN(NOTE_A10-1, 19 +w->octave*12); return 1;
-		case 'l':  *note = MIN(NOTE_A10-1, 20 +w->octave*12); return 0;  case 'L': *note = MIN(NOTE_A10-1, 20 +w->octave*12); return 1;
-		case ';':  *note = MIN(NOTE_A10-1, 21 +w->octave*12); return 0;  case ':': *note = MIN(NOTE_A10-1, 21 +w->octave*12); return 1;
+		case 'a' : *note = MIN(NOTE_A10-1, 12 +w->octave*12); return 0;  case 'A': *note = MIN(NOTE_A10-1, 12 +w->octave*12); return 1;
+		case 's' : *note = MIN(NOTE_A10-1, 13 +w->octave*12); return 0;  case 'S': *note = MIN(NOTE_A10-1, 13 +w->octave*12); return 1;
+		case 'd' : *note = MIN(NOTE_A10-1, 14 +w->octave*12); return 0;  case 'D': *note = MIN(NOTE_A10-1, 14 +w->octave*12); return 1;
+		case 'f' : *note = MIN(NOTE_A10-1, 15 +w->octave*12); return 0;  case 'F': *note = MIN(NOTE_A10-1, 15 +w->octave*12); return 1;
+		case 'g' : *note = MIN(NOTE_A10-1, 16 +w->octave*12); return 0;  case 'G': *note = MIN(NOTE_A10-1, 16 +w->octave*12); return 1;
+		case 'h' : *note = MIN(NOTE_A10-1, 17 +w->octave*12); return 0;  case 'H': *note = MIN(NOTE_A10-1, 17 +w->octave*12); return 1;
+		case 'j' : *note = MIN(NOTE_A10-1, 18 +w->octave*12); return 0;  case 'J': *note = MIN(NOTE_A10-1, 18 +w->octave*12); return 1;
+		case 'k' : *note = MIN(NOTE_A10-1, 19 +w->octave*12); return 0;  case 'K': *note = MIN(NOTE_A10-1, 19 +w->octave*12); return 1;
+		case 'l' : *note = MIN(NOTE_A10-1, 20 +w->octave*12); return 0;  case 'L': *note = MIN(NOTE_A10-1, 20 +w->octave*12); return 1;
+		case ';' : *note = MIN(NOTE_A10-1, 21 +w->octave*12); return 0;  case ':': *note = MIN(NOTE_A10-1, 21 +w->octave*12); return 1;
 		case '\'': *note = MIN(NOTE_A10-1, 22 +w->octave*12); return 0;  case '"': *note = MIN(NOTE_A10-1, 22 +w->octave*12); return 1;
 		case '\\': *note = MIN(NOTE_A10-1, 23 +w->octave*12); return 0;  case '|': *note = MIN(NOTE_A10-1, 23 +w->octave*12); return 1;
 
-		case 'z':  *note = MIN(NOTE_A10-1, 24 +w->octave*12); return 0;  case 'Z': *note = MIN(NOTE_A10-1, 24 +w->octave*12); return 1;
-		case 'x':  *note = MIN(NOTE_A10-1, 25 +w->octave*12); return 0;  case 'X': *note = MIN(NOTE_A10-1, 25 +w->octave*12); return 1;
-		case 'c':  *note = MIN(NOTE_A10-1, 26 +w->octave*12); return 0;  case 'C': *note = MIN(NOTE_A10-1, 26 +w->octave*12); return 1;
-		case 'v':  *note = MIN(NOTE_A10-1, 27 +w->octave*12); return 0;  case 'V': *note = MIN(NOTE_A10-1, 27 +w->octave*12); return 1;
-		case 'b':  *note = MIN(NOTE_A10-1, 28 +w->octave*12); return 0;  case 'B': *note = MIN(NOTE_A10-1, 28 +w->octave*12); return 1;
-		case 'n':  *note = MIN(NOTE_A10-1, 29 +w->octave*12); return 0;  case 'N': *note = MIN(NOTE_A10-1, 29 +w->octave*12); return 1;
-		case 'm':  *note = MIN(NOTE_A10-1, 30 +w->octave*12); return 0;  case 'M': *note = MIN(NOTE_A10-1, 30 +w->octave*12); return 1;
-		case ',':  *note = MIN(NOTE_A10-1, 31 +w->octave*12); return 0;  case '<': *note = MIN(NOTE_A10-1, 31 +w->octave*12); return 1;
-		case '.':  *note = MIN(NOTE_A10-1, 32 +w->octave*12); return 0;  case '>': *note = MIN(NOTE_A10-1, 32 +w->octave*12); return 1;
-		case '/':  *note = MIN(NOTE_A10-1, 33 +w->octave*12); return 0;  case '?': *note = MIN(NOTE_A10-1, 33 +w->octave*12); return 1;
+		case 'z' : *note = MIN(NOTE_A10-1, 24 +w->octave*12); return 0;  case 'Z': *note = MIN(NOTE_A10-1, 24 +w->octave*12); return 1;
+		case 'x' : *note = MIN(NOTE_A10-1, 25 +w->octave*12); return 0;  case 'X': *note = MIN(NOTE_A10-1, 25 +w->octave*12); return 1;
+		case 'c' : *note = MIN(NOTE_A10-1, 26 +w->octave*12); return 0;  case 'C': *note = MIN(NOTE_A10-1, 26 +w->octave*12); return 1;
+		case 'v' : *note = MIN(NOTE_A10-1, 27 +w->octave*12); return 0;  case 'V': *note = MIN(NOTE_A10-1, 27 +w->octave*12); return 1;
+		case 'b' : *note = MIN(NOTE_A10-1, 28 +w->octave*12); return 0;  case 'B': *note = MIN(NOTE_A10-1, 28 +w->octave*12); return 1;
+		case 'n' : *note = MIN(NOTE_A10-1, 29 +w->octave*12); return 0;  case 'N': *note = MIN(NOTE_A10-1, 29 +w->octave*12); return 1;
+		case 'm' : *note = MIN(NOTE_A10-1, 30 +w->octave*12); return 0;  case 'M': *note = MIN(NOTE_A10-1, 30 +w->octave*12); return 1;
+		case ',' : *note = MIN(NOTE_A10-1, 31 +w->octave*12); return 0;  case '<': *note = MIN(NOTE_A10-1, 31 +w->octave*12); return 1;
+		case '.' : *note = MIN(NOTE_A10-1, 32 +w->octave*12); return 0;  case '>': *note = MIN(NOTE_A10-1, 32 +w->octave*12); return 1;
+		case '/' : *note = MIN(NOTE_A10-1, 33 +w->octave*12); return 0;  case '?': *note = MIN(NOTE_A10-1, 33 +w->octave*12); return 1;
 
-		case ' ': *note = NOTE_OFF;  return 0;
-		default:  *note = NOTE_VOID; return 0;
+		case ' ' : *note = NOTE_OFF;  return 0;
+		default  : *note = NOTE_VOID; return 0;
 	}
 }
 
@@ -101,4 +101,22 @@ void previewFileNote(int key)
 {
 	_previewNote(w, key, 0); /* inst arg is unused so it doesn't matter */
 	w->previewtrigger = PTRIG_FILE;
+}
+
+
+enum _INPUT_MODE {
+	INPUT_MODE_RAW,   /* use the raw driver, console */
+	INPUT_MODE_X,     /* use an x hack, xterm        */
+	INPUT_MODE_STDIN, /* interpret stdin, fallback   */
+} INPUT_MODE;
+
+enum _INPUT_MODE getInputMode(void)
+{
+#ifdef DISABLE_RAW_INPUT
+	return INPUT_MODE_STDIN;
+#endif
+	if (getenv("OML_STDIN"))              return INPUT_MODE_STDIN; /* override flag, TODO: document */
+	if (!strcmp(getenv("TERM"), "LINUX")) return INPUT_MODE_RAW;
+	if (getenv("DISPLAY"))                return INPUT_MODE_X;
+	return INPUT_MODE_STDIN; /* fallback */
 }

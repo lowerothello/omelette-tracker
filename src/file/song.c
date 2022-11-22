@@ -1,4 +1,4 @@
-int writeSong(char *path)
+int writeSong(Song *cs, char *path)
 {
 	char *pathext = fileExtension(path, MODULE_EXTENSION);
 	if (!strcmp(pathext, MODULE_EXTENSION))
@@ -14,6 +14,7 @@ int writeSong(char *path)
 	} else strcpy(w->filepath, pathext);
 
 	fcntl(0, F_SETFL, 0); /* blocking */
+
 	FILE *fp = fopen(pathext, "w");
 
 #ifdef DEBUG_LOGS /* TODO: too many #ifdefs here */
@@ -31,38 +32,38 @@ int writeSong(char *path)
 
 	/* counts */
 	fwrite(&samplerate, sizeof(jack_nframes_t), 1, fp);
-	fputc(s->songbpm, fp);
-	fputc(s->instrument->c, fp);
-	fputc(s->track->c, fp);
-	fputc(s->rowhighlight, fp);
-	fwrite(&s->songlen, sizeof(uint16_t), 1, fp);
-	fwrite(s->loop, sizeof(uint16_t), 2, fp);
+	fputc(cs->songbpm, fp);
+	fputc(cs->instrument->c, fp);
+	fputc(cs->track->c, fp);
+	fputc(cs->rowhighlight, fp);
+	fwrite(&cs->songlen, sizeof(uint16_t), 1, fp);
+	fwrite(cs->loop, sizeof(uint16_t), 2, fp);
 
 	/* tracks */
 #ifdef DEBUG_LOGS
-	fprintf(debugfp, "%02x track(s) expected\n", s->track->c);
+	fprintf(debugfp, "%02x track(s) expected\n", cs->track->c);
 #endif
-	for (i = 0; i < s->track->c; i++)
+	for (i = 0; i < cs->track->c; i++)
 	{
 #ifdef DEBUG_LOGS
 		fprintf(debugfp, "TRACK %02x - 0x%zx\n", i, ftell(fp));
 #endif
-		serializeTrack(s, &s->track->v[i], fp);
+		serializeTrack(cs, &cs->track->v[i], fp);
 	}
 
 	/* instrument->i */
-	for (i = 0; i < INSTRUMENT_MAX; i++) fputc(s->instrument->i[i], fp);
+	for (i = 0; i < INSTRUMENT_MAX; i++) fputc(cs->instrument->i[i], fp);
 
 	/* instrument->v */
 #ifdef DEBUG_LOGS
-	fprintf(debugfp, "\n%02x instrument(s) expected\n", s->instrument->c);
+	fprintf(debugfp, "\n%02x instrument(s) expected\n", cs->instrument->c);
 #endif
-	for (i = 0; i < s->instrument->c; i++)
+	for (i = 0; i < cs->instrument->c; i++)
 	{
 #ifdef DEBUG_LOGS
 		fprintf(debugfp, "INSTRUMENT %02x - 0x%zx\n", i, ftell(fp));
 #endif
-		serializeInstrument(&s->instrument->v[i], fp);
+		serializeInstrument(&cs->instrument->v[i], fp);
 	}
 
 	fclose(fp);
@@ -160,3 +161,4 @@ Song *readSong(char *path)
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
 	p->redraw = 1; return cs;
 }
+

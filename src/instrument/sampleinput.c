@@ -1,4 +1,4 @@
-void instrumentSampleUpArrow(int count)
+void instrumentUpArrow(int count)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
@@ -6,7 +6,7 @@ void instrumentSampleUpArrow(int count)
 	else
 		decControlCursor(&cc, count);
 }
-void instrumentSampleDownArrow(int count)
+void instrumentDownArrow(int count)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
@@ -14,19 +14,19 @@ void instrumentSampleDownArrow(int count)
 	else
 		incControlCursor(&cc, count);
 }
-void instrumentSampleLeftArrow(void)
+void instrumentLeftArrow(void)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (!w->showfilebrowser)
 		incControlFieldpointer(&cc);
 }
-void instrumentSampleRightArrow(void)
+void instrumentRightArrow(void)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (!w->showfilebrowser)
 		decControlFieldpointer(&cc);
 }
-void instrumentSampleHome(void)
+void instrumentHome(void)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
@@ -34,7 +34,7 @@ void instrumentSampleHome(void)
 	else
 		setControlCursor(&cc, 0);
 }
-void instrumentSampleEnd(void)
+void instrumentEnd(void)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)

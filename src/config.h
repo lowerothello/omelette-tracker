@@ -37,13 +37,6 @@
 /* file extension used when writing omelette modules */
 #define MODULE_EXTENSION ".egg"
 
-/* ENABLE_BACKGROUND
- *   draw the samples being output to the background of the window.
- *   fairly expensive, and might possibly cause flickering but looks
- *   cool when it works.
- */
-// #define ENABLE_BACKGROUND
-
 /* UPDATE_DELAY
  *   how often to poll for input. since omelette needs to be able
  *   to refresh the screen arbitrarily it can't block waiting for
@@ -82,3 +75,10 @@
 
 /* how many samples to wait between MIDI pitch wheel events */
 #define PITCH_WHEEL_SAMPLES 500
+
+
+/* DISABLE_RAW_INPUT
+ *   only parse stdin, don't try to aquire raw events
+ *   $OML_STDIN can be set in the environment to force this
+ */
+// #define DISABLE_RAW_INPUT 1
