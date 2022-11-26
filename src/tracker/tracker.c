@@ -4,17 +4,17 @@
 #include "chord/track.c"
 #include "chord/macro.c"
 #include "chord/loop.c"
-void trackerDownArrow(int count); /* ugly prototype */
 #include "chord/yank.c"
 #include "chord/delete.c"
+#include "chord/graphic.c"
+#include "chord/insert.c"
 
-void inputPatternHex(Row *r, char value)
+void inputPatternHex(Row *r, char value) /* TODO: remove */
 {
 	short macro;
 	switch (w->trackerfx)
 	{
 		case 0: /* should never be reached */ break;
-		case 1: if (r->inst == INST_VOID) r->inst++; r->inst<<=4; r->inst+=value; break;
 		default:
 			macro = (w->trackerfx - 2)>>1;
 			if (w->trackerfx % 2 == 1) { r->macro[macro].v <<= 4; r->macro[macro].v += value; }
@@ -85,8 +85,9 @@ void trackerAdjustLeft(TrackData *cd) /* mouse adjust only */
 	} regenGlobalRowc(s);
 }
 
-void trackerUpArrow(int count)
+void trackerUpArrow(size_t count)
 {
+	count *= MAX(1, w->count);
 	switch (w->page)
 	{
 		case PAGE_TRACK_VARIANT:
@@ -95,10 +96,13 @@ void trackerUpArrow(int count)
 			else                      w->trackerfy -= count;
 			break;
 		case PAGE_TRACK_EFFECT: effectUpArrow(count); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
-void trackerDownArrow(int count)
+
+void trackerDownArrow(size_t count)
 {
+	count *= MAX(1, w->count);
 	switch (w->page)
 	{
 		case PAGE_TRACK_VARIANT:
@@ -107,10 +111,13 @@ void trackerDownArrow(int count)
 			else                                      w->trackerfy += count;
 			break;
 		case PAGE_TRACK_EFFECT: effectDownArrow(count); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
-void trackerLeftArrow(int count)
+
+void trackerLeftArrow(size_t count)
 {
+	count *= MAX(1, w->count);
 	switch (w->page)
 	{
 		case PAGE_TRACK_VARIANT:
@@ -131,17 +138,23 @@ void trackerLeftArrow(int count)
 				} else w->trackerfx--;
 			} break;
 		case PAGE_TRACK_EFFECT: effectLeftArrow(); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
-void trackLeft(int count)
+
+void trackLeft(size_t count)
 {
+	count *= MAX(1, w->count);
 	if (count > w->track) w->track = 0;
 	else                    w->track -= count;
 	if (w->trackerfx > 3 + s->track->v[w->track].data.variant->macroc * 2)
 		w->trackerfx = 3 + s->track->v[w->track].data.variant->macroc * 2;
+	p->redraw = 1;
 }
-void trackerRightArrow(int count)
+
+void trackerRightArrow(size_t count)
 {
+	count *= MAX(1, w->count);
 	switch (w->page)
 	{
 		case PAGE_TRACK_VARIANT:
@@ -162,15 +175,20 @@ void trackerRightArrow(int count)
 				} else w->trackerfx++;
 			} break;
 		case PAGE_TRACK_EFFECT: effectRightArrow(); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
-void trackRight(int count)
+
+void trackRight(size_t count)
 {
+	count *= MAX(1, w->count);
 	w->track += count;
 	if (w->track > s->track->c-1) w->track = s->track->c-1;
 	if (w->trackerfx > 3 + s->track->v[w->track].data.variant->macroc * 2)
 		w->trackerfx = 3 + s->track->v[w->track].data.variant->macroc * 2;
+	p->redraw = 1;
 }
+
 void trackerHome(void)
 {
 	switch (w->page)
@@ -181,8 +199,10 @@ void trackerHome(void)
 			else                            w->trackerfy = STATE_ROWS;
 			break;
 		case PAGE_TRACK_EFFECT: effectHome(); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
+
 void trackerEnd(void)
 {
 	switch (w->page)
@@ -193,11 +213,13 @@ void trackerEnd(void)
 			else                              w->trackerfy = s->songlen-1;
 			break;
 		case PAGE_TRACK_EFFECT: effectEnd(); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
 
-void cycleUp(int count) /* TODO: count */
+void cycleUp(size_t count) /* TODO: count */
 {
+	count *= MAX(1, w->count);
 	Variant *v;
 	int bound;
 	switch (w->page)
@@ -218,11 +240,15 @@ void cycleUp(int count) /* TODO: count */
 				case T_MODE_VISUALLINE:
 					cycleUpPartPattern(0, 2+s->track->v[w->track].data.variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
+				default: break;
 			} break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
-void cycleDown(int count) /* TODO: count */
+
+void cycleDown(size_t count) /* TODO: count */
 {
+	count *= MAX(1, w->count);
 	Variant *v;
 	int bound;
 	switch (w->page)
@@ -243,12 +269,15 @@ void cycleDown(int count) /* TODO: count */
 				case T_MODE_VISUALLINE:
 					cycleDownPartPattern(0, 2+s->track->v[w->track].data.variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
+				default: break;
 			} break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
 
-void shiftUp(int count)
+void shiftUp(size_t count)
 {
+	count *= MAX(1, w->count);
 	TrackData *cd;
 	switch (w->page)
 	{
@@ -265,10 +294,13 @@ void shiftUp(int count)
 				if (s->loop[0] > w->trackerfy) s->loop[0] -= count;
 				if (s->loop[1] > w->trackerfy) s->loop[1] -= count;
 			} regenGlobalRowc(s); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
-void shiftDown(int count)
+
+void shiftDown(size_t count)
 {
+	count *= MAX(1, w->count);
 	TrackData *cd;
 	switch (w->page)
 	{
@@ -294,24 +326,28 @@ void shiftDown(int count)
 				if (s->loop[0] >= w->trackerfy) s->loop[0] += count;
 				if (s->loop[1] >= w->trackerfy) s->loop[1] += count;
 			} trackerDownArrow(count); regenGlobalRowc(s); break;
-	}
+		default: break;
+	} p->redraw = 1;
 }
 
 
-void trackerPgUp(int count)
+void trackerPgUp(size_t count)
 {
 	switch (w->page)
 	{
 		case PAGE_TRACK_VARIANT: trackerUpArrow(s->rowhighlight*count); break;
-		case PAGE_TRACK_EFFECT: effectPgUp(s->track->v[w->track].data.effect, count); break;
+		case PAGE_TRACK_EFFECT:  effectPgUp(s->track->v[w->track].data.effect, count); break;
+		default: break;
 	}
 }
-void trackerPgDn(int count)
+
+void trackerPgDn(size_t count)
 {
 	switch (w->page)
 	{
 		case PAGE_TRACK_VARIANT: trackerDownArrow(s->rowhighlight*count); break;
-		case PAGE_TRACK_EFFECT: effectPgDn(s->track->v[w->track].data.effect, count); break;
+		case PAGE_TRACK_EFFECT:  effectPgDn(s->track->v[w->track].data.effect, count); break;
+		default: break;
 	}
 }
 
@@ -367,16 +403,16 @@ void insertNote(Row *r, int input)
 		default:
 			if (w->instrumentrecv == INST_REC_LOCK_OK)
 				r->inst = w->instrument;
-			switch (w->keyboardmacro)
+
+			if (w->keyboardmacro)
 			{
-				case 0: charToNote(input, &r->note); break;
-				default:
-					if (charToKmode(input, linkMacroNibbles(w->keyboardmacro), &r->macro[0].v, &r->note))
-					{
-						r->macro[0].c = w->keyboardmacro;
-						r->macro[0].alt = w->keyboardmacroalt;
-					} break;
-			} break;
+				if (charToKmode(input, linkMacroNibbles(w->keyboardmacro), &r->macro[0].v, &r->note))
+				{
+					r->macro[0].c   = w->keyboardmacro;
+					r->macro[0].alt = w->keyboardmacroalt;
+				}
+			} else charToNote(input, &r->note);
+			break;
 	}
 }
 void insertInst(Row *r, int input)
@@ -499,15 +535,6 @@ void toggleTrackSolo(uint8_t track)
 			s->track->v[i].data.mute = 0;
 		applyTrackMutes();
 	} else toggleTrackMute(track);
-}
-
-void leaveSpecialModes(void)
-{
-	switch (w->mode)
-	{
-		case T_MODE_INSERT: break;
-		default: w->mode = T_MODE_NORMAL; break;
-	}
 }
 
 int trackerMouseHeader(int button, int x, int y, short *tx)

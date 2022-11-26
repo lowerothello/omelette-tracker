@@ -108,86 +108,41 @@ BrowserState *initPluginBrowser(void)
 
 void freePluginBrowser(BrowserState *b) { free(b->data); }
 
-
-
 void drawPluginEffectBrowser(void) { drawBrowser(pbstate); }
 
-void pluginEffectBrowserInput(int input)
+
+static void pluginBrowserMouse(enum _BUTTON button, int x, int y)
 {
-	int button, x, y;
-	switch (input)
-	{
-		case '\n': case '\r':
-			pbstate->commit(pbstate);
-			p->redraw = 1; break;
-		case '\033':
-			switch (getchar())
-			{
-				case 'O':
-					switch (getchar())
-					{
-						case 'P': /* xterm f1 */ showTracker   (); break;
-						case 'Q': /* xterm f2 */ showInstrument(); break;
-						case 'R': /* xterm f3 */ showMaster    (); break;
-					} p->redraw = 1; break;
-				case '[': /* CSI */
-					switch (getchar())
-					{
-						case '[':
-							switch (getchar())
-							{
-								case 'A': /* linux f1 */ showTracker   (); break;
-								case 'B': /* linux f2 */ showInstrument(); break;
-								case 'C': /* linux f2 */ showMaster    (); break;
-								case 'E': /* linux f5 */ startPlayback(); break;
-							} p->redraw = 1; break;
-						case 'A': /* up arrow   */ browserUpArrow  (pbstate, 1); p->redraw = 1; break;
-						case 'B': /* down arrow */ browserDownArrow(pbstate, 1); p->redraw = 1; break;
-						case 'H': /* xterm home */ browserHome     (pbstate);    p->redraw = 1; break;
-						case '4': /* end */ if (getchar() == '~') { browserEnd(pbstate); p->redraw = 1; } break;
-						case '5': /* page up / shift+scrollup */
-							switch (getchar())
-							{
-								case '~': /* page up */
-									browserUpArrow(pbstate, ws.ws_row>>1);
-									p->redraw = 1; break;
-								case ';': /* shift+scrollup */
-									getchar(); /* 2 */
-									getchar(); /* ~ */
-									browserUpArrow(pbstate, ws.ws_row>>1);
-									p->redraw = 1; break;
-							} break;
-						case '6': /* page dn / shift+scrolldn */
-							switch (getchar())
-							{
-								case '~': /* page dn */
-									browserDownArrow(pbstate, ws.ws_row>>1);
-									p->redraw = 1; break;
-								case ';': /* shift+scrolldn */
-									getchar(); /* 2 */
-									getchar(); /* ~ */
-									browserDownArrow(pbstate, ws.ws_row>>1);
-									p->redraw = 1; break;
-							} break;
-						case '1':
-							switch (getchar())
-							{
-								case '5': /* xterm f5   */ getchar(); startPlayback(); break;
-								case '7': /*       f6   */ getchar(); stopPlayback (); break;
-								case ';': /* mod+arrow  */ getchar(); break;
-								case '~': /* linux home */ browserHome(pbstate); p->redraw = 1; break;
-							} break;
-						case 'M':
-							/* gcc resolves args backwards so store these getchar calls in vars (tcc doesn't have this bug) */
-							button = getchar();
-							x = getchar()-32;
-							y = getchar()-32;
-							browserMouse(pbstate, button, x, y);
-							p->redraw = 1; break;
-					} break;
-				default: /* escape */
-					w->page = w->oldpage;
-					p->redraw = 1; break;
-			} break;
-	}
+	browserMouse(pbstate, button, x, y);
+	p->redraw = 1;
+}
+
+static void pluginBrowserUpArrow  (void *count) { browserUpArrow  (pbstate, (size_t)count); }
+static void pluginBrowserDownArrow(void *count) { browserDownArrow(pbstate, (size_t)count); }
+static void pluginBrowserPgUp(void *count) { browserUpArrow  (pbstate, (size_t)count * (ws.ws_row>>1)); }
+static void pluginBrowserPgDn(void *count) { browserDownArrow(pbstate, (size_t)count * (ws.ws_row>>1)); }
+
+static void pluginBrowserEscape(void *arg)
+{
+	w->page = w->oldpage;
+	p->redraw = 1;
+}
+static void pluginBrowserCommitBind(void *arg) /* TODO: shitty disambiguation */
+{
+	pbstate->commit(pbstate);
+	p->redraw = 1;
+}
+
+void initPluginEffectBrowserInput(TooltipState *tt)
+{
+	setTooltipTitle(tt, "pluginbrowser");
+	setTooltipMouseCallback(tt, pluginBrowserMouse);
+	addTooltipBind(tt, "cursor up"   , 0, XK_Up       , 0, pluginBrowserUpArrow       , (void*)1);
+	addTooltipBind(tt, "cursor down" , 0, XK_Down     , 0, pluginBrowserDownArrow     , (void*)1);
+	addTooltipBind(tt, "cursor home" , 0, XK_Home     , 0, (void(*)(void*))browserHome, pbstate );
+	addTooltipBind(tt, "cursor end"  , 0, XK_End      , 0, (void(*)(void*))browserEnd , pbstate );
+	addTooltipBind(tt, "cursor pgup" , 0, XK_Page_Up  , 0, pluginBrowserPgUp          , (void*)1);
+	addTooltipBind(tt, "cursor pgdn" , 0, XK_Page_Down, 0, pluginBrowserPgDn          , (void*)1);
+	addTooltipBind(tt, "return"      , 0, XK_Escape   , 0, pluginBrowserEscape        , NULL    );
+	addTooltipBind(tt, "commit"      , 0, XK_Return   , 0, pluginBrowserCommitBind    , NULL    );
 }

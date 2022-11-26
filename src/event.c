@@ -11,7 +11,7 @@ void pushEvent(Event *e)
 	p->eventc++;
 }
 
-/* return true to block the main thread */
+/* return true to block the main thread (skip input&redraw) */
 bool mainM_SEM(void)
 {
 	if (p->eventc)
@@ -32,6 +32,35 @@ bool mainM_SEM(void)
 					p->eventv[0].callback(&p->eventv[0]);
 				p->eventv[0].sem = M_SEM_DONE;
 				break;
+
+			case M_SEM_INPUT: {
+					int keysymindex;
+					unsigned int state;
+					KeySym keysym;
+					XEvent *ev = p->eventv[0].callbackarg;
+					switch (ev->type)
+					{
+						case KeyPress:
+							state = ((XKeyEvent*)ev)->state;
+							if (state&LockMask) state^=ShiftMask;
+							keysymindex = (state&ShiftMask);
+							if (state&ShiftMask) state^=ShiftMask;
+							keysym = XLookupKeysym((XKeyEvent*)ev, keysymindex);
+							inputTooltip(&tt, state, keysym, 0);
+							break;
+						case KeyRelease:
+							state = ((XKeyEvent*)ev)->state;
+							if (state&LockMask) state^=ShiftMask;
+							keysymindex = (state&ShiftMask);
+							if (state&ShiftMask) state^=ShiftMask;
+							keysym = XLookupKeysym((XKeyEvent*)ev, keysymindex);
+							inputTooltip(&tt, state, keysym, 1);
+							break;
+						case Expose: while (XCheckTypedEvent(dpy, Expose, ev)); break;
+					}
+					free(p->eventv[0].callbackarg);
+					p->eventv[0].sem = M_SEM_DONE;
+				} break;
 		}
 	return 0;
 }
@@ -39,9 +68,6 @@ bool mainM_SEM(void)
 /* return true to skip processing entirely */
 bool processM_SEM(void)
 {
-	void *hold;
-	Track *cv;
-	Instrument *iv;
 	if (p->eventc)
 	{
 		switch (p->eventv[0].sem)
@@ -52,36 +78,35 @@ bool processM_SEM(void)
 				return 1;
 
 			case M_SEM_SWAP_PREVIEWSAMPLE_PREVIEW_REQ:
-				_previewNote(p->w, (int)(size_t)p->eventv[0].callbackarg, 0);
-				p->w->previewtrigger = PTRIG_FILE;
-			case M_SEM_SWAP_REQ: /* non-blocking */
-				hold = *p->eventv[0].dest;
-				*p->eventv[0].dest = p->eventv[0].src;
-				p->eventv[0].src = hold;
-				p->eventv[0].sem = M_SEM_CALLBACK;
-				break;
-
+				previewFileNote(p->w, (int)(size_t)p->eventv[0].callbackarg);
+			case M_SEM_SWAP_REQ: { /* non-blocking */
+					void *hold = *p->eventv[0].dest;
+					*p->eventv[0].dest = p->eventv[0].src;
+					p->eventv[0].src = hold;
+					p->eventv[0].sem = M_SEM_CALLBACK;
+				} break;
 			case M_SEM_BPM:
 				setBpm(&p->s->spr, p->s->songbpm);
 				p->eventv[0].sem = M_SEM_DONE;
 				break;
-
-			case M_SEM_TRACK_MUTE:
-				for (uint8_t c = 0; c < p->s->track->c; c++)
-				{
-					cv = &p->s->track->v[c];
-					if (cv->data.mute && instrumentSafe(p->s, cv->r.inst))
+			case M_SEM_TRACK_MUTE: {
+					Track *cv;
+					Instrument *iv;
+					for (uint8_t c = 0; c < p->s->track->c; c++)
 					{
-						iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
-						if (iv->midi.channel != -1)
+						cv = &p->s->track->v[c];
+						if (cv->data.mute && instrumentSafe(p->s, cv->r.inst))
 						{
-							midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->gain.rand>>4)<<3);
-							cv->r.note = NOTE_VOID;
+							iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
+							if (iv->midi.channel != -1)
+							{
+								midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->gain.rand>>4)<<3);
+								cv->r.note = NOTE_VOID;
+							}
 						}
 					}
-				}
-				p->eventv[0].sem = M_SEM_DONE;
-				break;
+					p->eventv[0].sem = M_SEM_DONE;
+				} break;
 		}
 	}
 	return 0;

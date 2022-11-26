@@ -24,11 +24,14 @@ void chordSetMacro(void *_)
 }
 
 
-void setChordMacro(void) {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "macro");
-	addTooltipBind(&tt, "increment macro columns   ", 'a', chordAddMacro, NULL);
-	addTooltipBind(&tt, "decrement macro columns   ", 'd', chordDelMacro, NULL);
-	addTooltipBind(&tt, "set macro columns to count", 'm', chordSetMacro, NULL);
-	w->chord = 'm';
+void setChordMacro(void *tt)
+{
+	clearTooltip(tt);
+	setTooltipTitle(tt, "macro");
+	addCountBinds(tt, 0);
+	addTooltipBind(tt, "increment macro columns   ", 0, XK_a     , TT_DRAW, chordAddMacro, NULL);
+	addTooltipBind(tt, "decrement macro columns   ", 0, XK_d     , TT_DRAW, chordDelMacro, NULL);
+	addTooltipBind(tt, "set macro columns to count", 0, XK_m     , TT_DRAW, chordSetMacro, NULL);
+	addTooltipBind(tt, "return"                    , 0, XK_Escape, 0      , NULL         , NULL);
+	w->chord = 'm'; p->redraw = 1;
 }

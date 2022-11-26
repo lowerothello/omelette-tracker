@@ -11,9 +11,9 @@ run() {
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
+		$(pkg-config --libs --cflags x11) \
 		-lm -Wall -g -pg \
 		src/main.c lib/libdrawille/src/liblibdrawille.a
-	run gcc -o xgrabtest -O0 -lX11 xgrabtest.c
 	return
 }
 
@@ -23,9 +23,9 @@ run() {
 		$(pkg-config --libs --cflags jack) \
 		$(pkg-config --libs --cflags sndfile) \
 		$(pkg-config --libs --cflags lilv-0) \
+		$(pkg-config --libs --cflags x11) \
 		-lm -Wall -g \
 		src/main.c lib/libdrawille/src/liblibdrawille.a
-	run ${CC:-gcc} -o xgrabtest -O$1 -lX11 xgrabtest.c
 	return
 }
 
@@ -34,6 +34,6 @@ run ${CC:-tcc} -o omelette -O0 \
 	$(pkg-config --libs --cflags jack) \
 	$(pkg-config --libs --cflags sndfile) \
 	$(pkg-config --libs --cflags lilv-0) \
+	$(pkg-config --libs --cflags x11) \
 	-lm -Wall -g \
 	src/main.c lib/libdrawille/src/liblibdrawille.a
-run ${CC:-tcc} -o xgrabtest -O0 -lX11 xgrabtest.c

@@ -28,3 +28,5 @@ binds to jump to the current channel's vtrig/note/inst/nth macro
 
 - lv2 atom ports
 - lv2 scale points
+
+- octaves are based of of C instead of A lol

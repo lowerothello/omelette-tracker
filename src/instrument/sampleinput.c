@@ -1,30 +1,34 @@
-void instrumentUpArrow(int count)
+void instrumentUpArrow(size_t count)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
 		browserUpArrow(fbstate, count);
 	else
-		decControlCursor(&cc, count);
+		decControlCursor(&cc, count*MAX(1, w->count));
+	p->redraw = 1;
 }
-void instrumentDownArrow(int count)
+void instrumentDownArrow(size_t count)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
 		browserDownArrow(fbstate, count);
 	else
-		incControlCursor(&cc, count);
+		incControlCursor(&cc, count*MAX(1, w->count));
+	p->redraw = 1;
 }
 void instrumentLeftArrow(void)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (!w->showfilebrowser)
 		incControlFieldpointer(&cc);
+	p->redraw = 1;
 }
 void instrumentRightArrow(void)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (!w->showfilebrowser)
 		decControlFieldpointer(&cc);
+	p->redraw = 1;
 }
 void instrumentHome(void)
 {
@@ -33,6 +37,7 @@ void instrumentHome(void)
 		browserHome(fbstate);
 	else
 		setControlCursor(&cc, 0);
+	p->redraw = 1;
 }
 void instrumentEnd(void)
 {
@@ -41,50 +46,32 @@ void instrumentEnd(void)
 		browserEnd(fbstate);
 	else
 		setControlCursor(&cc, cc.controlc-1);
+	p->redraw = 1;
 }
-void instrumentSampleReturn(void)
+void instrumentSampleReturn(void *arg)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
 		fbstate->commit(fbstate);
 	else
 		toggleKeyControl(&cc);
+	p->redraw = 1;
 }
-void instrumentSampleBackspace(void)
+void instrumentSampleBackspace(void *arg)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
 		filebrowserBackspace(fbstate);
 	else
 		revertKeyControl(&cc);
+	p->redraw = 1;
 }
-void instrumentSamplePreview(int input)
+void instrumentSamplePreview(void *input)
 {
 	if (!instrumentSafe(s, w->instrument)) return;
 	if (w->showfilebrowser)
-		filebrowserPreview(fbstate->data, fbstate->cursor, input);
+		filebrowserPreview(fbstate->data, fbstate->cursor, (size_t)input);
 	else
-		previewNote(input, w->instrument);
-}
-
-int inputInstrumentSample(int input)
-{
-	switch (input)
-	{
-		case '\n': case '\r': instrumentSampleReturn   (); p->redraw = 1; break;
-		case '\b': case 127:  instrumentSampleBackspace(); p->redraw = 1; break;
-		case 1:  /* ^a */ incControlValue(&cc); p->redraw = 1; break;
-		case 24: /* ^x */ decControlValue(&cc); p->redraw = 1; break;
-		/* case '0': w->octave = 0; p->redraw = 1; break;
-		case '1': w->octave = 1; p->redraw = 1; break;
-		case '2': w->octave = 2; p->redraw = 1; break;
-		case '3': w->octave = 3; p->redraw = 1; break;
-		case '4': w->octave = 4; p->redraw = 1; break;
-		case '5': w->octave = 5; p->redraw = 1; break;
-		case '6': w->octave = 6; p->redraw = 1; break;
-		case '7': w->octave = 7; p->redraw = 1; break;
-		case '8': w->octave = 8; p->redraw = 1; break;
-		case '9': w->octave = 9; p->redraw = 1; break; */
-		default: instrumentSamplePreview(input); break;
-	} return 0;
+		previewNote((size_t)input, w->instrument);
+	p->redraw = 1;
 }

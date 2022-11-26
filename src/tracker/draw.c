@@ -139,6 +139,7 @@ static bool startVisual(uint8_t track, int i, int8_t fieldpointer)
 				printf("\033[2;7m");
 				return 1;
 			} break;
+		default: break;
 	} return 0;
 }
 static bool stopVisual(uint8_t track, int i, int8_t fieldpointer)
@@ -163,6 +164,7 @@ static bool stopVisual(uint8_t track, int i, int8_t fieldpointer)
 				printf("\033[22;27m");
 				return 1;
 			} break;
+		default: break;
 	} return 0;
 }
 static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
@@ -217,6 +219,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 						&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 					return 1;
 				break;
+			default: break;
 		}
 	} return 0;
 }
@@ -514,6 +517,7 @@ void drawTracker(void)
 					} else printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
 					printf("\033[6 q");
 					w->command.error[0] = '\0'; break;
+				default: break;
 			}
 
 			switch (w->trackerfx)
@@ -548,5 +552,6 @@ void drawTracker(void)
 			drawControls(&cc);
 
 			break;
+		default: break;
 	}
 }

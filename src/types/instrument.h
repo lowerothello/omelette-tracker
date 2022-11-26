@@ -152,7 +152,7 @@ int addReparentInstrument(uint8_t index, int8_t algorithm, Sample *buffer);
 short emptyInstrument(uint8_t min);
 
 void yankInstrument(uint8_t index);
-void putInstrument (uint8_t index);
+void putInstrument (size_t  index);
 
 int delInstrument(uint8_t index);
 

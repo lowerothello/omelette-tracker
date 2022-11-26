@@ -28,14 +28,17 @@ void chordPasteTrack(void *_)
 }
 
 
-void setChordTrack(void) {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "track");
-	addTooltipBind(&tt, "clear track ", 'c', chordClearTrack,  NULL);
-	addTooltipBind(&tt, "add track   ", 'a', chordAddTrack,    NULL);
-	addTooltipBind(&tt, "add before  ", 'A', chordAddBefore,   NULL);
-	addTooltipBind(&tt, "delete track", 'd', chordDeleteTrack, NULL);
-	addTooltipBind(&tt, "copy track  ", 'y', chordCopyTrack,   NULL);
-	addTooltipBind(&tt, "paste track ", 'p', chordPasteTrack,  NULL);
-	w->chord = 'c';
+void setChordTrack(void *tt)
+{
+	clearTooltip(tt);
+	setTooltipTitle(tt, "track");
+	addCountBinds(tt, 0);
+	addTooltipBind(tt, "clear track ", 0, XK_c     , TT_DRAW, chordClearTrack , NULL);
+	addTooltipBind(tt, "add track   ", 0, XK_a     , TT_DRAW, chordAddTrack   , NULL);
+	addTooltipBind(tt, "add before  ", 0, XK_A     , TT_DRAW, chordAddBefore  , NULL);
+	addTooltipBind(tt, "delete track", 0, XK_d     , TT_DRAW, chordDeleteTrack, NULL);
+	addTooltipBind(tt, "copy track  ", 0, XK_y     , TT_DRAW, chordCopyTrack  , NULL);
+	addTooltipBind(tt, "paste track ", 0, XK_p     , TT_DRAW, chordPasteTrack , NULL);
+	addTooltipBind(tt, "return"      , 0, XK_Escape, 0      , NULL            , NULL);
+	w->chord = 'c'; p->redraw = 1;
 }

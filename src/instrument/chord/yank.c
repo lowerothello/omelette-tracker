@@ -1,10 +1,12 @@
 void chordYankInstrument(void *_) { yankInstrument(w->instrument); p->redraw = 1; }
 
 
-void setChordYankInstrument(void)
+void setChordYankInstrument(void *tt)
 {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "yank");
-	addTooltipBind(&tt, "yank instrument", 'y', chordYankInstrument, NULL);
-	w->chord = 'y';
+	clearTooltip(tt);
+	setTooltipTitle(tt, "yank");
+	addCountBinds(tt, 0);
+	addTooltipBind(tt, "yank instrument", 0, XK_y     , TT_DRAW, chordYankInstrument, NULL);
+	addTooltipBind(tt, "return"         , 0, XK_Escape, 0      , NULL               , NULL);
+	w->chord = 'y'; p->redraw = 1;
 }

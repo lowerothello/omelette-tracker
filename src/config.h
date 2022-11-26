@@ -81,4 +81,4 @@
  *   only parse stdin, don't try to aquire raw events
  *   $OML_STDIN can be set in the environment to force this
  */
-// #define DISABLE_RAW_INPUT 1
+// #define DISABLE_RAW_INPUT

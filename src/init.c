@@ -2,6 +2,8 @@
 pthread_t dummyprocessthread;
 #endif
 
+enum _INPUT_MODE input_mode;
+
 void common_cleanup(int ret)
 {
 	if (w) { free(w); w = NULL; }
@@ -25,6 +27,8 @@ void common_cleanup(int ret)
 	puts("\033[?1002l"); /* disable mouse */
 	puts("\033[?1049l"); /* reset to the front buffer */
 
+	freeRawInput(input_mode);
+
 	exit(ret);
 }
 
@@ -36,7 +40,7 @@ void cleanup(int ret)
 	{
 		if (s)
 		{
-			stopPlayback();
+			stopPlayback(NULL);
 			while (s->playing)
 			{ /* wait until stopPlayback() finishes fully */
 				req.tv_sec = 0;
@@ -92,6 +96,9 @@ void init(int argc, char **argv)
 	term.c_lflag &= (~ECHO & ~ICANON);
 	tcsetattr(1, TCSANOW, &term); /* disable ECHO and ICANON */
 
+	input_mode = getRawInputMode();
+	initRawInput(input_mode);
+
 	initNativeDB();
 	initLadspaDB();
 	initLV2DB();
@@ -120,7 +127,7 @@ void init(int argc, char **argv)
 	buffersize = DEBUG_DUMMY_BUFFERSIZE;
 #endif
 
-	w = calloc(1, sizeof(Window));
+	w = calloc(1, sizeof(UI));
 	if (!w) { puts("out of memory"); common_cleanup(1); }
 	w->octave = 4;
 	w->defvariantlength = 0x7;
@@ -162,7 +169,11 @@ void init(int argc, char **argv)
 	/* trap signals */
 	signal(SIGINT, SIG_IGN);
 	signal(SIGTERM, &cleanup);
+	signal(SIGSEGV, &cleanup); /* TODO: might be unsafe? */
+	signal(SIGFPE,  &cleanup); /* TODO: might be unsafe? */
 	signal(SIGWINCH, &sigwinch);
+
+	resetInput();
 
 	p->resize = 1;
 }

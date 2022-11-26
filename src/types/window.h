@@ -10,7 +10,7 @@ enum { /* TODO: port to the event system */
 	INST_REC_LOCK_CANCEL,       /* cancelling recording has finished     */
 } INST_REC;
 
-enum { /* pages */
+enum _Page {
 	PAGE_TRACK_VARIANT,
 	PAGE_TRACK_EFFECT,
 	PAGE_INSTRUMENT,
@@ -19,19 +19,17 @@ enum { /* pages */
 	PAGE_PLUGINBROWSER,
 } PAGE;
 
-enum { /* tracker modes */
+enum _Mode {
 	T_MODE_NORMAL,
 	T_MODE_INSERT,
 	T_MODE_MOUSEADJUST,
 	T_MODE_VISUAL,
 	T_MODE_VISUALLINE,
 	T_MODE_VISUALREPLACE,
-} T_MODE;
-
-enum { /* instrument modes */
 	I_MODE_NORMAL,
 	I_MODE_INSERT,
-} I_MODE;
+	MODE_COMMAND,
+} MODE;
 
 enum {
 	PTRIG_OK,     /* no queued preview            */
@@ -39,9 +37,22 @@ enum {
 	PTRIG_FILE,   /* queued filebrowser preview   */
 } PTRIG;
 
+typedef struct {
+	short historyc; /* count of history entries */
+	char historyv[COMMAND_HISTORY_LENGTH][COMMAND_LENGTH + 1]; /* history entries */
+
+	short          history;                          /* current point in history */
+	unsigned short commandptr;                       /* command char */
+	char           error[COMMAND_LENGTH + 1];        /* visual error code */
+	char           prompt[COMMAND_LENGTH + 1];       /* prompt */
+	bool          (*callback)(char*, enum _Mode*);   /* (command, mode) mode is *window->mode */
+	void          (*keycallback)(char*);             /* (text) */
+	void          (*tabcallback)(char*);             /* (text) */
+} Command;
+
 #define TRACKERFX_MIN -1
 #define TRACKERFX_VISUAL_MIN 0
-typedef struct _Window {
+typedef struct _UI {
 	Variant *pbvariantv[TRACK_MAX];
 	Vtrig   *vbtrig    [TRACK_MAX];
 	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */
@@ -54,9 +65,9 @@ typedef struct _Window {
 	char filepath[COMMAND_LENGTH];
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
-	command_t      command;
-	unsigned char  page, oldpage;
-	unsigned char  mode, oldmode;
+	Command        command;
+	enum _Page     page, oldpage;
+	enum _Mode     mode, oldmode;
 	unsigned short centre;
 	uint8_t        pattern;    /* focused pattern */
 	uint8_t        track;    /* focused track */
@@ -89,7 +100,7 @@ typedef struct _Window {
 	int8_t wtparam;
 
 	char     chord; /* key chord buffer, vi-style multi-letter commands */
-	uint16_t count; /* action repeat count, follows similar rules to w->chord */
+	uint8_t  count; /* action repeat count, follows similar rules to w->chord */
 	char     octave;
 	uint8_t  step;
 	char     keyboardmacro;
@@ -107,4 +118,4 @@ typedef struct _Window {
 	uint32_t recptr;
 
 	char newfilename[COMMAND_LENGTH]; /* used by readSong */
-} Window;
+} UI;

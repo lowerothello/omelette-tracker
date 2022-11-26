@@ -149,17 +149,20 @@ void chordRowBurn(void *_)
 }
 
 
-void setChordRow(void) {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "variant rows");
-	addTooltipBind(&tt, "scale variant to cursor    ", 'c', chordRowScaleToCursor,     NULL);
-	addTooltipBind(&tt, "set variant length to count", 'r', chordRowLengthToCount,     NULL);
-	addTooltipBind(&tt, "increment variant length   ", 'a', chordRowIncrementLength,   NULL);
-	addTooltipBind(&tt, "decrement variant length   ", 'd', chordRowDecrementLength,   NULL);
-	addTooltipBind(&tt, "double variant length      ", '+', chordRowCopyDown,          NULL);
-	addTooltipBind(&tt, "halve variant length       ", '-', chordRowDiscardHalf,       NULL);
-	addTooltipBind(&tt, "stretch variant length     ", '*', chordRowAddBlanks,         NULL);
-	addTooltipBind(&tt, "shrink variant length      ", '/', chordRowDiscardEveryOther, NULL);
-	addTooltipBind(&tt, "burn variant               ", 'b', chordRowBurn,              NULL);
-	w->chord = 'r';
+void setChordRow(void *tt)
+{
+	clearTooltip(tt);
+	setTooltipTitle(tt, "variant rows");
+	addCountBinds(tt, 0);
+	addTooltipBind(tt, "scale variant to cursor    ", 0, XK_c       , TT_DRAW, chordRowScaleToCursor    , NULL);
+	addTooltipBind(tt, "set variant length to count", 0, XK_r       , TT_DRAW, chordRowLengthToCount    , NULL);
+	addTooltipBind(tt, "increment variant length   ", 0, XK_a       , TT_DRAW, chordRowIncrementLength  , NULL);
+	addTooltipBind(tt, "decrement variant length   ", 0, XK_d       , TT_DRAW, chordRowDecrementLength  , NULL);
+	addTooltipBind(tt, "double variant length      ", 0, XK_plus    , TT_DRAW, chordRowCopyDown         , NULL);
+	addTooltipBind(tt, "halve variant length       ", 0, XK_minus   , TT_DRAW, chordRowDiscardHalf      , NULL);
+	addTooltipBind(tt, "stretch variant length     ", 0, XK_asterisk, TT_DRAW, chordRowAddBlanks        , NULL);
+	addTooltipBind(tt, "shrink variant length      ", 0, XK_slash   , TT_DRAW, chordRowDiscardEveryOther, NULL);
+	addTooltipBind(tt, "burn variant               ", 0, XK_b       , TT_DRAW, chordRowBurn             , NULL);
+	addTooltipBind(tt, "return"                     , 0, XK_Escape  , 0      , NULL                     , NULL);
+	w->chord = 'r'; p->redraw = 1;
 }

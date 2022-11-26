@@ -100,7 +100,7 @@ uint32_t fileBrowserGetLineCount(void *data) { return ((FileBrowserData *)data)-
 void cb_freeSemargSample(Event *e)
 {
 	size_t key = (size_t)e->callbackarg;
-	if (key) previewFileNote(key);
+	if (key) previewFileNote(p->w, key);
 	if (e->src) free(e->src);
 	e->src = NULL;
 }
@@ -145,7 +145,6 @@ void fileBrowserCommit(BrowserState *b)
 
 	char *newpath;
 	int ret = getSubdir(fbd, b->cursor, &newpath);
-	DEBUG=ret; p->redraw=1;
 	switch (ret)
 	{
 		case 1: /* file */
@@ -210,6 +209,6 @@ void filebrowserPreview(FileBrowserData *fbd, uint32_t cursor, int input)
 				e.callbackarg = (void *)((size_t)input);
 				pushEvent(&e);
 			} else strcpy(w->command.error, "failed to preview sample, out of memory");
-		} else previewFileNote(input);
+		} else previewFileNote(w, input);
 	} free(path);
 }

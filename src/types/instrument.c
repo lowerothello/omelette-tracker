@@ -156,10 +156,11 @@ void yankInstrument(uint8_t index)
 	copyInstrument(&w->instrumentbuffer, &s->instrument->v[s->instrument->i[index]]);
 }
 
-void putInstrument(uint8_t index)
+void putInstrument(size_t index)
 {
 	if (s->instrument->i[index] >= s->instrument->c) addInstrument(index, 0, cb_addPutInstrument);
 	else copyInstrument(&s->instrument->v[s->instrument->i[index]], &w->instrumentbuffer);
+	p->redraw = 1;
 }
 
 static void cb_delInstrument(Event *e)

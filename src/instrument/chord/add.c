@@ -30,34 +30,40 @@ void chordRecordCancel(void *_)
 }
 
 
-void setChordAddInst(void)
+void setChordAddInst(void *tt)
 {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "add instrument");
-	addTooltipBind(&tt, "load sample      ", 'a', chordAddSample,       NULL);
-	addTooltipBind(&tt, "record sample    ", 'r', chordRecordToggle,    NULL);
-	addTooltipBind(&tt, "cue sample record", 'q', chordRecordCueToggle, NULL);
-	addTooltipBind(&tt, "MIDI             ", 'm', chordAddMIDI,         NULL);
-	w->chord = 'A';
+	clearTooltip(tt);
+	setTooltipTitle(tt, "add instrument");
+	addCountBinds(tt, 0); /* TODO: count support would be cool */
+	addTooltipBind(tt, "load sample      ", 0, XK_a     , TT_DRAW, chordAddSample      , NULL);
+	addTooltipBind(tt, "record sample    ", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
+	addTooltipBind(tt, "cue sample record", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
+	addTooltipBind(tt, "MIDI             ", 0, XK_m     , TT_DRAW, chordAddMIDI        , NULL);
+	addTooltipBind(tt, "return"           , 0, XK_Escape, 0      , NULL                , NULL);
+	w->chord = 'A'; p->redraw = 1;
 }
-void setChordEmptyInst(void)
+void setChordEmptyInst(void *tt)
 {
 	w->instrument = emptyInstrument(0);
 
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "empty instrument");
-	addTooltipBind(&tt, "load sample      ", 'a', chordAddSample,       NULL);
-	addTooltipBind(&tt, "record sample    ", 'r', chordRecordToggle,    NULL);
-	addTooltipBind(&tt, "cue sample record", 'q', chordRecordCueToggle, NULL);
-	addTooltipBind(&tt, "MIDI             ", 'm', chordAddMIDI,         NULL);
-	w->chord = 'E';
+	clearTooltip(tt);
+	setTooltipTitle(tt, "empty instrument");
+	addCountBinds(tt, 0); /* TODO: count support would be cool */
+	addTooltipBind(tt, "load sample      ", 0, XK_a     , TT_DRAW, chordAddSample      , NULL);
+	addTooltipBind(tt, "record sample    ", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
+	addTooltipBind(tt, "cue sample record", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
+	addTooltipBind(tt, "MIDI             ", 0, XK_m     , TT_DRAW, chordAddMIDI        , NULL);
+	addTooltipBind(tt, "return"           , 0, XK_Escape, 0      , NULL                , NULL);
+	w->chord = 'E'; p->redraw = 1;
 }
-void setChordRecord(void)
+void setChordRecord(void *tt)
 {
-	clearTooltip(&tt);
-	setTooltipTitle(&tt, "record");
-	addTooltipBind(&tt, "toggle recording now", 'r', chordRecordToggle,    NULL);
-	addTooltipBind(&tt, "cue toggle recording", 'q', chordRecordCueToggle, NULL);
-	addTooltipBind(&tt, "cancel recording    ", 'c', chordRecordCancel,    NULL);
-	w->chord = 'R';
+	clearTooltip(tt);
+	setTooltipTitle(tt, "record");
+	addCountBinds(tt, 0); /* TODO: count support would be cool */
+	addTooltipBind(tt, "toggle recording now", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
+	addTooltipBind(tt, "cue toggle recording", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
+	addTooltipBind(tt, "cancel recording    ", 0, XK_c     , TT_DRAW, chordRecordCancel   , NULL);
+	addTooltipBind(tt, "return"              , 0, XK_Escape, 0      , NULL                , NULL);
+	w->chord = 'R'; p->redraw = 1;
 }

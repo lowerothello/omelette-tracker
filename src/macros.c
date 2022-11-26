@@ -17,38 +17,29 @@ bool linkMacroNibbles(char m)
 
 bool changeMacro(int input, char *dest, bool *destalt, bool targetalt)
 {
-	/* use the current value if input is NULL */
+	/* use the current value if input is '\0' */
 	if (!input)
 	{
-		if      (isupper(*dest)) input = *dest + 32;
-		else if (islower(*dest)) input = *dest - 32;
+		if      (isupper(*dest)) input = tolower(*dest);
+		else if (islower(*dest)) input = toupper(*dest);
 		else                     input = *dest;
 	}
 
 	if (targetalt)
 		switch (input)
 		{
-			case 'g': *dest = 'G'; *destalt = targetalt; return 1; /* stereo gain jitter        */
-			case 'G': *dest = 'g'; *destalt = targetalt; return 1; /* smooth stereo gain jitter */
-			case 's': *dest = 'S'; *destalt = targetalt; return 1; /* stereo send jitter        */
-			case 'S': *dest = 's'; *destalt = targetalt; return 1; /* smooth stereo send jitter */
-			case 'f': *dest = 'F'; *destalt = targetalt; return 1; /* filter jitter             */
-			case 'F': *dest = 'f'; *destalt = targetalt; return 1; /* smooth filter jitter      */
-			case 'z': *dest = 'Z'; *destalt = targetalt; return 1; /* filter resonance jitter   */
-			case 'Z': *dest = 'z'; *destalt = targetalt; return 1; /* smooth filter res jitter  */
-			case 'o': *dest = 'O'; *destalt = targetalt; return 1; /* random offset             */
-			case 'O': *dest = 'o'; *destalt = targetalt; return 1; /* random backwards offset   */
-			case 'r': *dest = 'R'; *destalt = targetalt; return 1; /* retrigger                 */
-			case 'R': *dest = 'r'; *destalt = targetalt; return 1; /* backwards retrigger       */
+			case 's': *dest = 'S'; *destalt = targetalt; return 1; /* stereo send jitter           */
+			case 'S': *dest = 's'; *destalt = targetalt; return 1; /* smooth stereo send jitter    */
+			case 'z': *dest = 'Z'; *destalt = targetalt; return 1; /* filter resonance jitter      */
+			case 'Z': *dest = 'z'; *destalt = targetalt; return 1; /* smooth filter res jitter     */
 		}
 	else
 		switch (input)
 		{
-			case ';': *dest = ';'; *destalt = targetalt; return 1; /* MIDI CC target               */
-			case '@': *dest = '@'; *destalt = targetalt; return 1; /* MIDI PC                      */
-			case '.': *dest = '.'; *destalt = targetalt; return 1; /* MIDI CC                      */
+			/* ^xx: row repititions, trigger the row every xx times it's tried */
 			case '%': *dest = '%'; *destalt = targetalt; return 1; /* note chance                  */
 			case 'b': *dest = 'B'; *destalt = targetalt; return 1; /* bpm                          */
+			/* bxx: speed */
 			case 'c': *dest = 'C'; *destalt = targetalt; return 1; /* note cut                     */
 			case 'd': *dest = 'D'; *destalt = targetalt; return 1; /* note delay                   */
 			case 'e': *dest = 'E'; *destalt = targetalt; return 1; /* local envelope times         */
@@ -59,19 +50,33 @@ bool changeMacro(int input, char *dest, bool *destalt, bool targetalt)
 			case 'G': *dest = 'g'; *destalt = targetalt; return 1; /* smooth stereo gain           */
 			case 'h': *dest = 'H'; *destalt = targetalt; return 1; /* local pitch shift            */
 			case 'H': *dest = 'h'; *destalt = targetalt; return 1; /* smooth local pitch shift     */
+			/* Ixx: instrument jitter */
+			case 'j': *dest = 'J'; *destalt = targetalt; return 1; /* stereo gain jitter           */
+			case 'J': *dest = 'j'; *destalt = targetalt; return 1; /* smooth stereo gain jitter    */
+			case 'k': *dest = 'K'; *destalt = targetalt; return 1; /* filter jitter                */
+			case 'K': *dest = 'k'; *destalt = targetalt; return 1; /* smooth filter jitter         */
 			case 'l': *dest = 'L'; *destalt = targetalt; return 1; /* local cycle length high byte */
 			case 'L': *dest = 'l'; *destalt = targetalt; return 1; /* local cycle length low byte  */
 			case 'm': *dest = 'M'; *destalt = targetalt; return 1; /* filter mode                  */
 			case 'M': *dest = 'm'; *destalt = targetalt; return 1; /* smooth filter mode           */
+			/* Nxy: tremolo */
+			/* nxy: autopan */
 			case 'o': *dest = 'O'; *destalt = targetalt; return 1; /* offset                       */
 			case 'O': *dest = 'o'; *destalt = targetalt; return 1; /* backwards offset             */
-			case 'p': *dest = 'P'; *destalt = targetalt; return 1; /* pitch slide                  */
+			case 'p': *dest = 'P'; *destalt = targetalt; return 1; /* portamento                   */
 			case 'P': *dest = 'p'; *destalt = targetalt; return 1; /* microtonal offset            */
+			case 'q': *dest = 'Q'; *destalt = targetalt; return 1; /* retrigger                    */
+			case 'Q': *dest = 'q'; *destalt = targetalt; return 1; /* backwards retrigger          */
 			case 'r': *dest = 'R'; *destalt = targetalt; return 1; /* block retrigger              */
 			case 'R': *dest = 'r'; *destalt = targetalt; return 1; /* backwards block retrigger    */
 			case 's': *dest = 'S'; *destalt = targetalt; return 1; /* send                         */
 			case 'S': *dest = 's'; *destalt = targetalt; return 1; /* smooth send                  */
+			/* Txx: local timestretch        */
+			/* txx: smooth local timestretch */
+			case 'u': *dest = 'U'; *destalt = targetalt; return 1; /* random offset                */
+			case 'U': *dest = 'u'; *destalt = targetalt; return 1; /* random backwards offset      */
 			case 'v': *dest = 'V'; *destalt = targetalt; return 1; /* vibrato                      */
+			/* vxy: stereo vibrato */
 			case 'w': *dest = 'W'; *destalt = targetalt; return 1; /* local pitch width            */
 			case 'W': *dest = 'w'; *destalt = targetalt; return 1; /* smooth local pitch width     */
 			case 'x': *dest = 'X'; *destalt = targetalt; return 1; /* local samplerate             */
@@ -81,77 +86,53 @@ bool changeMacro(int input, char *dest, bool *destalt, bool targetalt)
 		}
 	return 0;
 }
-int changeMacroVtrig(int input, char *dest, bool *destalt, bool targetalt)
+void addMacroBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	/* use the current value if input is NULL */
-	if (!input)
-	{
-		if      (isupper(*dest)) input = *dest + 32;
-		else if (islower(*dest)) input = *dest - 32;
-		else                     input = *dest;
-	}
-
-	if (targetalt)
-		switch (input)
-		{
-			case 'g': *dest = 'G'; *destalt = targetalt; return 1; /* stereo gain jitter        */
-			case 'G': *dest = 'g'; *destalt = targetalt; return 1; /* smooth stereo gain jitter */
-			case 's': *dest = 'S'; *destalt = targetalt; return 1; /* stereo send jitter        */
-			case 'S': *dest = 's'; *destalt = targetalt; return 1; /* smooth stereo send jitter */
-			case 'f': *dest = 'F'; *destalt = targetalt; return 1; /* filter jitter             */
-			case 'F': *dest = 'f'; *destalt = targetalt; return 1; /* smooth filter jitter      */
-			case 'z': *dest = 'Z'; *destalt = targetalt; return 1; /* filter resonance jitter   */
-			case 'Z': *dest = 'z'; *destalt = targetalt; return 1; /* smooth filter res jitter  */
-			case 'o': *dest = 'O'; *destalt = targetalt; return 1; /* random offset             */
-			case 'O': *dest = 'o'; *destalt = targetalt; return 1; /* random backwards offset   */
-			case 'r': *dest = 'R'; *destalt = targetalt; return 1; /* retrigger                 */
-			case 'R': *dest = 'r'; *destalt = targetalt; return 1; /* backwards retrigger       */
-		}
-	else
-		switch (input)
-		{
-			case ';': *dest = ';'; *destalt = targetalt; return 1; /* MIDI CC target               */
-			case '@': *dest = '@'; *destalt = targetalt; return 1; /* MIDI PC                      */
-			case '.': *dest = '.'; *destalt = targetalt; return 1; /* MIDI CC                      */
-			case '%': *dest = '%'; *destalt = targetalt; return 1; /* note chance                  */
-			case 'b': *dest = 'B'; *destalt = targetalt; return 1; /* bpm                          */
-			case 'c': *dest = 'C'; *destalt = targetalt; return 1; /* note cut                     */
-			case 'd': *dest = 'D'; *destalt = targetalt; return 1; /* note delay                   */
-			case 'e': *dest = 'E'; *destalt = targetalt; return 1; /* local envelope times         */
-			case 'E': *dest = 'e'; *destalt = targetalt; return 1; /* local envelope mode          */
-			case 'f': *dest = 'F'; *destalt = targetalt; return 1; /* filter                       */
-			case 'F': *dest = 'f'; *destalt = targetalt; return 1; /* smooth filter                */
-			case 'g': *dest = 'G'; *destalt = targetalt; return 1; /* stereo gain                  */
-			case 'G': *dest = 'g'; *destalt = targetalt; return 1; /* smooth stereo gain           */
-			case 'h': *dest = 'H'; *destalt = targetalt; return 1; /* local pitch shift            */
-			case 'H': *dest = 'h'; *destalt = targetalt; return 1; /* smooth local pitch shift     */
-			case 'l': *dest = 'L'; *destalt = targetalt; return 1; /* local cycle length high byte */
-			case 'L': *dest = 'l'; *destalt = targetalt; return 1; /* local cycle length low byte  */
-			case 'm': *dest = 'M'; *destalt = targetalt; return 1; /* filter mode                  */
-			case 'M': *dest = 'm'; *destalt = targetalt; return 1; /* smooth filter mode           */
-			case 'o': *dest = 'O'; *destalt = targetalt; return 1; /* offset                       */
-			case 'O': *dest = 'o'; *destalt = targetalt; return 1; /* backwards offset             */
-			case 'p': *dest = 'P'; *destalt = targetalt; return 1; /* pitch slide                  */
-			case 'P': *dest = 'p'; *destalt = targetalt; return 1; /* microtonal offset            */
-			case 'r': *dest = 'R'; *destalt = targetalt; return 1; /* block retrigger              */
-			case 'R': *dest = 'r'; *destalt = targetalt; return 1; /* backwards block retrigger    */
-			case 's': *dest = 'S'; *destalt = targetalt; return 1; /* send                         */
-			case 'S': *dest = 's'; *destalt = targetalt; return 1; /* smooth send                  */
-			case 'v': *dest = 'V'; *destalt = targetalt; return 1; /* vibrato                      */
-			case 'w': *dest = 'W'; *destalt = targetalt; return 1; /* local pitch width            */
-			case 'W': *dest = 'w'; *destalt = targetalt; return 1; /* smooth local pitch width     */
-			case 'x': *dest = 'X'; *destalt = targetalt; return 1; /* local samplerate             */
-			case 'X': *dest = 'x'; *destalt = targetalt; return 1; /* target local samplerate      */
-			case 'z': *dest = 'Z'; *destalt = targetalt; return 1; /* filter resonance             */
-			case 'Z': *dest = 'z'; *destalt = targetalt; return 1; /* smooth filter resonance      */
-		}
-	return 0;
+	addTooltipPrettyPrint(tt, prettyname, "macro");
+	addTooltipBind(tt, "note chance"                 , state, XK_percent, 0, callback, (void*)'%');
+	addTooltipBind(tt, "bpm"                         , state, XK_b      , 0, callback, (void*)'B');
+	addTooltipBind(tt, "note cut"                    , state, XK_c      , 0, callback, (void*)'C');
+	addTooltipBind(tt, "note delay"                  , state, XK_d      , 0, callback, (void*)'D');
+	addTooltipBind(tt, "local envelope times"        , state, XK_e      , 0, callback, (void*)'E');
+	addTooltipBind(tt, "local envelope mode"         , state, XK_E      , 0, callback, (void*)'e');
+	addTooltipBind(tt, "filter"                      , state, XK_f      , 0, callback, (void*)'F');
+	addTooltipBind(tt, "smooth filter"               , state, XK_F      , 0, callback, (void*)'f');
+	addTooltipBind(tt, "stereo gain"                 , state, XK_g      , 0, callback, (void*)'G');
+	addTooltipBind(tt, "smooth stereo gain"          , state, XK_G      , 0, callback, (void*)'g');
+	addTooltipBind(tt, "local pitch shift"           , state, XK_h      , 0, callback, (void*)'H');
+	addTooltipBind(tt, "smooth local pitch shift"    , state, XK_H      , 0, callback, (void*)'h');
+	addTooltipBind(tt, "stereo gain jitter"          , state, XK_j      , 0, callback, (void*)'J');
+	addTooltipBind(tt, "smooth stereo gain jitter"   , state, XK_J      , 0, callback, (void*)'j');
+	addTooltipBind(tt, "filter jitter"               , state, XK_k      , 0, callback, (void*)'K');
+	addTooltipBind(tt, "smooth filter jitter"        , state, XK_K      , 0, callback, (void*)'k');
+	addTooltipBind(tt, "local cycle length high byte", state, XK_l      , 0, callback, (void*)'L');
+	addTooltipBind(tt, "local cycle length low byte" , state, XK_L      , 0, callback, (void*)'l');
+	addTooltipBind(tt, "filter mode"                 , state, XK_m      , 0, callback, (void*)'M');
+	addTooltipBind(tt, "smooth filter mode"          , state, XK_M      , 0, callback, (void*)'m');
+	addTooltipBind(tt, "offset"                      , state, XK_o      , 0, callback, (void*)'O');
+	addTooltipBind(tt, "backwards offset"            , state, XK_O      , 0, callback, (void*)'o');
+	addTooltipBind(tt, "portamento"                  , state, XK_p      , 0, callback, (void*)'P');
+	addTooltipBind(tt, "microtonal offset"           , state, XK_P      , 0, callback, (void*)'p');
+	addTooltipBind(tt, "retrigger"                   , state, XK_q      , 0, callback, (void*)'Q');
+	addTooltipBind(tt, "backwards retrigger"         , state, XK_Q      , 0, callback, (void*)'q');
+	addTooltipBind(tt, "block retrigger"             , state, XK_r      , 0, callback, (void*)'R');
+	addTooltipBind(tt, "backwards block retrigger"   , state, XK_R      , 0, callback, (void*)'r');
+	addTooltipBind(tt, "send"                        , state, XK_s      , 0, callback, (void*)'S');
+	addTooltipBind(tt, "smooth send"                 , state, XK_S      , 0, callback, (void*)'s');
+	addTooltipBind(tt, "random offset"               , state, XK_u      , 0, callback, (void*)'U');
+	addTooltipBind(tt, "random backwards offset"     , state, XK_U      , 0, callback, (void*)'u');
+	addTooltipBind(tt, "vibrato"                     , state, XK_v      , 0, callback, (void*)'V');
+	addTooltipBind(tt, "local pitch width"           , state, XK_w      , 0, callback, (void*)'W');
+	addTooltipBind(tt, "smooth local pitch width"    , state, XK_W      , 0, callback, (void*)'w');
+	addTooltipBind(tt, "local samplerate"            , state, XK_x      , 0, callback, (void*)'X');
+	addTooltipBind(tt, "target local samplerate"     , state, XK_X      , 0, callback, (void*)'x');
+	addTooltipBind(tt, "filter resonance"            , state, XK_z      , 0, callback, (void*)'Z');
+	addTooltipBind(tt, "smooth filter resonance"     , state, XK_Z      , 0, callback, (void*)'z');
 }
 
 void descMacro(char c, uint8_t v, bool alt)
 {
-	char text[64];
-	memset(&text, '\0', sizeof(char) * 64);
+	char text[64] = {'\0'};
 	if (alt)
 		switch (c)
 		{

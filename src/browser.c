@@ -50,28 +50,34 @@ void drawBrowser(BrowserState *b)
 	printf("\033[%d;%dH", b->y + (b->h>>1) + b->fyoffset, b->x);
 }
 
-void browserUpArrow(BrowserState *b, int count)
+void browserUpArrow(BrowserState *b, size_t count)
 {
+	count *= MAX(1, w->count);
 	if (b->cursor < count) b->cursor = 0;
 	else                   b->cursor -= count;
 	if (b->cursorCB) b->cursorCB(b->data);
+	p->redraw = 1;
 }
-void browserDownArrow(BrowserState *b, int count)
+void browserDownArrow(BrowserState *b, size_t count)
 {
+	count *= MAX(1, w->count);
 	b->cursor += count;
 	if (b->cursor > b->getLineCount(b->data) - 1)
 		b->cursor = b->getLineCount(b->data) - 1;
 	if (b->cursorCB) b->cursorCB(b->data);
+	p->redraw = 1;
 }
 void browserHome(BrowserState *b)
 {
 	b->cursor = 0;
 	if (b->cursorCB) b->cursorCB(b->data);
+	p->redraw = 1;
 }
 void browserEnd(BrowserState *b)
 {
 	b->cursor = b->getLineCount(b->data) - 1;
 	if (b->cursorCB) b->cursorCB(b->data);
+	p->redraw = 1;
 }
 
 void browserApplyFyoffset(BrowserState *b)

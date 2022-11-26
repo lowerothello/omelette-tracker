@@ -53,6 +53,7 @@ bool vfxVmoRangeIncl(short min, short max, short x)
 }
 
 
+/* TODO: skip the vtrig column? */
 void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	/* walk over allocated tracks and free them */
@@ -79,7 +80,7 @@ void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 			w->vbtrig[i][j] = cd->variant->trig[y1+j];
 	}
 }
-void putPartPattern(void)
+void putPartPattern(bool step) /* TODO: count */
 {
 	uint8_t i, j;
 	int k;
@@ -188,8 +189,11 @@ void putPartPattern(void)
 			else break;
 		} w->trackerfx = vfxToTfx(w->pbfx[0]);
 	} regenGlobalRowc(s);
-}
-void mixPutPartPattern(void)
+	if (step) trackerDownArrow(w->pbvariantv[0]->rowc);
+	p->redraw = 1;
+} void putPartPatternPointer(void *arg) { putPartPattern((bool)(size_t)arg); }
+
+void mixPutPartPattern(bool step) /* TODO: count */
 {
 	uint8_t i, j;
 	int k;
@@ -300,7 +304,10 @@ void mixPutPartPattern(void)
 			else break;
 		} w->trackerfx = vfxToTfx(w->pbfx[0]);
 	} regenGlobalRowc(s);
-}
+	if (step) trackerDownArrow(w->pbvariantv[0]->rowc);
+	p->redraw = 1;
+} void mixPutPartPatternPointer(void *arg) { mixPutPartPattern((bool)(size_t)arg); }
+
 void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	uint8_t i, j;
@@ -363,22 +370,20 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 		else break;
 	regenGlobalRowc(s);
 }
-void loopPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
+void loopPartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 {
 	if (c1 == c2) /* only one track */
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			if (x1 <= -1 && x2 >= -1 && s->track->v[c1].data.variant->trig[j].index != VARIANT_VOID)
+			if (s->track->v[c1].data.variant->trig[j].index != VARIANT_VOID)
 				s->track->v[c1].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
 		}
 	else for (uint8_t i = c1; i <= c2; i++)
 		if (i < s->track->c)
 			for (uint8_t j = y1; j <= y2; j++)
 			{
-				if ((i == c1 && x1 <= -1) /* first track */
-				 || (i != c1))            /* other track */
-					if (s->track->v[i].data.variant->trig[j].index != VARIANT_VOID)
-						s->track->v[i].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
+				if (s->track->v[i].data.variant->trig[j].index != VARIANT_VOID)
+					s->track->v[i].data.variant->trig[j].flags ^= C_VTRIG_LOOP;
 			}
 		else break;
 	regenGlobalRowc(s);

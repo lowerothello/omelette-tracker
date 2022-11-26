@@ -2,6 +2,8 @@
 bool changeMacro(int input, char *dest, bool *destalt, bool alt);
 int changeMacroVtrig(int input, char *dest, bool *destalt, bool alt);
 void descMacro(char c, uint8_t v, bool alt);
+void addMacroBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*));
+
 bool linkMacroNibbles(char m);
 
 char DUMMY(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { return 1; }
