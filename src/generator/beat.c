@@ -1,9 +1,8 @@
-void drawBeat(ControlState *cc, Instrument *iv)
+void drawBeat(ControlState *cc, Instrument *iv, short x)
 {
-	short x = INSTRUMENT_INDEX_COLS + ((ws.ws_col - INSTRUMENT_INDEX_COLS - 38)>>1) +1;
 	short y = ws.ws_row - 12;
 
-	drawWaveform(iv, x, y);
+	drawWaveform(iv);
 	printf("\033[%d;%dH + [          ] +   offset: [        ]", y+4, x);
 	printf("\033[%d;%dHsensitivity:  [  ]  length: [        ]", y+5, x);
 	printf("\033[%d;%dHdecay:        [  ]  loop:   [        ]", y+6, x);

@@ -1,8 +1,7 @@
-void drawMidi(ControlState *cc, Instrument *iv)
+void drawMidi(ControlState *cc, Instrument *iv, short x)
 {
 	clearControls(cc);
 
-	short x = INSTRUMENT_INDEX_COLS + ((ws.ws_col - INSTRUMENT_INDEX_COLS - 18)>>1) +1;
 	short y = ws.ws_row - 12;
 
 	printf("\033[%d;%dHMIDI track:  [ ]", y+0, x);

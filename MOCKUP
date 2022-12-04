@@ -67,6 +67,12 @@
 | 0a ff  ........  ptr jitter    [00]  jitter  [00][0][0] |
 |                                     STOP  &4 +0  125BPM |
 
+C5rate: [00000000]   +  TRIM RANGE  +    +   GRANULAR   +
+decimate:  [f][ff]  offset: [00000000]  grain size: [3fff]
+env:  [0][0][  AR]  length: [00000000]
+channels: [STEREO]  loop:   [00000000]  grain reverse: [ ]
+MIDI channel:  [=]  ping-pong:     [ ]  time:   [ ][+0000]
+gain:     [ ][+00]  loop ramp:    [00]  pitch:[+0000][+00]
 
 | omelette tracker                        v0.97  27       |
 |                   CHANNEL instrument                    |
@@ -188,6 +194,27 @@
 | 0a ff  ........                                         |
 |                                     STOP  &4 +0  125BPM |
 
+┌─────────────── SAMPLER ────────────────┒
+│ ⡢⡄⢌⣠⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢐ ┃
+│ ⣺⣿⣿⣿⣿⣿⣿⣾⣷⣾⣶⣶⣾⣴⣧⣶⣴⣦⣴⣤⣤⣤⣤⣤⣄⣀⣠⣤⣀⣀⣀⣀⣀⣀⣀⣀⣀⣐ ┃
+│ ⣺⣿⣿⣿⡿⡿⡿⠿⠿⣿⠿⠿⢿⢿⡟⡿⢛⠟⠻⠛⠛⠛⠋⠋⠛⠙⠛⠛⠉⠉⠉⠉⠉⠉⠉⠉⠉⢑ ┃
+│ ⠒⠃⢙⠛⠈⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐ ┃
+│ filepath ["/path/to/file            "] ┃
+│                                        ┃
+│ C-5 rate [00000000]  channels [STEREO] ┃
+│ quality  [ ][f][ff]  gain     [ ][+00] ┃
+│ gain env     [00f0]  [LP12]   [ff][00] ┃
+│                                        ┃
+│  + [    CYCLIC] +   offset  [00000000] ┃
+│ unison   [0][0][0]  length  [00003861] ┃
+│ rvrs/ramp  [00][8]  loop    [00000000] ┃
+│ cycle   [3fff][00]  pnpn/ramp  [ ][00] ┃
+│ time    [ ][+0000]                     ┃
+│                      -    PITCH     -  ┃
+│ pan jitter    [00]  root  [+00][+0000] ┃
+│ ptr jitter    [00]  jitter  [00][0][0] ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
 MIDI channel: [0]
 
 
@@ -197,6 +224,159 @@ env:  [0][0][  AR]  length: [00000000]
 channels: [STEREO]  loop:   [00000000]  grain reverse: [ ]
 MIDI channel:  [=]  ping-pong:     [ ]  time:   [ ][+0000]
 gain:     [ ][+00]  loop ramp:    [00]  pitch:[+0000][+00]
+
+┌───────────────────────── SAMPLE ─────────────────────────┒
+│     │                                              │     ┃
+│     │               waveform drawing               │     ┃
+│     │                                              │     ┃
+│     │                                              │     ┃
+│     filepath ["/path/to/file                      "]     ┃
+│     C-5 rate     [00000000]  channels       [STEREO]     ┃
+│     samplerate         [ff]  bitrate             [f]     ┃
+│     gain              [+00]  invert phase        [ ]     ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┌─── OSC0 [          ] ───┒      ┌─── OSC1 [          ] ───┒
+│                         ┃ FM-> │                         ┃
+│                         ┃ [00] │                         ┃
+│                         ┃ <-FM │                         ┃
+│                         ┃ [00] │                         ┃
+│                         ┃      │                         ┃
+│                         ┃      │                         ┃
+│                         ┃ PM-> │                         ┃
+│                         ┃ [00] │                         ┃
+│                         ┃ <-PM │                         ┃
+│                         ┃ [00] │                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛      ┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┌───────────────────────── MIXING ─────────────────────────┒
+│     OSC0 <[80]> OSC1     & [00][+00]    && [00][+00]     ┃
+│                          | [00][+00]    || [ff][+00]     ┃
+│     SUB [0][00][+00]     ~ [00][+00]    != [00][+00]     ┃
+│     NOISE   [00][00]     / [00][+00]     * [00][+00]     ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┌─── LFO0 ───┒ ┌─── LFO1 ───┒ ┌─── ENV0 ────┒┌─── ENV1 ────┒
+│  [LINEAR]  ┃ │  [LINEAR]  ┃ │             ┃│             ┃
+│ duty  [00] ┃ │ duty  [00] ┃ │             ┃│             ┃
+│ rate [010] ┃ │ rate [010] ┃ │ adsr [00f0] ┃│ adsr [00f0] ┃
+┕━━━━━━━━━━━━┛ ┕━━━━━━━━━━━━┛ ┕━━━━━━━━━━━━━┛┕━━━━━━━━━━━━━┛
+┌───────────────────────── FILTER ─────────────────────────┒
+│   │  envelope drawing  │  mode                  [LP12]   ┃
+│   │                    │  cutoff                  [ff]   ┃
+│   envelope        [00f0]  resonance               [00]   ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┌───────────── FILTER ────────────┒
+│  mode  [LP12]  envelope [00f0]  ┃
+│  cutoff  [ff]  resonance  [00]  ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+// wavetable
+┌─── OSC0 [ WAVETABLE] ───┒
+│ offset       [00000000] ┃
+│ width        [00000000] ┃
+│ frame              [00] ┃
+│ pulse width       [+00] ┃
+│ phase sync        [+00] ┃
+│ phase compression [+00] ┃
+│ phase offset       [00] ┃
+│ key track           [X] ┃
+│                         ┃
+│                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+// super
+┌─── OSC0 [     SUPER] ───┒
+│ shape          [LINEAR] ┃
+│ pulse width       [+00] ┃
+│ unison              [0] ┃
+│ detune frequency   [00] ┃
+│ detune phase       [00] ┃
+│ detune stereo      [00] ┃
+│ detune pulse width [00] ┃
+│ key track           [X] ┃
+│                         ┃
+│                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+// union
+┌─── OSC0 [     UNION] ───┒
+│ saw               [+00] ┃
+│ pulse    [00] pw[+00]   ┃
+│ triangle [00] pw[+00]   ┃
+│ sine     [00] pw[+00]   ┃
+│ phase sync        [+00] ┃
+│ phase compression [+00] ┃
+│ phase offset       [00] ┃
+│ key track           [X] ┃
+│                         ┃
+│                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+// fmbank
+┌─── OSC0 [    FMBANK] ───┒
+│     FM         PM       ┃
+│ 1> [0][0][0]  [0][0][0] ┃
+│ 2> [0][0][0]  [0][0][0] ┃
+│ 3> [0][0][0]  [0][0][0] ┃
+│    >1 >2 >3   >1 >2 >3  ┃
+│ # shape duty pitch gain ┃
+│  1 LINEAR +00 +0000 00  ┃
+│  2 LINEAR +00 +0000 00  ┃
+│  3 LINEAR +00 +0000 00  ┃
+│ key track           [X] ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+// sample
+┌─── OSC0 [    SAMPLE] ───┒
+│ offset       [00000000] ┃
+│ length       [00000000] ┃
+│ loop         [00000000] ┃
+│ loop ping-pong      [ ] ┃
+│ loop crossfade     [00] ┃
+│ note stretch        [ ] ┃
+│ key track           [X] ┃
+│                         ┃
+│                         ┃
+│                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+// granular
+┌─── OSC0 [  GRANULAR] ───┒      ┌──── GRAINS [CYCLIC] ────┒
+│ offset       [00000000] ┃      │ grain length     [0000] ┃
+│ length       [00000000] ┃      │ grain offset      [+00] ┃
+│ loop         [00000000] ┃      │ grain pitch       [+00] ┃
+│ loop ping-pong      [ ] ┃      │ grain panning     [+00] ┃
+│ loop crossfade     [00] ┃      │ grain crossfade    [00] ┃
+│ note stretch        [ ] ┃      │ grain reverse       [ ] ┃
+│ timestretch     [+0000] ┃      │ grain repeats      [00] ┃
+│ pitchshift      [+0000] ┃      │                         ┃
+│                         ┃      │                         ┃
+│                         ┃      │                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛      ┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┌─── OSC0 [  GRANULAR] ───┒      ┌──── GRAINS [ TONAL] ────┒
+│ offset       [00000000] ┃      │ formantshift    [+0000] ┃
+│ length       [00000000] ┃      │ pitch stereo      [+00] ┃
+│ loop         [00000000] ┃      │ grain crossfade    [00] ┃
+│ loop ping-pong      [ ] ┃      │                         ┃
+│ loop crossfade     [00] ┃      │                         ┃
+│ note stretch        [ ] ┃      │                         ┃
+│ timestretch     [+0000] ┃      │     TODO: autotune      ┃
+│ pitchshift      [+0000] ┃      │                         ┃
+│                         ┃      │                         ┃
+│                         ┃      │                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛      ┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┌─── OSC0 [  GRANULAR] ───┒      ┌──── GRAINS [  BEAT] ────┒
+│ offset       [00000000] ┃      │ threshold          [80] ┃
+│ length       [00000000] ┃      │ decay              [ff] ┃
+│ loop         [00000000] ┃      │                         ┃
+│ loop ping-pong      [ ] ┃      │                         ┃
+│ loop crossfade     [00] ┃      │                         ┃
+│ note stretch        [ ] ┃      │                         ┃
+│ timestretch     [+0000] ┃      │                         ┃
+│ pitchshift      [+0000] ┃      │                         ┃
+│                         ┃      │                         ┃
+│                         ┃      │                         ┃
+┕━━━━━━━━━━━━━━━━━━━━━━━━━┛      ┕━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
 
 
 ┌────────────────────────────────────┒

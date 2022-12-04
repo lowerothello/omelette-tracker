@@ -1,0 +1,7 @@
+src/filebrowser.c:201:			Sample *newpreviewsample = _loadSample(path);
+src/instrument/instrument.c:38:	if (path) loadSample(w->instrument, path);
+src/types/instrument/instrument.h:163:Sample *_loadSample(char *path);
+src/types/instrument/instrument.h:164:void loadSample(uint8_t index, char *path); /* TODO: atomicity */
+src/types/instrument/instrument.c:212:Sample *_loadSample(char *path)
+src/types/instrument/instrument.c:268:void loadSample(uint8_t index, char *path) /* TODO: atomicity */
+src/types/instrument/instrument.c:272:	Sample *newsample = _loadSample(path);

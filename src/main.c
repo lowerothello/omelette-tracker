@@ -42,7 +42,6 @@ const unsigned char MINOR = 1;
 #define LINENO_COLS 7
 
 #define TRACK_ROW 3 /* rows above the track headers */
-#define PROGRAM_TITLE "omelette tracker"
 
 #define INSTRUMENT_INDEX_COLS 18
 
@@ -60,11 +59,8 @@ struct winsize ws;
 
 
 /* prototypes, TODO: a proper header file */
-void startPlayback(void *_);
-void stopPlayback (void *_);
-void showTracker   (void *_);
-void showInstrument(void *_);
-void showMaster    (void *);
+void startPlayback(void);
+void stopPlayback (void);
 void resetInput(void);
 void cleanup(int);
 
@@ -78,122 +74,17 @@ void cleanup(int);
 #include "dsp.c"
 #include "buttons.h"
 
-#include "event.h"
-
 #include "column.c"
 
 #include "control.c"
-
-#include "types/types.c"
-#include "file/file.c"
-
-
-#include "macros.h"
-
-void setBpm(uint16_t *, uint8_t);
-void midiNoteOff(jack_nframes_t, uint8_t, uint8_t, uint8_t);
-
-#include "draw.c"
 ControlState cc;
 
-#include "input.c"
+#include "file.c"
+#include "types/types.c"
 
-#include "browser.c"
-#include "filebrowser.c"
-#include "effect/pluginbrowser.c"
-
-#include "event.c" /* event handlers */
-
-#include "instrument/waveform.c"
-#include "generator/sampler.c"
-
-#include "process.c"
-#include "macros.c"
-
-#include "effect/input.c"
-#include "effect/draw.c"
-
-#include "master.c"
-
-void trackerDownArrow(size_t count); /* ugly prototype */
-void trackerHome(void); /* ugly prototype */
-#include "tracker/visual.c"
-#include "tracker/tracker.c"
-#include "tracker/draw.h"
-#include "tracker/input.c"
-
-#include "instrument/instrument.c"
-#include "instrument/input.c"
-#include "instrument/draw.c"
 
 #include "init.c"
 
-void drawRuler(void)
-{
-	printf("\033[1m\033[0;%ldH%s\033[m", (ws.ws_col - strlen(PROGRAM_TITLE))>>1, PROGRAM_TITLE);
-	printf("\033[1m\033[0;%dHv%d.%03d  %d\033[m", ws.ws_col - 15, MAJOR, MINOR, DEBUG);
-
-	/* bottom ruler */
-	if (w->mode < 255)
-	{
-		switch (w->instrumentrecv)
-		{
-			case INST_REC_LOCK_CONT: case INST_REC_LOCK_START:
-				if (w->recptr == 0) printf("\033[%d;%dH\033[3m{REC %02x   0s}\033[m", ws.ws_row, ws.ws_col - 50, w->instrumentreci);
-				else                printf("\033[%d;%dH\033[3m{REC %02x %3ds}\033[m", ws.ws_row, ws.ws_col - 50, w->instrumentreci, w->recptr / samplerate + 1);
-				break;
-			case INST_REC_LOCK_CUE_CONT: case INST_REC_LOCK_CUE_START:
-				if (w->recptr == 0) printf("\033[%d;%dH\033[3m[cue]{REC %02x   0s}\033[m", ws.ws_row, ws.ws_col - 55, w->instrumentreci);
-				else                printf("\033[%d;%dH\033[3m[cue]{REC %02x %3ds}\033[m", ws.ws_row, ws.ws_col - 55, w->instrumentreci, w->recptr / samplerate + 1);
-				break;
-		}
-
-		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
-		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
-
-		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 19);
-
-		if (w->follow) printf(">");
-		else           printf(" ");
-
-		if (s->playing == PLAYING_STOP) printf("STOP");
-		else                            printf("PLAY");
-
-		if (w->follow) printf(">");
-		else           printf(" ");
-
-		printf(" &%d +%x  \033[1m%3dBPM\033[m", w->octave, w->step, s->songbpm);
-	}
-}
-void redraw(void)
-{
-	fcntl(0, F_SETFL, 0); /* blocking */
-	/* "CSI 2 J"     clears the screen              */
-	/* "CSI ? 2 5 h"  ensures the cursor is visible  */
-	/* "CSI 2   q" sets the cursor shape to block */
-	puts("\033[2J\033[?25h\033[2 q");
-
-	if (ws.ws_row < 14 + TRACK_ROW || ws.ws_col < 38 + INSTRUMENT_INDEX_COLS - 1)
-	{
-		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
-	} else
-	{
-		drawRuler();
-		switch (w->page)
-		{
-			case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT: drawTracker();             break;
-			case PAGE_INSTRUMENT:                            drawInstrument();          break;
-			case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:  drawMaster();              break;
-			case PAGE_PLUGINBROWSER:                         drawPluginEffectBrowser(); break;
-		}
-		drawCommand(&w->command, w->mode);
-	}
-
-	drawTooltip(&tt);
-
-	fflush(stdout);
-	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-}
 
 void filebrowserEditCallback(char *path)
 {
@@ -227,7 +118,7 @@ void leaveSpecialModes(void)
 		default: break;
 	}
 }
-void startPlayback(void *_)
+void startPlayback(void)
 {
 	leaveSpecialModes();
 	if (s->loop[1]) s->playfy = s->loop[0];
@@ -238,7 +129,7 @@ void startPlayback(void *_)
 	s->playing = PLAYING_START;
 	p->redraw = 1;
 }
-void stopPlayback(void *_)
+void stopPlayback(void)
 {
 	leaveSpecialModes();
 	if (s->playing)
@@ -254,53 +145,6 @@ void stopPlayback(void *_)
 	w->mode = 0; /* always go to mode 0 on stop */
 	p->redraw = 1;
 }
-
-void showTracker(void *_)
-{
-	switch (w->page)
-	{
-		case PAGE_TRACK_VARIANT:
-			w->effectscroll = 0;
-			w->mode = T_MODE_NORMAL;
-			w->page = PAGE_TRACK_EFFECT;
-			break;
-		case PAGE_TRACK_EFFECT:
-			w->page = PAGE_TRACK_VARIANT;
-			break;
-		default:
-			w->page = PAGE_TRACK_VARIANT;
-			w->mode = T_MODE_NORMAL;
-			break;
-	}
-	freePreviewSample();
-	p->redraw = 1;
-}
-void showInstrument(void *_)
-{
-	w->showfilebrowser = 0;
-	w->page = PAGE_INSTRUMENT;
-	w->mode = I_MODE_NORMAL;
-
-	if (s->instrument->i[w->instrument] != INSTRUMENT_VOID)
-		resetWaveform();
-	freePreviewSample();
-	p->redraw = 1;
-}
-void showMaster(void *_)
-{
-	switch (w->page)
-	{
-		case PAGE_EFFECT_MASTER: w->page = PAGE_EFFECT_SEND; break;
-		case PAGE_EFFECT_SEND: w->page = PAGE_EFFECT_MASTER; break;
-		default:
-			w->page = PAGE_EFFECT_MASTER;
-			w->mode = 0;
-			break;
-	}
-	freePreviewSample();
-	p->redraw = 1;
-}
-
 
 static bool commandCallback(char *command, enum _Mode *mode)
 {
@@ -349,7 +193,7 @@ static void enterCommandMode(void *arg)
 	p->redraw = 1;
 }
 
-static void showFileInfo(void *_)
+static void showFileInfo(void)
 {
 	if (strlen(w->filepath))
 		sprintf(w->command.error, "\"%.*s\"", COMMAND_LENGTH - 2, w->filepath);
@@ -357,23 +201,29 @@ static void showFileInfo(void *_)
 		strcpy(w->command.error, "No file loaded");
 	p->redraw = 1;
 }
+static void toggleTooltip(void)
+{
+	w->showtooltip = !w->showtooltip;
+	p->redraw = 1;
+}
 void resetInput(void)
 {
 	w->count = 0;
 	w->chord = 0;
 	clearTooltip(&tt);
-	addTooltipBind(&tt, "show file info" , ControlMask, XK_G    , 0, showFileInfo    , NULL);
-	addTooltipBind(&tt, "command mode"   , 0          , XK_colon, 0, enterCommandMode, NULL);
-	addTooltipBind(&tt, "show tracker"   , 0          , XK_F1   , 0, showTracker     , NULL);
-	addTooltipBind(&tt, "show instrument", 0          , XK_F2   , 0, showInstrument  , NULL);
-	addTooltipBind(&tt, "show master"    , 0          , XK_F3   , 0, showMaster      , NULL);
-	addTooltipBind(&tt, "start playback" , 0          , XK_F5   , 0, startPlayback   , NULL);
-	addTooltipBind(&tt, "stop playback"  , 0          , XK_F6   , 0, stopPlayback    , NULL);
+	addTooltipBind(&tt, "show file info" , ControlMask, XK_G    , 0, (void(*)(void*))showFileInfo  , NULL);
+	addTooltipBind(&tt, "show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
+	addTooltipBind(&tt, "show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);
+	addTooltipBind(&tt, "show master"    , 0          , XK_F3   , 0, (void(*)(void*))showMaster    , NULL);
+	addTooltipBind(&tt, "start playback" , 0          , XK_F5   , 0, (void(*)(void*))startPlayback , NULL);
+	addTooltipBind(&tt, "stop playback"  , 0          , XK_F6   , 0, (void(*)(void*))stopPlayback  , NULL);
 
 	switch (w->mode)
 	{
 		case MODE_COMMAND: initCommandInput(&tt); break;
 		default:
+			addTooltipBind(&tt, "command mode", 0, XK_colon   , 0, enterCommandMode             , NULL);
+			addTooltipBind(&tt, "hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
 			switch (w->page)
 			{
 				case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT: initTrackerInput            (&tt); break;

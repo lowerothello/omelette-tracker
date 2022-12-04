@@ -1,7 +1,8 @@
+#include "draw.h"
+#include "event.h"
+
 struct _Song;
 struct _UI;
-
-#define EVENT_QUEUE_MAX 16
 typedef struct {
 	struct _Song *s;
 	struct _UI   *w;
@@ -17,14 +18,21 @@ PlaybackInfo *p;
 #include "tooltip.c"
 TooltipState tt;
 
+enum WAVE_SHAPE {
+	SHAPE_PULSE,
+	SHAPE_LINEAR,
+	SHAPE_SINE,
+};
 
-#include "effect.h"
-#include "variant.h"
-#include "track.h"
-#include "instrument.h"
+#include "modulation/envelope.c"
+#include "modulation/lfo.c"
+
+#include "effect/effect.h"
+#include "tracker/tracker.h"
+#include "instrument/instrument.h"
+#include "master.h"
 
 #include "song.h"
-#include "song.c"
 Song *s;
 
 #define COMMAND_LENGTH 512
@@ -33,11 +41,28 @@ Song *s;
 #include "window.h"
 UI *w;
 
-#include "effect.c"
-#include "variant.c"
-#include "track.c"
-#include "instrument.c"
+#include "browser.h"
+#include "filebrowser.h"
+#include "pluginbrowser.h"
 
+#include "macros.h"
+#include "process.h"
+
+#include "song.c"
+#include "window.c"
+
+#include "input.c"
+#include "event.c"
+
+#include "../generator/sampler.h"
+
+#include "effect/effect.c"
+#include "tracker/tracker.c"
+#include "instrument/instrument.c"
+#include "master.c"
+
+#include "filebrowser.c"
+#include "pluginbrowser.c"
 #include "command.c"
 
 typedef struct {
@@ -45,3 +70,8 @@ typedef struct {
 	void *midiout;
 } portbuffers;
 portbuffers pb;
+
+#include "macros.c"
+#include "process.c"
+
+#include "draw.c"

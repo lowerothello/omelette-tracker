@@ -38,3 +38,7 @@ Song *_addSong(void);
 Song * addSong(void);
 void delSong(Song *cs);
 void reapplyBpm(void);
+void setBpmCount(void);
+
+int writeSong(Song *cs, char *path);
+Song *readSong(char *path);

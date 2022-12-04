@@ -121,17 +121,19 @@ void inputTooltip(TooltipState *tt, unsigned int state, KeySym input, bool relea
 		}
 }
 
-void drawTooltipLine(short x, short y, short maxprettynamelen, const char *prettyname, unsigned int state, const char *keynameupper, const char *keynamelower)
+static void drawTooltipLine(short x, short y, short maxprettynamelen, const char *prettyname, unsigned int state, const char *keynameupper, const char *keynamelower)
 {
 	char modbuffer[4] = {'\0'};
 	if (state&Mod1Mask)    strcat(modbuffer, "^[");
 	if (state&ControlMask) strcat(modbuffer, "^" );
 	if (state&(ShiftMask^LockMask))
-		printf("\033[%d;%dH│ %s\033[%ldC\033[2m%s%s\033[m │", y, x, prettyname,
+		printf("\033[%d;%dH│ %s\033[%ldX\033[%ldC\033[2m%s%s\033[m │", y, x, prettyname,
+				(maxprettynamelen - strlen(prettyname)) + (MOD_WIDTH-1 - strlen(keynameupper) - strlen(modbuffer)),
 				(maxprettynamelen - strlen(prettyname)) + (MOD_WIDTH-1 - strlen(keynameupper) - strlen(modbuffer)),
 				modbuffer, keynameupper);
 	else
-		printf("\033[%d;%dH│ %s\033[%ldC\033[2m%s%s\033[m │", y, x, prettyname,
+		printf("\033[%d;%dH│ %s\033[%ldX\033[%ldC\033[2m%s%s\033[m │", y, x, prettyname,
+				(maxprettynamelen - strlen(prettyname)) + (MOD_WIDTH-1 - strlen(keynamelower) - strlen(modbuffer)),
 				(maxprettynamelen - strlen(prettyname)) + (MOD_WIDTH-1 - strlen(keynamelower) - strlen(modbuffer)),
 				modbuffer, keynamelower);
 }
@@ -147,7 +149,7 @@ void drawTooltip(TooltipState *tt)
 	short w = tt->maxprettynamelen + 2 + MOD_WIDTH;
 	short h = drawc + 2;
 	short x = ws.ws_col - w - 1;
-	short y = ws.ws_row - h - 1;
+	short y = ws.ws_row - h;
 
 	char charbufferupper[2] = {'\0'};
 	char charbufferlower[2] = {'\0'};
@@ -260,7 +262,7 @@ void addNoteBinds(TooltipState *tt, const char *prettyname, unsigned int state, 
 }
 void addHexBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, "0x0-0xf");
+	addTooltipPrettyPrint(tt, prettyname, "0-f");
 	addTooltipBind(tt, "0x0", state, XK_0, 0, callback, (void*)0x0);
 	addTooltipBind(tt, "0x1", state, XK_1, 0, callback, (void*)0x1);
 	addTooltipBind(tt, "0x2", state, XK_2, 0, callback, (void*)0x2);

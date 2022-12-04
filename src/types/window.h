@@ -99,6 +99,7 @@ typedef struct _UI {
 
 	int8_t wtparam;
 
+	bool     showtooltip;
 	char     chord; /* key chord buffer, vi-style multi-letter commands */
 	uint8_t  count; /* action repeat count, follows similar rules to w->chord */
 	char     octave;
@@ -119,3 +120,8 @@ typedef struct _UI {
 
 	char newfilename[COMMAND_LENGTH]; /* used by readSong */
 } UI;
+
+void setBpmCount(void);
+void showTracker(void); /* cast to (void(*)(void*)) */
+void showInstrument(void); /* cast to (void(*)(void*)) */
+void showMaster(void); /* cast to (void(*)(void*)) */

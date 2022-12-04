@@ -1,15 +1,3 @@
-/* the threshold where processing is no longer necessary */
-/* to avoid denormals and otherwise wasted cycles        */
-#define NOISE_GATE 0.00001f
-
-enum {
-	SAMPLE_TRACKS_STEREO,
-	SAMPLE_TRACKS_LEFT,
-	SAMPLE_TRACKS_RIGHT,
-	SAMPLE_TRACKS_MIX,
-	SAMPLE_TRACKS_SWAP,
-} SAMPLE_TRACKS;
-
 /* downsampling approximation                 */
 /* not perfectly accurate cos floats are used */
 uint32_t calcDecimate(uint8_t decimate, uint32_t pointer)
@@ -85,53 +73,86 @@ float semitoneShortToMultiplier(int16_t input)
 	else           return powf(M_12_ROOT_2, (input>>12)*12 + (input&0x0fff)*DIV256);
 }
 
-
-#define ENVELOPE_A_STEP 0.02f
-#define ENVELOPE_A_MIN  0.00f
-
-#define ENVELOPE_D_STEP 0.13f
-#define ENVELOPE_D_MIN  0.01f
-/* returns true if the envelope has finished, sets cv->envgain to the gain multiplier */
-bool envelope(uint16_t env, Track *cv, uint32_t pointer, float *envgain)
+void drawInstrumentSampler(ControlState *cc, Instrument *iv, short x)
 {
-	uint32_t a = (((env & 0xf000) >> 12)+ENVELOPE_A_MIN) * ENVELOPE_A_STEP * samplerate;
-	uint32_t d = (((env & 0x0f00) >> 8 )+ENVELOPE_D_MIN) * ENVELOPE_D_STEP * samplerate;
-	float    s =  ((env & 0x00f0) >> 4 ) * DIV15;
-	uint32_t r =  ((env & 0x000f)       +ENVELOPE_D_MIN) * ENVELOPE_D_STEP * samplerate;
+	short y = ws.ws_row - 12;
 
-	if (cv->data.release)
+	if (iv->algorithm == INST_ALG_MIDI) drawMidi(cc, iv, x);
+	else
 	{
-		if (r) *envgain = MAX(*envgain - (1.0f/r), 0.0f);
-		else   *envgain = 0.0f;
-	} else
-	{
-		if (pointer <= a)
+		if (w->showfilebrowser)
+			drawBrowser(fbstate);
+		else
 		{
-			if (a) *envgain = MIN(*envgain + (1.0f/a), 1.0f);
-			else   *envgain = 1.0f;
-		} else if (pointer < a+d) *envgain -= ((1.0f - s)/d);
-		else                      *envgain = s;
+			clearControls(cc);
+
+			printf("\033[%d;%dH%ds", TRACK_ROW - 1, ws.ws_col - 10, (int)((iv->sample->length * (float)iv->sample->rate/(float)samplerate) / samplerate) + 1);
+
+			drawWaveform(iv);
+			printf("\033[%d;%dHC5 rate: [        ]  channel: [      ]", y+0, x);
+			printf("\033[%d;%dHquality: [ ][ ][  ]  gain:    [ ][   ]", y+1, x);
+			printf("\033[%d;%dHgain env:    [    ]  [    ]:  [  ][  ]", y+2, x);
+
+			addControlInt(cc, x+10, y+0, &iv->sample->rate, 8, 0x0, 0xffffffff, iv->sample->defrate, 0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+10, y+1, &iv->interpolate, 0, 0,   1,      0,      0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+13, y+1, &iv->bitdepth,    1, 0x0, 0xf,    0xf,    0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+16, y+1, &iv->samplerate,  2, 0x0, 0xff,   0xff,   0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+14, y+2, &iv->envelope,    4, 0x0, 0xffff, 0x00f0, 0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+31, y+0, &iv->trackmode, 1, 0,   4,      0,      6, 5, instrumentSamplerControlCallback, NULL);
+				addScalePointInt(cc, "STEREO", SAMPLE_CHANNELS_STEREO);
+				addScalePointInt(cc, "  LEFT", SAMPLE_CHANNELS_LEFT  );
+				addScalePointInt(cc, " RIGHT", SAMPLE_CHANNELS_RIGHT );
+				addScalePointInt(cc, "   MIX", SAMPLE_CHANNELS_MIX   );
+				addScalePointInt(cc, "  SWAP", SAMPLE_CHANNELS_SWAP  );
+			addControlInt(cc, x+31, y+1, &iv->invert,     0, 0,    1,   0, 0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+34, y+1, &iv->gain,       3, -128, 127, 0, 0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+22, y+2, &iv->filtermode, 1, 0,    7,   0, 4, 8, instrumentSamplerControlCallback, NULL);
+				addScalePointInt(cc, "LP12", 0); /* no enums for these cos they make more sense without */
+				addScalePointInt(cc, "HP12", 1);
+				addScalePointInt(cc, "BP12", 2);
+				addScalePointInt(cc, "NT12", 3);
+				addScalePointInt(cc, "LP24", 4);
+				addScalePointInt(cc, "HP24", 5);
+				addScalePointInt(cc, "BP24", 6);
+				addScalePointInt(cc, "NT24", 7);
+			addControlInt(cc, x+31, y+2, &iv->filtercutoff,    2, 0x0, 0xff, 0xff, 0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(cc, x+35, y+2, &iv->filterresonance, 2, 0x0, 0xff, 0x0,  0, 0, instrumentSamplerControlCallback, NULL);
+
+			addControlInt(cc, x+4, y+4, &iv->algorithm, 1, 0, 4, 1, 10, 5, instrumentSamplerControlCallback, NULL);
+				addScalePointInt(cc, "   MINIMAL", INST_ALG_SIMPLE   );
+				addScalePointInt(cc, "    CYCLIC", INST_ALG_CYCLIC   );
+				addScalePointInt(cc, "     TONAL", INST_ALG_TONAL    );
+				addScalePointInt(cc, "      BEAT", INST_ALG_BEAT     );
+				addScalePointInt(cc, " WAVETABLE", INST_ALG_WAVETABLE);
+
+			switch (iv->algorithm)
+			{
+				case INST_ALG_SIMPLE: printf("\033[%d;%dH + [          ] + ", y+4, x); break;
+				case INST_ALG_CYCLIC:    drawCyclic   (cc, iv, x); break;
+				case INST_ALG_TONAL:     drawTonal    (cc, iv, x); break;
+				case INST_ALG_BEAT:      drawBeat     (cc, iv, x); break;
+				case INST_ALG_WAVETABLE: drawWavetable(cc, iv, x); break;
+			}
+
+			drawControls(cc);
+		}
 	}
-
-	if (pointer > a && *envgain < NOISE_GATE) return 1;
-	return 0;
 }
-
-#include "minimal.c"
-#include "midi.c"
-#include "cyclic.c"
-#include "tonal.c"
-#include "beat.c"
-#include "wavetable.c"
 
 void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	Instrument *iv = &p->s->instrument->v[realinst];
 	if (!iv->sample->length || iv->algorithm == INST_ALG_MIDI) return; /* TODO: optimize midi further in process.c */
 
-	uint16_t env = iv->envelope; if (cv->localenvelope != -1) env = cv->localenvelope;
+	Envelope env;
+	env.adsr = iv->envelope; if (cv->localenvelope != -1) env.adsr = cv->localenvelope;
+	applyEnvelopeControlChanges(&env);
+	env.output = cv->envgain;
+	env.release = cv->data.release;
+	env.pointer = pointer;
 	/* return if the envelope has finished */
-	if (envelope(env, cv, pointer, &cv->envgain)) return;
+	if (envelope(&env)) return;
+	cv->envgain = env.output;
 
 	uint8_t localsamplerate;
 	switch (iv->algorithm)
@@ -148,11 +169,11 @@ void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uin
 	short hold;
 	switch (iv->trackmode)
 	{
-		case SAMPLE_TRACKS_STEREO: break;
-		case SAMPLE_TRACKS_LEFT:   *r = *l; break;
-		case SAMPLE_TRACKS_RIGHT:  *l = *r; break;
-		case SAMPLE_TRACKS_MIX:    *l = *r = ((*l>>1) + (*r>>1)); break;
-		case SAMPLE_TRACKS_SWAP:   hold = *l; *l = *r; *r = hold; break;
+		case SAMPLE_CHANNELS_STEREO: break;
+		case SAMPLE_CHANNELS_LEFT:   *r = *l; break;
+		case SAMPLE_CHANNELS_RIGHT:  *l = *r; break;
+		case SAMPLE_CHANNELS_MIX:    *l = *r = ((*l>>1) + (*r>>1)); break;
+		case SAMPLE_CHANNELS_SWAP:   hold = *l; *l = *r; *r = hold; break;
 	}
 
 	if (iv->invert) { *l *= -1; *r *= -1; }

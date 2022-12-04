@@ -82,3 +82,5 @@
  *   $OML_STDIN can be set in the environment to force this
  */
 // #define DISABLE_RAW_INPUT
+
+#define PROGRAM_TITLE "omelette tracker"

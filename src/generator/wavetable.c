@@ -1,9 +1,8 @@
-void drawWavetable(ControlState *cc, Instrument *iv)
+void drawWavetable(ControlState *cc, Instrument *iv, short x)
 {
-	short x = INSTRUMENT_INDEX_COLS + ((ws.ws_col - INSTRUMENT_INDEX_COLS - 38)>>1) +1;
 	short y = ws.ws_row - 12;
 
-	drawWaveform(iv, x, y);
+	drawWaveform(iv);
 	printf("\033[%d;%dH + [          ] +   [                ]", y+4,  x);
 	printf("\033[%d;%dHunison:  [ ][ ][ ]                    ", y+5,  x);
 	printf("\033[%d;%dHoffset: [        ]                    ", y+6,  x);
@@ -52,9 +51,6 @@ void drawWavetable(ControlState *cc, Instrument *iv)
 	} */
 }
 
-#define LFO_MAX_S 0.1f
-#define LFO_MIN_S 10.0f
-
 void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	float hold;
@@ -63,7 +59,14 @@ void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uin
 
 	// uint16_t env = iv->envelope; if (cv->localenvelope != -1) env = cv->localenvelope;
 	/* mod envelope */
-	envelope(iv->wavetable.envelope, cv, pointer, &cv->modenvgain);
+	Envelope env;
+	env.adsr = iv->wavetable.envelope;
+	applyEnvelopeControlChanges(&env);
+	env.output = cv->modenvgain;
+	env.release = cv->data.release;
+	env.pointer = pointer;
+	envelope(&env);
+	cv->modenvgain = env.output;
 	/* mod lfo */
 	uint32_t lfolen = MAX(1, (uint32_t)(LFO_MAX_S * samplerate + (1.0f - (iv->wavetable.lfospeed*DIV255)) * samplerate * LFO_MIN_S));
 	float lfophase = (float)(pointer % lfolen) / lfolen;

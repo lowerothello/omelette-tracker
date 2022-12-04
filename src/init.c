@@ -40,7 +40,7 @@ void cleanup(int ret)
 	{
 		if (s)
 		{
-			stopPlayback(NULL);
+			stopPlayback();
 			while (s->playing)
 			{ /* wait until stopPlayback() finishes fully */
 				req.tv_sec = 0;
@@ -148,10 +148,10 @@ void init(int argc, char **argv)
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
-	jack_set_process_callback(client, process, p);
+	jack_set_process_callback(client, (int(*)(jack_nframes_t, void*))process, p);
 	jack_activate(client);
 #else
-	pthread_create(&dummyprocessthread, NULL, process, p);
+	pthread_create(&dummyprocessthread, NULL, (void*(*)(void*))dummyProcess, p);
 #endif
 
 	fbstate = initFileBrowser(SAMPLES_DIR, sampleLoadCallback);
