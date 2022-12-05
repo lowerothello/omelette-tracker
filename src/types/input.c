@@ -213,6 +213,22 @@ static unsigned int ansiToModState(int input)
 	return ret;
 }
 
+/* TODO: doesn't really belong here, idk a better way to handle this */
+void setDefaultColour(int colour, unsigned int r, unsigned int g, unsigned int b)
+{
+	tc.colour[colour].r = r;
+	tc.colour[colour].g = g;
+	tc.colour[colour].b = b;
+
+	/* trigger a redraw when all 8 colours have been read in */
+	tc.semaphore++;
+	if (tc.semaphore >= 8)
+	{
+		p->redraw = 1;
+		tc.semaphore -= 8;
+	}
+}
+
 void handleStdin(TooltipState *tt)
 {
 	unsigned int mod = 0;
@@ -223,6 +239,15 @@ void handleStdin(TooltipState *tt)
 			case EOF: return;
 			case '\033': /* escape */ switch (input = getchar()) {
 					case EOF: inputTooltip(tt, mod, XK_Escape, 0); return;
+					case ']': /* OSC */ switch (input = getchar()) {
+							case '4': {
+									int colour;
+									unsigned int r, g, b;
+									scanf(";%d;rgb:%02x%*02x/%02x%*02x/%02x%*02x\007",
+											&colour, &r, &g, &b);
+									setDefaultColour(colour, r, g, b);
+								} break;
+						} break;
 					case 'O': /* SS3 */ switch (input = getchar()) {
 							case 'P': inputTooltip(tt, mod, XK_F1, 0); break;
 							case 'Q': inputTooltip(tt, mod, XK_F2, 0); break;
@@ -309,6 +334,7 @@ void handleStdin(TooltipState *tt)
 									int x = getchar() - 32;
 									int y = getchar() - 32;
 									tt->mousecallback(button, x, y);
+									resetInput();
 								} break;
 							case 'P': inputTooltip(tt, mod, XK_Delete, 0); break;
 						} break;

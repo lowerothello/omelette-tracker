@@ -79,6 +79,9 @@ void cleanup(int);
 #include "control.c"
 ControlState cc;
 
+#include "truecolour.h"
+TrueColourState tc;
+
 #include "file.c"
 #include "types/types.c"
 

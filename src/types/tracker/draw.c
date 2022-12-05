@@ -1,8 +1,8 @@
 /* will populate buffer, buffer should be at least length 4 */
 static void noteToString(uint8_t note, char *buffer)
 {
-	if (note == NOTE_VOID) { strcpy(buffer, "... "); return; }
-	if (note == NOTE_OFF)  { strcpy(buffer, "=== "); return; }
+	if (note == NOTE_VOID) { strcpy(buffer, "..."); return; }
+	if (note == NOTE_OFF)  { strcpy(buffer, "==="); return; }
 
 	char *strnote;
 	char octave;
@@ -37,7 +37,7 @@ static void noteToString(uint8_t note, char *buffer)
 		case 9:  octave = '9'; break;
 		default: octave = '?'; break;
 	}
-	snprintf(buffer, 5, "%s%c ", strnote, octave);
+	snprintf(buffer, 5, "%s%c", strnote, octave);
 }
 
 /* generate sfx using dynamic width tracks */
@@ -284,6 +284,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 			if (y > TRACK_ROW && y < ws.ws_row)
 			{
 				x = bx;
+				lineno = getVariantChainVariant(NULL, cd->variant, i);
 
 				if (ifVisual(track, i, -1)) printf("\033[2;7m");
 
@@ -309,13 +310,15 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 				{ /* box drawing variant range thing idk what to call it tbh */
 				  /* drawn separately cos multibyte chars break things       */
 				  /* TODO: should use printCulling() or otherwise have a \033[y;xH write */
-					lineno = getVariantChainVariant(NULL, cd->variant, i);
 					if (lineno != -1)
+					{
+						// bgTuple(&tc, greyscaleTuple(&tc, lineno*DIV256));
 						printf("\033[1D\033[22;3%dm│", cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1);
+					}
 				}
 
 				stopVisual(track, i, -1);
-				printf("\033[22;37m");
+				printf("\033[22;37;40m");
 
 				x += 3 + TRACK_TRIG_PAD;
 
@@ -327,6 +330,16 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 				// if ((i < s->songlen-1 && (cd->variant->trig[i+1].index < VARIANT_MAX || (cd->variant->trig[i+1].index == VARIANT_OFF && gcvret != -1)))
 				// 		|| (gcvret != -1 && (gcvret%(v->rowc+1) == v->rowc)))
 				// 	printf("\033[1;%d]\033[4m", cd->variant->trig[i+1].index%6 + 1); /* linux console-specific underline colour setting, TODO: untested */
+
+				// if (lineno != -1)
+				// {
+				// 	if (i >= STATE_ROWS && s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight))
+				// 		bgTuple(&tc, lerpTuple(0.1f, greyscaleTuple(&tc, 0.05f), tc.colour[cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1]));
+				// 	else
+				// 		bgTuple(&tc, lerpTuple(0.1f, tc.colour[0], tc.colour[cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1]));
+				// } else
+				// 	if (i >= STATE_ROWS && s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight))
+				// 		bgTuple(&tc, greyscaleTuple(&tc, 0.05f));
 
 				if (ifVisual(track, i, 0)) printf("\033[2;7m");
 
@@ -351,18 +364,18 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						}
 					} else
 					{
-						strcpy(buffer, "... ");
+						strcpy(buffer, "...");
 						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(track, i, 0);
 					setRowIntensity(cd, i);
 				}
 
-				x+=4;
+				x+=3;
 
 				if (x <= maxx)
 				{
-					snprintf(buffer, 4, "%02x ", r->inst);
+					snprintf(buffer, 4, " %02x", r->inst);
 					startVisual(track, i, 1);
 					if (r->inst != INST_VOID)
 					{
@@ -381,7 +394,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						} else printCulling(buffer, x, y, minx, maxx);
 					} else
 					{
-						strcpy(buffer, ".. ");
+						strcpy(buffer, " ..");
 						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(track, i, 1);
@@ -404,7 +417,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 								   if (r->macro[j].alt) printf("\033[3;27m");
 							} else if (r->macro[j].alt) printf("\033[3;7m");
 
-							snprintf(buffer, 5, "%c%02x ", r->macro[j].c, r->macro[j].v);
+							snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
 							if (cd->mute)
 								printCulling(buffer, x, y, minx, maxx);
 							else
@@ -415,10 +428,10 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							}
 
 							if (ifVisual(track, i, 2+j)) printf("\033[23;2;7;37m");
-							else                           printf("\033[23;27;37m");
+							else                         printf("\033[23;27;37m");
 						} else
 						{
-							strcpy(buffer, "... ");
+							strcpy(buffer, " ...");
 							printCulling(buffer, x, y, minx, maxx);
 						}
 						stopVisual(track, i, 2+j);

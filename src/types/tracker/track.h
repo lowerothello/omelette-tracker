@@ -12,7 +12,7 @@ typedef struct {
 	bool rtrig_rev;
 
 	EffectChain *effect;
-} TrackData; /* raw sequence data */
+} TrackData; /* raw sequence data, cd */
 
 typedef struct {
 	TrackData data; /* saved to disk */
@@ -110,7 +110,7 @@ typedef struct {
 	float *sendmult[2]; /* apply post-effects in parallel with mainmult */
 
 	uint32_t triggerflash;
-} Track;
+} Track; /* cv */
 
 typedef struct {
 	uint8_t c;   /* track count  */

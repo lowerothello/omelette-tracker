@@ -83,4 +83,10 @@
  */
 // #define DISABLE_RAW_INPUT
 
+/* DISABLE_TRUECOLOUR
+ *   don't try to generate inbetween colours with truecolour abuse
+ *   $OML_NOTC can be set in the environment to force this
+ */
+// #define DISABLE_TRUECOLOUR
+
 #define PROGRAM_TITLE "omelette tracker"

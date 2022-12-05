@@ -95,7 +95,7 @@ void chordRowAddBlanks(void *_)
 	uint8_t vi = cd->variant->i[cd->variant->trig[w->trackerfy - gcvret].index];
 
 	Variant *v = dupVariant(NULL, MIN(VARIANT_ROWMAX, (cd->variant->v[vi]->rowc+1)*(2*MAX(1, w->count)) - 1));
-	for (int i = 0; i <= cd->variant->v[vi]->rowc; i++)
+	for (int i = 0; i <= MIN(cd->variant->v[vi]->rowc, VARIANT_ROWMAX>>1); i++)
 		v->rowv[i * MAX(1, w->count)*2] = cd->variant->v[vi]->rowv[i];
 
 	free(cd->variant->v[vi]); cd->variant->v[vi] = v;

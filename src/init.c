@@ -88,13 +88,19 @@ void init(int argc, char **argv)
 	srand(time(NULL)); /* seed rand */
 	puts("\033[?1049h"); /* switch to the back buffer */
 	puts("\033[?1002h"); /* enable mouse events */
-	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking stdin reads */
 
 	struct termios term;
 	tcgetattr(1, &term);
 	origterm = term;
 	term.c_lflag &= (~ECHO & ~ICANON);
 	tcsetattr(1, TCSANOW, &term); /* disable ECHO and ICANON */
+
+	/* truecolour */
+	// fcntl(0, F_SETFL, 0); /* ensure blocking io */
+	// getTrueColourType(&tc);
+	// trueColourReadStateBlock(&tc);
+
+	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking io */
 
 	input_mode = getRawInputMode();
 	initRawInput(input_mode);
@@ -167,11 +173,12 @@ void init(int argc, char **argv)
 	} else reapplyBpm(); /* implied by the other branch */
 
 	/* trap signals */
-	signal(SIGINT, SIG_IGN);
-	signal(SIGTERM, &cleanup);
-	signal(SIGSEGV, &cleanup); /* TODO: might be unsafe? */
-	signal(SIGFPE,  &cleanup); /* TODO: might be unsafe? */
+	signal(SIGINT,   SIG_IGN  );
+	signal(SIGTERM,  &cleanup );
+	signal(SIGSEGV,  &cleanup ); /* TODO: might be unsafe? */
+	signal(SIGFPE,   &cleanup ); /* TODO: might be unsafe? */
 	signal(SIGWINCH, &sigwinch);
+
 
 	resetInput();
 

@@ -423,7 +423,7 @@ static void setVtrig(void *arg)
 	regenGlobalRowc(s); p->redraw = 1;
 }
 
-static void setNote(void *note)
+static void setNote(size_t note)
 {
 	Row *r;
 	short i;
@@ -438,7 +438,8 @@ static void setNote(void *note)
 			} step = 0; break;
 		default:
 			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
-			r->note = (size_t)note;
+			r->note = note;
+			r->inst = w->instrument;
 			step = 1; break;
 	}
 
@@ -480,7 +481,7 @@ static void pushKeyboardMacroCallback(void *offset)
 	p->redraw = 1;
 }
 
-static void pushNoteCallback(void *offset) { setNote((void*)MIN(NOTE_A10-1, (size_t)offset + w->octave*12)); }
+static void pushNoteCallback(void *offset) { setNote(MIN(NOTE_A10-1, (size_t)offset + w->octave*12)); }
 
 static void imposeInst(void *arg)
 {
@@ -880,7 +881,7 @@ void initTrackerInput(TooltipState *tt)
 								addDecimalBinds(tt, "set octave", 0, setOctave);
 								addNoteBinds(tt, "push cell", 0, pushNoteCallback);
 							}
-							addTooltipBind(tt, "stop cell", 0, XK_space, 0, setNote, (void*)NOTE_OFF);
+							addTooltipBind(tt, "stop cell", 0, XK_space, 0, (void(*)(void*))setNote, (void*)NOTE_OFF);
 							break;
 						case 1: /* inst */
 							addHexBinds(tt, "push cell", 0, pushInst);
