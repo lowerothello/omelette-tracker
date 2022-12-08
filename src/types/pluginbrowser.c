@@ -88,7 +88,7 @@ static void pluginBrowserCommit(BrowserState *b)
 	else                        addEffect(w->pluginbrowserchain, b->cursor, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectLadspaAfter);
 }
 
-static void pluginBrowserMouse(enum _BUTTON button, int x, int y)
+static void pluginBrowserMouse(enum Button button, int x, int y)
 {
 	browserMouse(pbstate, button, x, y);
 	p->redraw = 1;

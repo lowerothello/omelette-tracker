@@ -425,7 +425,7 @@ static void setVtrig(void *arg)
 
 static void setNote(size_t note)
 {
-	Row *r;
+	Row *r = NULL;
 	short i;
 	bool step;
 	switch (w->mode)
@@ -450,7 +450,7 @@ static void setNote(size_t note)
 }
 static void pushKeyboardMacroCallback(void *offset)
 {
-	Row *r;
+	Row *r = NULL;
 	short i;
 	bool step;
 	switch (w->mode)
@@ -475,7 +475,7 @@ static void pushKeyboardMacroCallback(void *offset)
 			step = 1; break;
 	}
 
-	previewRow(r);
+	if (r) previewRow(r);
 	regenGlobalRowc(s);
 	if (step) trackerDownArrow(w->step);
 	p->redraw = 1;
@@ -506,7 +506,7 @@ static void imposeInst(void *arg)
 static void pushInst(void *arg)
 {
 	short i;
-	Row *r;
+	Row *r = NULL;
 	switch (w->mode)
 	{
 		case T_MODE_VISUALREPLACE:
@@ -525,7 +525,7 @@ static void pushInst(void *arg)
 			break;
 	}
 
-	if (w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
+	if (r && w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
 	regenGlobalRowc(s); p->redraw = 1;
 }
 static void pushMacrov(void *arg)
@@ -628,7 +628,7 @@ static void trackerAdjustLeft(TrackData *cd) /* mouse adjust only */
 			} break;
 	} regenGlobalRowc(s);
 }
-static bool trackerMouseHeader(enum _BUTTON button, int x, int y, short *tx)
+static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
 {
 	if (y <= TRACK_ROW)
 		for (int i = 0; i < s->track->c; i++)
@@ -645,7 +645,7 @@ static bool trackerMouseHeader(enum _BUTTON button, int x, int y, short *tx)
 		}
 	return 0;
 }
-static void trackerMouse(enum _BUTTON button, int x, int y)
+static void trackerMouse(enum Button button, int x, int y)
 {
 	short chanw;
 	int i, j;

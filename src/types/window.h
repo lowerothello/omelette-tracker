@@ -120,8 +120,12 @@ typedef struct _UI {
 
 	char newfilename[COMMAND_LENGTH]; /* used by readSong */
 } UI;
+UI *w;
 
 void setBpmCount(void);
 void showTracker(void); /* cast to (void(*)(void*)) */
 void showInstrument(void); /* cast to (void(*)(void*)) */
 void showMaster(void); /* cast to (void(*)(void*)) */
+
+UI *allocWindow(void);
+void freeWindow(UI*);

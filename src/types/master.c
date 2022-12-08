@@ -38,7 +38,7 @@ static void masterPgDn(void *count)
 	} p->redraw = 1;
 }
 
-static void masterMouse(enum _BUTTON button, int x, int y)
+static void masterMouse(enum Button button, int x, int y)
 {
 	switch (button)
 	{

@@ -1,4 +1,4 @@
-#include "draw.h"
+#include "redraw.h"
 #include "event.h"
 
 struct _Song;
@@ -16,7 +16,7 @@ typedef struct {
 PlaybackInfo *p;
 
 #include "tooltip.c"
-TooltipState tt;
+#include "control.c"
 
 enum WAVE_SHAPE {
 	SHAPE_PULSE,
@@ -32,14 +32,11 @@ enum WAVE_SHAPE {
 #include "instrument/instrument.h"
 #include "master.h"
 
-#include "song.h"
-Song *s;
-
 #define COMMAND_LENGTH 512
 #define COMMAND_HISTORY_LENGTH 32
 
+#include "song.h"
 #include "window.h"
-UI *w;
 
 #include "browser.h"
 #include "filebrowser.h"
@@ -51,7 +48,7 @@ UI *w;
 #include "song.c"
 #include "window.c"
 
-#include "input.c"
+#include "input.h"
 #include "event.c"
 
 #include "../generator/sampler.h"
@@ -74,4 +71,4 @@ portbuffers pb;
 #include "macros.c"
 #include "process.c"
 
-#include "draw.c"
+#include "redraw.c"

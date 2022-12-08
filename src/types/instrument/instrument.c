@@ -467,7 +467,7 @@ short drawInstrumentIndex(short bx, short minx, short maxx)
 {
 	Instrument *iv;
 	char buffer[11];
-	short x;
+	short x = 0;
 	for (int i = 0; i < INSTRUMENT_MAX; i++)
 		if (w->centre - w->instrument + i > TRACK_ROW && w->centre - w->instrument + i < ws.ws_row)
 		{

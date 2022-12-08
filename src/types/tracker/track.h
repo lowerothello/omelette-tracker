@@ -123,7 +123,7 @@ void regenGlobalRowc(struct _Song *cs);
 /* clears the playback state of a track */
 void clearTrackRuntime(Track *cv);
 
-void initTrackData(struct _Song *cs, TrackData *cd); /* TODO: should be atomic */
+void initTrackData(TrackData *cd, uint16_t songlen); /* TODO: should be atomic */
 void clearTrackdata(struct _Song *cs, TrackData *cd); /* TODO: should be atomic */
 void __addTrack(Track *cv); /* __ layer of abstraction for initializing previewtrack */
 void  _addTrack(struct _Song *cs, Track *cv);

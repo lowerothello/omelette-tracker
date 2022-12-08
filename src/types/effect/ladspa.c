@@ -1,16 +1,14 @@
-#define LADSPA_DEF_MAX 4.0f
-#define LADSPA_DEF_MIN 0.0f
-
-#define M_1_OVER_0_9 1.1111111111111112 /* 1/0.9 */
-
-typedef struct
+/* the returned value should be free'd with dlclose() */
+void *getSpecificLadspaDescriptor(const LADSPA_Descriptor **desc, const char *soname, unsigned long index)
 {
-	uint32_t                  descc;
-	const LADSPA_Descriptor **descv; /* LADSPA plugin descriptions */
-	uint32_t                  symbolc;
-	void                    **symbolv; /* loaded soname symbol tables */
-} LadspaDB;
-LadspaDB ladspa_db;
+	void *dl;
+	const LADSPA_Descriptor *(*ldesc)(unsigned long);
+
+	if ((dl = dlopen(soname, RTLD_LOCAL | RTLD_LAZY)))
+		if ((ldesc = (const LADSPA_Descriptor *(*)(unsigned long))dlsym(dl, "ladspa_descriptor")))
+			*desc = ldesc(index);
+	return dl;
+}
 
 void initLadspaDB(void)
 {
@@ -51,7 +49,7 @@ void initLadspaDB(void)
 				if (ldesc)
 				{
 					i = 0;
-					while (ldesc(i) != NULL) { i++; try_descc++; }
+					while (ldesc(i)) { i++; try_descc++; }
 				}
 				ladspa_db.symbolc++;
 			}
@@ -89,25 +87,18 @@ void freeLadspaDB(void)
 	free(ladspa_db.descv);
 }
 
-typedef struct
+uint32_t getLadspaEffectControlCount(LadspaState *s)
 {
-	const LADSPA_Descriptor *desc;
-	LADSPA_Handle            instance;
-	uint32_t                 inputc;   /* input audio port count   */
-	uint32_t                 outputc;  /* output audio port count  */
-	uint32_t                 controlc; /* input control port count */
-	LADSPA_Data             *controlv; /* input control ports                 */
-	LADSPA_Data             *dummyport;
-	unsigned long            uuid;     /* (TODO: use the plugin label instead?) plugin id, not read from desc cos even if desc is null this needs to be serialized */
-} LadspaState;
+	return s->controlc;
+}
 
-uint32_t getLadspaEffectControlCount(Effect *e) { return ((LadspaState *)e->state)->controlc;     }
-short    getLadspaEffectHeight      (Effect *e) { return ((LadspaState *)e->state)->controlc + 3; }
-
-void freeLadspaEffect(Effect *e)
+short getLadspaEffectHeight(LadspaState *s)
 {
-	LadspaState *s = e->state;
+	return getLadspaEffectControlCount(s) + 3;
+}
 
+void freeLadspaEffect(LadspaState *s)
+{
 	if (s->desc->deactivate)
 		s->desc->deactivate(s->instance);
 	s->desc->cleanup(s->instance);
@@ -115,29 +106,29 @@ void freeLadspaEffect(Effect *e)
 	if (s->dummyport) free(s->dummyport);
 }
 
-LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
+static LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
 {
 	if (!LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor)) return LADSPA_DEF_MIN;
 
 	LADSPA_Data ret = hint.LowerBound;
 
 	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) ret *= samplerate;
-	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret = floorf(ret);
+	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret  = floorf(ret);
 
 	return ret;
 }
-LADSPA_Data getLadspaPortMax(LADSPA_PortRangeHint hint)
+static LADSPA_Data getLadspaPortMax(LADSPA_PortRangeHint hint)
 {
 	if (!LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor)) return LADSPA_DEF_MAX;
 
 	LADSPA_Data ret = hint.UpperBound;
 
 	if (LADSPA_IS_HINT_SAMPLE_RATE(hint.HintDescriptor)) ret *= samplerate;
-	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret = floorf(ret);
+	if (LADSPA_IS_HINT_INTEGER    (hint.HintDescriptor)) ret  = floorf(ret);
 
 	return ret;
 }
-LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
+static LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
 {
 	if (!LADSPA_IS_HINT_HAS_DEFAULT(hint.HintDescriptor)) return 0.0f;
 
@@ -171,10 +162,8 @@ LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
 	return ret;
 }
 
-void startLadspaEffect(EffectChain *chain, Effect *e)
+void startLadspaEffect(LadspaState *s, float **input, float **output)
 {
-	LadspaState *s = e->state;
-
 	s->uuid = s->desc->UniqueID; /* TODO: maybe set this somewhere else */
 	s->instance = s->desc->instantiate(s->desc, samplerate);
 
@@ -210,8 +199,8 @@ void startLadspaEffect(EffectChain *chain, Effect *e)
 			{
 				if (s->inputc < 2)
 				{
-					if (chain->input)
-						s->desc->connect_port(s->instance, i, chain->input[s->inputc]);
+					if (input)
+						s->desc->connect_port(s->instance, i, input[s->inputc]);
 
 					s->inputc++;
 				}
@@ -219,8 +208,8 @@ void startLadspaEffect(EffectChain *chain, Effect *e)
 			{
 				if (s->outputc < 2)
 				{
-					if (chain->output)
-						s->desc->connect_port(s->instance, i, chain->output[s->outputc]);
+					if (output)
+						s->desc->connect_port(s->instance, i, output[s->outputc]);
 
 					s->outputc++;
 				}
@@ -232,53 +221,44 @@ void startLadspaEffect(EffectChain *chain, Effect *e)
 		s->desc->activate(s->instance);
 }
 
-void initLadspaEffect(EffectChain *chain, Effect *e, const LADSPA_Descriptor *desc)
+void initLadspaEffect(LadspaState **s, float **input, float **output, const LADSPA_Descriptor *desc)
 {
-	e->type = EFFECT_TYPE_LADSPA;
-	e->state = calloc(1, sizeof(LadspaState));
-	((LadspaState *)e->state)->desc = desc;
-	((LadspaState *)e->state)->dummyport = malloc(sizeof(LADSPA_Data) * samplerate);
+	*s = calloc(1, sizeof(LadspaState));
+	(*s)->desc = desc;
+	(*s)->dummyport = malloc(sizeof(LADSPA_Data) * samplerate);
 
-	startLadspaEffect(chain, e);
+	startLadspaEffect(*s, input, output);
 }
 
-void copyLadspaEffect(EffectChain *destchain, Effect *dest, Effect *src)
+void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output)
 {
-	LadspaState *s_src = src->state;
-	initLadspaEffect(destchain, dest, s_src->desc);
-	LadspaState *s_dest = dest->state;
+	initLadspaEffect(&dest, input, output, src->desc);
 
-	memcpy(s_dest->controlv, s_src->controlv, s_src->controlc * sizeof(LADSPA_Data));
+	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
 }
 
-void serializeLadspaEffect(Effect *e, FILE *fp)
+void serializeLadspaEffect(LadspaState *s, FILE *fp)
 {
-	LadspaState *s = e->state;
-
 	fwrite(&s->uuid, sizeof(uint32_t), 1, fp);
 	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
 	fwrite(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
 }
-void deserializeLadspaEffect(EffectChain *chain, Effect *e, FILE *fp)
+void deserializeLadspaEffect(LadspaState **s, float **input, float **output, FILE *fp)
 {
-	e->state = calloc(1, sizeof(LadspaState));
-	LadspaState *s = e->state;
+	*s = calloc(1, sizeof(LadspaState));
 
-	fread(&s->uuid, sizeof(uint32_t), 1, fp);
-	fread(&s->controlc, sizeof(uint32_t), 1, fp);
-	s->controlv = calloc(s->controlc, sizeof(LADSPA_Data));
-	fread(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
+	fread(&(*s)->uuid, sizeof(uint32_t), 1, fp);
+	fread(&(*s)->controlc, sizeof(uint32_t), 1, fp);
+	(*s)->controlv = calloc((*s)->controlc, sizeof(LADSPA_Data));
+	fread((*s)->controlv, sizeof(LADSPA_Data), (*s)->controlc, fp);
 
 	/* TODO: look up desc based on uuid */
-	startLadspaEffect(chain, e);
+	startLadspaEffect(*s, input, output);
 }
 
-void drawLadspaEffect(Effect *e, ControlState *cc,
-		short x, short w,
-		short y, short ymin, short ymax)
+void drawLadspaEffect(LadspaState *s, ControlState *cc,
+		short x, short w, short y, short ymin, short ymax)
 {
-	LadspaState *s = e->state;
-
 	if (ymin <= y && ymax >= y)
 	{
 		printf("\033[1m");
@@ -303,20 +283,18 @@ void drawLadspaEffect(Effect *e, ControlState *cc,
 		}
 }
 
-/* only valid to call if e->state->input and e->state->output are not NULL */
-void runLadspaEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
+/* only valid to call if input and output are not NULL */
+void runLadspaEffect(uint32_t samplecount, LadspaState *s, float **input, float **output)
 {
-	LadspaState *s = e->state;
-
 	s->desc->run(s->instance, samplecount);
 
 	if (s->outputc == 1) /* handle mono output correctly */
 	{
-		memcpy(chain->input[0], chain->output[0], sizeof(float) * samplecount);
-		memcpy(chain->input[1], chain->output[0], sizeof(float) * samplecount);
+		memcpy(input[0], output[0], sizeof(float) * samplecount);
+		memcpy(input[1], output[0], sizeof(float) * samplecount);
 	} else if (s->outputc >= 2)
 	{
-		memcpy(chain->input[0], chain->output[0], sizeof(float) * samplecount);
-		memcpy(chain->input[1], chain->output[0], sizeof(float) * samplecount);
+		memcpy(input[0], output[0], sizeof(float) * samplecount);
+		memcpy(input[1], output[0], sizeof(float) * samplecount);
 	}
 }

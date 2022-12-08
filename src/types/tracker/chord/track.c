@@ -1,6 +1,6 @@
 void chordClearTrack(void *_)
 {
-	initTrackData(s, &s->track->v[w->track].data);
+	initTrackData(&s->track->v[w->track].data, s->songlen);
 	regenGlobalRowc(s);
 }
 void chordAddTrack(void *_)

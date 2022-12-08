@@ -51,6 +51,7 @@ typedef struct
 	bool resetadjust;
 	short prevmousex;
 } ControlState;
+ControlState cc;
 
 
 uint32_t _pow32(uint32_t a, uint32_t b)
@@ -604,7 +605,7 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 						case CONTROL_NIBBLES_SIGNED_FLOAT:
 							if      (x < c->x+1)   cc->fieldpointer = 5;
 							else if (x > c->x + 6) cc->fieldpointer = 0;
-							else if (x < c->x + 1 + getPreRadixDigits(c->max.f)) cc->fieldpointer = 5 - (x - (c->x+1));
+							else if (x < c->x + 2 + getPreRadixDigits(c->max.f)) cc->fieldpointer = 5 - (x - (c->x+1));
 							else                   cc->fieldpointer = 6 - (x - (c->x+1));
 							break;
 						case CONTROL_NIBBLES_UNSIGNED_INT:

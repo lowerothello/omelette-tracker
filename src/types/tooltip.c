@@ -1,3 +1,26 @@
+enum Button {
+	BUTTON1 = 32,
+	BUTTON2 = 33,
+	BUTTON3 = 34,
+	BUTTON_RELEASE = 35,
+	BUTTON1_CTRL = BUTTON1 + 16,
+	BUTTON2_CTRL = BUTTON2 + 16,
+	BUTTON3_CTRL = BUTTON3 + 16,
+	BUTTON_RELEASE_CTRL = BUTTON_RELEASE + 16,
+
+	BUTTON1_HOLD = BUTTON1 + 32,
+	BUTTON2_HOLD = BUTTON2 + 32,
+	BUTTON3_HOLD = BUTTON3 + 32,
+	BUTTON1_HOLD_CTRL = BUTTON1_CTRL + 32,
+	BUTTON2_HOLD_CTRL = BUTTON2_CTRL + 32,
+	BUTTON3_HOLD_CTRL = BUTTON3_CTRL + 32,
+
+	WHEEL_UP = BUTTON1 + 64,
+	WHEEL_DOWN = BUTTON2 + 64,
+	WHEEL_UP_CTRL = BUTTON1_CTRL + 64,
+	WHEEL_DOWN_CTRL = BUTTON2_CTRL + 64,
+};
+
 #define MOD_WIDTH 9 /* max width for the key name */
 
 #define TT_DEAD    (1<<0) /* skip regenerating the tooltip state */
@@ -17,11 +40,12 @@ typedef struct {
 typedef struct {
 	short  maxprettynamelen;
 	char  *prettytitle;
-	void (*mousecallback)(enum _BUTTON, int, int);
+	void (*mousecallback)(enum Button, int, int);
 
 	uint8_t       entryc;
 	TooltipEntry *entryv;
 } TooltipState;
+TooltipState tt;
 
 
 void clearTooltip(TooltipState *tt)
@@ -55,7 +79,7 @@ void setTooltipTitle(TooltipState *tt, char *prettytitle)
 	tt->prettytitle = strdup(prettytitle);
 }
 
-void setTooltipMouseCallback(TooltipState *tt, void (*callback)(enum _BUTTON, int, int))
+void setTooltipMouseCallback(TooltipState *tt, void (*callback)(enum Button, int, int))
 {
 	tt->mousecallback = callback;
 }
@@ -394,4 +418,154 @@ void addPrintableAsciiBinds(TooltipState *tt, const char *prettyname, unsigned i
 	addTooltipBind(tt, "|" , state, XK_bar         , 0, callback, (void*)'|' );
 	addTooltipBind(tt, "}" , state, XK_braceright  , 0, callback, (void*)'}' );
 	addTooltipBind(tt, "~" , state, XK_asciitilde  , 0, callback, (void*)'~' );
+}
+
+static unsigned int ansiToModState(int input)
+{
+	unsigned int ret = 0;
+	input -= 0x31; /* '2' => 1 */
+	if (input&1) ret |= ShiftMask;
+	if (input&2) ret |= Mod1Mask;
+	if (input&4) ret |= ControlMask;
+	return ret;
+}
+
+/* TODO: doesn't really belong here, idk a better way to handle this */
+// static void setDefaultColour(int colour, unsigned int r, unsigned int g, unsigned int b)
+// {
+// 	tc.colour[colour].r = r;
+// 	tc.colour[colour].g = g;
+// 	tc.colour[colour].b = b;
+//
+// 	/* trigger a redraw when all 8 colours have been read in */
+// 	tc.semaphore++;
+// 	if (tc.semaphore >= 8)
+// 	{
+// 		p->redraw = 1;
+// 		tc.semaphore -= 8;
+// 	}
+// }
+
+void handleStdin(TooltipState *tt)
+{
+	unsigned int mod = 0;
+	static int input;
+	while (1)
+		switch (input = getchar())
+		{
+			case EOF: return;
+			case '\033': /* escape */ switch (input = getchar()) {
+					case EOF: inputTooltip(tt, mod, XK_Escape, 0); return;
+					// case ']': /* OSC */ switch (input = getchar()) {
+					// 		case '4': {
+					// 				int colour;
+					// 				unsigned int r, g, b;
+					// 				scanf(";%d;rgb:%02x%*02x/%02x%*02x/%02x%*02x\007",
+					// 						&colour, &r, &g, &b);
+					// 				setDefaultColour(colour, r, g, b);
+					// 			} break;
+					// 	} break;
+					case 'O': /* SS3 */ switch (input = getchar()) {
+							case 'P': inputTooltip(tt, mod, XK_F1, 0); break;
+							case 'Q': inputTooltip(tt, mod, XK_F2, 0); break;
+							case 'R': inputTooltip(tt, mod, XK_F3, 0); break;
+							case 'S': inputTooltip(tt, mod, XK_F4, 0); break;
+						} break;
+					case '[': /* CSI */ switch (input = getchar()) {
+							case '[': switch (input = getchar()) {
+									case 'A': inputTooltip(tt, mod, XK_F1, 0); break;
+									case 'B': inputTooltip(tt, mod, XK_F2, 0); break;
+									case 'C': inputTooltip(tt, mod, XK_F3, 0); break;
+									case 'D': inputTooltip(tt, mod, XK_F4, 0); break;
+									case 'E': inputTooltip(tt, mod, XK_F5, 0); break;
+								} break;
+							case 'A': inputTooltip(tt, mod, XK_Up   , 0); break;
+							case 'B': inputTooltip(tt, mod, XK_Down , 0); break;
+							case 'D': inputTooltip(tt, mod, XK_Left , 0); break;
+							case 'C': inputTooltip(tt, mod, XK_Right, 0); break;
+							case '1': switch (input = getchar()) {
+									case '5': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F5, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F5, 0); getchar(); break;
+										} break;
+									case '7': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F6, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F6, 0); getchar(); break;
+										} break;
+									case '8': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F7, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F7, 0); getchar(); break;
+										} break;
+									case '9': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F8, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F8, 0); getchar(); break;
+										} break;
+									case ';':
+										mod |= ansiToModState(getchar());
+										switch (input = getchar()) {
+											case 'A': inputTooltip(tt, mod, XK_Up   , 0); break;
+											case 'B': inputTooltip(tt, mod, XK_Down , 0); break;
+											case 'D': inputTooltip(tt, mod, XK_Left , 0); break;
+											case 'C': inputTooltip(tt, mod, XK_Right, 0); break;
+											case 'P': inputTooltip(tt, mod, XK_F1, 0); break;
+											case 'Q': inputTooltip(tt, mod, XK_F2, 0); break;
+											case 'R': inputTooltip(tt, mod, XK_F3, 0); break;
+											case 'S': inputTooltip(tt, mod, XK_F4, 0); break;
+										} break;
+									case '~': inputTooltip(tt, mod, XK_Home, 0); break;
+								} break;
+							case '2': switch (input = getchar()) {
+									case '0': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F9, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F9, 0); getchar(); break;
+										} break;
+									case '1': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F10, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F10, 0); getchar(); break;
+										} break;
+									case '3': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F11, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F11, 0); getchar(); break;
+										} break;
+									case '4': switch (input = getchar()) {
+											case '~': inputTooltip(tt, mod, XK_F12, 0); break;
+											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F12, 0); getchar(); break;
+										} break;
+									case 'J': inputTooltip(tt, mod|ShiftMask, XK_Home  , 0); break;
+									case 'K': inputTooltip(tt, mod|ShiftMask, XK_Delete, 0); break;
+								} break;
+							case '4': if (getchar() == '~') inputTooltip(tt, mod, XK_End, 0); break;
+							case '5': switch (input = getchar()) {
+									case '~': inputTooltip(tt, mod, XK_Page_Up, 0); break;
+									case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_Page_Up, 0); getchar(); break;
+								} break;
+							case '6': switch (input = getchar()) {
+									case '~': inputTooltip(tt, mod, XK_Page_Down, 0); getchar(); break;
+									case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_Page_Down, 0); getchar(); break;
+								} break;
+							case 'H': inputTooltip(tt, mod, XK_Home, 0); break;
+							case 'J': inputTooltip(tt, mod|ControlMask, XK_End, 0); break;
+							case 'K': inputTooltip(tt, mod|ShiftMask  , XK_End, 0); break;
+							case 'M': { /* TODO: ctrl+delete maps to CSI M, which conflicts */
+									enum Button button = getchar();
+									int x = getchar() - 32;
+									int y = getchar() - 32;
+									if (tt->mousecallback)
+										tt->mousecallback(button, x, y);
+									resetInput();
+								} break;
+							case 'P': inputTooltip(tt, mod, XK_Delete, 0); break;
+						} break;
+					default:
+						if (input <= 0x20) inputTooltip(tt, mod|Mod1Mask|ControlMask, input+0x40, 0);
+						else               inputTooltip(tt, mod|Mod1Mask            , input     , 0);
+						break;
+				} break;
+			case '\n': case '\r': inputTooltip(tt, mod, XK_Return, 0); break;
+			case '\b': case 127:  inputTooltip(tt, mod, XK_BackSpace, 0); break;
+			default:
+				if (input <= 0x20) inputTooltip(tt, mod|ControlMask, input+0x40, 0);
+				else               inputTooltip(tt, mod            , input     , 0);
+				break;
+		}
 }

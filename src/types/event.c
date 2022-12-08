@@ -115,7 +115,7 @@ bool processM_SEM(void)
 void cb_reloadFile(Event *e)
 {
 	Song *cs = readSong(w->newfilename);
-	if (cs) { delSong(s); s = cs; }
+	if (cs) { freeSong(s); s = cs; }
 	p->s = s;
 	if (s->loop[1]) w->trackerfy = s->loop[0];
 	else            w->trackerfy = STATE_ROWS;

@@ -52,11 +52,7 @@ int DEBUG;
 jack_nframes_t samplerate, buffersize;
 jack_nframes_t rampmax;
 
-jack_client_t *client;
-
-struct termios origterm;
 struct winsize ws;
-
 
 /* prototypes, TODO: a proper header file */
 void startPlayback(void);
@@ -72,15 +68,10 @@ void cleanup(int);
 
 
 #include "dsp.c"
-#include "buttons.h"
 
 #include "column.c"
 
-#include "control.c"
-ControlState cc;
-
 #include "truecolour.h"
-TrueColourState tc;
 
 #include "file.c"
 #include "types/types.c"
@@ -237,7 +228,7 @@ void resetInput(void)
 	}
 }
 
-void resize(int _)
+void resize(int signal)
 {
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->centre = (ws.ws_row>>1) + 1;
@@ -304,6 +295,6 @@ int main(int argc, char **argv)
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
 		req.tv_nsec = UPDATE_DELAY;
-		while(nanosleep(&req, &req) < 0);
+		while (nanosleep(&req, &req) < 0);
 	} cleanup(0);
 }

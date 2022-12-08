@@ -18,6 +18,6 @@ void browserUpArrow(BrowserState *b, size_t count);
 void browserDownArrow(BrowserState *b, size_t count);
 void browserHome(BrowserState *b);
 void browserEnd(BrowserState *b);
-void browserMouse(BrowserState *b, enum _BUTTON button, int x, int y);
+void browserMouse(BrowserState *b, enum Button button, int x, int y);
 
 #include "browser.c"

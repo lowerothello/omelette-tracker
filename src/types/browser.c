@@ -68,7 +68,7 @@ static void browserApplyFyoffset(BrowserState *b)
 	else                 browserDownArrow(b,  b->fyoffset);
 	b->fyoffset = 0;
 }
-void browserMouse(BrowserState *b, enum _BUTTON button, int x, int y)
+void browserMouse(BrowserState *b, enum Button button, int x, int y)
 {
 	switch (button)
 	{

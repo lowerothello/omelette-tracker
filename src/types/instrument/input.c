@@ -107,7 +107,7 @@ static void instrumentSamplePreview(void *input)
 	p->redraw = 1;
 }
 
-static void instrumentMouse(enum _BUTTON button, int x, int y)
+static void instrumentMouse(enum Button button, int x, int y)
 {
 	switch (button)
 	{

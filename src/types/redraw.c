@@ -1,11 +1,3 @@
-/* undefined behaviour if multibyte chars are printed  */
-/* only culls the x axis, culling the y axis is simple */
-void printCulling(char *s, short x, short y, short minx, short maxx)
-{
-	if (x < minx) { if (x > minx - strlen(s)) printf("\033[%d;%dH%s", y, minx, s+MIN(minx - x, strlen(s))); }
-	else if (x < maxx)                        printf("\033[%d;%dH%.*s", y, x, maxx - x, s);
-}
-
 void drawRuler(void)
 {
 	printf("\033[1m\033[0;%ldH%s\033[m", (ws.ws_col - strlen(PROGRAM_TITLE))>>1, PROGRAM_TITLE);
@@ -47,10 +39,11 @@ void drawRuler(void)
 void redraw(void)
 {
 	fcntl(0, F_SETFL, 0); /* blocking */
-	/* "CSI 2 J"     clears the screen              */
+
+	/* "CSI 2 J"      clears the screen              */
 	/* "CSI ? 2 5 h"  ensures the cursor is visible  */
-	/* "CSI 2   q" sets the cursor shape to block */
-	puts("\033[2J\033[?25h\033[2 q");
+	/* "CSI 2   q"    sets the cursor shape to block */
+	printf("\033[2J\033[?25h\033[2 q");
 
 	if (ws.ws_row < 14 + TRACK_ROW || ws.ws_col < 38 + INSTRUMENT_INDEX_COLS - 1)
 	{

@@ -33,10 +33,11 @@ typedef struct _Song {
 	uint16_t sprp;    /* samples per row progress */
 	char     playing;
 } Song;
+Song *s;
 
 Song *_addSong(void);
-Song * addSong(void);
-void delSong(Song *cs);
+Song *allocSong(void);
+void freeSong(Song *cs);
 void reapplyBpm(void);
 void setBpmCount(void);
 

@@ -31,7 +31,7 @@ void clearTrackRuntime(Track *cv)
 }
 
 /* clears the global variant and frees all local variants */
-void initTrackData(Song *cs, TrackData *cd) /* TODO: should be atomic */
+void initTrackData(TrackData *cd, uint16_t songlen) /* TODO: should be atomic */
 {
 
 	freeVariantChain(&cd->variant);
@@ -40,7 +40,7 @@ void initTrackData(Song *cs, TrackData *cd) /* TODO: should be atomic */
 	/* resizing NULL will give a zero'ed out variant of size newlen */
 	// cd->variant->main = dupVariant(NULL, cs->songlen);
 	// cd->variant->trig = calloc(cs->songlen, sizeof(Vtrig));
-	resizeVariantChain(cd->variant, cs->songlen);
+	resizeVariantChain(cd->variant, songlen);
 
 	memset(cd->variant->i, VARIANT_VOID, sizeof(uint8_t) * VARIANT_MAX);
 	cd->variant->macroc = 1;
@@ -52,7 +52,7 @@ void initTrackData(Song *cs, TrackData *cd) /* TODO: should be atomic */
 
 void clearTrackdata(Song *cs, TrackData *cd) /* TODO: should be atomic */
 {
-	initTrackData(cs, cd);
+	initTrackData(cd, cs->songlen);
 	freeVariantChain(&cd->variant);
 	if (cd->effect) { free(cd->effect); cd->effect = NULL; }
 }
@@ -79,7 +79,7 @@ void _addTrack(Song *cs, Track *cv)
 	cv->data.effect = newEffectChain(cv->output, cv->pluginoutput);
 
 	// resizeVariantChain(cv->data.variant, cs->songlen); /* TODO: unnecessary? */
-	initTrackData(cs, &cv->data);
+	initTrackData(&cv->data, cs->songlen);
 }
 
 void debug_dumpTrackState(Song *cs)

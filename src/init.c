@@ -2,13 +2,11 @@
 pthread_t dummyprocessthread;
 #endif
 
-enum _INPUT_MODE input_mode;
-
 void common_cleanup(int ret)
 {
-	if (w) { free(w); w = NULL; }
-	if (s) { delSong(s); s = NULL; }
-	if (p) { free(p); p = NULL; }
+	freeRawInput();
+
+	if (p) free(p);
 
 	clearControls(&cc);
 	clearTooltip(&tt);
@@ -22,16 +20,12 @@ void common_cleanup(int ret)
 	freeLadspaDB();
 	freeLV2DB();
 
-	fcntl(0, F_SETFL, 0); /* reset to blocking stdin reads */
-	tcsetattr(1, TCSANOW, &origterm); /* reset to the original termios */
-	puts("\033[?1002l"); /* disable mouse */
-	puts("\033[?1049l"); /* reset to the front buffer */
-
-	freeRawInput(input_mode);
+	cleanupTerminal();
 
 	exit(ret);
 }
 
+jack_client_t *client;
 void cleanup(int ret)
 {
 	struct timespec req;
@@ -57,53 +51,21 @@ void cleanup(int ret)
 #endif
 	}
 
-	if (w)
-	{
-		_delInstrument(&w->instrumentbuffer);
-
-		if (w->recbuffer) free(w->recbuffer);
-
-		freeWaveform();
-
-		clearTrackdata(s, &w->trackbuffer);
-
-		_delTrack(s, &w->previewtrack);
-		if (w->previewsample) free(w->previewsample);
-
-		for (short i = 0; i < w->pbtrackc; i++)
-		{
-			free(w->pbvariantv[i]);
-			free(w->vbtrig[i]);
-		}
-	}
-	printf("\033[%d;0H\033[2K", ws.ws_row);
+	freeSong(s);
+	freeWindow(w);
 
 	common_cleanup(ret);
 }
 
-void sigwinch(int _) { p->resize = 1; }
+void sigwinch(int signal) { p->resize = 1; }
 
 void init(int argc, char **argv)
 {
 	srand(time(NULL)); /* seed rand */
-	puts("\033[?1049h"); /* switch to the back buffer */
-	puts("\033[?1002h"); /* enable mouse events */
 
-	struct termios term;
-	tcgetattr(1, &term);
-	origterm = term;
-	term.c_lflag &= (~ECHO & ~ICANON);
-	tcsetattr(1, TCSANOW, &term); /* disable ECHO and ICANON */
+	initTerminal();
 
-	/* truecolour */
-	// fcntl(0, F_SETFL, 0); /* ensure blocking io */
-	// getTrueColourType(&tc);
-	// trueColourReadStateBlock(&tc);
-
-	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking io */
-
-	input_mode = getRawInputMode();
-	initRawInput(input_mode);
+	initRawInput();
 
 	initNativeDB();
 	initLadspaDB();
@@ -133,15 +95,10 @@ void init(int argc, char **argv)
 	buffersize = DEBUG_DUMMY_BUFFERSIZE;
 #endif
 
-	w = calloc(1, sizeof(UI));
+	w = allocWindow();
 	if (!w) { puts("out of memory"); common_cleanup(1); }
-	w->octave = 4;
-	w->defvariantlength = 0x7;
-	// w->trackbuffer.variant->macroc = 1;
-	w->trackbuffer.effect = newEffectChain(NULL, NULL);
-	w->trackerfy = STATE_ROWS;
 
-	s = addSong();
+	s = allocSong();
 	if (!s) { puts("out of memory"); common_cleanup(1); }
 
 	p->s = s;
@@ -150,7 +107,6 @@ void init(int argc, char **argv)
 	/* need to be called before the jack client is activated */
 	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
 	__addTrack(&w->previewtrack);
-	initTrackData(s, &w->previewtrack.data);
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT

@@ -20,49 +20,47 @@ enum {
 	EFFECT_TYPE_NATIVE,
 	EFFECT_TYPE_LADSPA,
 	EFFECT_TYPE_LV2,
-	EFFECT_TYPE_CLAP, /* TODO */
 } EFFECT_TYPE;
 
 /* IMPORTANT NOTE: effects should not register any more than 16 controls */
 /* TODO: fix this, controls should be dynamically allocated              */
 
-void freeEffect(Effect *e);
+void freeEffect(Effect*);
 EffectChain *newEffectChain(float *input[2], float *output[2]);
 
 /* NOTE: NOT thread safe */
-void clearEffectChain(EffectChain *chain);
+void clearEffectChain(EffectChain*);
 
-uint8_t getEffectControlCount(Effect *e);
-EffectChain *_addEffect(EffectChain  *chain, unsigned long pluginindex, uint8_t chordindex);
+uint8_t getEffectControlCount(Effect*);
+EffectChain *_addEffect(EffectChain*, unsigned long pluginindex, uint8_t index);
 void cb_addEffect(Event*); /* intended to be passed to addEffect().cb */
-void          addEffect(EffectChain **chain, unsigned long pluginindex, uint8_t chordindex, void (*cb)(Event *));
-EffectChain *_delEffect(EffectChain  *chain, uint8_t chordindex);
-void          delEffect(EffectChain **chain, uint8_t chordindex);
+void addEffect(EffectChain**, unsigned long pluginindex, uint8_t index, void (*cb)(Event*));
+EffectChain *_delEffect(EffectChain*, uint8_t index);
+void delEffect(EffectChain**, uint8_t index);
 
 /* cursor is (ControlState).cursor compatible */
-uint8_t getEffectFromCursor(EffectChain *chain, uint8_t cursor);
-uint8_t getCursorFromEffect(EffectChain *chain, uint8_t chordindex);
+uint8_t getEffectFromCursor(EffectChain*, uint8_t cursor);
+uint8_t getCursorFromEffect(EffectChain*, uint8_t index);
 
 void copyEffect(EffectChain *destchain, Effect *dest, Effect *src);
 void copyEffectChain(EffectChain **dest, EffectChain *src);
 
-void serializeEffect(Effect *e, FILE *fp);
-void deserializeEffect(EffectChain *chain, Effect *e, FILE *fp, uint8_t major, uint8_t minor);
-void serializeEffectChain(EffectChain *chain, FILE *fp);
-void deserializeEffectChain(EffectChain **chain, FILE *fp, uint8_t major, uint8_t minor);
+void serializeEffect(Effect*, FILE*);
+void deserializeEffect(EffectChain*, Effect*, FILE*, uint8_t major, uint8_t minor);
+void serializeEffectChain(EffectChain*, FILE*);
+void deserializeEffectChain(EffectChain**, FILE*, uint8_t major, uint8_t minor);
 
-short getEffectHeight(Effect *e);
+short getEffectHeight(Effect*);
 
-void drawBoundingBox(short x, short y, short w, short h, short xmin, short xmax, short ymin, short ymax);
-int drawEffect(Effect *e, ControlState *cc, bool selected, short x, short w, short y, short ymin, short ymax);
+int drawEffect(Effect*, ControlState*, bool selected, short x, short w, short y, short ymin, short ymax);
 
-void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e);
+void runEffect(uint32_t samplecount, EffectChain*, Effect*);
 
 
 /* won't centre properly if multibyte chars are present */
 void drawCentreText(short x, short y, short w, const char *text);
 
-void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
+void drawAutogenPluginLine(ControlState*, short x, short y, short w,
 		short ymin, short ymax,
 		const char *name, float *value,
 		bool toggled, bool integer,
@@ -70,6 +68,6 @@ void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
 		char *prefix, char *postfix,
 		uint32_t scalepointlen, uint32_t scalepointcount);
 
-void drawEffects(EffectChain *chain, ControlState *cc, bool boldOutlines, short x, short width, short y);
+void drawEffects(EffectChain*, ControlState*, bool boldOutlines, short x, short width, short y);
 
 #include "input.h"

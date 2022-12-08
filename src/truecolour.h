@@ -16,6 +16,7 @@ typedef struct {
 	uint8_t semaphore; /* if this is >= 8 then all colours have been updated */
 	enum TermColourType type;
 } TrueColourState;
+TrueColourState tc;
 
 void getTrueColourType(TrueColourState *tc)
 {

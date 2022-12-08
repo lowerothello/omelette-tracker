@@ -1,6 +1,7 @@
 /* *note is allowed to be null             */
 /* returns true if a valid pad was pressed */
-int charToKmode(int key, bool linknibbles, uint8_t *macrov, uint8_t *note)
+/* TODO: deprecated */
+static int charToKmode(int key, bool linknibbles, uint8_t *macrov, uint8_t *note)
 {
 	if (note) *note = NOTE_C5;
 	switch (key)
@@ -28,7 +29,7 @@ int charToKmode(int key, bool linknibbles, uint8_t *macrov, uint8_t *note)
 }
 
 /* change these constants for anything but a modplug-style keymap */
-void charToNote(int key, uint8_t *note)
+static void charToNote(int key, uint8_t *note)
 {
 	switch (key)
 	{
@@ -96,7 +97,7 @@ void addCountBinds(TooltipState *tt, bool draw)
 	addTooltipBind(tt, "add 9 to count", 0, XK_9, flags, tooltipAddCount, (void*)9);
 }
 
-void _previewNote(UI *cw, int key, uint8_t inst)
+static void _previewNote(UI *cw, int key, uint8_t inst)
 {
 	cw->previewrow.macro[0].c = '\0';
 	cw->previewrow.inst = inst;
@@ -129,13 +130,7 @@ void previewFileNote(UI *cw, int key)
 }
 
 
-enum _INPUT_MODE {
-	INPUT_MODE_NONE,  /* just interpret stdin        */
-	INPUT_MODE_RAW,   /* use the raw driver, console */
-	INPUT_MODE_X,     /* use an x hack, xterm        */
-} INPUT_MODE;
-
-enum _INPUT_MODE getRawInputMode(void)
+static enum InputMode getRawInputMode(void)
 {
 #ifdef DISABLE_RAW_INPUT
 	return INPUT_MODE_NONE;
@@ -166,12 +161,17 @@ static void *XEventThread(void *arg)
 	}
 	return NULL;
 }
-/* stdin is always initialized */
+
+enum InputMode input_mode;
+
+/* stdin is initialized by initTerminal() */
 /* returns true for failure */
-int initRawInput(enum _INPUT_MODE mode)
+int initRawInput(void)
 {
+	input_mode = getRawInputMode();
+
 	int revtoret;
-	switch (mode)
+	switch (input_mode)
 	{
 		case INPUT_MODE_RAW:
 			// ioctl(0, KDSKBMODE, K_RAW); /* TODO: */
@@ -187,9 +187,10 @@ int initRawInput(enum _INPUT_MODE mode)
 	return 0;
 }
 
-void freeRawInput(enum _INPUT_MODE mode)
+/* stdin is free'd by cleanupTerminal() */
+void freeRawInput(void)
 {
-	switch (mode)
+	switch (input_mode)
 	{
 		case INPUT_MODE_RAW:
 			// ioctl(0, KDSKBMODE, K_XLATE);
@@ -201,153 +202,4 @@ void freeRawInput(enum _INPUT_MODE mode)
 			break;
 		case INPUT_MODE_NONE: break;
 	}
-}
-
-static unsigned int ansiToModState(int input)
-{
-	unsigned int ret = 0;
-	input -= 0x31; /* '2' => 1 */
-	if (input&1) ret |= ShiftMask;
-	if (input&2) ret |= Mod1Mask;
-	if (input&4) ret |= ControlMask;
-	return ret;
-}
-
-/* TODO: doesn't really belong here, idk a better way to handle this */
-void setDefaultColour(int colour, unsigned int r, unsigned int g, unsigned int b)
-{
-	tc.colour[colour].r = r;
-	tc.colour[colour].g = g;
-	tc.colour[colour].b = b;
-
-	/* trigger a redraw when all 8 colours have been read in */
-	tc.semaphore++;
-	if (tc.semaphore >= 8)
-	{
-		p->redraw = 1;
-		tc.semaphore -= 8;
-	}
-}
-
-void handleStdin(TooltipState *tt)
-{
-	unsigned int mod = 0;
-	static int input;
-	while (1)
-		switch (input = getchar())
-		{
-			case EOF: return;
-			case '\033': /* escape */ switch (input = getchar()) {
-					case EOF: inputTooltip(tt, mod, XK_Escape, 0); return;
-					case ']': /* OSC */ switch (input = getchar()) {
-							case '4': {
-									int colour;
-									unsigned int r, g, b;
-									scanf(";%d;rgb:%02x%*02x/%02x%*02x/%02x%*02x\007",
-											&colour, &r, &g, &b);
-									setDefaultColour(colour, r, g, b);
-								} break;
-						} break;
-					case 'O': /* SS3 */ switch (input = getchar()) {
-							case 'P': inputTooltip(tt, mod, XK_F1, 0); break;
-							case 'Q': inputTooltip(tt, mod, XK_F2, 0); break;
-							case 'R': inputTooltip(tt, mod, XK_F3, 0); break;
-							case 'S': inputTooltip(tt, mod, XK_F4, 0); break;
-						} break;
-					case '[': /* CSI */ switch (input = getchar()) {
-							case '[': switch (input = getchar()) {
-									case 'A': inputTooltip(tt, mod, XK_F1, 0); break;
-									case 'B': inputTooltip(tt, mod, XK_F2, 0); break;
-									case 'C': inputTooltip(tt, mod, XK_F3, 0); break;
-									case 'D': inputTooltip(tt, mod, XK_F4, 0); break;
-									case 'E': inputTooltip(tt, mod, XK_F5, 0); break;
-								} break;
-							case 'A': inputTooltip(tt, mod, XK_Up   , 0); break;
-							case 'B': inputTooltip(tt, mod, XK_Down , 0); break;
-							case 'D': inputTooltip(tt, mod, XK_Left , 0); break;
-							case 'C': inputTooltip(tt, mod, XK_Right, 0); break;
-							case '1': switch (input = getchar()) {
-									case '5': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F5, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F5, 0); getchar(); break;
-										} break;
-									case '7': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F6, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F6, 0); getchar(); break;
-										} break;
-									case '8': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F7, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F7, 0); getchar(); break;
-										} break;
-									case '9': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F8, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F8, 0); getchar(); break;
-										} break;
-									case ';':
-										mod |= ansiToModState(getchar());
-										switch (input = getchar()) {
-											case 'A': inputTooltip(tt, mod, XK_Up   , 0); break;
-											case 'B': inputTooltip(tt, mod, XK_Down , 0); break;
-											case 'D': inputTooltip(tt, mod, XK_Left , 0); break;
-											case 'C': inputTooltip(tt, mod, XK_Right, 0); break;
-											case 'P': inputTooltip(tt, mod, XK_F1, 0); break;
-											case 'Q': inputTooltip(tt, mod, XK_F2, 0); break;
-											case 'R': inputTooltip(tt, mod, XK_F3, 0); break;
-											case 'S': inputTooltip(tt, mod, XK_F4, 0); break;
-										} break;
-									case '~': inputTooltip(tt, mod, XK_Home, 0); break;
-								} break;
-							case '2': switch (input = getchar()) {
-									case '0': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F9, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F9, 0); getchar(); break;
-										} break;
-									case '1': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F10, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F10, 0); getchar(); break;
-										} break;
-									case '3': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F11, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F11, 0); getchar(); break;
-										} break;
-									case '4': switch (input = getchar()) {
-											case '~': inputTooltip(tt, mod, XK_F12, 0); break;
-											case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_F12, 0); getchar(); break;
-										} break;
-									case 'J': inputTooltip(tt, mod|ShiftMask, XK_Home  , 0); break;
-									case 'K': inputTooltip(tt, mod|ShiftMask, XK_Delete, 0); break;
-								} break;
-							case '4': if (getchar() == '~') inputTooltip(tt, mod, XK_End, 0); break;
-							case '5': switch (input = getchar()) {
-									case '~': inputTooltip(tt, mod, XK_Page_Up, 0); break;
-									case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_Page_Up, 0); getchar(); break;
-								} break;
-							case '6': switch (input = getchar()) {
-									case '~': inputTooltip(tt, mod, XK_Page_Down, 0); getchar(); break;
-									case ';': inputTooltip(tt, mod|ansiToModState(getchar()), XK_Page_Down, 0); getchar(); break;
-								} break;
-							case 'H': inputTooltip(tt, mod, XK_Home, 0); break;
-							case 'J': inputTooltip(tt, mod|ControlMask, XK_End, 0); break;
-							case 'K': inputTooltip(tt, mod|ShiftMask  , XK_End, 0); break;
-							case 'M': { /* TODO: ctrl+delete maps to CSI M, which conflicts */
-									enum _BUTTON button = getchar();
-									int x = getchar() - 32;
-									int y = getchar() - 32;
-									tt->mousecallback(button, x, y);
-									resetInput();
-								} break;
-							case 'P': inputTooltip(tt, mod, XK_Delete, 0); break;
-						} break;
-					default:
-						if (input <= 0x20) inputTooltip(tt, mod|Mod1Mask|ControlMask, input+0x40, 0);
-						else               inputTooltip(tt, mod|Mod1Mask            , input     , 0);
-						break;
-				} break;
-			case '\n': case '\r': inputTooltip(tt, mod, XK_Return, 0); break;
-			case '\b': case 127:  inputTooltip(tt, mod, XK_BackSpace, 0); break;
-			default:
-				if (input <= 0x20) inputTooltip(tt, mod|ControlMask, input+0x40, 0);
-				else               inputTooltip(tt, mod            , input     , 0);
-				break;
-		}
 }

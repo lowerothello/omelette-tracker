@@ -22,7 +22,7 @@ Song *_addSong(void)
 }
 
 #define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
-Song *addSong(void)
+Song *allocSong(void)
 {
 	Song *ret = _addSong();
 
@@ -38,8 +38,10 @@ Song *addSong(void)
 	return ret;
 }
 
-void delSong(Song *cs)
+void freeSong(Song *cs)
 {
+	if (!cs) return;
+
 	clearEffectChain(cs->master); free(cs->master);
 	clearEffectChain(cs->send); free(cs->send);
 
