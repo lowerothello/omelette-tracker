@@ -8,6 +8,7 @@
 #define MIN(X, Y) ((X < Y) ? X : Y)
 
 #include "../dsp.c" /* omelette dsp functions */
+#include "../delaybuffer.c"
 
 #define UID_OFFSET 69420 /* haha funny number */
 
@@ -19,6 +20,9 @@
 #undef BUNDLE_INDEX
 #define BUNDLE_INDEX 1
 #include "eq.h"
+#undef BUNDLE_INDEX
+#define BUNDLE_INDEX 2
+#include "envelope.h"
 
 const LADSPA_Descriptor *ladspa_descriptor(unsigned long index)
 {
@@ -26,6 +30,7 @@ const LADSPA_Descriptor *ladspa_descriptor(unsigned long index)
 	{
 		case 0: return &cyclic_descriptor;
 		case 1: return &eq_descriptor;
+		case 2: return &env_descriptor;
 		default: return NULL;
 	}
 }

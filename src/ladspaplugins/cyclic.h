@@ -37,32 +37,31 @@ const LADSPA_PortRangeHint cyclic_PortRangeHints[CYCLIC_PORTC] =
 	{ LADSPA_HINT_BOUNDED_BELOW|LADSPA_HINT_BOUNDED_ABOVE|LADSPA_HINT_INTEGER|LADSPA_HINT_DEFAULT_MINIMUM, 0.0f, 2.0f, },
 };
 
-#define CYCLIC_PORT_INL 0
-#define CYCLIC_PORT_INR 1
-#define CYCLIC_PORT_OUTL 2
-#define CYCLIC_PORT_OUTR 3
-#define CYCLIC_PORT_CLEN 4
-#define CYCLIC_PORT_PITCH 5
-#define CYCLIC_PORT_TREM 6
+enum {
+	CYCLIC_PORT_INL,
+	CYCLIC_PORT_INR,
+	CYCLIC_PORT_OUTL,
+	CYCLIC_PORT_OUTR,
+	CYCLIC_PORT_CLEN,
+	CYCLIC_PORT_PITCH,
+	CYCLIC_PORT_TREM,
+} CYCLIC_PORT;
 
 
 struct CyclicHandle {
-	LADSPA_Data *port[CYCLIC_PORTC];
-	float        pitch, oldpitch; /* oldpitch is needed for ramping to be correct */
-	LADSPA_Data *bufferl;
-	LADSPA_Data *bufferr;
-	unsigned long blen; /* max buffer length */
-	unsigned long bptr; /* buffer pointer, walks up to .blen*CYCLIC_BUFFER_CYCLES */
-	unsigned long cptr; /* cycle pointer, walks up to .cptr*CYCLIC_PORT_CYCLELEN */
+	LADSPA_Data  *port[CYCLIC_PORTC];
+	float         pitch, oldpitch; /* oldpitch is needed for ramping to be correct */
+	unsigned long clen, oldclen;   /* oldclen is needed for ramping to be correct */
+	DelayBuffer  *buffer;          /* as far as this plugin is concerned (buffer->len == buffer->siglen) */
+	unsigned long blen;            /* the buffer is overallocated, so store the actual max cycle length */
+	unsigned long cptr;            /* cycle pointer, walks up to .cptr*CYCLIC_PORT_CYCLELEN */
 };
 
 LADSPA_Handle cyclic_instantiate(const LADSPA_Descriptor *desc, unsigned long rate)
 {
 	struct CyclicHandle *handle = calloc(1, sizeof(struct CyclicHandle));
 	handle->blen = rate * CYCLIC_MAX_DELAY_S;
-	handle->bufferl = calloc(handle->blen * CYCLIC_BUFFER_CYCLES, sizeof(LADSPA_Data));
-	handle->bufferr = calloc(handle->blen * CYCLIC_BUFFER_CYCLES, sizeof(LADSPA_Data));
-	handle->bptr = 0;
+	handle->buffer = allocDelayBuffer(handle->blen * CYCLIC_BUFFER_CYCLES);
 	handle->cptr = 0;
 
 	return handle;
@@ -70,8 +69,7 @@ LADSPA_Handle cyclic_instantiate(const LADSPA_Descriptor *desc, unsigned long ra
 void cyclic_cleanup(LADSPA_Handle handle)
 {
 	struct CyclicHandle *h = handle;
-	free(h->bufferl);
-	free(h->bufferr);
+	freeDelayBuffer(h->buffer);
 	free(h);
 }
 
@@ -80,10 +78,17 @@ float cyclicGenPitch(float pitchport)
 	return powf(M_12_ROOT_2, pitchport);
 }
 
+unsigned long cyclicGenClen(struct CyclicHandle *h)
+{
+	unsigned long ret = (h->blen * h->port[CYCLIC_PORT_CLEN][0]) / h->pitch;
+	return MAX(1, ret); /* avoid dividing by 0 */
+}
+
 void cyclic_activate(LADSPA_Handle handle)
 {
 	struct CyclicHandle *h = handle;
 	h->pitch = h->oldpitch = cyclicGenPitch(h->port[CYCLIC_PORT_PITCH][0]);
+	h->clen = h->oldclen = cyclicGenClen(h);
 	h->cptr = 0;
 }
 
@@ -111,82 +116,53 @@ void cyclic_run(LADSPA_Handle handle, unsigned long bufsize)
 		inl = h->port[CYCLIC_PORT_INL][i];
 		inr = h->port[CYCLIC_PORT_INR][i];
 
-		/* cycle length, in samples */
-		unsigned long clen = h->blen * h->port[CYCLIC_PORT_CLEN][0];
-		clen = MAX(1, clen); /* avoid dividing by 0 */
-
-		/* pitched cycle length */
-		unsigned long pclen = clen / h->pitch;
-		pclen = MAX(1, pclen); /* avoid dividing by 0 */
-		pclen = MIN(clen, pclen);
-
-		/* ramp length */
-		// unsigned long rlen = pclen>>1; /* 0 is safe */
-
-		/* subcycle pointer */
-		unsigned long rptr = h->cptr%pclen;
-
 		/* pitched pointer offset */
-		unsigned long pitchptr = rptr * h->pitch;
+		unsigned long pitchptr = h->cptr * h->pitch;
+		unsigned long rpitchptr = (h->oldclen + h->cptr) * h->oldpitch;
 
-		h->port[CYCLIC_PORT_OUTL][i] = h->bufferl[pastSample(h->blen*CYCLIC_BUFFER_CYCLES, h->bptr, clen+h->cptr - pitchptr)];
-		h->port[CYCLIC_PORT_OUTR][i] = h->bufferr[pastSample(h->blen*CYCLIC_BUFFER_CYCLES, h->bptr, clen+h->cptr - pitchptr)];
+		h->port[CYCLIC_PORT_OUTL][i] = readDelayBuffer(h->buffer, h->clen+h->cptr - pitchptr, 0);
+		h->port[CYCLIC_PORT_OUTR][i] = readDelayBuffer(h->buffer, h->clen+h->cptr - pitchptr, 1);
 
 		float xfade;
-		unsigned long rpitchptr;
-		if (rptr < pclen) /* ramping */
+		if (h->cptr < h->clen) /* ramping */
 		{
-			if (rptr == h->cptr) /* ramp out the prev cycle */
-			{
-				xfade = (float)rptr / (float)pclen;
-				h->port[CYCLIC_PORT_OUTL][i] *= xfade;
-				h->port[CYCLIC_PORT_OUTR][i] *= xfade;
-				rpitchptr = (pclen - (clen%pclen) + rptr) * h->pitch;
-				// h->port[CYCLIC_PORT_OUTL][i] += h->bufferl[pastSample(h->blen*CYCLIC_BUFFER_CYCLES, h->bptr, (clen<<1)+rptr - rpitchptr)] * (1.0f - xfade);
-				// h->port[CYCLIC_PORT_OUTR][i] += h->bufferr[pastSample(h->blen*CYCLIC_BUFFER_CYCLES, h->bptr, (clen<<1)+rptr - rpitchptr)] * (1.0f - xfade);
-			}
-			else /* ramp out the current cycle */
-			{
-				xfade = (float)rptr / (float)MAX(1, MIN(pclen, clen - (h->cptr - rptr)));
-				h->port[CYCLIC_PORT_OUTL][i] *= xfade;
-				h->port[CYCLIC_PORT_OUTR][i] *= xfade;
-				// h->port[CYCLIC_PORT_OUTL][i] *= 0.0f;
-				// h->port[CYCLIC_PORT_OUTR][i] *= 0.0f;
-				// rpitchptr = ((clen+rptr)%pclen) * h->pitch;
-				rpitchptr = pitchptr;
-				h->port[CYCLIC_PORT_OUTL][i] += h->bufferl[pastSample(h->blen*CYCLIC_BUFFER_CYCLES, h->bptr, clen+h->cptr - rpitchptr)] * (1.0f - xfade);
-				h->port[CYCLIC_PORT_OUTR][i] += h->bufferr[pastSample(h->blen*CYCLIC_BUFFER_CYCLES, h->bptr, clen+h->cptr - rpitchptr)] * (1.0f - xfade);
-			}
-		}
+			if (rpitchptr > h->clen + h->oldclen + h->cptr)
+				goto endramp; /* skip ramping for the time being */
 
-		if (clen > CYCLIC_TREM_MIN_CLEN)
+			xfade = (float)h->cptr / (float)h->clen;
+			h->port[CYCLIC_PORT_OUTL][i] *= xfade;
+			h->port[CYCLIC_PORT_OUTR][i] *= xfade;
+			h->port[CYCLIC_PORT_OUTL][i] += readDelayBuffer(h->buffer, (h->oldclen<<1) + h->cptr - rpitchptr, 0) * (1.0f - xfade);
+			h->port[CYCLIC_PORT_OUTR][i] += readDelayBuffer(h->buffer, (h->oldclen<<1) + h->cptr - rpitchptr, 1) * (1.0f - xfade);
+		}
+endramp:
+
+		if (h->clen > CYCLIC_TREM_MIN_CLEN)
 		{
 			if (h->port[CYCLIC_PORT_TREM][0] > 1.0f) /* autopan */
 			{
-				xfade = fabsf((float)h->cptr/(float)clen * 2.0f - 1.0f);
+				xfade = fabsf((float)h->cptr/(float)h->clen * 2.0f - 1.0f);
 				h->port[CYCLIC_PORT_OUTL][i] *= xfade;
 				h->port[CYCLIC_PORT_OUTR][i] *= 1.0f - xfade;
 			} else if (h->port[CYCLIC_PORT_TREM][0] > 0.0f) /* tremolo */
 			{
-				xfade = fabsf((float)h->cptr/(float)clen * 2.0f - 1.0f);
+				xfade = fabsf((float)h->cptr/(float)h->clen * 2.0f - 1.0f);
 				h->port[CYCLIC_PORT_OUTL][i] *= xfade;
 				h->port[CYCLIC_PORT_OUTR][i] *= xfade;
 			}
 		}
 
-		h->bufferl[h->bptr] = inl;
-		h->bufferr[h->bptr] = inr;
 
-		h->bptr++;
-		if (h->bptr >= h->blen*CYCLIC_BUFFER_CYCLES)
-			h->bptr -= h->blen*CYCLIC_BUFFER_CYCLES;
+		walkDelayBuffer(h->buffer, inl, inr);
 
 		h->cptr++;
-		if (h->cptr >= clen)
+		if (h->cptr >= h->clen)
 		{
-			h->cptr -= clen;
+			h->cptr -= h->clen;
 			h->oldpitch = h->pitch;
 			h->pitch = cyclicGenPitch(h->port[CYCLIC_PORT_PITCH][0]);
+			h->oldclen = h->clen;
+			h->clen = cyclicGenClen(h);
 		}
 	}
 }

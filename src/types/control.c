@@ -256,7 +256,7 @@ void drawControls(ControlState *cc)
 					break;
 				case 8: sprintf(buffer, "%08x", *(uint32_t *)c->value); break;
 				case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "%0*.*f", 7, 6-getPreRadixDigits(c->max.f), *(float *)c->value); break;
-				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "%+0*.*f", 8, 5-getPreRadixDigits(c->max.f), *(float *)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
+				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "%+0*.*f", 8, 6-getPreRadixDigits(c->max.f), *(float *)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
 				case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "%0*.0f",      getPreRadixDigits(c->max.f), *(float *)c->value); break;
 				case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "%+0*.0f",    1+getPreRadixDigits(c->max.f), *(float *)c->value); break;
 			}
@@ -278,8 +278,8 @@ void drawControls(ControlState *cc)
 				else                                                  printf("\033[%d;%dH", c->y, c->x + 5 - cc->fieldpointer);
 				break;
 			case CONTROL_NIBBLES_SIGNED_FLOAT:
-				if (cc->fieldpointer < 5-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 7 - cc->fieldpointer);
-				else                                                       printf("\033[%d;%dH", c->y, c->x + 6 - cc->fieldpointer);
+				if (cc->fieldpointer < 6-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 7 - cc->fieldpointer);
+				else                                                  printf("\033[%d;%dH", c->y, c->x + 6 - cc->fieldpointer);
 				break;
 			case CONTROL_NIBBLES_UNSIGNED_INT: printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc->fieldpointer - 1); break;
 			case CONTROL_NIBBLES_SIGNED_INT:   printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc->fieldpointer    ); break;
@@ -298,7 +298,7 @@ void incControlValue(ControlState *cc)
 		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
 			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
 		case CONTROL_NIBBLES_SIGNED_FLOAT:
-			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer - (5-getPreRadixDigits(c->max.f))), c->max.f); break;
+			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
 		case CONTROL_NIBBLES_UNSIGNED_INT:
 		case CONTROL_NIBBLES_SIGNED_INT:
 			(*(float *)c->value) = MIN((*(float *)c->value) + powf(10.0f, cc->fieldpointer), c->max.f); break;
@@ -340,7 +340,7 @@ void decControlValue(ControlState *cc)
 		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
 			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
 		case CONTROL_NIBBLES_SIGNED_FLOAT:
-			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer - (5-getPreRadixDigits(c->max.f))), c->min.f); break;
+			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
 		case CONTROL_NIBBLES_UNSIGNED_INT:
 		case CONTROL_NIBBLES_SIGNED_INT:
 			(*(float *)c->value) = MAX((*(float *)c->value) - powf(10.0f, cc->fieldpointer), c->min.f); break;
@@ -605,7 +605,7 @@ void mouseControls(ControlState *cc, int button, int x, int y)
 						case CONTROL_NIBBLES_SIGNED_FLOAT:
 							if      (x < c->x+1)   cc->fieldpointer = 5;
 							else if (x > c->x + 6) cc->fieldpointer = 0;
-							else if (x < c->x + 2 + getPreRadixDigits(c->max.f)) cc->fieldpointer = 5 - (x - (c->x+1));
+							else if (x < c->x + 1 + getPreRadixDigits(c->max.f)) cc->fieldpointer = 5 - (x - (c->x+1));
 							else                   cc->fieldpointer = 6 - (x - (c->x+1));
 							break;
 						case CONTROL_NIBBLES_UNSIGNED_INT:
