@@ -50,11 +50,12 @@ enum {
 
 struct CyclicHandle {
 	LADSPA_Data  *port[CYCLIC_PORTC];
-	float         pitch, oldpitch; /* oldpitch is needed for ramping to be correct */
-	unsigned long clen, oldclen;   /* oldclen is needed for ramping to be correct */
-	DelayBuffer  *buffer;          /* as far as this plugin is concerned (buffer->len == buffer->siglen) */
-	unsigned long blen;            /* the buffer is overallocated, so store the actual max cycle length */
-	unsigned long cptr;            /* cycle pointer, walks up to .cptr*CYCLIC_PORT_CYCLELEN */
+	float         pitch, oldpitch;     /* oldpitch is needed for ramping to be correct */
+	unsigned long clen, oldclen;       /* oldclen is needed for ramping to be correct */
+	DelayBuffer  *buffer;              /* as far as this plugin is concerned (buffer->len == buffer->siglen) */
+	unsigned long blen;                /* the buffer is overallocated, so store the actual max cycle length */
+	unsigned long cptr;                /* cycle pointer, walks up to .cptr*CYCLIC_PORT_CYCLELEN */
+	unsigned long latency, oldlatency; /* pitching up requires latency */
 };
 
 LADSPA_Handle cyclic_instantiate(const LADSPA_Descriptor *desc, unsigned long rate)
@@ -73,22 +74,32 @@ void cyclic_cleanup(LADSPA_Handle handle)
 	free(h);
 }
 
-float cyclicGenPitch(float pitchport)
+float cyclicGenPitch(struct CyclicHandle *h)
 {
-	return powf(M_12_ROOT_2, pitchport);
+	return powf(M_12_ROOT_2, h->port[CYCLIC_PORT_PITCH][0]);
 }
-
 unsigned long cyclicGenClen(struct CyclicHandle *h)
 {
 	unsigned long ret = (h->blen * h->port[CYCLIC_PORT_CLEN][0]) / h->pitch;
 	return MAX(1, ret); /* avoid dividing by 0 */
 }
+unsigned long cyclicGenLatency(struct CyclicHandle *h)
+{
+	unsigned long naturalsample = h->clen + (h->clen>>1);
+	unsigned long pitchedsample = naturalsample * h->pitch;
+
+	if (naturalsample >= pitchedsample)
+		return 1;
+	else
+		return (pitchedsample - naturalsample) << 1;
+}
 
 void cyclic_activate(LADSPA_Handle handle)
 {
 	struct CyclicHandle *h = handle;
-	h->pitch = h->oldpitch = cyclicGenPitch(h->port[CYCLIC_PORT_PITCH][0]);
+	h->pitch = h->oldpitch = cyclicGenPitch(h);
 	h->clen = h->oldclen = cyclicGenClen(h);
+	h->latency = h->oldlatency = cyclicGenLatency(h);
 	h->cptr = 0;
 }
 
@@ -120,20 +131,17 @@ void cyclic_run(LADSPA_Handle handle, unsigned long bufsize)
 		unsigned long pitchptr = h->cptr * h->pitch;
 		unsigned long rpitchptr = (h->oldclen + h->cptr) * h->oldpitch;
 
-		h->port[CYCLIC_PORT_OUTL][i] = readDelayBuffer(h->buffer, h->clen+h->cptr - pitchptr, 0);
-		h->port[CYCLIC_PORT_OUTR][i] = readDelayBuffer(h->buffer, h->clen+h->cptr - pitchptr, 1);
+		h->port[CYCLIC_PORT_OUTL][i] = readDelayBuffer(h->buffer, h->latency+h->cptr - pitchptr, 0);
+		h->port[CYCLIC_PORT_OUTR][i] = readDelayBuffer(h->buffer, h->latency+h->cptr - pitchptr, 1);
 
 		float xfade;
 		if (h->cptr < h->clen) /* ramping */
 		{
-			if (rpitchptr > h->clen + h->oldclen + h->cptr)
-				goto endramp; /* skip ramping for the time being */
-
 			xfade = (float)h->cptr / (float)h->clen;
 			h->port[CYCLIC_PORT_OUTL][i] *= xfade;
 			h->port[CYCLIC_PORT_OUTR][i] *= xfade;
-			h->port[CYCLIC_PORT_OUTL][i] += readDelayBuffer(h->buffer, (h->oldclen<<1) + h->cptr - rpitchptr, 0) * (1.0f - xfade);
-			h->port[CYCLIC_PORT_OUTR][i] += readDelayBuffer(h->buffer, (h->oldclen<<1) + h->cptr - rpitchptr, 1) * (1.0f - xfade);
+			h->port[CYCLIC_PORT_OUTL][i] += readDelayBuffer(h->buffer, h->oldlatency + h->oldclen + h->cptr - rpitchptr, 0) * (1.0f - xfade);
+			h->port[CYCLIC_PORT_OUTR][i] += readDelayBuffer(h->buffer, h->oldlatency + h->oldclen + h->cptr - rpitchptr, 1) * (1.0f - xfade);
 		}
 endramp:
 
@@ -160,9 +168,11 @@ endramp:
 		{
 			h->cptr -= h->clen;
 			h->oldpitch = h->pitch;
-			h->pitch = cyclicGenPitch(h->port[CYCLIC_PORT_PITCH][0]);
+			h->pitch = cyclicGenPitch(h);
 			h->oldclen = h->clen;
 			h->clen = cyclicGenClen(h);
+			h->oldlatency = h->latency;
+			h->latency = cyclicGenLatency(h);
 		}
 	}
 }
@@ -171,7 +181,7 @@ const LADSPA_Descriptor cyclic_descriptor =
 {
 	/* UniqueID            */ UID_OFFSET + BUNDLE_INDEX,
 	/* Label               */ "cyclic",
-	/* Properties          */ LADSPA_PROPERTY_HARD_RT_CAPABLE,
+	/* Properties          */ 0,
 	/* Name                */ "Cyclic Pitch Distortion",
 	/* Maker               */ MAKER,
 	/* Copyright           */ LICENSE,
