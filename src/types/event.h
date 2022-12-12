@@ -3,7 +3,7 @@
 
 /* main semaphore */
 /* communication is always initiated by the main thread */
-enum {
+enum M_SEM {
 	M_SEM_OK,                             /* allow processing                                            */
 	M_SEM_DONE,                           /* pop the event                                               */
 	M_SEM_RELOAD_REQ,                     /* trigger downtime for a file reload                          */
@@ -14,15 +14,15 @@ enum {
 	M_SEM_BPM,                            /* reapply the song bpm                                        */
 	M_SEM_TRACK_MUTE,                     /* apply track mutes to midi data                              */
 	M_SEM_INPUT,                          /* queued X server input events                                */
-} M_SEM;
+};
 
 typedef struct event
 {
-	uint8_t sem; /* M_SEM_* defines */
-	void  **dest; /* swapping sets *dest to src, leaving what *dest used to be in src */
-	void   *src;  /* note that only dest is a double pointer */
-	void  (*callback)(struct event *);
-	void   *callbackarg;
+	enum M_SEM sem;
+	void     **dest; /* swapping sets *dest to src, leaving what *dest used to be in src */
+	void      *src;  /* note that only dest is a double pointer */
+	void     (*callback)(struct event *);
+	void      *callbackarg;
 } Event;
 
 void pushEvent(Event *e);

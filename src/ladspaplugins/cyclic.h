@@ -1,4 +1,4 @@
-#define CYCLIC_MAX_DELAY_S 1
+#define CYCLIC_MAX_DELAY_S 2
 #define CYCLIC_BUFFER_CYCLES 3.0f
 
 #define CYCLIC_OCTAVE_RANGE 3
@@ -74,16 +74,16 @@ void cyclic_cleanup(LADSPA_Handle handle)
 	free(h);
 }
 
-float cyclicGenPitch(struct CyclicHandle *h)
+static float cyclicGenPitch(struct CyclicHandle *h)
 {
 	return powf(M_12_ROOT_2, h->port[CYCLIC_PORT_PITCH][0]);
 }
-unsigned long cyclicGenClen(struct CyclicHandle *h)
+static unsigned long cyclicGenClen(struct CyclicHandle *h)
 {
 	unsigned long ret = (h->blen * h->port[CYCLIC_PORT_CLEN][0]) / h->pitch;
 	return MAX(1, ret); /* avoid dividing by 0 */
 }
-unsigned long cyclicGenLatency(struct CyclicHandle *h)
+static unsigned long cyclicGenLatency(struct CyclicHandle *h)
 {
 	unsigned long naturalsample = h->clen + (h->clen>>1);
 	unsigned long pitchedsample = naturalsample * h->pitch;
@@ -94,12 +94,21 @@ unsigned long cyclicGenLatency(struct CyclicHandle *h)
 		return (pitchedsample - naturalsample) << 1;
 }
 
+void cyclicWalkState(struct CyclicHandle *h)
+{
+	h->oldpitch = h->pitch;
+	h->pitch = cyclicGenPitch(h);
+	h->oldclen = h->clen;
+	h->clen = cyclicGenClen(h);
+	h->oldlatency = h->latency;
+	h->latency = cyclicGenLatency(h);
+}
+
 void cyclic_activate(LADSPA_Handle handle)
 {
 	struct CyclicHandle *h = handle;
-	h->pitch = h->oldpitch = cyclicGenPitch(h);
-	h->clen = h->oldclen = cyclicGenClen(h);
-	h->latency = h->oldlatency = cyclicGenLatency(h);
+	cyclicWalkState(h); /* set state    */
+	cyclicWalkState(h); /* set oldstate */
 	h->cptr = 0;
 }
 
@@ -143,7 +152,6 @@ void cyclic_run(LADSPA_Handle handle, unsigned long bufsize)
 			h->port[CYCLIC_PORT_OUTL][i] += readDelayBuffer(h->buffer, h->oldlatency + h->oldclen + h->cptr - rpitchptr, 0) * (1.0f - xfade);
 			h->port[CYCLIC_PORT_OUTR][i] += readDelayBuffer(h->buffer, h->oldlatency + h->oldclen + h->cptr - rpitchptr, 1) * (1.0f - xfade);
 		}
-endramp:
 
 		if (h->clen > CYCLIC_TREM_MIN_CLEN)
 		{
@@ -167,12 +175,7 @@ endramp:
 		if (h->cptr >= h->clen)
 		{
 			h->cptr -= h->clen;
-			h->oldpitch = h->pitch;
-			h->pitch = cyclicGenPitch(h);
-			h->oldclen = h->clen;
-			h->clen = cyclicGenClen(h);
-			h->oldlatency = h->latency;
-			h->latency = cyclicGenLatency(h);
+			cyclicWalkState(h);
 		}
 	}
 }

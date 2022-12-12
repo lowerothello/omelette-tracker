@@ -145,13 +145,19 @@ static enum InputMode getRawInputMode(void)
 Display *dpy;
 pthread_t xeventthread_id;
 Window wpy;
-static void *XEventThread(void *arg)
+static void *XEventThread(PlaybackInfo *arg)
 {
 	Event  e;        /* omelette event */
 	XEvent ev, *evp; /* Xorg events    */
 	while (1)
 	{
 		XNextEvent(dpy, &ev);
+
+		if (p->xeventthreadsem)
+		{
+			p->xeventthreadsem++;
+			return NULL;
+		}
 
 		e.sem = M_SEM_INPUT;
 		evp = malloc(sizeof(XEvent));
@@ -180,7 +186,7 @@ int initRawInput(void)
 			if (!(dpy = XOpenDisplay(NULL))) return 1;
 			XGetInputFocus(dpy, &wpy, &revtoret);
 			XGrabKey(dpy, AnyKey, AnyModifier, wpy, 1, GrabModeAsync, GrabModeAsync);
-			pthread_create(&xeventthread_id, NULL, XEventThread, NULL);
+			pthread_create(&xeventthread_id, NULL, (void*(*)(void*))XEventThread, &p);
 			break;
 		case INPUT_MODE_NONE: break;
 	}
@@ -196,7 +202,16 @@ void freeRawInput(void)
 			// ioctl(0, KDSKBMODE, K_XLATE);
 			break;
 		case INPUT_MODE_X:
-			/* TODO: cleanly exit xeventthread_id */
+			/* the xevent thread will die when this bit is set high after
+			 * the next event is recieved. it's usually killed by the
+			 * release event of whatever key triggered cleanup, but not
+			 * always. sometimes it just stays alive for a bit. idk how
+			 * to make it more consistent other than maybe faking an
+			 * xevent? idk */
+			p->xeventthreadsem = 1;
+
+			pthread_join(xeventthread_id, NULL);
+
 			XUngrabKey(dpy, AnyKey, AnyModifier, wpy);
 			XCloseDisplay(dpy);
 			break;

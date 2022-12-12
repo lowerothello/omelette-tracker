@@ -5,7 +5,7 @@ pthread_t dummyprocessthread;
 void common_cleanup(int ret)
 {
 	freeRawInput();
-
+	freeEvents();
 	if (p) free(p);
 
 	clearControls(&cc);
@@ -50,6 +50,8 @@ void cleanup(int ret)
 		pthread_cancel(dummyprocessthread);
 #endif
 	}
+
+	_delTrack(s, &w->previewtrack);
 
 	freeSong(s);
 	freeWindow(w);
@@ -129,11 +131,11 @@ void init(int argc, char **argv)
 	} else reapplyBpm(); /* implied by the other branch */
 
 	/* trap signals */
-	signal(SIGINT,   SIG_IGN  );
-	signal(SIGTERM,  &cleanup );
-	signal(SIGSEGV,  &cleanup ); /* TODO: might be unsafe? */
-	signal(SIGFPE,   &cleanup ); /* TODO: might be unsafe? */
-	signal(SIGWINCH, &sigwinch);
+	signal(SIGINT,   cleanup );
+	signal(SIGTERM,  cleanup );
+	signal(SIGSEGV,  cleanup ); /* TODO: might be unsafe? */
+	signal(SIGFPE,   cleanup ); /* TODO: might be unsafe? */
+	signal(SIGWINCH, sigwinch);
 
 
 	resetInput();

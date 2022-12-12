@@ -55,7 +55,12 @@ void freeSong(Song *cs)
 	free(cs->sendpluginoutput[1]);
 
 	for (int i = 0; i < cs->track->c; i++)
+	{
 		_delTrack(cs, &cs->track->v[i]);
+// #ifndef NO_VALGRIND
+// 	VALGRIND_PRINTF("free'd track %d\n", i);
+// #endif
+	}
 	free(cs->track);
 
 	for (int i = 0; i < cs->instrument->c; i++)

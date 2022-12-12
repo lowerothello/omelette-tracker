@@ -12,6 +12,7 @@ typedef struct {
 	bool          resize; /* request a screen resize */
 	Event         eventv[EVENT_QUEUE_MAX];
 	uint8_t       eventc; /* the eventv index pushEvent() should populate */
+	uint8_t       xeventthreadsem; /* semaphore for the xevent thread, TODO: merge with the event system */
 } PlaybackInfo;
 PlaybackInfo *p;
 

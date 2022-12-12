@@ -1,10 +1,11 @@
-#define DIST_PORTC 10
+#define DIST_PORTC 11
 const LADSPA_PortDescriptor dist_PortDescriptors[DIST_PORTC] =
 {
 	LADSPA_PORT_INPUT|LADSPA_PORT_AUDIO,
 	LADSPA_PORT_INPUT|LADSPA_PORT_AUDIO,
 	LADSPA_PORT_OUTPUT|LADSPA_PORT_AUDIO,
 	LADSPA_PORT_OUTPUT|LADSPA_PORT_AUDIO,
+	LADSPA_PORT_INPUT|LADSPA_PORT_CONTROL,
 	LADSPA_PORT_INPUT|LADSPA_PORT_CONTROL,
 	LADSPA_PORT_INPUT|LADSPA_PORT_CONTROL,
 	LADSPA_PORT_INPUT|LADSPA_PORT_CONTROL,
@@ -23,7 +24,8 @@ const char * const dist_PortNames[DIST_PORTC] =
 	"Drive",
 	"Bias",
 	"Stereo Bias",
-	"Rectify",
+	"Rectify Mix",
+	"Rectifiers",
 	"Gate",
 };
 
@@ -38,6 +40,7 @@ const LADSPA_PortRangeHint dist_PortRangeHints[DIST_PORTC] =
 	{ LADSPA_HINT_BOUNDED_BELOW|LADSPA_HINT_BOUNDED_ABOVE|LADSPA_HINT_DEFAULT_MIDDLE,  -1.0f, 1.0f, },
 	{ LADSPA_HINT_TOGGLED|LADSPA_HINT_DEFAULT_0, 0.0f, 1.0f, },
 	{ LADSPA_HINT_BOUNDED_BELOW|LADSPA_HINT_BOUNDED_ABOVE|LADSPA_HINT_DEFAULT_MINIMUM,  0.0f, 1.0f, },
+	{ LADSPA_HINT_BOUNDED_BELOW|LADSPA_HINT_BOUNDED_ABOVE|LADSPA_HINT_DEFAULT_MINIMUM|LADSPA_HINT_INTEGER, 1.0f, 7.0f, },
 	{ LADSPA_HINT_BOUNDED_BELOW|LADSPA_HINT_BOUNDED_ABOVE|LADSPA_HINT_DEFAULT_MINIMUM,  0.0f, 1.0f, },
 };
 
@@ -50,30 +53,29 @@ enum {
 	DIST_PORT_DRIVE,
 	DIST_PORT_BIAS,
 	DIST_PORT_BIASSTEREO,
-	DIST_PORT_RECTIFY,
+	DIST_PORT_RECTIFYMIX,
+	DIST_PORT_RECTIFIERS,
 	DIST_PORT_GATE,
 } DIST_PORT;
 
 
 struct DistHandle {
-	LADSPA_Data  *port[DIST_PORTC];
-	float dcblockinput[2];
-	float dcblockoutput[2];
-	float dcblockcutoff;
+	LADSPA_Data *port[DIST_PORTC];
+	float        dcblockinput[2];
+	float        dcblockoutput[2];
+	float        dcblockcutoff;
 };
 
 LADSPA_Handle dist_instantiate(const LADSPA_Descriptor *desc, unsigned long rate)
 {
 	struct DistHandle *ret = calloc(1, sizeof(struct CyclicHandle));
 	ret->dcblockcutoff = 1.0f - (130.0f / rate);
-
 	return ret;
 }
 
 void dist_activate(LADSPA_Handle handle)
 {
 	struct DistHandle *h = handle;
-
 	memset(&h->dcblockinput, 0, sizeof(float) * 2);
 	memset(&h->dcblockoutput, 0, sizeof(float) * 2);
 }
@@ -91,12 +93,14 @@ void dist_connect_port(LADSPA_Handle handle, unsigned long i, LADSPA_Data *data)
 
 float rectify(float input) { return (fabsf(input) * 2.0f) - 1.0f; }
 
-#define DIST_MAX_DRIVE 1000.0f /* drive is exponential */
+#define DIST_MAX_DRIVE 100.0f
 void dist_run(LADSPA_Handle handle, unsigned long bufsize)
 {
 	struct DistHandle *h = handle;
 
-	LADSPA_Data inl, inr;
+	LADSPA_Data inl, inr, clipl, clipr, deltal, deltar;
+	float drive, rect;
+	unsigned int j;
 	for (unsigned long i = 0; i < bufsize; i++)
 	{
 		inl = h->port[DIST_PORT_INL][i];
@@ -112,19 +116,37 @@ void dist_run(LADSPA_Handle handle, unsigned long bufsize)
 		if (fabsf(inl) < h->port[DIST_PORT_GATE][0])
 			inl = 0.0f;
 		else
-			inl = rectify(inl) * h->port[DIST_PORT_RECTIFY][0] + inl * (1.0f - h->port[DIST_PORT_RECTIFY][0]);
+		{
+			rect = inl;
+			for (j = 0; j < h->port[DIST_PORT_RECTIFIERS][0]; j++)
+				rect = rectify(rect);
+			inl = rect * h->port[DIST_PORT_RECTIFYMIX][0] + inl * (1.0f - h->port[DIST_PORT_RECTIFYMIX][0]);
+		}
 
 		if (fabsf(inr) < h->port[DIST_PORT_GATE][0])
 			inr = 0.0f;
 		else
-			inr = rectify(inr) * h->port[DIST_PORT_RECTIFY][0] + inr * (1.0f - h->port[DIST_PORT_RECTIFY][0]);
+		{
+			rect = inr;
+			for (j = 0; j < h->port[DIST_PORT_RECTIFIERS][0]; j++)
+				rect = rectify(rect);
+			inr = rect * h->port[DIST_PORT_RECTIFYMIX][0] + inr * (1.0f - h->port[DIST_PORT_RECTIFYMIX][0]);
+		}
 
-		float drive = powf(DIST_MAX_DRIVE, h->port[DIST_PORT_DRIVE][0]);
-		inl *= drive;
-		inr *= drive;
+		drive = (h->port[DIST_PORT_DRIVE][0] * DIST_MAX_DRIVE) + 1.0f;
+		// drive = powf(DIST_MAX_DRIVE, h->port[DIST_PORT_DRIVE][0]);
+		clipl = hardclip(inl * drive);
+		clipr = hardclip(inr * drive);
 
-		inl = hardclip(inl);
-		inr = hardclip(inr);
+		/* difference between the wet and dry */
+		deltal = clipl - inl;
+		deltar = clipr - inr;
+
+		// soft = sqrtf(fabsf(deltal + deltar)*0.5f);
+		// inl += deltal * soft;
+		// inr += deltar * soft;
+		inl = hardclip(inl + deltal);
+		inr = hardclip(inr + deltar);
 
 		inl *= h->port[DIST_PORT_OUTGAIN][0];
 		inr *= h->port[DIST_PORT_OUTGAIN][0];
@@ -144,7 +166,7 @@ const LADSPA_Descriptor dist_descriptor =
 	/* UniqueID            */ UID_OFFSET + BUNDLE_INDEX,
 	/* Label               */ "dist",
 	/* Properties          */ LADSPA_PROPERTY_HARD_RT_CAPABLE,
-	/* Name                */ "Clip Box",
+	/* Name                */ "Waveform Circumcision",
 	/* Maker               */ MAKER,
 	/* Copyright           */ LICENSE,
 

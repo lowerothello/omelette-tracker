@@ -205,6 +205,7 @@ void resetInput(void)
 	w->count = 0;
 	w->chord = 0;
 	clearTooltip(&tt);
+	addTooltipBind(&tt, "SIGINT"         , ControlMask, XK_C    , 0, (void(*)(void*))cleanup       , NULL);
 	addTooltipBind(&tt, "show file info" , ControlMask, XK_G    , 0, (void(*)(void*))showFileInfo  , NULL);
 	addTooltipBind(&tt, "show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
 	addTooltipBind(&tt, "show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);

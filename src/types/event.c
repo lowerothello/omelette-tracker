@@ -11,6 +11,23 @@ void pushEvent(Event *e)
 	p->eventc++;
 }
 
+/* free events that haven't been handled yet */
+void freeEvents(void)
+{
+	while (p->eventc)
+	{
+		switch (p->eventv[0].sem)
+		{
+			case M_SEM_INPUT:
+				free(p->eventv[0].callbackarg);
+				break;
+			default: break;
+		}
+		memmove(&p->eventv[0], &p->eventv[1], sizeof(Event) * (EVENT_QUEUE_MAX-1));
+		p->eventc--;
+	}
+}
+
 /* return true to block the main thread (skip input&redraw) */
 bool mainM_SEM(void)
 {
@@ -18,6 +35,7 @@ bool mainM_SEM(void)
 		switch (p->eventv[0].sem)
 		{
 			case M_SEM_DONE:
+m_sem_done: /* allow for processing and pushing off the stack in one go */
 				memmove(&p->eventv[0], &p->eventv[1], sizeof(Event) * (EVENT_QUEUE_MAX-1));
 				p->eventc--;
 				break;
@@ -30,7 +48,7 @@ bool mainM_SEM(void)
 			case M_SEM_CALLBACK:
 				if (p->eventv[0].callback)
 					p->eventv[0].callback(&p->eventv[0]);
-				p->eventv[0].sem = M_SEM_DONE;
+				goto m_sem_done;
 				break;
 
 			case M_SEM_INPUT: {
@@ -59,8 +77,9 @@ bool mainM_SEM(void)
 						case Expose: while (XCheckTypedEvent(dpy, Expose, ev)); break;
 					}
 					free(p->eventv[0].callbackarg);
-					p->eventv[0].sem = M_SEM_DONE;
+					goto m_sem_done;
 				} break;
+			default: break;
 		}
 	return 0;
 }
@@ -107,6 +126,7 @@ bool processM_SEM(void)
 					}
 					p->eventv[0].sem = M_SEM_DONE;
 				} break;
+			default: break;
 		}
 	}
 	return 0;
