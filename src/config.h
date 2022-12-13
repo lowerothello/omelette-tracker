@@ -16,15 +16,6 @@
  */
 // #define DEBUG_DISABLE_AUDIO_OUTPUT
 
-/* NO_VALGRIND
- *   removes the dependancy on valgrind by not including
- *   valgrind/valgrind.h, might cause lots of messages to
- *   be printed to stderr when running under valgrind due
- *   to valgrind's scheduler not understanding realtime
- *   priority threads (or multithreading at all).
- */
-// #define NO_VALGRIND
-
 /* NO_MULTITHREADING
  *   executes all track processing in a single thread
  *   instead of spawning a thread for each track.

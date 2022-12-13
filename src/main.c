@@ -27,6 +27,8 @@
 #include <lv2/units/units.h> /* LV2 units */
 #include <X11/Xlib.h> /* X11 hack for key release events */
 #include <X11/keysym.h>
+#include <valgrind/valgrind.h> /* valgrind hooks */
+
 
 /* libdrawille */
 #include "../lib/libdrawille/src/Canvas.h"
@@ -54,30 +56,8 @@ jack_nframes_t rampmax;
 
 struct winsize ws;
 
-/* prototypes, TODO: a proper header file */
-void startPlayback(void);
-void stopPlayback (void);
-void resetInput(void);
-void cleanup(int);
-
-#include "config.h"
-
-#ifndef NO_VALGRIND
-#include <valgrind/valgrind.h>
-#endif
-
-
-#include "dsp.c"
-
-#include "column.c"
-
-#include "truecolour.h"
-
-#include "file.c"
-#include "types/types.c"
-
-
-#include "init.c"
+/* yes, there's a whole ass file just for includes */
+#include "includes.c"
 
 
 void filebrowserEditCallback(char *path)
@@ -99,46 +79,6 @@ void filebrowserEditCallback(char *path)
 	// if      (!strcmp(buffer, "bpm")) snprintf(text, COMMAND_LENGTH + 1, "bpm %d", s->bpm);
 	free(buffer);
 } */
-void leaveSpecialModes(void)
-{
-	switch (w->page)
-	{
-		case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT:
-			switch (w->mode)
-			{
-				case T_MODE_INSERT: break;
-				default: w->mode = T_MODE_NORMAL; break;
-			} break;
-		default: break;
-	}
-}
-void startPlayback(void)
-{
-	leaveSpecialModes();
-	if (s->loop[1]) s->playfy = s->loop[0];
-	else            s->playfy = STATE_ROWS;
-	s->sprp = 0;
-	if (w->follow)
-		w->trackerfy = s->playfy;
-	s->playing = PLAYING_START;
-	p->redraw = 1;
-}
-void stopPlayback(void)
-{
-	leaveSpecialModes();
-	if (s->playing)
-	{
-		if (w->instrumentrecv == INST_REC_LOCK_CONT || w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
-			w->instrumentrecv = INST_REC_LOCK_PREP_END;
-		s->playing = PLAYING_PREP_STOP;
-	} else
-	{
-		if (s->loop[1]) w->trackerfy = s->loop[0];
-		else            w->trackerfy = STATE_ROWS;
-	}
-	w->mode = 0; /* always go to mode 0 on stop */
-	p->redraw = 1;
-}
 
 static bool commandCallback(char *command, enum _Mode *mode)
 {
@@ -249,7 +189,7 @@ void resize(int signal)
 	p->redraw = 1;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
 	if (argc > 1 && (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")))
 	{

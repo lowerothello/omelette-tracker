@@ -7,8 +7,8 @@
 #define MAX(X, Y) ((X > Y) ? X : Y)
 #define MIN(X, Y) ((X < Y) ? X : Y)
 
-#include "../dsp.c" /* omelette's dsp functions */
-#include "../delaybuffer.c"
+#include "../dsp/dsp.c" /* omelette's dsp functions */
+#include "../dsp/delaybuffer.c"
 
 #define UID_OFFSET 69420 /* haha funny number */
 

@@ -1,8 +1,4 @@
-#ifdef DEBUG_DISABLE_AUDIO_OUTPUT
-pthread_t dummyprocessthread;
-#endif
-
-void common_cleanup(int ret)
+static void common_cleanup(int ret)
 {
 	freeRawInput();
 	freeEvents();
@@ -16,7 +12,6 @@ void common_cleanup(int ret)
 	freePluginBrowser(pbstate);
 	free(pbstate);
 
-	freeNativeDB();
 	freeLadspaDB();
 	freeLV2DB();
 
@@ -25,7 +20,6 @@ void common_cleanup(int ret)
 	exit(ret);
 }
 
-jack_client_t *client;
 void cleanup(int ret)
 {
 	struct timespec req;
@@ -59,9 +53,9 @@ void cleanup(int ret)
 	common_cleanup(ret);
 }
 
-void sigwinch(int signal) { p->resize = 1; }
+static void sigwinch(int signal) { p->resize = 1; }
 
-void init(int argc, char **argv)
+void init(int argc, char *argv[])
 {
 	srand(time(NULL)); /* seed rand */
 
@@ -69,7 +63,6 @@ void init(int argc, char **argv)
 
 	initRawInput();
 
-	initNativeDB();
 	initLadspaDB();
 	initLV2DB();
 
@@ -135,6 +128,7 @@ void init(int argc, char **argv)
 	signal(SIGTERM,  cleanup );
 	signal(SIGSEGV,  cleanup ); /* TODO: might be unsafe? */
 	signal(SIGFPE,   cleanup ); /* TODO: might be unsafe? */
+	signal(SIGABRT,  cleanup ); /* TODO: might be unsafe? */
 	signal(SIGWINCH, sigwinch);
 
 

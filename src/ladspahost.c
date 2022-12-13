@@ -22,8 +22,6 @@
 #include <X11/Xlib.h> /* keysym defs */
 #include <X11/keysym.h>
 
-void resetInput(void);
-
 /* omelette libs */
 struct winsize ws;
 int DEBUG;
@@ -31,11 +29,11 @@ jack_nframes_t samplerate, buffersize;
 #define MIN(X, Y) ((X)<(Y)?(X):(Y))
 #define MAX(X, Y) ((X)>(Y)?(X):(Y))
 #include "config.h"
-#include "types/draw_helpers.c"
-#include "types/tooltip.c"
-#include "types/control.c"
-#include "types/effect/autogenui.c"
-#include "types/effect/ladspa.h"
+#include "draw_helpers.c"
+#include "tooltip.h"
+#include "control.c"
+#include "effect/autogenui.c"
+#include "effect/ladspa.h"
 
 typedef struct {
 	bool           redraw;
@@ -51,27 +49,27 @@ typedef struct {
 	jack_port_t   *outport[2];
 	jack_client_t *client;
 	int            unsafe;
-} P;
-P p;
+} LadspaHostState;
+LadspaHostState lhs;
 
 void cleanup(int signal)
 {
-	jack_deactivate(p.client);
-	jack_client_close(p.client);
+	jack_deactivate(lhs.client);
+	jack_client_close(lhs.client);
 
 	cleanupTerminal();
 
-	if (p.state)
+	if (lhs.state)
 	{
-		freeLadspaEffect(p.state);
-		free(p.state);
+		freeLadspaEffect(lhs.state);
+		free(lhs.state);
 	}
-	if (p.dl) dlclose(p.dl);
+	if (lhs.dl) dlclose(lhs.dl);
 
-	free(p.input[0]);
-	free(p.input[1]);
-	free(p.output[0]);
-	free(p.output[1]);
+	free(lhs.input[0]);
+	free(lhs.input[1]);
+	free(lhs.output[0]);
+	free(lhs.output[1]);
 
 	printf("%d\n", signal);
 	exit(signal);
@@ -81,7 +79,7 @@ void cleanup(int signal)
 
 void redraw(void)
 {
-	p.redraw = 0;
+	lhs.redraw = 0;
 
 	fcntl(0, F_SETFL, 0); /* blocking */
 
@@ -90,12 +88,12 @@ void redraw(void)
 	/* "CSI 2   q"    sets the cursor shape to block */
 	printf("\033[2J\033[?25h\033[2 q");
 
-	if (p.state)
+	if (lhs.state)
 	{
 		clearControls(&cc);
-		drawLadspaEffect(p.state, &cc,
+		drawLadspaEffect(lhs.state, &cc,
 				((ws.ws_col - EFFECT_WIDTH)>>1) + 1, EFFECT_WIDTH,
-				((ws.ws_row - getLadspaEffectHeight(p.state))>>1) + 2, 1, ws.ws_row);
+				((ws.ws_row - getLadspaEffectHeight(lhs.state))>>1) + 2, 1, ws.ws_row);
 
 		drawControls(&cc);
 
@@ -103,8 +101,8 @@ void redraw(void)
 	} else
 	{ /* invalid plugin requested */
 #define INDEX_TEXT ", index "
-		char buffer[strlen(p.soname) + strlen(INDEX_TEXT) + 3];
-		sprintf(buffer, "%s%s%02x", p.soname, INDEX_TEXT, (uint8_t)p.index);
+		char buffer[strlen(lhs.soname) + strlen(INDEX_TEXT) + 3];
+		sprintf(buffer, "%s%s%02x", lhs.soname, INDEX_TEXT, (uint8_t)lhs.index);
 		drawCentreText(1, (ws.ws_row>>1) - 1, ws.ws_col, "Invalid plugin requested:");
 		drawCentreText(1, (ws.ws_row>>1), ws.ws_col, buffer);
 	}
@@ -114,21 +112,21 @@ void redraw(void)
 }
 void resize(void)
 {
-	p.resize = 0;
-	p.redraw = 1;
+	lhs.resize = 0;
+	lhs.redraw = 1;
 
 	ioctl(1, TIOCGWINSZ, &ws);
 }
 
-static void toggleKeyControlRedraw(ControlState *cc) { toggleKeyControl(cc); p.redraw = 1; }
-static void revertKeyControlRedraw(ControlState *cc) { revertKeyControl(cc); p.redraw = 1; }
-static void incControlValueRedraw (ControlState *cc) { incControlValue (cc); p.redraw = 1; }
-static void decControlValueRedraw (ControlState *cc) { decControlValue (cc); p.redraw = 1; }
-static void upArrow  (void) { decControlCursor(&cc, 1); p.redraw = 1; }
-static void downArrow(void) { incControlCursor(&cc, 1); p.redraw = 1; }
-static void leftArrow (void) { incControlFieldpointer(&cc); p.redraw = 1; }
-static void rightArrow(void) { decControlFieldpointer(&cc); p.redraw = 1; }
-static void mouse(enum Button button, int x, int y) { mouseControls(&cc, button, x, y); p.redraw = 1; }
+static void toggleKeyControlRedraw(ControlState *cc) { toggleKeyControl(cc); lhs.redraw = 1; }
+static void revertKeyControlRedraw(ControlState *cc) { revertKeyControl(cc); lhs.redraw = 1; }
+static void incControlValueRedraw (ControlState *cc) { incControlValue (cc); lhs.redraw = 1; }
+static void decControlValueRedraw (ControlState *cc) { decControlValue (cc); lhs.redraw = 1; }
+static void upArrow  (void) { decControlCursor(&cc, 1); lhs.redraw = 1; }
+static void downArrow(void) { incControlCursor(&cc, 1); lhs.redraw = 1; }
+static void leftArrow (void) { incControlFieldpointer(&cc); lhs.redraw = 1; }
+static void rightArrow(void) { decControlFieldpointer(&cc); lhs.redraw = 1; }
+static void mouse(enum Button button, int x, int y) { mouseControls(&cc, button, x, y); lhs.redraw = 1; }
 void resetInput(void)
 {
 	clearTooltip(&tt);
@@ -145,55 +143,55 @@ void resetInput(void)
 
 void reload(void)
 {
-	p.redraw = 1;
-	p.reload = 0;
-	p.unsafe = 1;
+	lhs.redraw = 1;
+	lhs.reload = 0;
+	lhs.unsafe = 1;
 
 	struct timespec req;
-	while (p.unsafe == 1)
+	while (lhs.unsafe == 1)
 	{
 		req.tv_sec = 0;
 		req.tv_nsec = UPDATE_DELAY;
 		while (nanosleep(&req, &req) < 0);
 	}
 
-	if (p.state)
+	if (lhs.state)
 	{
-		freeLadspaEffect(p.state);
-		free(p.state);
+		freeLadspaEffect(lhs.state);
+		free(lhs.state);
 	}
-	if (p.dl) dlclose(p.dl);
+	if (lhs.dl) dlclose(lhs.dl);
 
 	const LADSPA_Descriptor *desc = NULL;
-	p.dl = getSpecificLadspaDescriptor(&desc, p.soname, p.index);
+	lhs.dl = getSpecificLadspaDescriptor(&desc, lhs.soname, lhs.index);
 	if (desc)
 	{
-		initLadspaEffect(&p.state, p.input, p.output, desc);
+		initLadspaEffect(&lhs.state, lhs.input, lhs.output, desc);
 	}
 
-	p.unsafe = 0;
+	lhs.unsafe = 0;
 }
 
-void sigwinch(int signal) { p.resize = 1; }
-void sigusr1(int signal) { p.reload = 1; }
+void sigwinch(int signal) { lhs.resize = 1; }
+void sigusr1(int signal) { lhs.reload = 1; }
 
 int process(jack_nframes_t bufsize, void *arg)
 {
-	if (p.unsafe == 1)
-		p.unsafe++;
+	if (lhs.unsafe == 1)
+		lhs.unsafe++;
 
-	if (p.unsafe || !p.state) return 0;
+	if (lhs.unsafe || !lhs.state) return 0;
 
-	jack_default_audio_sample_t *inl = jack_port_get_buffer(p.inport[0], bufsize);
-	jack_default_audio_sample_t *inr = jack_port_get_buffer(p.inport[1], bufsize);
-	jack_default_audio_sample_t *outl = jack_port_get_buffer(p.outport[0], bufsize);
-	jack_default_audio_sample_t *outr = jack_port_get_buffer(p.outport[1], bufsize);
+	jack_default_audio_sample_t *inl = jack_port_get_buffer(lhs.inport[0], bufsize);
+	jack_default_audio_sample_t *inr = jack_port_get_buffer(lhs.inport[1], bufsize);
+	jack_default_audio_sample_t *outl = jack_port_get_buffer(lhs.outport[0], bufsize);
+	jack_default_audio_sample_t *outr = jack_port_get_buffer(lhs.outport[1], bufsize);
 
-	memcpy(p.input[0], inl, sizeof(float) * bufsize);
-	memcpy(p.input[1], inr, sizeof(float) * bufsize);
-	runLadspaEffect(bufsize, p.state, p.input, p.output);
-	memcpy(outl, p.output[0], sizeof(float) * bufsize);
-	memcpy(outr, p.output[1], sizeof(float) * bufsize);
+	memcpy(lhs.input[0], inl, sizeof(float) * bufsize);
+	memcpy(lhs.input[1], inr, sizeof(float) * bufsize);
+	runLadspaEffect(bufsize, lhs.state, lhs.input, lhs.output);
+	memcpy(outl, lhs.output[0], sizeof(float) * bufsize);
+	memcpy(outr, lhs.output[1], sizeof(float) * bufsize);
 
 	return 0;
 }
@@ -206,22 +204,22 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	p.soname = argv[1];
-	p.index = atoi(argv[2]);
+	lhs.soname = argv[1];
+	lhs.index = atoi(argv[2]);
 
-	p.client = jack_client_open("omuLADSPA", JackNullOption, NULL);
-	p.inport[0] = jack_port_register(p.client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-	p.inport[1] = jack_port_register(p.client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-	p.outport[0] = jack_port_register(p.client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
-	p.outport[1] = jack_port_register(p.client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+	lhs.client = jack_client_open("omuLADSPA", JackNullOption, NULL);
+	lhs.inport[0] = jack_port_register(lhs.client, "in_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+	lhs.inport[1] = jack_port_register(lhs.client, "in_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+	lhs.outport[0] = jack_port_register(lhs.client, "out_l", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+	lhs.outport[1] = jack_port_register(lhs.client, "out_r", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
 
-	samplerate = jack_get_sample_rate(p.client);
-	buffersize = jack_get_buffer_size(p.client);
+	samplerate = jack_get_sample_rate(lhs.client);
+	buffersize = jack_get_buffer_size(lhs.client);
 
-	p.input[0] = calloc(buffersize, sizeof(float));
-	p.input[1] = calloc(buffersize, sizeof(float));
-	p.output[0] = calloc(buffersize, sizeof(float));
-	p.output[1] = calloc(buffersize, sizeof(float));
+	lhs.input[0] = calloc(buffersize, sizeof(float));
+	lhs.input[1] = calloc(buffersize, sizeof(float));
+	lhs.output[0] = calloc(buffersize, sizeof(float));
+	lhs.output[1] = calloc(buffersize, sizeof(float));
 
 	signal(SIGINT,   &cleanup);
 	signal(SIGTERM,  &cleanup);
@@ -230,24 +228,24 @@ int main(int argc, char *argv[])
 	signal(SIGWINCH, &sigwinch);
 	signal(SIGUSR1,  &sigusr1);
 
-	p.unsafe = 2; /* hang the process thread until the plugin has been read */
+	lhs.unsafe = 2; /* hang the process thread until the plugin has been read */
 
-	jack_set_process_callback(p.client, process, NULL);
-	jack_activate(p.client);
+	jack_set_process_callback(lhs.client, process, NULL);
+	jack_activate(lhs.client);
 
 	initTerminal();
 
 	resetInput();
 
-	p.resize = 1;
-	p.reload = 1;
+	lhs.resize = 1;
+	lhs.reload = 1;
 
 	struct timespec req;
 	while (1)
 	{
-		if (p.reload) reload();
-		if (p.resize) resize();
-		if (p.redraw) redraw();
+		if (lhs.reload) reload();
+		if (lhs.resize) resize();
+		if (lhs.redraw) redraw();
 		handleStdin(&tt);
 
 		req.tv_sec = 0;
