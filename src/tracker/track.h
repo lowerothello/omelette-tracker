@@ -128,12 +128,12 @@ void clearTrackdata(struct _Song *cs, TrackData *cd); /* TODO: should be atomic 
 void __addTrack(Track *cv); /* __ layer of abstraction for initializing previewtrack */
 void  _addTrack(struct _Song *cs, Track *cv);
 void debug_dumpTrackState(struct _Song *cs);
-int addTrack(struct _Song *cs, uint8_t index, uint16_t count);
+void addTrack(struct _Song *cs, uint8_t index, uint16_t count);
 void _delTrack(struct _Song *cs, Track *cv);
 void delTrack(uint8_t index, uint16_t count);
 void copyTrackdata(TrackData *dest, TrackData *src); /* TODO: atomicity */
 Row *getTrackRow(TrackData *cd, uint16_t index);
-char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
 void regenBpmCache(struct _Song *cs);
 void regenGlobalRowc(struct _Song *cs);
 void cycleVariantUp(Variant *v, uint16_t bound);

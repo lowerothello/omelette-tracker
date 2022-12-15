@@ -158,29 +158,30 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 
 static void handleLocalMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
 {
-	ifMacro(fptr, spr, cv, r, 'F',&Fc);    /* filter cutoff            */
-	ifMacro(fptr, spr, cv, r, 'f',&fc);    /* smooth filter cutoff     */
-	ifMacro(fptr, spr, cv, r, 'Z',&Zc);    /* filter resonance         */
-	ifMacro(fptr, spr, cv, r, 'z',&zc);    /* smooth filter resonance  */
-	// ifMacro(fptr, spr, cv, r, 'F', &altFc); /* filter cutoff jitter     */
-	// ifMacro(fptr, spr, cv, r, 'f', &altfc); /* smooth filter cut jitter */
-	// ifMacro(fptr, spr, cv, r, 'Z', &altZc); /* filter resonance jitter  */
-	// ifMacro(fptr, spr, cv, r, 'z', &altzc); /* smooth filter res jitter */
-	ifMacro(fptr, spr, cv, r, 'M', &Mc);    /* filter mode              */
-	ifMacro(fptr, spr, cv, r, 'm', &mc);    /* smooth filter mode       */
-	ifMacro(fptr, spr, cv, r, 'O', &Oc);    /* offset                   */
-	// ifMacro(fptr, spr, cv, r, 'O', &altOc); /* rand offset              */
-	ifMacro(fptr, spr, cv, r, 'o', &oc);    /* bw offset                */
-	// ifMacro(fptr, spr, cv, r, 'o', &altoc); /* rand bw offset           */
-	ifMacro(fptr, spr, cv, r, 'E', &Ec);    /* local envelope           */
-	ifMacro(fptr, spr, cv, r, 'e', &ec);    /* local sustain            */
-	ifMacro(fptr, spr, cv, r, 'H', &Hc);    /* local pitch shift        */
-	ifMacro(fptr, spr, cv, r, 'h', &hc);    /* smooth local pitch shift */
-	ifMacro(fptr, spr, cv, r, 'W', &Wc);    /* local pitch width        */
-	ifMacro(fptr, spr, cv, r, 'w', &wc);    /* smooth local pitch width */
-	ifMacro(fptr, spr, cv, r, 'L', &Lc);    /* local cyclelength        */
-	ifMacro(fptr, spr, cv, r, 'X', &Xc);    /* local samplerate         */
-	ifMacro(fptr, spr, cv, r, 'x', &xc);    /* smooth local samplerate  */
+	ifMacro(fptr, spr, cv, r, 'F');
+	ifMacro(fptr, spr, cv, r, 'f');
+	ifMacro(fptr, spr, cv, r, 'Z');
+	ifMacro(fptr, spr, cv, r, 'z');
+	// ifMacro(fptr, spr, cv, r, 'F');
+	// ifMacro(fptr, spr, cv, r, 'f');
+	// ifMacro(fptr, spr, cv, r, 'Z');
+	// ifMacro(fptr, spr, cv, r, 'z');
+	ifMacro(fptr, spr, cv, r, 'M');
+	ifMacro(fptr, spr, cv, r, 'm');
+	ifMacro(fptr, spr, cv, r, 'O');
+	ifMacro(fptr, spr, cv, r, 'U');
+	ifMacro(fptr, spr, cv, r, 'o');
+	ifMacro(fptr, spr, cv, r, 'u');
+	ifMacro(fptr, spr, cv, r, 'E');
+	ifMacro(fptr, spr, cv, r, 'e');
+	ifMacro(fptr, spr, cv, r, 'H');
+	ifMacro(fptr, spr, cv, r, 'h');
+	ifMacro(fptr, spr, cv, r, 'W');
+	ifMacro(fptr, spr, cv, r, 'w');
+	ifMacro(fptr, spr, cv, r, 'L');
+	ifMacro(fptr, spr, cv, r, 'l');
+	ifMacro(fptr, spr, cv, r, 'X');
+	ifMacro(fptr, spr, cv, r, 'x');
 }
 
 /* TODO: temp name */
@@ -223,14 +224,18 @@ static void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row 
 	if (cv->targetlocalpitchshift != -1) { cv->localpitchshift = cv->targetlocalpitchshift; cv->targetlocalpitchshift = -1; }
 	if (cv->targetlocalpitchwidth != -1) { cv->localpitchwidth = cv->targetlocalpitchwidth; cv->targetlocalpitchwidth = -1; }
 
-	ifMacro(fptr, spr, cv, r, 'g', &gc);    /* smooth gain        */
-	// ifMacro(fptr, spr, cv, r, 'g', &altgc); /* smooth gain jitter */
-	ifMacro(fptr, spr, cv, r, 's', &sc);    /* smooth send        */
-	// ifMacro(fptr, spr, cv, r, 's', &altsc); /* smooth send jitter */
+	ifMacro(fptr, spr, cv, r, 'g');
+	ifMacro(fptr, spr, cv, r, 'j');
+	ifMacro(fptr, spr, cv, r, 's');
+	ifMacro(fptr, spr, cv, r, 'k');
 }
 
 void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 {
+	bool triggerramp = 0;
+	Track oldcv;
+	memcpy(&oldcv, cv, sizeof(Track)); /* rampbuffer is still accesible from this copy */
+
 	for (int i = 0; i <= cv->data.variant->macroc; i++)
 		cv->r.macro[i] = r.macro[i];
 
@@ -247,56 +252,48 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 		}
 	}
 
-	if (!ifMacro(fptr, spr, cv, r, 'V', &Vc)) cv->vibratosamples = 0;
+	if (!ifMacro(fptr, spr, cv, r, 'V')) cv->vibratosamples = 0;
+	if ( ifMacro(fptr, spr, cv, r, '%')) return;
 
-	if (ifMacro(fptr, spr, cv, r, '%', &percentc)) return;
-
-	if (cv->pointer && instrumentSafe(p->s->instrument, cv->samplerinst)
-			&&(ifMacro(fptr, spr, cv, r, 'G', &DUMMY)
-			|| ifMacro(fptr, spr, cv, r, 'I', &DUMMY)))
-		ramp(cv, 0.0f, p->s->instrument->i[cv->samplerinst]);
-
-	ifMacro(fptr, spr, cv, r, 'G', &Gc);    /* gain               */
-	// ifMacro(fptr, spr, cv, r, 'G', &altGc); /* gain jitter        */
-	ifMacro(fptr, spr, cv, r, 'S', &Sc);    /* send               */
-	// ifMacro(fptr, spr, cv, r, 'S', &altSc); /* send jitter        */
+	ifMacro(fptr, spr, cv, r, 'G');
+	ifMacro(fptr, spr, cv, r, 'I');
+	ifMacro(fptr, spr, cv, r, 'S');
+	ifMacro(fptr, spr, cv, r, 'K');
 
 	/* try to persist old state a little bit */
 	if      (r.note != NOTE_VOID && r.inst == INST_VOID) r.inst = cv->r.inst;
 	else if (r.inst != INST_VOID && r.note == NOTE_VOID) r.note = cv->r.note;
 
-	if ((!ifMacro(fptr, spr, cv, r, 'C', &Cc) && r.note != NOTE_VOID)
-			&& !ifMacro(fptr, spr, cv, r, 'P', &Pc)
-			&& !ifMacro(fptr, spr, cv, r, 'D', &Dc))
+	if ((!ifMacro(fptr, spr, cv, r, 'C') && r.note != NOTE_VOID)
+			&& !ifMacro(fptr, spr, cv, r, 'P')
+			&& !ifMacro(fptr, spr, cv, r, 'D'))
 	{
-		if (instrumentSafe(p->s->instrument, cv->r.inst))
-			ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
 		triggerNote(fptr, cv, cv->r.note, r.note, r.inst);
+		triggerramp = 1;
 	}
-
-	if (cv->pointer && instrumentSafe(p->s->instrument, cv->samplerinst)
-			&& (ifMacro(fptr, spr, cv, r, 'F', &DUMMY)
-			||  ifMacro(fptr, spr, cv, r, 'Z', &DUMMY)
-			||  ifMacro(fptr, spr, cv, r, 'O', &DUMMY)
-			||  ifMacro(fptr, spr, cv, r, 'o', &ocPRERAMP)
-			||  ifMacro(fptr, spr, cv, r, 'U', &DUMMY)
-			||  ifMacro(fptr, spr, cv, r, 'u', &DUMMY)))
-		ramp(cv, 0.0f, p->s->instrument->i[cv->samplerinst]);
 
 	handleLocalMacros(fptr, spr, cv, r);
 
-	ifMacro(fptr, spr, cv, r, 'p', &pc); /* microtonal offset  */
+	ifMacro(fptr, spr, cv, r, 'p'); /* microtonal offset  */
 
-	/* retrigger macros, TODO: not formatted very clearly */
-	if (!ifMacro(fptr, spr, cv, r, 'r', &altrc) /* bw retrigger       */
-	 && !ifMacro(fptr, spr, cv, r, 'R', &altRc) /* retrigger          */
-	 && !ifMacro(fptr, spr, cv, r, 'r', &rc))   /* bw block retrigger */
-		ifMacro(fptr, spr, cv, r, 'R', &Rc);    /* block retrigger    */
+	/* retrigger macros */
+	if (!ifMacro(fptr, spr, cv, r, 'q')
+			&& !ifMacro(fptr, spr, cv, r, 'Q')
+			&& !ifMacro(fptr, spr, cv, r, 'r'))
+		ifMacro(fptr, spr, cv, r, 'R');
+
 	if (cv->rtrigsamples && cv->rtrigblocksize == -2)
 	{ /* clean up if the last row had an altRxx and this row doesn't */
 		cv->data.rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 	}
+
+
+	if (cv->pointer && ifMacroRamp(cv, r))
+		triggerramp = 1;
+
+	if (triggerramp && instrumentSafe(p->s->instrument, cv->samplerinst))
+		ramp(&oldcv, 0.0f, p->s->instrument->i[cv->samplerinst]);
 }
 
 void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
@@ -554,7 +551,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 		if (cv->vibratosamplepointer > cv->vibratosamples)
 		{
 			cv->vibratosamplepointer = 0;
-			if (!ifMacro(fptr, spr, cv, cv->r, 'V', &Vc))
+			if (!ifMacro(fptr, spr, cv, cv->r, 'V'))
 				cv->vibratosamples = 0;
 		}
 	}
@@ -661,7 +658,7 @@ void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 		if (cv->data.variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_OFF; cv->envgain = 0.0f; }
 
 		r = getTrackRow(&cv->data, i);
-		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) Bc(fptr, spr, p->s->bpmcache[i], cv, *r);
+		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) macroBpm(fptr, spr, p->s->bpmcache[i], cv, *r);
 		processRow(fptr, spr, 0, cv, *r);
 		playTrackLookback(fptr, spr, cv);
 	}
@@ -703,7 +700,7 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 
 				/* preprocess track */
 				r = getTrackRow(&cv->data, *playfy);
-				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) Bc(fptr, spr, p->s->bpmcache[*playfy], cv, *r);
+				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->s->bpmcache[*playfy], cv, *r);
 				processRow(fptr, spr, 1, cv, *r);
 			}
 		}
@@ -794,8 +791,8 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 			/* start instrument preview */
 			triggerNote(0, &p->w->previewtrack, p->w->previewtrack.r.note, NOTE_OFF, p->w->previewtrack.r.inst);
 			clearTrackRuntime(&p->w->previewtrack);
+			triggerNote(0, &p->w->previewtrack, p->w->previewtrack.r.note, p->w->previewrow.note, p->w->previewrow.inst);
 
-			processRow(0, &p->s->spr, 1, &p->w->previewtrack, p->w->previewrow);
 			p->w->previewtrigger = PTRIG_OK;
 			break;
 		case PTRIG_FILE:

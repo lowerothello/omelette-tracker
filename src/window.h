@@ -25,6 +25,8 @@ enum {
 	PTRIG_FILE,   /* queued filebrowser preview   */
 } PTRIG;
 
+#define MAX_OCTAVE 7
+#define MIN_OCTAVE 0
 #define TRACKERFX_MIN -1
 #define TRACKERFX_VISUAL_MIN 0
 typedef struct _UI {
@@ -74,13 +76,13 @@ typedef struct _UI {
 
 	int8_t wtparam;
 
-	bool     showtooltip;
-	char     chord; /* key chord buffer, vi-style multi-letter commands */
-	uint8_t  count; /* action repeat count, follows similar rules to w->chord */
-	char     octave;
-	uint8_t  step;
-	char     keyboardmacro;
-	bool     follow;
+	bool        showtooltip;
+	char        chord; /* key chord buffer, vi-style multi-letter commands */
+	uint8_t     count; /* action repeat count, follows similar rules to w->chord */
+	signed char octave;
+	uint8_t     step;
+	char        keyboardmacro;
+	bool        follow;
 
 	Row     previewrow;
 	Track   previewtrack;

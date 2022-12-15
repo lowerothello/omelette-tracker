@@ -306,16 +306,9 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 				}
 				printCulling(buffer, x, y, minx, maxx);
 
-				if (x+5 < maxx && x+4 > minx)
-				{ /* box drawing variant range thing idk what to call it tbh */
-				  /* drawn separately cos multibyte chars break things       */
-				  /* TODO: should use printCulling() or otherwise have a \033[y;xH write */
-					if (lineno != -1)
-					{
-						// bgTuple(&tc, greyscaleTuple(&tc, lineno*DIV256));
-						printf("\033[1D\033[22;3%dm│", cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1);
-					}
-				}
+				/* box drawing variant range thing, drawn separately cos multibyte chars break things */
+				if (x+5 < maxx && x+4 > minx && lineno != -1)
+					printf("\033[1D\033[22;3%dm│", cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1);
 
 				stopVisual(track, i, -1);
 				printf("\033[22;37;40m");
@@ -324,22 +317,6 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 
 				r = getTrackRow(cd, i);
 				setRowIntensity(cd, i);
-
-				/* use underline to split up variants more visually */
-				// gcvret = getVariantChainVariant(&v, cd->variant, i);
-				// if ((i < s->songlen-1 && (cd->variant->trig[i+1].index < VARIANT_MAX || (cd->variant->trig[i+1].index == VARIANT_OFF && gcvret != -1)))
-				// 		|| (gcvret != -1 && (gcvret%(v->rowc+1) == v->rowc)))
-				// 	printf("\033[1;%d]\033[4m", cd->variant->trig[i+1].index%6 + 1); /* linux console-specific underline colour setting, TODO: untested */
-
-				// if (lineno != -1)
-				// {
-				// 	if (i >= STATE_ROWS && s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight))
-				// 		bgTuple(&tc, lerpTuple(0.1f, greyscaleTuple(&tc, 0.05f), tc.colour[cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1]));
-				// 	else
-				// 		bgTuple(&tc, lerpTuple(0.1f, tc.colour[0], tc.colour[cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1]));
-				// } else
-				// 	if (i >= STATE_ROWS && s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight))
-				// 		bgTuple(&tc, greyscaleTuple(&tc, 0.05f));
 
 				if (ifVisual(track, i, 0)) printf("\033[2;7m");
 
@@ -512,7 +489,8 @@ void drawTracker(void)
 			{
 				r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
 				macro = (w->trackerfx - 2)>>1;
-				descMacro(r->macro[macro].c, r->macro[macro].v);
+				if (MACRO_PRETTYNAME(r->macro[macro].c))
+					printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen(MACRO_PRETTYNAME(r->macro[macro].c))) / 2, MACRO_PRETTYNAME(r->macro[macro].c));
 			}
 
 			switch (w->mode)

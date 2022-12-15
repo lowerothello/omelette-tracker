@@ -62,8 +62,12 @@ m_sem_done: /* allow for processing and pushing off the stack in one go */
 							state = ((XKeyEvent*)ev)->state;
 							if (state&LockMask) state^=ShiftMask;
 							keysymindex = (state&ShiftMask);
-							if (state&ShiftMask) state^=ShiftMask;
 							keysym = XLookupKeysym((XKeyEvent*)ev, keysymindex);
+
+							/* turn off the shift flag if it's already been processed */
+							if (isascii(keysym) && state&ShiftMask)
+								state^=ShiftMask;
+
 							inputTooltip(&tt, state, keysym, 0);
 							break;
 						case KeyRelease:

@@ -13,8 +13,8 @@ void trackLeft (size_t count);
 void trackRight(size_t count);
 void trackerHome(void);
 void trackerEnd (void);
-void cycleUp  (size_t count); /* TODO: count */
-void cycleDown(size_t count); /* TODO: count */
+void cycleUp  (size_t count);
+void cycleDown(size_t count);
 void shiftUp  (size_t count);
 void shiftDown(size_t count);
 void trackerPgUp(size_t count);

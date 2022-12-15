@@ -104,7 +104,7 @@ static void _previewNote(UI *cw, int key, uint8_t inst)
 
 	if (cw->keyboardmacro)
 	{
-		if (charToKmode(key, linkMacroNibbles(cw->keyboardmacro), &cw->previewrow.macro[0].v, &cw->previewrow.note))
+		if (charToKmode(key, MACRO_LINKNIBBLES(cw->keyboardmacro), &cw->previewrow.macro[0].v, &cw->previewrow.note))
 			cw->previewrow.macro[0].c = cw->keyboardmacro;
 	} else charToNote(key, &cw->previewrow.note);
 }

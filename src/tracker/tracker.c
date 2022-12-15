@@ -158,7 +158,7 @@ void trackerEnd(void)
 	} p->redraw = 1;
 }
 
-void cycleUp(size_t count) /* TODO: count */
+void cycleUp(size_t count)
 {
 	count *= MAX(1, w->count);
 	Variant *v;
@@ -176,10 +176,10 @@ void cycleUp(size_t count) /* TODO: count */
 						if (bound != -1) cycleVariantUp(v, bound);
 					} break;
 				case T_MODE_VISUAL: case T_MODE_VISUALREPLACE:
-					cycleUpPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleUpPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				case T_MODE_VISUALLINE:
-					cycleUpPartPattern(0, 2+s->track->v[w->track].data.variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleUpPartPattern(count, 0, 2+s->track->v[w->track].data.variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				default: break;
 			} break;
@@ -187,7 +187,7 @@ void cycleUp(size_t count) /* TODO: count */
 	} p->redraw = 1;
 }
 
-void cycleDown(size_t count) /* TODO: count */
+void cycleDown(size_t count)
 {
 	count *= MAX(1, w->count);
 	Variant *v;
@@ -205,10 +205,10 @@ void cycleDown(size_t count) /* TODO: count */
 						if (bound != -1) cycleVariantDown(v, bound);
 					} break;
 				case T_MODE_VISUAL: case T_MODE_VISUALREPLACE:
-					cycleDownPartPattern(MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleDownPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				case T_MODE_VISUALLINE:
-					cycleDownPartPattern(0, 2+s->track->v[w->track].data.variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleDownPartPattern(count, 0, 2+s->track->v[w->track].data.variant->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				default: break;
 			} break;

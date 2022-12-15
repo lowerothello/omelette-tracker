@@ -63,6 +63,7 @@ struct DistHandle {
 	LADSPA_Data *port[DIST_PORTC];
 	float        dcblockinput[2];
 	float        dcblockoutput[2];
+	float        wetrms, dryrms;
 	float        dcblockcutoff;
 };
 
@@ -98,13 +99,15 @@ void dist_run(LADSPA_Handle handle, unsigned long bufsize)
 {
 	struct DistHandle *h = handle;
 
-	LADSPA_Data inl, inr, clipl, clipr, deltal, deltar;
+	LADSPA_Data inl, inr;
 	float drive, rect;
 	unsigned int j;
 	for (unsigned long i = 0; i < bufsize; i++)
 	{
 		inl = h->port[DIST_PORT_INL][i];
 		inr = h->port[DIST_PORT_INR][i];
+
+		h->dryrms = (h->dryrms + powf(fabsf(inl + inr)*0.5f, 2.0f))*0.5f;
 
 		inl += h->port[DIST_PORT_BIAS][0];
 
@@ -135,18 +138,13 @@ void dist_run(LADSPA_Handle handle, unsigned long bufsize)
 
 		drive = (h->port[DIST_PORT_DRIVE][0] * DIST_MAX_DRIVE) + 1.0f;
 		// drive = powf(DIST_MAX_DRIVE, h->port[DIST_PORT_DRIVE][0]);
-		clipl = hardclip(inl * drive);
-		clipr = hardclip(inr * drive);
+		inl = hardclip(inl * drive);
+		inr = hardclip(inr * drive);
 
-		/* difference between the wet and dry */
-		deltal = clipl - inl;
-		deltar = clipr - inr;
+		h->wetrms = (h->wetrms + powf(fabsf(inl + inr)*0.5f, 2.0f))*0.5f;
 
-		// soft = sqrtf(fabsf(deltal + deltar)*0.5f);
-		// inl += deltal * soft;
-		// inr += deltar * soft;
-		inl = hardclip(inl + deltal);
-		inr = hardclip(inr + deltar);
+		inl -= h->wetrms - h->dryrms;
+		inr -= h->wetrms - h->dryrms;
 
 		inl *= h->port[DIST_PORT_OUTGAIN][0];
 		inr *= h->port[DIST_PORT_OUTGAIN][0];

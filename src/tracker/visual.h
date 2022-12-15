@@ -18,8 +18,8 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 void altTildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
 void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
 void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
-void cycleUpPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
-void cycleDownPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
+void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
+void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
 #define BOUNCE_SCALE 2.0f /* multiply samples by this before saving */
 void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2);
 

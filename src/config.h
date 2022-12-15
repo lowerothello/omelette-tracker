@@ -2,8 +2,7 @@
 
 /* DEBUG_LOGS
  *   writes debugging files to the current directory.
- *   these files are appended to and never reset so grow forever.
- */
+ *   these files are appended to and never reset so grow forever. */
 // #define DEBUG_LOGS
 
 #define DEBUG_DUMMY_SAMPLERATE 44100
@@ -12,14 +11,17 @@
  *   disables registering the jack client, should allow
  *   running under gdb without stalling jackd.
  *
- *   pretty janky, but good enough for some debugging.
- */
+ *   pretty janky, but good enough for some debugging. */
 // #define DEBUG_DISABLE_AUDIO_OUTPUT
+
+/* DISABLE_RAW_INPUT
+ *   only parse stdin, don't try to aquire raw events
+ *   $OML_STDIN can be set in the environment to force this */
+// #define DISABLE_RAW_INPUT
 
 /* NO_MULTITHREADING
  *   executes all track processing in a single thread
- *   instead of spawning a thread for each track.
- */
+ *   instead of spawning a thread for each track. */
 #define NO_MULTITHREADING
 
 /* filebrowser starting dir */
@@ -31,9 +33,7 @@
 /* UPDATE_DELAY
  *   how often to poll for input. since omelette needs to be able
  *   to refresh the screen arbitrarily it can't block waiting for
- *   input. in nanoseconds, one million nanoseconds per milisecond.
- */
-
+ *   input. in nanoseconds, one million nanoseconds per milisecond. */
 #define UPDATE_DELAY 10000000 /* max: 100fps */
 
 /* like UPDATE_DELAY but for work threads */
@@ -46,8 +46,7 @@
 /* RAMPING
  *   how long it takes for notes to fade in/out.
  *   anything above ~300 risks overflowing at high sample rates.
- *   retrigger never has any ramping cos it causes artifacts.
- */
+ *   retrigger never has any ramping cos it causes artifacts. */
 #define RAMP_MS 10 /* usual ramp time */
 #define LOOP_RAMP_MS 80 /* loop crossfade time, will auto-lower to half the loop range */
 
@@ -68,16 +67,9 @@
 #define PITCH_WHEEL_SAMPLES 500
 
 
-/* DISABLE_RAW_INPUT
- *   only parse stdin, don't try to aquire raw events
- *   $OML_STDIN can be set in the environment to force this
- */
-// #define DISABLE_RAW_INPUT
-
 /* DISABLE_TRUECOLOUR
  *   don't try to generate inbetween colours with truecolour abuse
- *   $OML_NOTC can be set in the environment to force this
- */
+ *   $OML_NOTC can be set in the environment to force this */
 // #define DISABLE_TRUECOLOUR
 
 #define PROGRAM_TITLE "omelette tracker"

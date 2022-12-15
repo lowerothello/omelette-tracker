@@ -78,7 +78,6 @@ void _addTrack(Song *cs, Track *cv)
 
 	cv->data.effect = newEffectChain(cv->output, cv->pluginoutput);
 
-	// resizeVariantChain(cv->data.variant, cs->songlen); /* TODO: unnecessary? */
 	initTrackData(&cv->data, cs->songlen);
 }
 
@@ -109,12 +108,10 @@ static void cb_addTrack(Event *e)
 	free(e->src); e->src = NULL;
 	regenGlobalRowc(s); /* sets p->redraw */
 }
-int addTrack(Song *cs, uint8_t index, uint16_t count)
+void addTrack(Song *cs, uint8_t index, uint16_t count)
 { /* fully atomic */
 	/* scale down count if necessary */
-	/* if (         (index + count) - (int)s->track->c < 0)
-		count += (index + count) - (int)s->track->c; */
-	if (cs->track->c + count > TRACK_MAX) return 1; /* TODO: should add fewer tracks if the requested amount wouldn't fit */
+	count = MIN(count, TRACK_MAX - cs->track->c);
 
 	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (cs->track->c+count) * sizeof(Track));
 	newtrack->c = cs->track->c;
@@ -141,7 +138,6 @@ int addTrack(Song *cs, uint8_t index, uint16_t count)
 	e.src = newtrack;
 	e.callback = cb_addTrack;
 	pushEvent(&e);
-	return 0;
 }
 
 void _delTrack(Song *cs, Track *cv)
@@ -173,10 +169,11 @@ static void cb_delTrack(Event *e)
 void delTrack(uint8_t index, uint16_t count)
 { /* fully atomic */
 	/* scale down count if necessary */
-	if (         (int)s->track->c - MAX(1, index) - count < 0)
-		count += (int)s->track->c - MAX(1, index) - count;
-	/* TODO: if the last track would be deleted then call clearTrackdata(s, &s->track->v[0].data) instead */
-	/*       currently MAX(1, index) stops this from ever happening */
+	count = MIN(count, s->track->c - 1);
+	if (index + count > s->track->c)
+		index = s->track->c - count;
+
+	/* TODO: if the last track would be deleted then call clearTrackdata(s, &s->track->v[0].data) */
 
 	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (s->track->c - count) * sizeof(Track));
 	newtrack->c = s->track->c - count;
@@ -225,7 +222,7 @@ Row *getTrackRow(TrackData *cd, uint16_t index)
 		return getVariantRow(cd->variant->main, index);
 }
 
-char checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
+bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 { /* use fptr as the songlen index, and *spr as a pointer to the new bpm cache */
 	((short *)spr)[fptr] = m;
 	return 0;
@@ -245,7 +242,7 @@ void regenBpmCache(Song *cs)
 
 	for (uint16_t i = 0; i < cs->songlen; i++)
 		for (uint8_t j = 0; j < cs->track->c; j++)
-			ifMacro(i, (uint16_t *)newbpmcache, &cs->track->v[j], *getTrackRow(&cs->track->v[j].data, i), 'B', &checkBpmCache);
+			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], *getTrackRow(&cs->track->v[j].data, i), 'B', &checkBpmCache);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
