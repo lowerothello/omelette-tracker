@@ -256,9 +256,14 @@ void deserializeLadspaEffect(LadspaState **s, float **input, float **output, FIL
 	startLadspaEffect(*s, input, output);
 }
 
+/* the current text colour will apply to the header but not the contents */
 void drawLadspaEffect(LadspaState *s, ControlState *cc,
 		short x, short w, short y, short ymin, short ymax)
 {
+	if (ymin <= y-1 && ymax >= y-1)
+		printf("\033[%d;%dH\033[7mLADSPA\033[27m", y-1, x + 1);
+	printf("\033[37;40m");
+
 	if (ymin <= y && ymax >= y)
 	{
 		printf("\033[1m");

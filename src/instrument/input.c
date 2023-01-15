@@ -57,7 +57,7 @@ static void instrumentEscape(void *arg)
 {
 	previewNote(' ', INST_VOID);
 	cc.mouseadjust = cc.keyadjust = 0;
-	w->mode = I_MODE_NORMAL;
+	w->mode = MODE_NORMAL;
 	p->redraw = 1;
 }
 
@@ -180,12 +180,9 @@ static void toggleBrowser(void *arg)
 }
 static void instrumentEnterInsertMode(void *arg)
 {
-	w->mode = I_MODE_INSERT;
+	w->mode = MODE_INSERT;
 	p->redraw = 1;
 }
-
-static void instrumentInc(void *cc) { incControlValue(cc); p->redraw = 1; }
-static void instrumentDec(void *cc) { decControlValue(cc); p->redraw = 1; }
 
 static void setInsertOctave(void *octave)
 {
@@ -197,24 +194,24 @@ void initInstrumentInput(TooltipState *tt)
 {
 	setTooltipTitle(tt, "instrument");
 	setTooltipMouseCallback(tt, instrumentMouse);
-	addTooltipBind(tt, "cursor up"        , 0          , XK_Up       , 0      , (void(*)(void*))instrumentUpArrow   , (void*)1);
-	addTooltipBind(tt, "cursor down"      , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDownArrow , (void*)1);
-	addTooltipBind(tt, "cursor left"      , 0          , XK_Left     , 0      , (void(*)(void*))instrumentLeftArrow , NULL    );
-	addTooltipBind(tt, "cursor right"     , 0          , XK_Right    , 0      , (void(*)(void*))instrumentRightArrow, NULL    );
-	addTooltipBind(tt, "cursor home"      , 0          , XK_Home     , 0      , (void(*)(void*))instrumentHome      , NULL    );
-	addTooltipBind(tt, "cursor end"       , 0          , XK_End      , 0      , (void(*)(void*))instrumentEnd       , NULL    );
-	addTooltipBind(tt, "cursor pgup"      , 0          , XK_Page_Up  , 0      , instrumentPgUp                      , (void*)1);
-	addTooltipBind(tt, "cursor pgdn"      , 0          , XK_Page_Down, 0      , instrumentPgDn                      , (void*)1);
-	addTooltipBind(tt, "previous index"   , ControlMask, XK_Up       , 0      , instrumentCtrlUpArrow               , (void*)1);
-	addTooltipBind(tt, "next index"       , ControlMask, XK_Down     , 0      , instrumentCtrlDownArrow             , (void*)1);
-	addTooltipBind(tt, "return"           , 0          , XK_Escape   , 0      , instrumentEscape                    , NULL    );
-	addTooltipBind(tt, "increment cell"   , ControlMask, XK_A        , TT_DRAW, instrumentInc                       , &cc     );
-	addTooltipBind(tt, "decrement cell"   , ControlMask, XK_X        , TT_DRAW, instrumentDec                       , &cc     );
-	addTooltipBind(tt, "toggle"           , 0          , XK_Return   , TT_DRAW, instrumentSampleReturn              , NULL    );
-	addTooltipBind(tt, "revert to default", 0          , XK_BackSpace, TT_DRAW, instrumentSampleBackspace           , NULL    );
+	addTooltipBind(tt, "cursor up"        , 0          , XK_Up       , 0      , (void(*)(void*))instrumentUpArrow    , (void*)1);
+	addTooltipBind(tt, "cursor down"      , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDownArrow  , (void*)1);
+	addTooltipBind(tt, "cursor left"      , 0          , XK_Left     , 0      , (void(*)(void*))instrumentLeftArrow  , NULL    );
+	addTooltipBind(tt, "cursor right"     , 0          , XK_Right    , 0      , (void(*)(void*))instrumentRightArrow , NULL    );
+	addTooltipBind(tt, "cursor home"      , 0          , XK_Home     , 0      , (void(*)(void*))instrumentHome       , NULL    );
+	addTooltipBind(tt, "cursor end"       , 0          , XK_End      , 0      , (void(*)(void*))instrumentEnd        , NULL    );
+	addTooltipBind(tt, "cursor pgup"      , 0          , XK_Page_Up  , 0      , instrumentPgUp                       , (void*)1);
+	addTooltipBind(tt, "cursor pgdn"      , 0          , XK_Page_Down, 0      , instrumentPgDn                       , (void*)1);
+	addTooltipBind(tt, "previous index"   , ControlMask, XK_Up       , 0      , instrumentCtrlUpArrow                , (void*)1);
+	addTooltipBind(tt, "next index"       , ControlMask, XK_Down     , 0      , instrumentCtrlDownArrow              , (void*)1);
+	addTooltipBind(tt, "return"           , 0          , XK_Escape   , 0      , instrumentEscape                     , NULL    );
+	addTooltipBind(tt, "increment cell"   , ControlMask, XK_A        , TT_DRAW, (void(*)(void*))incControlValueRedraw, &cc     );
+	addTooltipBind(tt, "decrement cell"   , ControlMask, XK_X        , TT_DRAW, (void(*)(void*))decControlValueRedraw, &cc     );
+	addTooltipBind(tt, "toggle"           , 0          , XK_Return   , TT_DRAW, instrumentSampleReturn               , NULL    );
+	addTooltipBind(tt, "revert to default", 0          , XK_BackSpace, TT_DRAW, instrumentSampleBackspace            , NULL    );
 	switch (w->mode)
 	{
-		case I_MODE_NORMAL:
+		case MODE_NORMAL:
 			addCountBinds(tt, 0);
 			addTooltipBind(tt, "set bpm"          , 0, XK_b, 0      , (void(*)(void*))setBpmCount  , NULL                        );
 			addTooltipBind(tt, "record"           , 0, XK_r, TT_DEAD, setChordRecord               , tt                          );
@@ -227,7 +224,7 @@ void initInstrumentInput(TooltipState *tt)
 			addTooltipBind(tt, "toggle browser"   , 0, XK_f, 0      , toggleBrowser                , NULL                        );
 			addTooltipBind(tt, "enter insert mode", 0, XK_i, 0      , instrumentEnterInsertMode    , NULL                        );
 			break;
-		case I_MODE_INSERT:
+		case MODE_INSERT:
 			addDecimalBinds(tt, "set octave"  , 0, setInsertOctave        );
 			addNoteBinds   (tt, "preview note", 0, instrumentSamplePreview);
 			break;

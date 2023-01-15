@@ -110,13 +110,13 @@ static void _previewNote(UI *cw, int key, uint8_t inst)
 }
 void previewNote(int key, uint8_t inst)
 {
-	if (p->w->page == PAGE_TRACK_VARIANT && p->s->playing) return;
+	if (p->w->page == PAGE_VARIANT && p->s->playing) return;
 	_previewNote(w, key, inst);
 	w->previewtrigger = PTRIG_NORMAL;
 }
 void previewRow(Row *r)
 {
-	if (w->page == PAGE_TRACK_VARIANT && s->playing) return;
+	if (w->page == PAGE_VARIANT && s->playing) return;
 	memcpy(&w->previewrow, r, sizeof(Row));
 	w->previewtrigger = PTRIG_NORMAL;
 }
@@ -126,16 +126,21 @@ void previewFileNote(UI *cw, int key)
 	w->previewtrigger = PTRIG_FILE;
 }
 
+void incControlValueRedraw(ControlState *cc) { incControlValue (cc); p->redraw = 1; }
+void decControlValueRedraw(ControlState *cc) { decControlValue (cc); p->redraw = 1; }
+void toggleKeyControlRedraw(ControlState *cc) { toggleKeyControl(cc); p->redraw = 1; }
+void revertKeyControlRedraw(ControlState *cc) { revertKeyControl(cc); p->redraw = 1; }
+
 
 static enum InputMode getRawInputMode(void)
 {
 #ifdef DISABLE_RAW_INPUT
-	return INPUT_MODE_NONE;
+	return INPUMODE_NONE;
 #endif
-	if (getenv("OML_STDIN"))              return INPUT_MODE_NONE;
-	if (!strcmp(getenv("TERM"), "LINUX")) return INPUT_MODE_RAW;
-	if (getenv("DISPLAY"))                return INPUT_MODE_X;
-	return INPUT_MODE_NONE; /* fallback */
+	if (getenv("OML_STDIN"))              return INPUMODE_NONE;
+	if (!strcmp(getenv("TERM"), "LINUX")) return INPUMODE_RAW;
+	if (getenv("DISPLAY"))                return INPUMODE_X;
+	return INPUMODE_NONE; /* fallback */
 }
 
 
@@ -176,16 +181,16 @@ int initRawInput(void)
 	int revtoret;
 	switch (input_mode)
 	{
-		case INPUT_MODE_RAW:
+		case INPUMODE_RAW:
 			// ioctl(0, KDSKBMODE, K_RAW); /* TODO: */
 			break;
-		case INPUT_MODE_X:
+		case INPUMODE_X:
 			if (!(dpy = XOpenDisplay(NULL))) return 1;
 			XGetInputFocus(dpy, &wpy, &revtoret);
 			XGrabKey(dpy, AnyKey, AnyModifier, wpy, 1, GrabModeAsync, GrabModeAsync);
 			pthread_create(&xeventthread_id, NULL, (void*(*)(void*))XEventThread, &p);
 			break;
-		case INPUT_MODE_NONE: break;
+		case INPUMODE_NONE: break;
 	}
 	return 0;
 }
@@ -195,10 +200,10 @@ void freeRawInput(void)
 {
 	switch (input_mode)
 	{
-		case INPUT_MODE_RAW:
+		case INPUMODE_RAW:
 			// ioctl(0, KDSKBMODE, K_XLATE);
 			break;
-		case INPUT_MODE_X:
+		case INPUMODE_X:
 			/* the xevent thread will die when this bit is set high after
 			 * the next event is recieved. it's usually killed by the
 			 * release event of whatever key triggered cleanup, but not
@@ -212,6 +217,6 @@ void freeRawInput(void)
 			XUngrabKey(dpy, AnyKey, AnyModifier, wpy);
 			XCloseDisplay(dpy);
 			break;
-		case INPUT_MODE_NONE: break;
+		case INPUMODE_NONE: break;
 	}
 }

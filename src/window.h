@@ -11,19 +11,16 @@ enum { /* TODO: port to the event system */
 };
 
 enum _Page {
-	PAGE_TRACK_VARIANT,
-	PAGE_TRACK_EFFECT,
+	PAGE_VARIANT,
 	PAGE_INSTRUMENT,
-	PAGE_EFFECT_MASTER,
-	PAGE_EFFECT_SEND,
 	PAGE_PLUGINBROWSER,
 };
 
-enum {
+enum PTRIG {
 	PTRIG_OK,     /* no queued preview            */
 	PTRIG_NORMAL, /* queued s->instrument preview */
 	PTRIG_FILE,   /* queued filebrowser preview   */
-} PTRIG;
+};
 
 #define MAX_OCTAVE 7
 #define MIN_OCTAVE 0
@@ -53,8 +50,6 @@ typedef struct _UI {
 	uint16_t       trackerfy, visualfy;
 	int8_t         trackerfx, visualfx;
 	uint8_t        visualtrack;
-
-	short          effectscroll;
 
 	bool          showfilebrowser; /* show the instrument sample browser */
 	int           filebrowserindex;
@@ -99,9 +94,9 @@ typedef struct _UI {
 UI *w;
 
 void setBpmCount(void);
-void showTracker(void); /* cast to (void(*)(void*)) */
-void showInstrument(void); /* cast to (void(*)(void*)) */
-void showMaster(void); /* cast to (void(*)(void*)) */
+void showTracker(void);
+void showInstrument(void);
+void showEffect(void);
 
 UI *allocWindow(void);
 void freeWindow(UI*);

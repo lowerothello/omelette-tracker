@@ -293,11 +293,16 @@ void deserializeLV2Effect(EffectChain *chain, Effect *e, FILE *fp)
 	startLV2Effect(chain, e);
 }
 
+/* the current text colour will apply to the header but not the contents */
 void drawLV2Effect(Effect *e, ControlState *cc,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
 	LV2State *s = e->state;
+
+	if (ymin <= y-1 && ymax >= y-1)
+		printf("\033[%d;%dH\033[7mLV2\033[27m", y-1, x + 1);
+	printf("\033[37;40m");
 
 	LilvNode *name;
 	name = lilv_plugin_get_name(s->plugin);

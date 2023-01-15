@@ -35,7 +35,7 @@ static void cb_copyInstrument(Event *e)
 
 	free(e->src); e->src = NULL;
 
-	w->mode = I_MODE_NORMAL;
+	w->mode = MODE_NORMAL;
 	p->redraw = 1;
 }
 int copyInstrument(uint8_t index, Instrument *src)
@@ -104,7 +104,7 @@ void toggleRecording(uint8_t inst, char cue)
 	} p->redraw = 1;
 }
 
-static void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; w->mode = I_MODE_NORMAL; p->redraw = 1; }
+static void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; w->mode = MODE_NORMAL; p->redraw = 1; }
 static void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
 static void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
 
@@ -332,7 +332,7 @@ void sampleLoadCallback(char *path) /* TODO: atomicity */
 	if (path) loadSample(w->instrument, path);
 
 	w->page = PAGE_INSTRUMENT;
-	w->mode = I_MODE_NORMAL;
+	w->mode = MODE_NORMAL;
 	w->showfilebrowser = 0;
 	resetWaveform();
 }
@@ -570,7 +570,7 @@ void drawInstrument(ControlState *cc)
 {
 	switch (w->mode)
 	{
-		case I_MODE_INSERT:
+		case MODE_INSERT:
 			if (cc->mouseadjust || cc->keyadjust) printf("\033[%d;0H\033[1m-- INSERT ADJUST --\033[m\033[4 q", ws.ws_row);
 			else                                  printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",        ws.ws_row);
 			w->command.error[0] = '\0';

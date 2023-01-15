@@ -211,7 +211,7 @@ void drawControls(ControlState *cc)
 			else if (cc->resetadjust)             printf("\033[34m");
 		}
 
-		buffer = calloc(cw - 1, sizeof(char)); /* doesn't need to be big enough to hold the leading and trailing square brackets */
+		buffer = calloc(cw, sizeof(char)); /* doesn't need to be big enough to hold the leading and trailing square brackets */
 
 		if (c->scalepointptr)
 		{

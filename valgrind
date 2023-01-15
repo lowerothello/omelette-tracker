@@ -1,8 +1,10 @@
-#!/bin/sh -e
+#!/bin/sh
 
 ./make.sh 0 # ensure the latest gcc debug build
 
+echo starting valgrind
 valgrind \
 	--log-file=valgrind.log \
 	--leak-check=full \
 	./omelette "$@"
+echo stopping valgrind

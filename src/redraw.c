@@ -53,10 +53,9 @@ void redraw(void)
 		drawRuler();
 		switch (w->page)
 		{
-			case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT: drawTracker();        break;
-			case PAGE_INSTRUMENT:                            drawInstrument(&cc);  break;
-			case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:  drawMaster();         break;
-			case PAGE_PLUGINBROWSER:                         drawBrowser(pbstate); break;
+			case PAGE_VARIANT:       drawTracker();        break;
+			case PAGE_INSTRUMENT:    drawInstrument(&cc);  break;
+			case PAGE_PLUGINBROWSER: drawBrowser(pbstate); break;
 		}
 		drawCommand(&w->command, w->mode);
 	}

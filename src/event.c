@@ -141,7 +141,7 @@ void cb_reloadFile(Event *e)
 	p->s = s;
 	if (s->loop[1]) w->trackerfy = s->loop[0];
 	else            w->trackerfy = STATE_ROWS;
-	w->page = PAGE_TRACK_VARIANT;
+	w->page = PAGE_VARIANT;
 	regenGlobalRowc(s);
 	reapplyBpm();
 }

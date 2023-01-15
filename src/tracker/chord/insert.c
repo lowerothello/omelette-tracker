@@ -1,7 +1,7 @@
 static void setInsertMacro(void *arg)
 {
 	changeMacro((size_t)arg, &w->keyboardmacro);
-	w->mode = T_MODE_INSERT;
+	w->mode = MODE_INSERT;
 	p->redraw = 1;
 }
 void setChordMacroInsert(void *tt)

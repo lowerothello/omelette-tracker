@@ -41,18 +41,16 @@ enum WAVE_SHAPE {
 #include "effect/effect.h"         /* audio effects (LADSPA, LV2) */
 #include "tracker/tracker.h"       /* tracker page code */
 #include "instrument/instrument.h" /* instrument page code */
-#include "master.h"                /* master effects page code TODO: very unfinished */
 
 /* TODO: should be in a header */
 enum _Mode {
-	T_MODE_NORMAL,
-	T_MODE_INSERT,
-	T_MODE_MOUSEADJUST,
-	T_MODE_VISUAL,
-	T_MODE_VISUALLINE,
-	T_MODE_VISUALREPLACE,
-	I_MODE_NORMAL,
-	I_MODE_INSERT,
+	MODE_NORMAL,
+	MODE_INSERT,
+	MODE_EFFECT,
+	MODE_MOUSEADJUST,
+	MODE_VISUAL,
+	MODE_VISUALLINE,
+	MODE_VISUALREPLACE,
 	MODE_COMMAND,
 };
 
@@ -76,10 +74,9 @@ enum _Mode {
 
 #include "generator/sampler.h"
 
-#include "effect/effect.c"
 #include "tracker/tracker.c"
+#include "effect/effect.c"
 #include "instrument/instrument.c"
-#include "master.c"
 
 #include "filebrowser.c"
 #include "pluginbrowser.c"

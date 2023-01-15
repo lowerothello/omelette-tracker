@@ -243,23 +243,79 @@ short getEffectHeight(Effect *e)
 	return 0;
 }
 
-int drawEffect(Effect *e, ControlState *cc, bool selected, short x, short w, short y, short ymin, short ymax)
+static int _drawEffect(Effect *e, ControlState *cc, bool selected, short x, short width, short y, short ymin, short ymax)
 {
 	if (!e) return 0;
 
-	switch (e->type)
-	{
-		case EFFECT_TYPE_LADSPA: drawLadspaEffect((LadspaState*)e->state, cc, x, w, y, ymin, ymax); break;
-		case EFFECT_TYPE_LV2:    drawLV2Effect   (e                     , cc, x, w, y, ymin, ymax); break;
-	}
 	short ret = getEffectHeight(e);
 
-	y--;
-	if (selected) printf("\033[1m");
-	drawBoundingBox(x, y, w, ret-1, 1, ws.ws_col, ymin, ymax);
-	if (selected) printf("\033[22m");
+	if (selected) printf("\033[1;31m");
+	drawBoundingBox(x, y-1, width, ret-1, 1, ws.ws_col, ymin, ymax);
+
+	switch (e->type)
+	{
+		case EFFECT_TYPE_LADSPA: drawLadspaEffect((LadspaState*)e->state, cc, x, width, y, ymin, ymax); break;
+		case EFFECT_TYPE_LV2:    drawLV2Effect   (e                     , cc, x, width, y, ymin, ymax); break;
+	}
+	printf("\033[22;37m");
 
 	return ret;
+}
+
+/* draw a vertical scrollbar using boxdrawing glyphs */
+#define VERT_SCROLL_HANDLE_SIZE 2
+static void drawVerticalScrollbar(short x, short y, unsigned short h,
+		uint32_t max, uint32_t index)
+{
+	uint32_t visualmax = (h - VERT_SCROLL_HANDLE_SIZE)<<3; /* 8x the precision */
+	uint32_t visualindex = index * (float)visualmax / (float)max;
+	uint32_t drawindex = visualindex / 8;
+	uint8_t drawcelloffset = visualindex % 8;
+
+	// for (int i = 0; i < h; i++)
+	// 	printf("\033[%d;%dHa", y+i, x);
+	
+	char buffer[4] = {0xe2, 0x96, 0x88 - drawcelloffset, 0x00};
+
+	printf("\033[%d;%dH%d", y, x + 2, drawindex);
+	printf("\033[%d;%dH%s", y + drawindex, x, buffer);
+	printf("\033[7m");
+	for (int i = 1; i < VERT_SCROLL_HANDLE_SIZE; i++)
+		printf("\033[%d;%dH ", y + drawindex + i, x);
+	printf("\033[%d;%dH%s", y + drawindex + VERT_SCROLL_HANDLE_SIZE, x, buffer);
+	printf("\033[27m");
+	// printf("\033[%d;%dHs", y + drawindex, x, 0x2580 + 8 - drawcelloffset);
+}
+
+void drawEffectChain(EffectChain *chain, ControlState *cc, short x, short width, short y)
+{
+	if (x > ws.ws_col+1 || x+width < 1) return;
+
+	uint8_t focusedindex = getEffectFromCursor(chain, cc->cursor);
+	short ty = y + ((ws.ws_row-1 - y)>>1);
+
+	if (chain->c)
+	{
+		for (uint8_t i = 0; i < focusedindex; i++)
+			ty -= getEffectHeight(&chain->v[i]);
+
+		ty -= getEffectHeight(&chain->v[focusedindex])>>1;
+
+		for (uint8_t i = 0; i < chain->c; i++)
+			ty += _drawEffect(&chain->v[i], cc,
+					focusedindex == i, x, width,
+					ty+1, y, ws.ws_row-1);
+		drawVerticalScrollbar(x + width + 2, y, ws.ws_row-1 - y, cc->controlc, cc->cursor);
+	} else
+	{
+		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT, 1, ws.ws_col, 1, ws.ws_row);
+		printf("\033[m");
+
+		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
+		printCulling(NULL_EFFECT_TEXT, x, y+1, 1, ws.ws_col);
+
+		addControlDummy(cc, MAX(1, MIN(ws.ws_col, x)), y+1);
+	}
 }
 
 /* e->input[0/1] and e->output[0/1] should be arrays of at least length samplecount */
@@ -273,52 +329,4 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	}
 }
 
-void drawEffects(EffectChain *chain, ControlState *cc, bool boldOutlines, short x, short width, short y)
-{
-	if (x > ws.ws_col+1 || x+width < 1) return;
-	if (chain->c)
-	{
-		uint8_t boldOutlinesindex = getEffectFromCursor(chain, cc->cursor);
-		short maxheight      = 0;
-		short selstartheight = 0;
-		short selendheight   = 0;
-		for (int i = 0; i < chain->c; i++)
-		{
-			if (i == boldOutlinesindex)
-			{
-				selstartheight = maxheight;
-				maxheight += getEffectHeight(&chain->v[i]);
-				selendheight = maxheight;
-			} else maxheight += getEffectHeight(&chain->v[i]);
-		}
-
-		/* content height - viewport height = max scroll offset */
-		w->effectscroll = MIN(w->effectscroll, maxheight - (ws.ws_row - y));
-		w->effectscroll = MAX(w->effectscroll, 0);
-		/* make sure the boldOutlines effect is fully on screen */
-		w->effectscroll = MIN(w->effectscroll, selstartheight);
-		w->effectscroll = MAX(w->effectscroll, selendheight - (ws.ws_row - y));
-
-		short ty = y - w->effectscroll;
-
-		for (uint8_t i = 0; i < chain->c; i++)
-			ty += drawEffect(&chain->v[i], cc,
-					boldOutlines && boldOutlinesindex == i, x, width,
-					ty+1, y, ws.ws_row-1);
-	} else
-	{
-		w->effectscroll = 0;
-
-		if (boldOutlines) printf("\033[1m");
-		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT, 1, ws.ws_col, 1, ws.ws_row);
-		printf("\033[m");
-
-		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
-		printCulling(NULL_EFFECT_TEXT, x, y+1, 1, ws.ws_col);
-
-		addControlDummy(cc, MAX(1, MIN(ws.ws_col, x)), y+1);
-	}
-}
-
 #include "autogenui.c"
-#include "input.c"

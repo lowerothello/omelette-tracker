@@ -73,3 +73,8 @@
 // #define DISABLE_TRUECOLOUR
 
 #define PROGRAM_TITLE "omelette tracker"
+
+/* DISABLE_BOX_OUTLINE
+ *   skip outlining boxes
+ */
+// #define DISABLE_BOX_OUTLINE

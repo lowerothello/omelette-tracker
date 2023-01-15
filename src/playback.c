@@ -2,11 +2,11 @@ static void leaveSpecialModes(void)
 {
 	switch (w->page)
 	{
-		case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT:
+		case PAGE_VARIANT:
 			switch (w->mode)
 			{
-				case T_MODE_INSERT: break;
-				default: w->mode = T_MODE_NORMAL; break;
+				case MODE_INSERT: break;
+				default: w->mode = MODE_NORMAL; break;
 			} break;
 		default: break;
 	}

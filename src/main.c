@@ -15,19 +15,19 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <ctype.h>
-#include <jack/jack.h>     /* audio i/o        */
-#include <jack/midiport.h> /* midi i/o         */
-#include <jack/thread.h>   /* threading helper */
-#include <sndfile.h> /* audio file read/write */
+#include <jack/jack.h>         /* audio i/o                       */
+#include <jack/midiport.h>     /* midi i/o                        */
+#include <jack/thread.h>       /* threading helper                */
+#include <sndfile.h>           /* audio file read/write           */
 #include <dlfcn.h>
-#include <ladspa.h> /* LADSPA audio plugins */
-#include <lilv/lilv.h> /* LV2 audio plugins */
-#include <lv2.h>       /* LV2 audio plugins */
-#include <lv2/urid/urid.h>   /* LV2 urids */
-#include <lv2/units/units.h> /* LV2 units */
-#include <X11/Xlib.h> /* X11 hack for key release events */
+#include <ladspa.h>            /* LADSPA audio plugins            */
+#include <lilv/lilv.h>         /* LV2 audio plugins               */
+#include <lv2.h>               /* LV2 audio plugins               */
+#include <lv2/urid/urid.h>     /* LV2 urids                       */
+#include <lv2/units/units.h>   /* LV2 units                       */
+#include <X11/Xlib.h>          /* X11 hack for key release events */
 #include <X11/keysym.h>
-#include <valgrind/valgrind.h> /* valgrind hooks */
+#include <valgrind/valgrind.h> /* valgrind hooks                  */
 
 
 /* libdrawille */
@@ -70,7 +70,7 @@ void filebrowserEditCallback(char *path)
 		e.callback = cb_reloadFile;
 		pushEvent(&e);
 	}
-	w->page = PAGE_TRACK_VARIANT;
+	w->page = PAGE_VARIANT;
 }
 /* void commandTabCallback(char *text)
 {
@@ -114,12 +114,12 @@ static void enterCommandMode(void *arg)
 	w->oldmode = w->mode;
 	switch (w->mode)
 	{
-		case T_MODE_VISUAL:
-		case T_MODE_VISUALLINE:
-		case T_MODE_VISUALREPLACE:
-		case T_MODE_INSERT:
-		case T_MODE_MOUSEADJUST:
-			w->oldmode = T_MODE_NORMAL;
+		case MODE_VISUAL:
+		case MODE_VISUALLINE:
+		case MODE_VISUALREPLACE:
+		case MODE_INSERT:
+		case MODE_MOUSEADJUST:
+			w->oldmode = MODE_NORMAL;
 			break;
 		default: break;
 	}
@@ -147,9 +147,11 @@ void resetInput(void)
 	clearTooltip(&tt);
 	addTooltipBind(&tt, "SIGINT"         , ControlMask, XK_C    , 0, (void(*)(void*))cleanup       , NULL);
 	addTooltipBind(&tt, "show file info" , ControlMask, XK_G    , 0, (void(*)(void*))showFileInfo  , NULL);
+
 	addTooltipBind(&tt, "show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
 	addTooltipBind(&tt, "show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);
-	addTooltipBind(&tt, "show master"    , 0          , XK_F3   , 0, (void(*)(void*))showMaster    , NULL);
+	// addTooltipBind(&tt, "show effect",     0          , XK_F3   , 0, (void(*)(void*))showEffect    , NULL);
+
 	addTooltipBind(&tt, "start playback" , 0          , XK_F5   , 0, (void(*)(void*))startPlayback , NULL);
 	addTooltipBind(&tt, "stop playback"  , 0          , XK_F6   , 0, (void(*)(void*))stopPlayback  , NULL);
 
@@ -161,10 +163,9 @@ void resetInput(void)
 			addTooltipBind(&tt, "hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
 			switch (w->page)
 			{
-				case PAGE_TRACK_VARIANT: case PAGE_TRACK_EFFECT: initTrackerInput            (&tt); break;
-				case PAGE_INSTRUMENT:                            initInstrumentInput         (&tt); break;
-				case PAGE_EFFECT_MASTER: case PAGE_EFFECT_SEND:  initMasterInput             (&tt); break;
-				case PAGE_PLUGINBROWSER:                         initPluginEffectBrowserInput(&tt); break;
+				case PAGE_VARIANT:       initTrackerInput            (&tt); break;
+				case PAGE_INSTRUMENT:    initInstrumentInput         (&tt); break;
+				case PAGE_PLUGINBROWSER: initPluginEffectBrowserInput(&tt); break;
 			} break;
 	}
 }
@@ -193,7 +194,7 @@ int main(int argc, char *argv[])
 {
 	if (argc > 1 && (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")))
 	{
-		printf("omelette tracker, v%d.%03d\n", MAJOR, MINOR);
+		printf("%s, v%d.%03d\n", PROGRAM_TITLE, MAJOR, MINOR);
 		return 0;
 	}
 

@@ -51,7 +51,15 @@ void deserializeEffectChain(EffectChain**, FILE*, uint8_t major, uint8_t minor);
 
 short getEffectHeight(Effect*);
 
-int drawEffect(Effect*, ControlState*, bool selected, short x, short w, short y, short ymin, short ymax);
+/* draw effects themselves */
+// static int  _drawEffect (Effect*,      ControlState*, bool selected,     short x, short width, short y, short ymin, short ymax);
+// static void _drawEffects(EffectChain*, ControlState*, bool boldOutlines, short x, short width, short y);
+
+/* draw the full effect page */
+void drawEffect(void);
+
+/* draw a single effect chain */
+void drawEffectChain(EffectChain*, ControlState*, short x, short width, short y);
 
 void runEffect(uint32_t samplecount, EffectChain*, Effect*);
 
@@ -66,7 +74,3 @@ void drawAutogenPluginLine(ControlState*, short x, short y, short w,
 		float min, float max, float def,
 		char *prefix, char *postfix,
 		uint32_t scalepointlen, uint32_t scalepointcount);
-
-void drawEffects(EffectChain*, ControlState*, bool boldOutlines, short x, short width, short y);
-
-#include "input.h"

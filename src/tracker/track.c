@@ -343,25 +343,29 @@ void toggleTrackMute(uint8_t track)
 }
 void toggleTrackSolo(uint8_t track)
 {
-	bool flush = 1; /* all tracks except the toggled one should be muted */
-	bool reset = 1; /* all tracks should be unmuted                      */
+	int i;
+	bool reset = 0;
 
-	for (int i = 0; i < s->track->c; i++)
+	if (!s->track->v[track].data.mute)
 	{
-		if ( s->track->v[i].data.mute)                 flush = 0;
-		if ( s->track->v[i].data.mute && i == track) reset = 0;
-		if (!s->track->v[i].data.mute && i != track) reset = 0;
+		for (i = 0; i < s->track->c; i++)
+			if (s->track->v[i].data.mute)
+				reset = 1;
+
+		for (i = 0; i < s->track->c; i++)
+			if (i != track && !s->track->v[i].data.mute)
+				reset = 0;
 	}
 
-	if (flush && !reset)
+	if (reset)
 	{
-		for (int i = 0; i < s->track->c; i++)
-			if (i != track) s->track->v[i].data.mute = 1;
-		applyTrackMutes();
-	} else if (reset && !flush)
-	{
-		for (int i = 0; i < s->track->c; i++)
+		for (i = 0; i < s->track->c; i++)
 			s->track->v[i].data.mute = 0;
-		applyTrackMutes();
-	} else toggleTrackMute(track);
+	} else
+	{
+		for (i = 0; i < s->track->c; i++)
+			s->track->v[i].data.mute = 1;
+		s->track->v[track].data.mute = 0;
+	}
+	applyTrackMutes();
 }

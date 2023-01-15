@@ -6,9 +6,18 @@ void printCulling(char *s, short x, short y, short minx, short maxx)
 	else if (x < maxx)                        printf("\033[%d;%dH%.*s", y, x, maxx - x, s);
 }
 
+/* draw an opaque bounding box on the screen using box drawing glyphs */
 void drawBoundingBox(short x, short y, short w, short h, short xmin, short xmax, short ymin, short ymax)
 {
 	int i;
+	for (i = 0; i <= h; i++)
+		if (ymin <= y+i && ymax >= y+i)
+		{
+			printf("\033[%d;%dH\033[%dX", y+i, x+w, MAX(xmin, x) - MIN(xmax, x+w));
+#ifndef DISABLE_BOX_OUTLINE
+			if (x-1 >= xmin && x-1 <= xmax) printf("\033[%d;%dH│", y+i, x-1);
+			if (x+w >= xmin && x+w <= xmax) printf("\033[%d;%dH┃", y+i, x+w);
+		}
 	if (ymin <= y && ymax >= y)
 	{
 		for (i = MAX(xmin, x); i <= MIN(xmax, x+w); i++)
@@ -22,13 +31,8 @@ void drawBoundingBox(short x, short y, short w, short h, short xmin, short xmax,
 			printf("\033[%d;%dH━", y+h, i);
 		if (x-1 >= xmin && x-1 <= xmax) printf("\033[%d;%dH┕", y+h, x-1);
 		if (x+w >= xmin && x+w <= xmax) printf("\033[%d;%dH┛", y+h, x+w);
+#endif
 	}
-	for (i = 1; i < h; i++)
-		if (ymin <= y+i && ymax >= y+i)
-		{
-			if (x-1 >= xmin && x-1 <= xmax) printf("\033[%d;%dH│", y+i, x-1);
-			if (x+w >= xmin && x+w <= xmax) printf("\033[%d;%dH┃", y+i, x+w);
-		}
 }
 
 
