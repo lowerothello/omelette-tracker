@@ -65,11 +65,6 @@ typedef struct _UI {
 	signed char trackoffset;
 	signed char fieldpointer;
 
-	Canvas  *waveformcanvas;
-	char   **waveformbuffer;
-	size_t   waveformw, waveformh;
-	uint32_t waveformdrawpointer;
-
 	int8_t wtparam;
 
 	bool        showtooltip;

@@ -21,8 +21,6 @@ void showInstrument(void)
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
 
-	if (s->instrument->i[w->instrument] != INSTRUMENT_VOID)
-		resetWaveform();
 	freePreviewSample();
 	p->redraw = 1;
 }
@@ -53,8 +51,6 @@ void freeWindow(UI *cw)
 		free(cw->pbvariantv[i]);
 		free(cw->vbtrig[i]);
 	}
-
-	freeWaveform();
 
 	free(cw);
 }

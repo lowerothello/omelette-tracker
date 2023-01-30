@@ -40,8 +40,6 @@ void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uin
 #include "minimal.c"
 #include "midi.c"
 #include "cyclic.c"
-#include "tonal.c"
-#include "beat.c"
 #include "wavetable.c"
 
 #include "sampler.c"

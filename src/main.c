@@ -173,7 +173,6 @@ void resize(int signal)
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->centre = (ws.ws_row>>1) + 1;
 
-	resizeWaveform();
 	resizeBrowser(fbstate,
 			INSTRUMENT_INDEX_COLS + 2,         /* x */
 			TRACK_ROW + 1,                     /* y */

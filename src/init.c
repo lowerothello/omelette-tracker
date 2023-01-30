@@ -1,3 +1,7 @@
+#ifdef DEBUG_DISABLE_AUDIO_OUTPUT
+pthread_t dummyprocessthread;
+#endif
+
 static void common_cleanup(int ret)
 {
 	freeRawInput();
@@ -46,6 +50,8 @@ void cleanup(int ret)
 #endif
 
 	_delTrack(s, &w->previewtrack);
+
+	freeWaveform();
 
 	freeSong(s);
 	freeWindow(w);

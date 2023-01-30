@@ -6,7 +6,7 @@ static void midiInstUICallback(short x, short y, Instrument *iv, uint8_t index)
 	{
 		case 0:
 			printf("\033[%d;%dHMIDI channel:  [ ]", y, x);
-			addControlInt(&cc, x+16, y, &iv->midi.channel, 1, -1, 15, -1, 0, 0, instrumentSamplerControlCallback, NULL);
+			addControlInt(&cc, x+16, y, &iv->midi.channel, 1, -1, 15, -1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHMIDI program: [  ]", y, x);

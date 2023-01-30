@@ -95,10 +95,8 @@ void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uin
 			if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
 			processMinimal(iv->sample, pitchedpointer, localsamplerate, iv->bitdepth, cv->samplernote, l, r);
 			break;
-		case INST_ALG_CYCLIC:    processCyclic   (iv, cv, rp, pointer, pitchedpointer, l, r); break;
+		case INST_ALG_CYCLIC: processCyclic(iv, cv, rp, pointer, pitchedpointer, l, r); break;
 		// case INST_ALG_WAVETABLE: processWavetable(iv, cv, rp, pointer, pitchedpointer, l, r); break;
-		case INST_ALG_TONAL: break;
-		case INST_ALG_BEAT: break;
 		case INST_ALG_MIDI: break;
 	}
 

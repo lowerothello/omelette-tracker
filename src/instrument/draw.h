@@ -23,3 +23,8 @@ typedef struct {
 #define INSTUI_PADDING 2
 InstUI *allocInstUI(uint8_t blocks);
 void drawInstrument(ControlState*);
+
+void initInstUICommonSamplerBlock  (InstUIBlock *block);
+void initInstUIRangeSamplerBlock   (InstUIBlock *block);
+void initInstUIGranularSamplerBlock(InstUIBlock *block);
+void initInstUIPitchSamplerBlock   (InstUIBlock *block);

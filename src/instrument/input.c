@@ -69,14 +69,12 @@ static void instrumentCtrlUpArrow(void *count)
 	w->instrument -= (size_t)count * MAX(1, w->count);
 	if (w->instrument < 0) w->instrument = 0;
 	resetWaveform();
-	p->redraw = 1;
 }
 static void instrumentCtrlDownArrow(void *count)
 {
 	w->instrument += (size_t)count * MAX(1, w->count);
 	if (w->instrument > 254) w->instrument = 254;
 	resetWaveform();
-	p->redraw = 1;
 }
 
 static void instrumentSampleReturn(void *arg)

@@ -1,145 +1,134 @@
-void instrumentSamplerControlCallback(void *arg)
+pthread_t waveformthread;
+Canvas   *waveformworkcanvas;
+Canvas   *waveformdrawcanvas;
+char    **waveformbuffer;
+int       waveformw;
+int       waveformh;
+
+bool waveformthreadrunning = 0;
+
+static void *walkWaveformRoutine(Instrument *iv)
 {
-	w->waveformdrawpointer = 0;
-}
-
-void resetWaveform(void)
-{
-	if (instrumentSafe(s->instrument, w->instrument))
-	{
-		w->waveformdrawpointer = 0;
-		p->redraw = 1;
-	}
-}
-
-void resizeWaveform(void)
-{
-	w->waveformw = (ws.ws_col - INSTRUMENT_INDEX_COLS +1)<<1;
-	w->waveformh = (ws.ws_row - TRACK_ROW - 13)<<2;
-
-	if (w->waveformcanvas) { free_canvas(w->waveformcanvas); w->waveformcanvas = NULL; }
-	if (w->waveformbuffer) { free_buffer(w->waveformbuffer); w->waveformbuffer = NULL; }
-
-	if (w->waveformw > 0 && w->waveformh > 0)
-		w->waveformcanvas = new_canvas(w->waveformw, w->waveformh);
-
-	if (w->waveformcanvas)
-		w->waveformbuffer = new_buffer(w->waveformcanvas);
-
-	w->waveformdrawpointer = 0;
-}
-void freeWaveform(void)
-{
-	if (w->waveformcanvas) free_canvas(w->waveformcanvas);
-	if (w->waveformbuffer) free_buffer(w->waveformbuffer);
-}
-
-void drawMarker(uint32_t marker, size_t offset, size_t width)
-{
-	size_t xpos;
-	if (marker >= offset && marker < offset + width)
-	{
-		xpos = (float)(marker - offset) / (float)width * w->waveformw;
-		for (size_t i = 0; i < w->waveformh; i++) set_pixel(w->waveformcanvas, i%2, xpos, i);
-	}
-}
-
-void *walkWaveformRoutine(Instrument *iv)
-{
+	waveformthreadrunning = 1;
 	size_t offset, width;
 	offset = 0;
 	width = iv->sample->length;
 
-	if (w->waveformdrawpointer == 0)
-		fill(w->waveformcanvas, 0);
+	uint32_t drawpointer = 0;
+	fill(waveformworkcanvas, 0);
 
 	uint8_t i;
 	size_t k, xx;
-	uint32_t l;
-	double samplesperpixel = (double)width / (double)w->waveformw;
+	uint32_t l, m;
+	double samplesperpixel = (double)width / (double)waveformw;
 	double divmaxj = 1.0f / (double)width;
-	float o = (float)w->waveformh * 0.5f;
+	float o = (float)waveformh * 0.5f;
 	float sample;
 	float trackmix = 1.0f / (float)iv->sample->channels;
 	struct timespec req;
 
-	while (w->waveformdrawpointer < width)
+	while (drawpointer < width)
 	{
-		/* switch to left->right rendering if zoomed in far enough */
-		if (w->waveformw > width) l =  w->waveformdrawpointer;
-		else                      l = (w->waveformdrawpointer%w->waveformw)*samplesperpixel + w->waveformdrawpointer/w->waveformw;
+		for (m = 0; m < WORK_BLOCK_SIZE; m++)
+		{
+			/* switch to left->right rendering if zoomed in far enough */
+			if (waveformw > width) l =  drawpointer;
+			else                      l = (drawpointer%waveformw)*samplesperpixel + drawpointer/waveformw;
 
-		k = (float)l * divmaxj * (float)width;
-		xx = (float)l * divmaxj * (float)w->waveformw;
+			k = (float)l * divmaxj * (float)width;
+			xx = (float)l * divmaxj * (float)waveformw;
 
-		sample = 0.0f;
-		for (i = 0; i < iv->sample->channels; i++) /* mix all channels */
-			sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * trackmix);
-		sample = (sample*DIVSHRT) * o + o;
+			sample = 0.0f;
+			for (i = 0; i < iv->sample->channels; i++) /* mix all channels */
+				sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * trackmix);
+			sample = (sample*DIVSHRT) * o + o;
 
-		set_pixel(w->waveformcanvas, 1, xx, sample);
+			set_pixel(waveformworkcanvas, 1, xx, sample);
 
-		w->waveformdrawpointer++;
+			drawpointer++;
+		}
 		p->redraw = 1;
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
 		req.tv_nsec = WORK_UPDATE_DELAY;
 		while(nanosleep(&req, &req) < 0);
 	}
+	waveformthreadrunning = 0;
+	p->redraw = 1;
 	return NULL;
 }
 
-void drawWaveform(Instrument *iv)
+static void stopWaveformThread(void)
 {
-	if (w->waveformbuffer)
+	if (waveformthreadrunning)
 	{
-		size_t offset, width;
-		offset = 0;
-		width = iv->sample->length;
-
-		if (w->waveformdrawpointer == 0)
-			fill(w->waveformcanvas, 0);
-
-		size_t k, xx;
-		uint32_t l;
-		float trackmix = 1.0f / (float)iv->sample->channels;
-		double divmaxj = 1.0f / (float)width;
-		float o = (float)w->waveformh * 0.5f;
-		float sample;
-		double samplesperpixel = (double)width / (double)w->waveformw;
-		if (w->waveformdrawpointer < width)
-		{
-			for (uint32_t j = 0; j < WAVEFORM_LAZY_BLOCK_SIZE; j++)
-			{
-				/* switch to left->right rendering if zoomed in far enough */
-				if (w->waveformw > width) l = w->waveformdrawpointer;
-				else l = (w->waveformdrawpointer%w->waveformw)*samplesperpixel + w->waveformdrawpointer/w->waveformw;
-
-				k = (float)l * divmaxj * (float)width;
-				xx = (float)l * divmaxj * (float)w->waveformw;
-
-				sample = 0.0f;
-				for (uint8_t i = 0; i < iv->sample->channels; i++) /* mix all channels */
-					sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * trackmix);
-				sample = (sample*DIVSHRT) * o + o;
-
-				set_pixel(w->waveformcanvas, 1, xx, sample);
-
-				w->waveformdrawpointer++;
-				if (w->waveformdrawpointer >= width) break;
-			}
-			if (RUNNING_ON_VALGRIND)
-				w->waveformdrawpointer = width;
-			else
-				p->redraw = 1; /* continue drawing asap */
-		}
-
-		drawMarker(iv->trimstart,                                                                                  offset, width);
-		drawMarker(MIN(iv->trimstart + iv->trimlength, iv->sample->length-1),                                      offset, width);
-		drawMarker(MAX(iv->trimstart, MIN(iv->trimstart + iv->trimlength, iv->sample->length-1) - iv->looplength), offset, width);
-
-		draw(w->waveformcanvas, w->waveformbuffer);
-		for (size_t i = 0; w->waveformbuffer[i] != NULL; i++)
-			printf("\033[%ld;%dH%s", TRACK_ROW+1 + i, INSTRUMENT_INDEX_COLS, w->waveformbuffer[i]);
+		pthread_cancel(waveformthread);
+		pthread_join(waveformthread, NULL);
+		waveformthreadrunning = 0;
 	}
+}
+
+void resetWaveform(void)
+{
+	if (!waveformworkcanvas) return;
+
+	if (instrumentSafe(s->instrument, w->instrument))
+	{
+		stopWaveformThread();
+		pthread_create(&waveformthread, NULL, (void*(*)(void*))walkWaveformRoutine, &s->instrument->v[w->instrument]);
+	}
+}
+
+void freeWaveform(void)
+{
+	stopWaveformThread();
+	if (waveformworkcanvas) { free_canvas(waveformworkcanvas); waveformworkcanvas = NULL; }
+	if (waveformdrawcanvas) { free_canvas(waveformdrawcanvas); waveformdrawcanvas = NULL; }
+	if (waveformbuffer) { free_buffer(waveformbuffer); waveformbuffer = NULL; }
+}
+
+static void resizeWaveform(short w, short h)
+{
+	freeWaveform();
+
+	waveformw = w<<1;
+	waveformh = h<<2;
+
+	if (w <= 0 || h <= 0) return;
+
+	waveformworkcanvas = new_canvas(waveformw, waveformh);
+	waveformdrawcanvas = new_canvas(waveformw, waveformh);
+	waveformbuffer = new_buffer(waveformdrawcanvas);
+
+	resetWaveform();
+}
+
+static void drawMarker(uint32_t marker, size_t offset, size_t width)
+{
+	size_t xpos;
+	if (marker >= offset && marker < offset + width)
+	{
+		xpos = (float)(marker - offset) / (float)width * waveformw;
+		for (size_t i = 0; i < waveformh; i++) set_pixel(waveformdrawcanvas, i%2, xpos, i);
+	}
+}
+
+/* height in cells */
+void drawWaveform(Instrument *iv, short h)
+{
+	short w = (ws.ws_col - INSTRUMENT_INDEX_COLS + 1);
+	if (waveformw != w<<1 || waveformh != h<<2) /* new size */
+		resizeWaveform(w, h);
+
+	if (!waveformworkcanvas) return;
+
+	// offset = 0;
+	// width = iv->sample->length;
+	memcpy(waveformdrawcanvas->canvas, waveformworkcanvas->canvas, waveformw * waveformh);
+	drawMarker(iv->trimstart,                                                                                  0, iv->sample->length);
+	drawMarker(MIN(iv->trimstart + iv->trimlength, iv->sample->length-1),                                      0, iv->sample->length);
+	drawMarker(MAX(iv->trimstart, MIN(iv->trimstart + iv->trimlength, iv->sample->length-1) - iv->looplength), 0, iv->sample->length);
+	draw(waveformdrawcanvas, waveformbuffer);
+	for (size_t i = 0; waveformbuffer[i] != NULL; i++)
+		printf("\033[%ld;%dH%s", TRACK_ROW+1 + i, INSTRUMENT_INDEX_COLS, waveformbuffer[i]);
 }

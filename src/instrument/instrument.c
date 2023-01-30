@@ -500,6 +500,10 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	iv->sample = newsample;
 }
 
+void instrumentControlCallback(void)
+{
+	p->redraw = 1;
+}
+
 #include "input.c" /* void initInstrumentInput(TooltipState*) */
-#include "autogenui.c"
 #include "draw.c"

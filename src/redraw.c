@@ -45,20 +45,14 @@ void redraw(void)
 	/* "CSI 2   q"    sets the cursor shape to block */
 	printf("\033[2J\033[?25h\033[2 q");
 
-	if (ws.ws_row < 14 + TRACK_ROW || ws.ws_col < 38 + INSTRUMENT_INDEX_COLS - 1)
+	drawRuler();
+	switch (w->page)
 	{
-		printf("\033[%d;%dH%s", w->centre, (ws.ws_col - (unsigned short)strlen("(terminal too small)")) / 2, "(terminal too small)");
-	} else
-	{
-		drawRuler();
-		switch (w->page)
-		{
-			case PAGE_VARIANT:       drawTracker();        break;
-			case PAGE_INSTRUMENT:    drawInstrument(&cc);  break;
-			case PAGE_PLUGINBROWSER: drawBrowser(pbstate); break;
-		}
-		drawCommand(&w->command, w->mode);
+		case PAGE_VARIANT:       drawTracker();        break;
+		case PAGE_INSTRUMENT:    drawInstrument(&cc);  break;
+		case PAGE_PLUGINBROWSER: drawBrowser(pbstate); break;
 	}
+	drawCommand(&w->command, w->mode);
 
 	if (w->showtooltip) drawTooltip(&tt);
 

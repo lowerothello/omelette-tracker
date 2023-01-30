@@ -37,7 +37,7 @@
 #define UPDATE_DELAY 10000000 /* max: 100fps */
 
 /* like UPDATE_DELAY but for work threads */
-#define WORK_UPDATE_DELAY 10
+#define WORK_UPDATE_DELAY 1
 #define WORK_BLOCK_SIZE 100
 
 /* new file bpm */

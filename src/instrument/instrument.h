@@ -12,8 +12,6 @@ typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .tracks) */
 enum InstrumentAlg {
 	INST_ALG_SIMPLE,
 	INST_ALG_CYCLIC,
-	INST_ALG_TONAL,
-	INST_ALG_BEAT,
 	// INST_ALG_WAVETABLE,
 	INST_ALG_MIDI,
 };
@@ -155,7 +153,7 @@ void serializeInstrument  (Instrument*, FILE *fp);
 void deserializeInstrument(Instrument*, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor);
 
 void initInstrumentInput(TooltipState*);
+void instrumentControlCallback(void);
 
 #include "waveform.h"
 #include "draw.h"
-#include "autogenui.h"

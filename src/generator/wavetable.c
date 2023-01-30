@@ -1,55 +1,55 @@
-void drawWavetable(ControlState *cc, Instrument *iv, short x)
-{
-	short y = ws.ws_row - 12;
-
-	drawWaveform(iv);
-	printf("\033[%d;%dH + [          ] +   [                ]", y+4,  x);
-	printf("\033[%d;%dHunison:  [ ][ ][ ]                    ", y+5,  x);
-	printf("\033[%d;%dHoffset: [        ]                    ", y+6,  x);
-	printf("\033[%d;%dHframe:  [        ]                    ", y+7,  x);
-	printf("\033[%d;%dH                                      ", y+8,  x);
-	printf("\033[%d;%dHenvelope:   [    ]                    ", y+9,  x);
-	printf("\033[%d;%dHlfo speed:    [  ]                    ", y+10, x);
-	printf("\033[%d;%dHlfo shape [   ][ ]                    ", y+11, x);
-
-	iv->wavetable.framelength = MIN(iv->wavetable.framelength, iv->sample->length-1);
-	addControlInt(cc, x+9,  y+6,  &iv->trimstart, 8, 0x0, iv->sample->length-1, 0, 0, 0, instrumentSamplerControlCallback, NULL);
-	addControlInt(cc, x+9,  y+7,  &iv->wavetable.framelength, 8, 0x0, iv->sample->length-1, iv->sample->length-1, 0, 0, instrumentSamplerControlCallback, NULL);
-
-	addControlInt(cc, x+13, y+9,  &iv->wavetable.envelope, 4, 0x0,  0xffff, 0x00f0, 0, 0, instrumentSamplerControlCallback, NULL);
-	addControlInt(cc, x+15, y+10, &iv->wavetable.lfospeed, 2, 0x0,  0xff,   0,      0, 0, instrumentSamplerControlCallback, NULL);
-	addControlInt(cc, x+11, y+11, &iv->wavetable.lfoduty,  3, -128, 127,    0,      0, 0, instrumentSamplerControlCallback, NULL);
-	addControlInt(cc, x+16, y+11, &iv->wavetable.lfoshape, 0, 0,    1,      0,      0, 0, instrumentSamplerControlCallback, NULL);
-
-	addControlInt(cc, x+21, y+4, &w->wtparam, 1, 0, 8, 0, 16, 9, instrumentSamplerControlCallback, NULL);
-		addScalePointInt(cc, "   WAVETABLE POS", 0);
-		addScalePointInt(cc, "            GAIN", 1);
-		addScalePointInt(cc, " OSCILLATOR SYNC", 2);
-		addScalePointInt(cc, "          FILTER", 3);
-		addScalePointInt(cc, "PHASE MODULATION", 4);
-		addScalePointInt(cc, "FREQ. MODULATION", 5);
-		addScalePointInt(cc, "     PULSE WIDTH", 6);
-		addScalePointInt(cc, "  PHASE DYNAMICS", 7);
-		addScalePointInt(cc, "           MIXER", 8);
-
-	/* switch (w->wtparam)
-	{
-		case WT_PARAM_WTPOS:
-			printf("\033[%d;%dHoffset:      [   ]", y+5,  x+21);
-			printf("\033[%d;%dHlfo mod:     [   ]", y+6,  x+21);
-			printf("\033[%d;%dHenv mod:     [   ]", y+7,  x+21);
-			printf("\033[%d;%dHgainenv mod: [   ]", y+8,  x+21);
-			printf("\033[%d;%dH                  ", y+9,  x+21);
-			printf("\033[%d;%dH                  ", y+10, x+21);
-			printf("\033[%d;%dH                  ", y+11, x+21);
-
-			addControlInt(cc, x+35, y+5, &iv->wavetable.wtpos.offset,  3, -128, 127, 0, 0, instrumentSamplerControlCallback, NULL);
-			addControlInt(cc, x+35, y+6, &iv->wavetable.wtpos.lfo,     3, -128, 127, 0, 0, instrumentSamplerControlCallback, NULL);
-			addControlInt(cc, x+35, y+7, &iv->wavetable.wtpos.env,     3, -128, 127, 0, 0, instrumentSamplerControlCallback, NULL);
-			addControlInt(cc, x+35, y+8, &iv->wavetable.wtpos.gainenv, 3, -128, 127, 0, 0, instrumentSamplerControlCallback, NULL);
-			break;
-	} */
-}
+// void drawWavetable(ControlState *cc, Instrument *iv, short x)
+// {
+// 	short y = ws.ws_row - 12;
+//
+// 	drawWaveform(iv);
+// 	printf("\033[%d;%dH + [          ] +   [                ]", y+4,  x);
+// 	printf("\033[%d;%dHunison:  [ ][ ][ ]                    ", y+5,  x);
+// 	printf("\033[%d;%dHoffset: [        ]                    ", y+6,  x);
+// 	printf("\033[%d;%dHframe:  [        ]                    ", y+7,  x);
+// 	printf("\033[%d;%dH                                      ", y+8,  x);
+// 	printf("\033[%d;%dHenvelope:   [    ]                    ", y+9,  x);
+// 	printf("\033[%d;%dHlfo speed:    [  ]                    ", y+10, x);
+// 	printf("\033[%d;%dHlfo shape [   ][ ]                    ", y+11, x);
+//
+// 	iv->wavetable.framelength = MIN(iv->wavetable.framelength, iv->sample->length-1);
+// 	addControlInt(cc, x+9,  y+6,  &iv->trimstart, 8, 0x0, iv->sample->length-1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 	addControlInt(cc, x+9,  y+7,  &iv->wavetable.framelength, 8, 0x0, iv->sample->length-1, iv->sample->length-1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+//
+// 	addControlInt(cc, x+13, y+9,  &iv->wavetable.envelope, 4, 0x0,  0xffff, 0x00f0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 	addControlInt(cc, x+15, y+10, &iv->wavetable.lfospeed, 2, 0x0,  0xff,   0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 	addControlInt(cc, x+11, y+11, &iv->wavetable.lfoduty,  3, -128, 127,    0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 	addControlInt(cc, x+16, y+11, &iv->wavetable.lfoshape, 0, 0,    1,      0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+//
+// 	addControlInt(cc, x+21, y+4, &w->wtparam, 1, 0, 8, 0, 16, 9, (void(*)(void*))instrumentControlCallback, NULL);
+// 		addScalePointInt(cc, "   WAVETABLE POS", 0);
+// 		addScalePointInt(cc, "            GAIN", 1);
+// 		addScalePointInt(cc, " OSCILLATOR SYNC", 2);
+// 		addScalePointInt(cc, "          FILTER", 3);
+// 		addScalePointInt(cc, "PHASE MODULATION", 4);
+// 		addScalePointInt(cc, "FREQ. MODULATION", 5);
+// 		addScalePointInt(cc, "     PULSE WIDTH", 6);
+// 		addScalePointInt(cc, "  PHASE DYNAMICS", 7);
+// 		addScalePointInt(cc, "           MIXER", 8);
+//
+// 	/* switch (w->wtparam)
+// 	{
+// 		case WT_PARAM_WTPOS:
+// 			printf("\033[%d;%dHoffset:      [   ]", y+5,  x+21);
+// 			printf("\033[%d;%dHlfo mod:     [   ]", y+6,  x+21);
+// 			printf("\033[%d;%dHenv mod:     [   ]", y+7,  x+21);
+// 			printf("\033[%d;%dHgainenv mod: [   ]", y+8,  x+21);
+// 			printf("\033[%d;%dH                  ", y+9,  x+21);
+// 			printf("\033[%d;%dH                  ", y+10, x+21);
+// 			printf("\033[%d;%dH                  ", y+11, x+21);
+//
+// 			addControlInt(cc, x+35, y+5, &iv->wavetable.wtpos.offset,  3, -128, 127, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 			addControlInt(cc, x+35, y+6, &iv->wavetable.wtpos.lfo,     3, -128, 127, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 			addControlInt(cc, x+35, y+7, &iv->wavetable.wtpos.env,     3, -128, 127, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 			addControlInt(cc, x+35, y+8, &iv->wavetable.wtpos.gainenv, 3, -128, 127, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+// 			break;
+// 	} */
+// }
 
 void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {

@@ -12,7 +12,7 @@ src/lib/libdrawille: <https://github.com/huulivoide/libdrawille>
 DEPENDS:
 - JACK2       - audio input/output
 - libsndfile  - file loading
-- valgrind    - set NO_VALGRIND in config.h to remove
+- valgrind    - set NO_VALGRIND in config.h to disable
 - ladspa      - LADSPA plugin support
 - lv2    }
 - lilv   }    - LV2 plugin support
@@ -23,4 +23,4 @@ $ ( cd lib/libdrawille; cmake .; make; )     # build libdrawille
 $ ./make.sh 3   # build with "gcc -O3" (system CFLAGS aren't read currently)
 
 INSTALL: (no proper install script yet)
-$ su -c "install -Dm755 omelette '/usr/bin/omelette'"
+$ su -c "install -Dm755 omelette '/usr/local/bin/omelette'"
