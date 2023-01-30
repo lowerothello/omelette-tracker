@@ -13,3 +13,9 @@ void setChordGraphic(void *tt)
 	addTooltipBind(tt, "return", 0, XK_Escape, 0      , NULL            , NULL);
 	w->chord = 'g'; p->redraw = 1;
 }
+
+void addTrackerGraphicBinds(TooltipState *tt)
+{
+	addTooltipBind(tt, "graphic"    , 0, XK_g, TT_DEAD|TT_DRAW, setChordGraphic           , tt  );
+	addTooltipBind(tt, "graphic end", 0, XK_G, 0              , (void(*)(void*))trackerEnd, NULL);
+}

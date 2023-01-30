@@ -1,8 +1,7 @@
 #define LADSPA_DEF_MAX 4.0f
 #define LADSPA_DEF_MIN 0.0f
 
-typedef struct
-{
+typedef struct {
 	uint32_t                  descc;
 	const LADSPA_Descriptor **descv; /* LADSPA plugin descriptions */
 	uint32_t                  symbolc;
@@ -34,7 +33,7 @@ short getLadspaEffectHeight(LadspaState*);
 
 void initLadspaEffect(LadspaState**, float **input, float **output, const LADSPA_Descriptor*);
 void freeLadspaEffect(LadspaState*);
-void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output);
+void copyLadspaEffect(LadspaState **dest, LadspaState *src, float **input, float **output);
 
 void serializeLadspaEffect(LadspaState*, FILE*);
 void deserializeLadspaEffect(LadspaState**, float **input, float **output, FILE*);

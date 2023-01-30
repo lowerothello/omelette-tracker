@@ -1,9 +1,8 @@
 /* IMPORTANT NOTE: effects should not register any more than 16 controls */
 /* TODO: fix this, controls should be dynamically allocated              */
 
-/* TODO: headers */
 #include "ladspa.h"
-#include "lv2.c"
+#include "lv2.h"
 
 void freeEffect(Effect *e)
 {
@@ -11,6 +10,7 @@ void freeEffect(Effect *e)
 
 	switch (e->type)
 	{
+		case EFFECT_TYPE_DUMMY:  break;
 		case EFFECT_TYPE_LADSPA: freeLadspaEffect((LadspaState*)e->state); break;
 		case EFFECT_TYPE_LV2:    freeLV2Effect   (e);                      break;
 	}
@@ -47,8 +47,9 @@ uint8_t getEffectControlCount(Effect *e)
 	if (e)
 		switch (e->type)
 		{
+			case EFFECT_TYPE_DUMMY:  return 1;
 			case EFFECT_TYPE_LADSPA: return getLadspaEffectControlCount(e->state);
-			case EFFECT_TYPE_LV2:    return getLV2EffectControlCount   (e);
+			case EFFECT_TYPE_LV2:    return getLV2EffectControlCount   (e->state);
 		}
 	return 0;
 }
@@ -69,6 +70,13 @@ EffectChain *_addEffect(EffectChain *chain, unsigned long pluginindex, uint8_t i
 				&chain->v[index],
 				(chain->c - index) * sizeof(Effect));
 
+	if (!pluginindex) /* paste effect */
+	{
+		copyEffect(&ret->v[index], &w->effectbuffer, chain->input, chain->output);
+		return ret;
+	}
+
+	pluginindex--; /* apply the offset */
 	if (pluginindex < ladspa_db.descc) /* ladspa */
 	{
 		ret->v[index].type = EFFECT_TYPE_LADSPA;
@@ -80,7 +88,8 @@ EffectChain *_addEffect(EffectChain *chain, unsigned long pluginindex, uint8_t i
 		LILV_FOREACH(plugins, iter, lap)
 			if (i == pluginindex - ladspa_db.descc)
 			{
-				initLV2Effect(ret, &ret->v[index], lilv_plugins_get(lap, iter));
+				ret->v[index].type = EFFECT_TYPE_LV2;
+				initLV2Effect((LV2State**)&ret->v[index].state, ret->input, ret->output, lilv_plugins_get(lap, iter));
 				break;
 			} else i++;
 	}
@@ -92,7 +101,9 @@ void cb_addEffect(Event *e)
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
 }
-void addEffect(EffectChain **chain, unsigned long pluginindex, uint8_t index, void (*cb)(Event *))
+
+/* pluginindex is offset by 1, pluginindex==0 will paste */
+void addEffect(EffectChain **chain, unsigned long pluginindex, uint8_t index, void (*cb)(Event*))
 { /* fully atomic */
 	if ((*chain)->c < EFFECT_CHAIN_LEN)
 	{
@@ -134,6 +145,7 @@ void delEffect(EffectChain **chain, uint8_t index)
 { /* fully atomic */
 	if ((*chain)->c)
 	{
+		copyEffect(&w->effectbuffer, &(*chain)->v[index], NULL, NULL);
 		Event e;
 		e.sem = M_SEM_SWAP_REQ;
 		e.dest = (void **)chain;
@@ -163,7 +175,7 @@ uint8_t getCursorFromEffect(EffectChain *chain, uint8_t index)
 	return offset;
 }
 
-void copyEffect(EffectChain *destchain, Effect *dest, Effect *src)
+void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 {
 	if (!src) return;
 
@@ -171,8 +183,9 @@ void copyEffect(EffectChain *destchain, Effect *dest, Effect *src)
 	dest->type = src->type;
 	switch (src->type)
 	{
-		case EFFECT_TYPE_LADSPA: copyLadspaEffect(dest->state, src->state, destchain->input, destchain->output);  break;
-		case EFFECT_TYPE_LV2:    copyLV2Effect   (destchain, dest, src);  break;
+		case EFFECT_TYPE_DUMMY:  break;
+		case EFFECT_TYPE_LADSPA: copyLadspaEffect((LadspaState**)(&dest->state), src->state, input, output); break;
+		case EFFECT_TYPE_LV2:    copyLV2Effect   (dest->state, src->state, input, output); break;
 	}
 }
 void copyEffectChain(EffectChain **dest, EffectChain *src)
@@ -182,7 +195,7 @@ void copyEffectChain(EffectChain **dest, EffectChain *src)
 	ret->c = src->c;
 
 	for (uint8_t i = 0; i < src->c; i++)
-		copyEffect(ret, &ret->v[i], &src->v[i]);
+		copyEffect(&ret->v[i], &src->v[i], NULL, NULL);
 
 	clearEffectChain(*dest);
 	free(*dest);
@@ -197,8 +210,9 @@ void serializeEffect(Effect *e, FILE *fp)
 
 	switch (e->type)
 	{
+		case EFFECT_TYPE_DUMMY:  break;
 		case EFFECT_TYPE_LADSPA: serializeLadspaEffect((LadspaState*)e->state, fp); break;
-		case EFFECT_TYPE_LV2:    serializeLV2Effect   (e, fp);                      break;
+		case EFFECT_TYPE_LV2:    serializeLV2Effect   ((LV2State   *)e->state, fp); break;
 	}
 }
 void serializeEffectChain(EffectChain *chain, FILE *fp)
@@ -215,8 +229,9 @@ void deserializeEffect(EffectChain *chain, Effect *e, FILE *fp, uint8_t major, u
 
 	switch (e->type)
 	{
+		case EFFECT_TYPE_DUMMY:  break;
 		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect((LadspaState**)&e->state, chain->input, chain->output, fp); break;
-		case EFFECT_TYPE_LV2:    deserializeLV2Effect   (chain, e, fp);                                              break;
+		case EFFECT_TYPE_LV2:    deserializeLV2Effect   ((LV2State   **)&e->state, chain->input, chain->output, fp); break;
 	}
 }
 void deserializeEffectChain(EffectChain **chain, FILE *fp, uint8_t major, uint8_t minor)
@@ -237,10 +252,28 @@ short getEffectHeight(Effect *e)
 	if (e)
 		switch (e->type)
 		{
+			case EFFECT_TYPE_DUMMY:  return NULL_EFFECT_HEIGHT;
 			case EFFECT_TYPE_LADSPA: return getLadspaEffectHeight(e->state);
-			case EFFECT_TYPE_LV2:    return getLV2EffectHeight   (e);
+			case EFFECT_TYPE_LV2:    return getLV2EffectHeight   (e->state);
 		}
 	return 0;
+}
+
+void drawDummyEffect(ControlState *cc,
+		short x, short w, short y, short ymin, short ymax)
+{
+	if (ymin <= y-1 && ymax >= y-1)
+		printf("\033[%d;%dH\033[7mNULL\033[27m", y-1, x + 1);
+	printf("\033[37;40m");
+
+	if (ymin <= y && ymax >= y)
+	{
+		printf("\033[1m");
+		drawCentreText(x+2, y, w-4, DUMMY_EFFECT_TEXT);
+		printf("\033[22m");
+	}
+
+	addControlDummy(cc, x + w - 3, y);
 }
 
 static int _drawEffect(Effect *e, ControlState *cc, bool selected, short x, short width, short y, short ymin, short ymax)
@@ -254,6 +287,7 @@ static int _drawEffect(Effect *e, ControlState *cc, bool selected, short x, shor
 
 	switch (e->type)
 	{
+		case EFFECT_TYPE_DUMMY:  drawDummyEffect(cc, x, width, y, ymin, ymax); break;
 		case EFFECT_TYPE_LADSPA: drawLadspaEffect((LadspaState*)e->state, cc, x, width, y, ymin, ymax); break;
 		case EFFECT_TYPE_LV2:    drawLV2Effect   (e                     , cc, x, width, y, ymin, ymax); break;
 	}
@@ -308,7 +342,7 @@ void drawEffectChain(EffectChain *chain, ControlState *cc, short x, short width,
 		drawVerticalScrollbar(x + width + 2, y, ws.ws_row-1 - y, cc->controlc, cc->cursor);
 	} else
 	{
-		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT, 1, ws.ws_col, 1, ws.ws_row);
+		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT-1, 1, ws.ws_col, 1, ws.ws_row);
 		printf("\033[m");
 
 		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
@@ -324,6 +358,7 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	if (!e) return;
 	switch (e->type)
 	{
+		case EFFECT_TYPE_DUMMY:  break;
 		case EFFECT_TYPE_LADSPA: runLadspaEffect(samplecount, (LadspaState*)e->state, chain->input, chain->output); break;
 		case EFFECT_TYPE_LV2:    runLV2Effect   (samplecount, chain, e);                                            break;
 	}

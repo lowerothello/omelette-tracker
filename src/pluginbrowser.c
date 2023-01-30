@@ -75,8 +75,8 @@ static void cb_addEffectLadspaAfter(Event *e)
 static void pluginBrowserCommit(BrowserState *b)
 {
 	w->page = w->oldpage;
-	if (w->pluginbrowserbefore) addEffect(w->pluginbrowserchain, b->cursor,     getEffectFromCursor(*w->pluginbrowserchain, cc.cursor), cb_addEffect);
-	else                        addEffect(w->pluginbrowserchain, b->cursor, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectLadspaAfter);
+	if (w->pluginbrowserbefore) addEffect(w->pluginbrowserchain, b->cursor + 1,     getEffectFromCursor(*w->pluginbrowserchain, cc.cursor), cb_addEffect);
+	else                        addEffect(w->pluginbrowserchain, b->cursor + 1, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectLadspaAfter);
 }
 
 static void pluginBrowserMouse(enum Button button, int x, int y)

@@ -1,6 +1,6 @@
 typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .tracks) */
 	uint32_t length;
-	uint8_t  tracks;
+	uint8_t  channels;
 	uint32_t rate;    /* rate to play C5 at */
 	uint32_t defrate; /* rate to return to when the rate control is reset */
 	bool     invert; /* TODO: implement */
@@ -9,14 +9,14 @@ typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .tracks) */
 
 #define INSTRUMENT_VOID 255
 #define INSTRUMENT_MAX 255
-enum {
+enum InstrumentAlg {
 	INST_ALG_SIMPLE,
 	INST_ALG_CYCLIC,
 	INST_ALG_TONAL,
 	INST_ALG_BEAT,
-	INST_ALG_WAVETABLE,
+	// INST_ALG_WAVETABLE,
 	INST_ALG_MIDI,
-} INST_ALG;
+};
 
 // #include "osc/oscillator.h"
 
@@ -33,6 +33,7 @@ typedef struct {
 	uint32_t trimstart;
 	uint32_t trimlength;
 	uint32_t looplength;
+	uint8_t  frame;
 	uint16_t envelope;
 	int8_t   gain;
 	bool     invert; /* DEPRECATED */
@@ -43,7 +44,7 @@ typedef struct {
 	uint8_t  filtercutoff;
 	uint8_t  filterresonance;
 
-	int8_t   algorithm;
+	enum InstrumentAlg algorithm;
 
 	/* midi */
 	struct {
@@ -78,10 +79,10 @@ typedef struct {
 	/* wavetable */
 	struct {
 		uint32_t framelength;
-			uint8_t  wtpos;
-			int8_t   syncoffset;
-			int8_t   pulsewidth;
-			int8_t   phasedynamics;
+		uint8_t  wtpos;
+		int8_t   syncoffset;
+		int8_t   pulsewidth;
+		int8_t   phasedynamics;
 		uint16_t envelope;
 		uint8_t  lfospeed;
 		int8_t   lfoduty;
@@ -153,9 +154,8 @@ void sampleLoadCallback(char *path); /* TODO: atomicity */
 void serializeInstrument  (Instrument*, FILE *fp);
 void deserializeInstrument(Instrument*, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor);
 
-short drawInstrumentIndex(short bx, short minx, short maxx);
-void drawInstrument(ControlState*);
-
 void initInstrumentInput(TooltipState*);
 
 #include "waveform.h"
+#include "draw.h"
+#include "autogenui.h"

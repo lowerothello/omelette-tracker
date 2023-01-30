@@ -35,7 +35,7 @@ void setTooltipMouseCallback(TooltipState *tt, void (*callback)(enum Button, int
 }
 
 /* strlen(prettykeysym) should be <= MOD_WIDTH */
-void addTooltipPrettyPrint(TooltipState *tt, const char *prettyname, const char *prettykeysym)
+void addTooltipPrettyPrint(TooltipState *tt, const char *prettyname, unsigned int state, const char *prettykeysym)
 {
 	TooltipEntry *newentryv = realloc(tt->entryv, (tt->entryc+1) * sizeof(TooltipEntry));
 	memset(&newentryv[tt->entryc], 0, sizeof(TooltipEntry));
@@ -44,6 +44,7 @@ void addTooltipPrettyPrint(TooltipState *tt, const char *prettyname, const char 
 	tt->maxprettynamelen = MAX(tt->maxprettynamelen, strlen(prettyname));
 	newentryv[tt->entryc].prettykeysym = strdup(prettykeysym);
 
+	newentryv[tt->entryc].state = state;
 	newentryv[tt->entryc].flags = TT_DRAW;
 
 	tt->entryv = newentryv;
@@ -137,30 +138,30 @@ void drawTooltip(TooltipState *tt)
 			else
 				switch (tt->entryv[i].keysym)
 				{
-					case XK_Up:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "UP",    "up"); break;
-					case XK_Down:      drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "DOWN",  "down"); break;
-					case XK_Left:      drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "LEFT",  "left"); break;
+					case XK_Up:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "UP",    "up"   ); break;
+					case XK_Down:      drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "DOWN",  "down" ); break;
+					case XK_Left:      drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "LEFT",  "left" ); break;
 					case XK_Right:     drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "RIGHT", "right"); break;
-					case XK_Home:      drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "HOME",  "home"); break;
-					case XK_End:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "END",   "end"); break;
-					case XK_Page_Up:   drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "PGUP",  "pgup"); break;
-					case XK_Page_Down: drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "PGDN",  "pgdn"); break;
-					case XK_F1:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F1",    "f1"); break;
-					case XK_F2:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F2",    "f2"); break;
-					case XK_F3:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F3",    "f3"); break;
-					case XK_F4:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F4",    "f4"); break;
-					case XK_F5:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F5",    "f5"); break;
-					case XK_F6:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F6",    "f6"); break;
-					case XK_F7:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F7",    "f7"); break;
-					case XK_F8:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F8",    "f8"); break;
-					case XK_F9:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F9",    "f9"); break;
-					case XK_F10:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F10",   "f10"); break;
-					case XK_F11:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F11",   "f11"); break;
-					case XK_F12:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F12",   "f12"); break;
-					case XK_BackSpace: drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\B",   "\\b"); break;
-					case XK_Return:    drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\R",   "\\r"); break;
-					case XK_Tab:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\T",   "\\t"); break;
-					case XK_Escape:    drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\E",   "\\e"); break;
+					case XK_Home:      drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "HOME",  "home" ); break;
+					case XK_End:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "END",   "end"  ); break;
+					case XK_Page_Up:   drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "PGUP",  "pgup" ); break;
+					case XK_Page_Down: drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "PGDN",  "pgdn" ); break;
+					case XK_F1:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F1",    "f1"   ); break;
+					case XK_F2:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F2",    "f2"   ); break;
+					case XK_F3:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F3",    "f3"   ); break;
+					case XK_F4:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F4",    "f4"   ); break;
+					case XK_F5:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F5",    "f5"   ); break;
+					case XK_F6:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F6",    "f6"   ); break;
+					case XK_F7:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F7",    "f7"   ); break;
+					case XK_F8:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F8",    "f8"   ); break;
+					case XK_F9:        drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F9",    "f9"   ); break;
+					case XK_F10:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F10",   "f10"  ); break;
+					case XK_F11:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F11",   "f11"  ); break;
+					case XK_F12:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "F12",   "f12"  ); break;
+					case XK_BackSpace: drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\B",   "\\b"  ); break;
+					case XK_Return:    drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\R",   "\\r"  ); break;
+					case XK_Tab:       drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\T",   "\\t"  ); break;
+					case XK_Escape:    drawTooltipLine(x, y+1+yo, tt->maxprettynamelen, tt->entryv[i].prettyname, tt->entryv[i].state, "\\E",   "\\e"  ); break;
 					default:
 						if (isascii(tt->entryv[i].keysym))
 						{
@@ -193,49 +194,51 @@ void drawTooltip(TooltipState *tt)
 }
 
 /* the callback's arg is the note offset cast to (void*) */
-void addNoteBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
+void addNoteBinds(TooltipState *tt, const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, "0x0-0xf");
-	addTooltipBind(tt, "play C-+0", state, XK_q           , 0, callback, (void*)0 ); addTooltipBind(tt, "ALT CASE", state, XK_Q         , 0, callback, (void*)0 );
-	addTooltipBind(tt, "play C#+0", state, XK_w           , 0, callback, (void*)1 ); addTooltipBind(tt, "ALT CASE", state, XK_W         , 0, callback, (void*)1 );
-	addTooltipBind(tt, "play D-+0", state, XK_e           , 0, callback, (void*)2 ); addTooltipBind(tt, "ALT CASE", state, XK_E         , 0, callback, (void*)2 );
-	addTooltipBind(tt, "play D#+0", state, XK_r           , 0, callback, (void*)3 ); addTooltipBind(tt, "ALT CASE", state, XK_R         , 0, callback, (void*)3 );
-	addTooltipBind(tt, "play E-+0", state, XK_t           , 0, callback, (void*)4 ); addTooltipBind(tt, "ALT CASE", state, XK_T         , 0, callback, (void*)4 );
-	addTooltipBind(tt, "play F-+0", state, XK_y           , 0, callback, (void*)5 ); addTooltipBind(tt, "ALT CASE", state, XK_Y         , 0, callback, (void*)5 );
-	addTooltipBind(tt, "play F#+0", state, XK_u           , 0, callback, (void*)6 ); addTooltipBind(tt, "ALT CASE", state, XK_U         , 0, callback, (void*)6 );
-	addTooltipBind(tt, "play G-+0", state, XK_i           , 0, callback, (void*)7 ); addTooltipBind(tt, "ALT CASE", state, XK_I         , 0, callback, (void*)7 );
-	addTooltipBind(tt, "play G#+0", state, XK_o           , 0, callback, (void*)8 ); addTooltipBind(tt, "ALT CASE", state, XK_O         , 0, callback, (void*)8 );
-	addTooltipBind(tt, "play A-+1", state, XK_p           , 0, callback, (void*)9 ); addTooltipBind(tt, "ALT CASE", state, XK_P         , 0, callback, (void*)9 );
-	addTooltipBind(tt, "play A#+1", state, XK_bracketleft , 0, callback, (void*)10); addTooltipBind(tt, "ALT CASE", state, XK_braceleft , 0, callback, (void*)10);
-	addTooltipBind(tt, "play B-+1", state, XK_bracketright, 0, callback, (void*)11); addTooltipBind(tt, "ALT CASE", state, XK_braceright, 0, callback, (void*)11);
+	addTooltipPrettyPrint(tt, prettyname, state, "0x0-0xf");
+	addTooltipBind(tt, "play C-+0", state, XK_q           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 0 )); addTooltipBind(tt, "play c-+0", state, XK_Q         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 0 ));
+	addTooltipBind(tt, "play C#+0", state, XK_w           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 1 )); addTooltipBind(tt, "play c#+0", state, XK_W         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 1 ));
+	addTooltipBind(tt, "play D-+0", state, XK_e           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 2 )); addTooltipBind(tt, "play d-+0", state, XK_E         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 2 ));
+	addTooltipBind(tt, "play D#+0", state, XK_r           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 3 )); addTooltipBind(tt, "play d#+0", state, XK_R         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 3 ));
+	addTooltipBind(tt, "play E-+0", state, XK_t           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 4 )); addTooltipBind(tt, "play e-+0", state, XK_T         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 4 ));
+	addTooltipBind(tt, "play F-+0", state, XK_y           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 5 )); addTooltipBind(tt, "play f-+0", state, XK_Y         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 5 ));
+	addTooltipBind(tt, "play F#+0", state, XK_u           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 6 )); addTooltipBind(tt, "play f#+0", state, XK_U         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 6 ));
+	addTooltipBind(tt, "play G-+0", state, XK_i           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 7 )); addTooltipBind(tt, "play g-+0", state, XK_I         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 7 ));
+	addTooltipBind(tt, "play G#+0", state, XK_o           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 8 )); addTooltipBind(tt, "play g#+0", state, XK_O         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 8 ));
+	addTooltipBind(tt, "play A-+1", state, XK_p           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 9 )); addTooltipBind(tt, "play a-+1", state, XK_P         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 9 ));
+	addTooltipBind(tt, "play A#+1", state, XK_bracketleft , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 10)); addTooltipBind(tt, "play a#+1", state, XK_braceleft , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 10));
+	addTooltipBind(tt, "play B-+1", state, XK_bracketright, 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 11)); addTooltipBind(tt, "play b-+1", state, XK_braceright, 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 11));
 
-	addTooltipBind(tt, "play C-+1", state, XK_a           , 0, callback, (void*)12); addTooltipBind(tt, "ALT CASE", state, XK_A         , 0, callback, (void*)12);
-	addTooltipBind(tt, "play C#+1", state, XK_s           , 0, callback, (void*)13); addTooltipBind(tt, "ALT CASE", state, XK_S         , 0, callback, (void*)13);
-	addTooltipBind(tt, "play D-+1", state, XK_d           , 0, callback, (void*)14); addTooltipBind(tt, "ALT CASE", state, XK_D         , 0, callback, (void*)14);
-	addTooltipBind(tt, "play D#+1", state, XK_f           , 0, callback, (void*)15); addTooltipBind(tt, "ALT CASE", state, XK_F         , 0, callback, (void*)15);
-	addTooltipBind(tt, "play E-+1", state, XK_g           , 0, callback, (void*)16); addTooltipBind(tt, "ALT CASE", state, XK_G         , 0, callback, (void*)16);
-	addTooltipBind(tt, "play F-+1", state, XK_h           , 0, callback, (void*)17); addTooltipBind(tt, "ALT CASE", state, XK_H         , 0, callback, (void*)17);
-	addTooltipBind(tt, "play F#+1", state, XK_j           , 0, callback, (void*)18); addTooltipBind(tt, "ALT CASE", state, XK_J         , 0, callback, (void*)18);
-	addTooltipBind(tt, "play G-+1", state, XK_k           , 0, callback, (void*)19); addTooltipBind(tt, "ALT CASE", state, XK_K         , 0, callback, (void*)19);
-	addTooltipBind(tt, "play G#+1", state, XK_l           , 0, callback, (void*)20); addTooltipBind(tt, "ALT CASE", state, XK_L         , 0, callback, (void*)20);
-	addTooltipBind(tt, "play A-+2", state, XK_semicolon   , 0, callback, (void*)21); addTooltipBind(tt, "ALT CASE", state, XK_colon     , 0, callback, (void*)21);
-	addTooltipBind(tt, "play A#+2", state, XK_apostrophe  , 0, callback, (void*)22); addTooltipBind(tt, "ALT CASE", state, XK_quotedbl  , 0, callback, (void*)22);
-	addTooltipBind(tt, "play B-+2", state, XK_backslash   , 0, callback, (void*)23); addTooltipBind(tt, "ALT CASE", state, XK_bar       , 0, callback, (void*)23);
+	addTooltipBind(tt, "play C-+1", state, XK_a           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 12)); addTooltipBind(tt, "play c-+1", state, XK_A         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 12));
+	addTooltipBind(tt, "play C#+1", state, XK_s           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 13)); addTooltipBind(tt, "play c#+1", state, XK_S         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 13));
+	addTooltipBind(tt, "play D-+1", state, XK_d           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 14)); addTooltipBind(tt, "play d-+1", state, XK_D         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 14));
+	addTooltipBind(tt, "play D#+1", state, XK_f           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 15)); addTooltipBind(tt, "play d#+1", state, XK_F         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 15));
+	addTooltipBind(tt, "play E-+1", state, XK_g           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 16)); addTooltipBind(tt, "play e-+1", state, XK_G         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 16));
+	addTooltipBind(tt, "play F-+1", state, XK_h           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 17)); addTooltipBind(tt, "play f-+1", state, XK_H         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 17));
+	addTooltipBind(tt, "play F#+1", state, XK_j           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 18)); addTooltipBind(tt, "play f#+1", state, XK_J         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 18));
+	addTooltipBind(tt, "play G-+1", state, XK_k           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 19)); addTooltipBind(tt, "play g-+1", state, XK_K         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 19));
+	addTooltipBind(tt, "play G#+1", state, XK_l           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 20)); addTooltipBind(tt, "play g#+1", state, XK_L         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 20));
+	addTooltipBind(tt, "play A-+2", state, XK_semicolon   , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 21)); addTooltipBind(tt, "play a-+2", state, XK_colon     , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 21));
+	addTooltipBind(tt, "play A#+2", state, XK_apostrophe  , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 22)); addTooltipBind(tt, "play a#+2", state, XK_quotedbl  , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 22));
+	addTooltipBind(tt, "play B-+2", state, XK_backslash   , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 23)); addTooltipBind(tt, "play b-+2", state, XK_bar       , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 23));
 
-	addTooltipBind(tt, "play C-+2", state, XK_z           , 0, callback, (void*)24); addTooltipBind(tt, "ALT CASE", state, XK_Z         , 0, callback, (void*)24);
-	addTooltipBind(tt, "play C#+2", state, XK_x           , 0, callback, (void*)25); addTooltipBind(tt, "ALT CASE", state, XK_X         , 0, callback, (void*)25);
-	addTooltipBind(tt, "play D-+2", state, XK_c           , 0, callback, (void*)26); addTooltipBind(tt, "ALT CASE", state, XK_C         , 0, callback, (void*)26);
-	addTooltipBind(tt, "play D#+2", state, XK_v           , 0, callback, (void*)27); addTooltipBind(tt, "ALT CASE", state, XK_V         , 0, callback, (void*)27);
-	addTooltipBind(tt, "play E-+2", state, XK_b           , 0, callback, (void*)28); addTooltipBind(tt, "ALT CASE", state, XK_B         , 0, callback, (void*)28);
-	addTooltipBind(tt, "play F-+2", state, XK_n           , 0, callback, (void*)29); addTooltipBind(tt, "ALT CASE", state, XK_N         , 0, callback, (void*)29);
-	addTooltipBind(tt, "play F#+2", state, XK_m           , 0, callback, (void*)30); addTooltipBind(tt, "ALT CASE", state, XK_M         , 0, callback, (void*)30);
-	addTooltipBind(tt, "play G-+2", state, XK_period      , 0, callback, (void*)31); addTooltipBind(tt, "ALT CASE", state, XK_less      , 0, callback, (void*)31);
-	addTooltipBind(tt, "play G#+2", state, XK_comma       , 0, callback, (void*)32); addTooltipBind(tt, "ALT CASE", state, XK_greater   , 0, callback, (void*)32);
-	addTooltipBind(tt, "play A-+3", state, XK_slash       , 0, callback, (void*)33); addTooltipBind(tt, "ALT CASE", state, XK_question  , 0, callback, (void*)33);
+	addTooltipBind(tt, "play C-+2", state, XK_z           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 24)); addTooltipBind(tt, "play c-+2", state, XK_Z         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 24));
+	addTooltipBind(tt, "play C#+2", state, XK_x           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 25)); addTooltipBind(tt, "play c#+2", state, XK_X         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 25));
+	addTooltipBind(tt, "play D-+2", state, XK_c           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 26)); addTooltipBind(tt, "play d-+2", state, XK_C         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 26));
+	addTooltipBind(tt, "play D#+2", state, XK_v           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 27)); addTooltipBind(tt, "play d#+2", state, XK_V         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 27));
+	addTooltipBind(tt, "play E-+2", state, XK_b           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 28)); addTooltipBind(tt, "play e-+2", state, XK_B         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 28));
+	addTooltipBind(tt, "play F-+2", state, XK_n           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 29)); addTooltipBind(tt, "play f-+2", state, XK_N         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 29));
+	addTooltipBind(tt, "play F#+2", state, XK_m           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 30)); addTooltipBind(tt, "play f#+2", state, XK_M         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 30));
+	addTooltipBind(tt, "play G-+2", state, XK_period      , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 31)); addTooltipBind(tt, "play g-+2", state, XK_less      , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 31));
+	addTooltipBind(tt, "play G#+2", state, XK_comma       , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 32)); addTooltipBind(tt, "play g#+2", state, XK_greater   , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 32));
+	addTooltipBind(tt, "play A-+3", state, XK_slash       , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 33)); addTooltipBind(tt, "play a-+3", state, XK_question  , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 33));
+	addTooltipBind(tt, "note off" , state, XK_equal       , 0, callback, (void*)NOTE_OFF);
+	addTooltipBind(tt, "note cut" , state, XK_asciicircum , 0, callback, (void*)NOTE_CUT);
 }
 void addHexBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, "0-f");
+	addTooltipPrettyPrint(tt, prettyname, state, "0-f");
 	addTooltipBind(tt, "0x0", state, XK_0, 0, callback, (void*)0x0);
 	addTooltipBind(tt, "0x1", state, XK_1, 0, callback, (void*)0x1);
 	addTooltipBind(tt, "0x2", state, XK_2, 0, callback, (void*)0x2);
@@ -255,7 +258,7 @@ void addHexBinds(TooltipState *tt, const char *prettyname, unsigned int state, v
 }
 void addDecimalBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, "0-9");
+	addTooltipPrettyPrint(tt, prettyname, state, "0-9");
 	addTooltipBind(tt, "0", state, XK_0, 0, callback, (void*)0);
 	addTooltipBind(tt, "1", state, XK_1, 0, callback, (void*)1);
 	addTooltipBind(tt, "2", state, XK_2, 0, callback, (void*)2);
@@ -270,7 +273,7 @@ void addDecimalBinds(TooltipState *tt, const char *prettyname, unsigned int stat
 
 void addPrintableAsciiBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, "ascii");
+	addTooltipPrettyPrint(tt, prettyname, state, "ascii");
 	addTooltipBind(tt, " " , state, XK_space       , 0, callback, (void*)' ' );
 	addTooltipBind(tt, "!" , state, XK_exclam      , 0, callback, (void*)'!' );
 	addTooltipBind(tt, "\"", state, XK_quotedbl    , 0, callback, (void*)'"' );

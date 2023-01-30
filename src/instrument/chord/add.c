@@ -40,7 +40,7 @@ void setChordAddInst(void *tt)
 	addTooltipBind(tt, "cue sample record", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
 	addTooltipBind(tt, "MIDI             ", 0, XK_m     , TT_DRAW, chordAddMIDI        , NULL);
 	addTooltipBind(tt, "return"           , 0, XK_Escape, 0      , NULL                , NULL);
-	w->chord = 'A'; p->redraw = 1;
+	w->chord = 'a'; p->redraw = 1;
 }
 void setChordEmptyInst(void *tt)
 {

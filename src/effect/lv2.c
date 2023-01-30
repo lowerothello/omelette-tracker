@@ -1,21 +1,3 @@
-typedef struct {
-	LilvWorld *world;
-
-	/* ports */
-	LilvNode *audio_port;
-	LilvNode *control_port;
-	LilvNode *cv_port;
-	LilvNode *input_port;
-	LilvNode *output_port;
-	LilvNode *toggled;
-	LilvNode *integer;
-	LilvNode *enumeration;
-	LilvNode *sampleRate;
-	LilvNode *units_unit;
-	LilvNode *units_render;
-} LV2DB;
-LV2DB lv2_db;
-
 void initLV2DB(void)
 {
 	lv2_db.world = lilv_world_new();
@@ -51,33 +33,9 @@ void freeLV2DB(void)
 	lilv_world_free(lv2_db.world);
 }
 
-typedef struct { /* used by both LV2_URID_Map and LV2_URID_Unmap */
-	LV2_URID size;    /* how many strings are allocated */
-	char   **string;  /* string[i + 1] is the index */
-} UridMapping;
-
-typedef struct {
-	const LilvPlugin   *plugin;
-	LilvInstance       *instance;
-	UridMapping         urid;
-	LV2_URID_Map        urid_map;
-	LV2_Feature         urid_map_feature;
-	LV2_URID_Unmap      urid_unmap;
-	LV2_Feature         urid_unmap_feature;
-	const LV2_Feature **features;
-
-	uint32_t          inputc;   /* input audio port count   */
-	uint32_t          outputc;  /* output audio port count  */
-	uint32_t          controlc; /* input control port count */
-	float            *controlv; /* input control ports      */
-	float            *dummyport;
-	const LilvNode   *uri; /* not read from desc cos even if desc is null this needs to be serialized */
-} LV2State;
-
-/* typedef uint32_t LV2_URID */
 LV2_URID lv2_map_uri(LV2_URID_Map_Handle handle, const char *uri)
 {
-	UridMapping *s = handle;
+	struct _UridMapping *s = handle;
 
 	/* check if the string is already allocated */
 	if (s->string)
@@ -91,12 +49,11 @@ LV2_URID lv2_map_uri(LV2_URID_Map_Handle handle, const char *uri)
 }
 const char *lv2_unmap_uri(LV2_URID_Unmap_Handle handle, LV2_URID urid)
 {
-	UridMapping *s = handle;
+	struct _UridMapping *s = handle;
 	if (urid-1 < s->size)
 		return s->string[urid-1];
 	return 0;
 }
-
 
 float getLV2PortMin(LV2State *s, const LilvPort *lpo, const LilvNode *node)
 {
@@ -138,9 +95,8 @@ float getLV2PortDef(LV2State *s, const LilvPort *lpo, const LilvNode *node)
 	return ret;
 }
 
-void startLV2Effect(EffectChain *chain, Effect *e)
+void startLV2Effect(LV2State *s, float **input, float **output)
 {
-	LV2State *s = e->state;
 	LilvNode *node;
 
 	/* TODO: required features */
@@ -183,16 +139,16 @@ DEBUG=lilv_nodes_size(nodes); p->redraw=1;
 		{
 			if (lilv_port_is_a(s->plugin, lpo, lv2_db.input_port))
 			{
-				if (s->inputc < 2 && chain->input)
-					lilv_instance_connect_port(s->instance, i, chain->input[s->inputc]);
+				if (s->inputc < 2 && input)
+					lilv_instance_connect_port(s->instance, i, input[s->inputc]);
 				else
 					lilv_instance_connect_port(s->instance, i, s->dummyport);
 
 				s->inputc++;
 			} else if (lilv_port_is_a(s->plugin, lpo, lv2_db.output_port))
 			{
-				if (s->outputc < 2 && chain->output)
-					lilv_instance_connect_port(s->instance, i, chain->output[s->outputc]);
+				if (s->outputc < 2 && output)
+					lilv_instance_connect_port(s->instance, i, output[s->outputc]);
 				else
 					lilv_instance_connect_port(s->instance, i, s->dummyport);
 
@@ -222,47 +178,39 @@ void freeLV2Effect(Effect *e)
 	if (s->dummyport) free(s->dummyport);
 }
 
-#define LV2_SUPPORTED_FEATURE_COUNT 2
-void initLV2Effect(EffectChain *chain, Effect *e, const LilvPlugin *lp)
+void initLV2Effect(LV2State **s, float **input, float **output, const LilvPlugin *lp)
 {
-	e->type = EFFECT_TYPE_LV2;
-	LV2State *s = e->state = calloc(1, sizeof(LV2State));
-	s->plugin = lp;
-	s->uri = lilv_plugin_get_uri(lp);
+	*s = calloc(1, sizeof(LV2State));
+	(*s)->plugin = lp;
+	(*s)->uri = lilv_plugin_get_uri(lp);
 
-	s->urid_map.handle = s->urid_unmap.handle = &s->urid;
-	s->urid_map.map = lv2_map_uri;
-	s->urid_unmap.unmap = lv2_unmap_uri;
-	s->urid_map_feature =   (LV2_Feature){ LV2_URID__map,   &s->urid_map   };
-	s->urid_unmap_feature = (LV2_Feature){ LV2_URID__unmap, &s->urid_unmap };
+	(*s)->urid_map.handle = (*s)->urid_unmap.handle = &(*s)->urid;
+	(*s)->urid_map.map = lv2_map_uri;
+	(*s)->urid_unmap.unmap = lv2_unmap_uri;
+	(*s)->urid_map_feature =   (LV2_Feature){ LV2_URID__map,   &(*s)->urid_map   };
+	(*s)->urid_unmap_feature = (LV2_Feature){ LV2_URID__unmap, &(*s)->urid_unmap };
 
-	s->features = calloc(LV2_SUPPORTED_FEATURE_COUNT + 1, sizeof(LV2_Feature));
-	s->features[0] = &s->urid_map_feature;
-	s->features[1] = &s->urid_unmap_feature;
-	s->features[LV2_SUPPORTED_FEATURE_COUNT] = NULL;
+	(*s)->features = calloc(LV2_SUPPORTED_FEATURE_COUNT + 1, sizeof(LV2_Feature));
+	(*s)->features[0] = &(*s)->urid_map_feature;
+	(*s)->features[1] = &(*s)->urid_unmap_feature;
+	(*s)->features[LV2_SUPPORTED_FEATURE_COUNT] = NULL;
 
-	s->dummyport = malloc(sizeof(float) * samplerate);
+	(*s)->dummyport = malloc(sizeof(float) * samplerate);
 
-	startLV2Effect(chain, e);
+	startLV2Effect(*s, input, output);
 }
 
-void copyLV2Effect(EffectChain *destchain, Effect *dest, Effect *src)
+void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output)
 {
-	LV2State *s_src = src->state;
-	initLV2Effect(destchain, dest, s_src->plugin);
-	LV2State *s_dest = dest->state;
-
-	memcpy(s_dest->controlv, s_src->controlv, s_src->controlc * sizeof(float));
+	initLV2Effect(&dest, input, output, src->plugin);
+	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(float));
 }
 
-uint32_t getLV2EffectControlCount(Effect *e) { return ((LV2State *)e->state)->controlc;     }
-short    getLV2EffectHeight      (Effect *e) { return ((LV2State *)e->state)->controlc + 3; }
+uint32_t getLV2EffectControlCount(LV2State *s) { return s->controlc; }
+short getLV2EffectHeight(LV2State *s) { return s->controlc + 3; }
 
-void serializeLV2Effect(Effect *e, FILE *fp)
+void serializeLV2Effect(LV2State *s, FILE *fp)
 {
-	LV2State *s = e->state;
-
-	// ((LV2State *)e->state)->uri = lilv_plugin_get_uri(lp);
 	const char *suri = lilv_node_as_string(s->uri);
 	size_t surilen = strlen(suri);
 	fwrite(&surilen, sizeof(size_t), 1, fp);
@@ -271,26 +219,25 @@ void serializeLV2Effect(Effect *e, FILE *fp)
 	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
 	fwrite(s->controlv, sizeof(float), s->controlc, fp);
 }
-void deserializeLV2Effect(EffectChain *chain, Effect *e, FILE *fp)
+void deserializeLV2Effect(LV2State **s, float **input, float **output, FILE *fp)
 {
-	e->state = calloc(1, sizeof(LV2State));
-	LV2State *s = e->state;
+	*s = calloc(1, sizeof(LV2State));
 
 	size_t surilen;
 	fread(&surilen, sizeof(size_t), 1, fp);
 	char *suri = malloc(surilen+1);
 	fread(suri, sizeof(char), surilen+1, fp);
-	s->uri = lilv_new_string(lv2_db.world, suri);
+	(*s)->uri = lilv_new_string(lv2_db.world, suri);
 	free(suri);
 
-	s->plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), s->uri);
+	(*s)->plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), (*s)->uri);
 
-	fread(&s->controlc, sizeof(uint32_t), 1, fp);
-	s->controlv = calloc(s->controlc, sizeof(float));
-	fread(s->controlv, sizeof(float), s->controlc, fp);
+	fread(&(*s)->controlc, sizeof(uint32_t), 1, fp);
+	(*s)->controlv = calloc((*s)->controlc, sizeof(float));
+	fread((*s)->controlv, sizeof(float), (*s)->controlc, fp);
 
 	/* TODO: look up desc based on uuid */
-	startLV2Effect(chain, e);
+	startLV2Effect(*s, input, output);
 }
 
 /* the current text colour will apply to the header but not the contents */

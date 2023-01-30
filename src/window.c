@@ -43,6 +43,7 @@ void freeWindow(UI *cw)
 	if (!cw) return;
 
 	_delInstrument(&cw->instrumentbuffer);
+	freeEffect(&cw->effectbuffer);
 
 	if (cw->recbuffer) free(cw->recbuffer);
 	if (cw->previewsample) free(cw->previewsample);

@@ -230,11 +230,10 @@ void initLadspaEffect(LadspaState **s, float **input, float **output, const LADS
 	startLadspaEffect(*s, input, output);
 }
 
-void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output)
+void copyLadspaEffect(LadspaState **dest, LadspaState *src, float **input, float **output)
 {
-	initLadspaEffect(&dest, input, output, src->desc);
-
-	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
+	initLadspaEffect(dest, input, output, src->desc);
+	memcpy((*dest)->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
 }
 
 void serializeLadspaEffect(LadspaState *s, FILE *fp)

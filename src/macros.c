@@ -43,7 +43,7 @@ bool changeMacro(int input, char *dest)
 
 void addMacroBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, "macro");
+	addTooltipPrettyPrint(tt, prettyname, state, "macro");
 	for (size_t i = 0; i < 128; i++)
 		if (MACRO_SET(i))
 			addTooltipBind(tt, MACRO_PRETTYNAME(i), state, swapCase(i), 0, callback, (void*)i);

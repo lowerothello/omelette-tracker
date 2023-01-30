@@ -2,11 +2,18 @@ typedef struct {
 	char    c; /* command  */
 	uint8_t v; /* argument */
 } Macro;
-#define NOTE_VOID 255
-#define NOTE_OFF 254
-#define NOTE_UNUSED 253 /* explicitly unused */
-#define NOTE_C5 60      /* centre note */
-#define NOTE_A10 120    /* first out of range note */
+
+#define NOTE_SMOOTH_OFFSET 120 /* offset from any note value to get it's smooth variant */
+#define NOTE_C_OFFSET 3 /* offset to work based off of C */
+enum NOTE_MASK {
+	NOTE_VOID       = 0x00,
+	NOTE_MIN        = 0x01, // 1
+	NOTE_C5         = 0x40, // 64
+	NOTE_MAX        = 0x78, // 120
+	NOTE_OFF        = 0xff,
+	NOTE_CUT        = 0xfe,
+	NOTE_UNUSED     = 0xfd,
+};
 #define INST_VOID 255
 #define INST_FILEPREVIEW -1 /* signed, be careful with this */
 /* TODO: MACRO_VOID */

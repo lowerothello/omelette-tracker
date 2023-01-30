@@ -35,8 +35,6 @@ void drawBoundingBox(short x, short y, short w, short h, short xmin, short xmax,
 	}
 }
 
-
-
 struct termios origterm;
 void initTerminal(void)
 {

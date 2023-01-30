@@ -10,49 +10,49 @@ bool ifMacroRamp(Track *cv, Row r);
 bool changeMacro(int input, char *dest);
 void addMacroBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*));
 
-bool macroVibrato                (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroBpm                    (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroCut                    (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroPortamento             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroDelay                  (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroGain                   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothGain             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroGainJitter             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothGainJitter       (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSend                   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothSend             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSendJitter             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothSendJitter       (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroTickRetrig             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroReverseTickRetrig      (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroBlockRetrig            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroReverseBlockRetrig     (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroPitchOffset            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroRowChance              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroOffset                 (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroReverseOffset          (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroOffsetJitter           (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroReverseOffsetJitter    (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroCutoff                 (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothCutoff           (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroCutoffJitter           (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothCutoffJitter     (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroResonance              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothResonance        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroResonanceJitter        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothResonanceJitter  (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroFilterMode             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothFilterMode       (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalSamplerate             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothLocalSamplerate       (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalAttDec            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalSusRel            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalPitchShift        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothLocalPitchShift  (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalPitchWidth        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroSmoothLocalPitchWidth  (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalCycleLengthHighByte    (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
-bool macroLocalCycleLengthLowByte     (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroVibrato                 (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroBpm                     (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroCut                     (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroPortamento              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroDelay                   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroGain                    (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothGain              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroGainJitter              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothGainJitter        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSend                    (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothSend              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSendJitter              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothSendJitter        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroTickRetrig              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroReverseTickRetrig       (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroBlockRetrig             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroReverseBlockRetrig      (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroPitchOffset             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroRowChance               (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroOffset                  (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroReverseOffset           (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroOffsetJitter            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroReverseOffsetJitter     (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroCutoff                  (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothCutoff            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroCutoffJitter            (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothCutoffJitter      (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroResonance               (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothResonance         (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroResonanceJitter         (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothResonanceJitter   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroFilterMode              (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothFilterMode        (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalSamplerate         (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothLocalSamplerate   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalAttDec             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalSusRel             (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalPitchShift         (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothLocalPitchShift   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalPitchWidth         (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroSmoothLocalPitchWidth   (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalCycleLengthHighByte(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
+bool macroLocalCycleLengthLowByte (jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
 
 /* there can be up to 6 of these (colours 1-6 (no black/white)) */
 enum MacroGroup {
@@ -67,6 +67,7 @@ enum MacroGroup {
 /* not an enum so they can be accessed within macros */
 #define MACRO_FLAG_LINKNIBBLES (1<<0) /* treat both nibbles as equally significant */
 #define MACRO_FLAG_RAMP        (1<<1) /* calls to this macro cause clicks, ramping needed */
+#define MACRO_FLAG_SEQUENCED   (1<<2) /* macro only applies to tracks with an inst/note pair */
 
 typedef struct {
 	bool            set; /* set high if this index is significant */
@@ -76,7 +77,7 @@ typedef struct {
 	bool          (*callback)(jack_nframes_t, uint16_t*, int, Track*, Row);
 } MacroDef;
 
-/* input case is flipped before looking up a macro */
+/* TODO: redo this table lol */
 const MacroDef global_macro_db[128] =
 {
 	['G'] = { 1, "stereo gain"                 , MACRO_GROUP_GAIN     , MACRO_FLAG_LINKNIBBLES|MACRO_FLAG_RAMP, macroGain                 , },

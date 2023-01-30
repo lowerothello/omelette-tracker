@@ -9,8 +9,8 @@ void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 
 	if (src->sample)
 	{ /* only copy sampledata if it exists */
-		dest->sample = malloc(sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->tracks);
-		memcpy(dest->sample, src->sample, sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->tracks);
+		dest->sample = malloc(sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->channels);
+		memcpy(dest->sample, src->sample, sizeof(Sample) + sizeof(short)*src->sample->length*src->sample->channels);
 	}
 }
 
@@ -279,7 +279,7 @@ Sample *_loadSample(char *path)
 			fread(&ret->data, sizeof(short), buf.st_size / sizeof(short), fp);
 			fclose(fp);
 
-			ret->tracks = 1;
+			ret->channels = 1;
 			ret->length = buf.st_size / sizeof(short);
 			ret->rate = ret->defrate = 12000;
 		}
@@ -296,7 +296,7 @@ Sample *_loadSample(char *path)
 			/* read the whole file into memory */
 			sf_readf_short(sndfile, ret->data, sfinfo.frames);
 			ret->length = sfinfo.frames;
-			ret->tracks = sfinfo.channels;
+			ret->channels = sfinfo.channels;
 			ret->rate = ret->defrate = sfinfo.samplerate;
 			sf_close(sndfile);
 		}
@@ -353,14 +353,14 @@ void sampleLoadCallback(char *path) /* TODO: atomicity */
 //
 // 	sfinfo.samplerate = iv->sample->rate;
 // 	sfinfo.frames = iv->sample->length;
-// 	sfinfo.channels = iv->sample->tracks;
+// 	sfinfo.channels = iv->sample->channels;
 //
 // 	sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
 // 	sndfile = sf_open(fileExtension(buffer, ".wav"), SFM_WRITE, &sfinfo);
 // 	if (sndfile == NULL) { free(buffer); return 1; }
 //
 // 	// write the sample data to disk
-// 	sf_writef_short(sndfile, iv->sample->data, iv->sample->length * iv->sample->tracks);
+// 	sf_writef_short(sndfile, iv->sample->data, iv->sample->length * iv->sample->channels);
 // 	sf_close(sndfile);
 //
 // 	free(buffer);
@@ -370,7 +370,7 @@ void sampleLoadCallback(char *path) /* TODO: atomicity */
 void serializeInstrument(Instrument *iv, FILE *fp)
 {
 	fwrite(&iv->sample->length, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->sample->tracks, sizeof(uint8_t), 1, fp);
+	fwrite(&iv->sample->channels, sizeof(uint8_t), 1, fp);
 	fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
 	fwrite(&iv->sample->rate, sizeof(uint32_t), 1, fp);
 	fwrite(&iv->sample->defrate, sizeof(uint32_t), 1, fp);
@@ -429,14 +429,14 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
 
 	if (iv->sample->length)
-		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->tracks, fp);
+		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->channels, fp);
 }
 void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor)
 {
 	Sample *newsample = malloc(sizeof(Sample));
 	if (major == 0 && minor < 99) fseek(fp, sizeof(uint32_t), SEEK_CUR);
 	fread(&newsample->length, sizeof(uint32_t), 1, fp);
-	fread(&newsample->tracks, sizeof(uint8_t), 1, fp);
+	fread(&newsample->channels, sizeof(uint8_t), 1, fp);
 	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
 	fread(&newsample->rate, sizeof(uint32_t), 1, fp);    newsample->rate *= ratemultiplier;
 	fread(&newsample->defrate, sizeof(uint32_t), 1, fp); newsample->defrate *= ratemultiplier;
@@ -494,104 +494,12 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	fread(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
 	fread(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
 
-	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->tracks);
+	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->channels);
 	if (newsample->length)
-		fread(newsample->data, sizeof(short), newsample->length*newsample->tracks, fp);
+		fread(newsample->data, sizeof(short), newsample->length*newsample->channels, fp);
 	iv->sample = newsample;
 }
 
-short drawInstrumentIndex(short bx, short minx, short maxx)
-{
-	Instrument *iv;
-	char buffer[11];
-	short x = 0;
-	for (int i = 0; i < INSTRUMENT_MAX; i++)
-		if (w->centre - w->instrument + i > TRACK_ROW && w->centre - w->instrument + i < ws.ws_row)
-		{
-			x = bx;
-
-			if (instrumentSafe(s->instrument, i))
-			{
-				iv = &s->instrument->v[s->instrument->i[i]];
-				if (iv->triggerflash) printf("\033[3%dm", i%6+1);
-			}
-			if (w->instrument + w->fyoffset == i)
-			{
-				printf("\033[7m");
-
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", i);
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-				} x += 3;
-
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", s->instrument->i[i]);
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-				} x += 3;
-			} else
-			{
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", i);
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-				} x += 3;
-
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", s->instrument->i[i]);
-					printf("\033[2m");
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-					printf("\033[22m");
-				} x += 3;
-			}
-
-			if (x <= ws.ws_col)
-			{
-				if (instrumentSafe(s->instrument, i))
-				{
-					iv = &s->instrument->v[s->instrument->i[i]];
-					printf("\033[1m");
-					if (iv->algorithm == INST_ALG_MIDI) snprintf(buffer, 11, "-  MIDI  -");
-					else if (iv->sample)                snprintf(buffer, 11, "<%08x>", iv->sample->length);
-					else                                snprintf(buffer, 11, "<%08x>", 0);
-				} else snprintf(buffer, 11, " ........ ");
-				printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-			}
-			x += 10;
-
-			printf("\033[40;37;22;27m");
-		}
-	return x - bx;
-}
-
-void drawInstrument(ControlState *cc)
-{
-	switch (w->mode)
-	{
-		case MODE_INSERT:
-			if (cc->mouseadjust || cc->keyadjust) printf("\033[%d;0H\033[1m-- INSERT ADJUST --\033[m\033[4 q", ws.ws_row);
-			else                                  printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",        ws.ws_row);
-			w->command.error[0] = '\0';
-			break;
-		default:
-			if (cc->mouseadjust || cc->keyadjust) { printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; }
-			break;
-	}
-
-	short x = drawInstrumentIndex(1, 1, ws.ws_col) + 2;
-
-	Instrument *iv;
-	if (instrumentSafe(s->instrument, w->instrument))
-	{
-		iv = &s->instrument->v[s->instrument->i[w->instrument]];
-		drawInstrumentSampler(cc, iv, x, ws.ws_col - x);
-	} else
-	{
-		const char *text = "PRESS 'a' TO ADD AN INSTRUMENT";
-		printf("\033[%d;%dH%s", w->centre, x + ((ws.ws_col - x - (short)strlen(text))>>1), text);
-	}
-}
-
 #include "input.c" /* void initInstrumentInput(TooltipState*) */
+#include "autogenui.c"
+#include "draw.c"

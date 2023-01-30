@@ -32,7 +32,7 @@ enum WAVE_SHAPE {
 };
 
 #include "tooltip.h" /* like half the input handling code */
-#include "control.c" /* cool visual control library */
+#include "control.h" /* cool visual control library */
 
 /* TODO: merge modulation with oscillators? */
 #include "modulation/envelope.c"
@@ -93,4 +93,5 @@ portbuffers pb;
 
 #include "redraw.c"
 #include "playback.c"
+#include "tooltip.c"
 #include "init.c"

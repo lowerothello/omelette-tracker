@@ -1,43 +1,53 @@
 /* will populate buffer, buffer should be at least length 4 */
-static void noteToString(uint8_t note, char *buffer)
+/* uses a short for note for safe arithmatic */
+static void noteToString(short note, char *buffer)
 {
-	if (note == NOTE_VOID) { strcpy(buffer, "..."); return; }
-	if (note == NOTE_OFF)  { strcpy(buffer, "==="); return; }
+	switch (note)
+	{
+		case NOTE_VOID: strcpy(buffer, "..."); return;
+		case NOTE_OFF:  strcpy(buffer, "..."); return;
+		case NOTE_CUT:  strcpy(buffer, "..."); return;
+	}
+
+	note -= 1; /* pop off NOTE_VOID */
 
 	char *strnote;
-	char octave;
-	switch (note % 12)
-	{
-		case 0:  strnote = "C-"; break;
-		case 1:  strnote = "C#"; break;
-		case 2:  strnote = "D-"; break;
-		case 3:  strnote = "D#"; break;
-		case 4:  strnote = "E-"; break;
-		case 5:  strnote = "F-"; break;
-		case 6:  strnote = "F#"; break;
-		case 7:  strnote = "G-"; break;
-		case 8:  strnote = "G#"; break;
-		case 9:  strnote = "A-"; break;
-		case 10: strnote = "A#"; break;
-		case 11: strnote = "B-"; break;
-		default: strnote = "?-"; break;
-	}
+	if (note < NOTE_MAX) /* mindful that note has been offset down once */
+		switch (note % 12)
+		{
+			case 0:  strnote = "A-"; break;
+			case 1:  strnote = "A#"; break;
+			case 2:  strnote = "B-"; break;
+			case 3:  strnote = "C-"; break;
+			case 4:  strnote = "C#"; break;
+			case 5:  strnote = "D-"; break;
+			case 6:  strnote = "D#"; break;
+			case 7:  strnote = "E-"; break;
+			case 8:  strnote = "F-"; break;
+			case 9:  strnote = "F#"; break;
+			case 10: strnote = "G-"; break;
+			case 11: strnote = "G#"; break;
+			default: strnote = "?-"; break;
+		}
+	else /* smooth */
+		switch (note % 12)
+		{
+			case 0:  strnote = "a-"; break;
+			case 1:  strnote = "a#"; break;
+			case 2:  strnote = "b-"; break;
+			case 3:  strnote = "c-"; break;
+			case 4:  strnote = "c#"; break;
+			case 5:  strnote = "d-"; break;
+			case 6:  strnote = "d#"; break;
+			case 7:  strnote = "e-"; break;
+			case 8:  strnote = "f-"; break;
+			case 9:  strnote = "f#"; break;
+			case 10: strnote = "g-"; break;
+			case 11: strnote = "g#"; break;
+			default: strnote = "/-"; break;
+		}
 
-	switch (note / 12)
-	{
-		case 0:  octave = '0'; break;
-		case 1:  octave = '1'; break;
-		case 2:  octave = '2'; break;
-		case 3:  octave = '3'; break;
-		case 4:  octave = '4'; break;
-		case 5:  octave = '5'; break;
-		case 6:  octave = '6'; break;
-		case 7:  octave = '7'; break;
-		case 8:  octave = '8'; break;
-		case 9:  octave = '9'; break;
-		default: octave = '?'; break;
-	}
-	snprintf(buffer, 5, "%s%c", strnote, octave);
+	snprintf(buffer, 5, "%s%1x", strnote, (note%NOTE_MAX) / 12);
 }
 
 /* generate sfx using dynamic width tracks */
@@ -97,7 +107,7 @@ static void drawGlobalLineNumbers(short x, short minx, short maxx)
 			if (s->playing == PLAYING_CONT && s->playfy == i)                              printf("\033[1m");
 			else if (i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
 
-			/* print as special if the row has a bpm change, or if the row hasn't been fully allocated yet */
+			/* print as special if the row has a bpm change, or if the row hasn't been fully allocated yet (rows allocate pretty slowly sometimes) */
 			if (s->bpmcachelen <= i || s->bpmcache[i] != -1) printf("\033[33m");
 
 			if (i < STATE_ROWS) snprintf(buffer, 5, "  -%x", STATE_ROWS - i);
@@ -477,7 +487,10 @@ void drawTracker(void)
 
 	if (w->mode == MODE_EFFECT)
 	{
-		printf("\033[%d;0H\033[1m-- EFFECT --\033[m", ws.ws_row); w->command.error[0] = '\0';
+		if (cc.mouseadjust || cc.keyadjust) printf("\033[%d;0H\033[1m-- EFFECT ADJUST --\033[m", ws.ws_row);
+		else                                printf("\033[%d;0H\033[1m-- EFFECT --\033[m"       , ws.ws_row);
+		w->command.error[0] = '\0';
+
 		short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		clearControls(&cc);
 		drawEffectChain(s->track->v[w->track+w->trackoffset].data.effect, &cc, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
@@ -486,14 +499,13 @@ void drawTracker(void)
 	}
 
 	sx = drawTrackerBody(sfx, 1, LINENO_COLS-1, ws.ws_col); /* TODO: the -1 here is a dirty hack */
-	// drawInstrumentIndex(ws.ws_col - 2);
 
 	switch (w->mode)
 	{
 		case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->command.error[0] = '\0'; break;
 		case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->command.error[0] = '\0'; break;
 		case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- MOUSE ADJUST --\033[m\033[4 q",   ws.ws_row); w->command.error[0] = '\0'; break;
+		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
 		case MODE_INSERT:
 			if (w->trackerfx > 1)
 			{
@@ -503,11 +515,7 @@ void drawTracker(void)
 					printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen(MACRO_PRETTYNAME(r->macro[macro].c))) / 2, MACRO_PRETTYNAME(r->macro[macro].c));
 			}
 
-			if (w->keyboardmacro)
-				printf("\033[%d;0H\033[1m-- INSERT (%cxx) --\033[m", ws.ws_row, w->keyboardmacro);
-			else
-				printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
-
+			printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
 			printf("\033[6 q");
 			w->command.error[0] = '\0'; break;
 		default: break;

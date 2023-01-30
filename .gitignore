@@ -4,6 +4,7 @@ omuLADSPA
 omelette-ladspa-plugins.so
 valgrind.log
 gmon.out
+log
 
 # test mod files, some contain dmca-able samples so excluded
 testmods

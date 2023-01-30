@@ -1,6 +1,12 @@
+enum EFFECT_TYPE {
+	EFFECT_TYPE_DUMMY = 0,
+	EFFECT_TYPE_LADSPA,
+	EFFECT_TYPE_LV2,
+};
+
 typedef struct {
-	uint8_t type;
-	void   *state;
+	enum EFFECT_TYPE type;
+	void            *state;
 } Effect;
 #define EFFECT_CHAIN_LEN 16
 typedef struct {
@@ -13,13 +19,9 @@ typedef struct {
 
 #define MIN_EFFECT_WIDTH 38
 
-#define NULL_EFFECT_HEIGHT 2
+#define NULL_EFFECT_HEIGHT 3
 #define NULL_EFFECT_TEXT "NO EFFECTS"
-
-enum {
-	EFFECT_TYPE_LADSPA,
-	EFFECT_TYPE_LV2,
-} EFFECT_TYPE;
+#define DUMMY_EFFECT_TEXT "DUMMY EFFECT"
 
 /* IMPORTANT NOTE: effects should not register any more than 16 controls */
 /* TODO: fix this, controls should be dynamically allocated              */
@@ -29,11 +31,15 @@ EffectChain *newEffectChain(float *input[2], float *output[2]);
 
 /* NOTE: NOT thread safe */
 void clearEffectChain(EffectChain*);
-
 uint8_t getEffectControlCount(Effect*);
+
 EffectChain *_addEffect(EffectChain*, unsigned long pluginindex, uint8_t index);
+
 void cb_addEffect(Event*); /* intended to be passed to addEffect().cb */
+
+/* pluginindex is offset by 1 */
 void addEffect(EffectChain**, unsigned long pluginindex, uint8_t index, void (*cb)(Event*));
+
 EffectChain *_delEffect(EffectChain*, uint8_t index);
 void delEffect(EffectChain**, uint8_t index);
 
@@ -41,7 +47,7 @@ void delEffect(EffectChain**, uint8_t index);
 uint8_t getEffectFromCursor(EffectChain*, uint8_t cursor);
 uint8_t getCursorFromEffect(EffectChain*, uint8_t index);
 
-void copyEffect(EffectChain *destchain, Effect *dest, Effect *src);
+void copyEffect(Effect *dest, Effect *src, float **input, float **output);
 void copyEffectChain(EffectChain **dest, EffectChain *src);
 
 void serializeEffect(Effect*, FILE*);

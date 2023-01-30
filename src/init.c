@@ -22,6 +22,7 @@ static void common_cleanup(int ret)
 
 void cleanup(int ret)
 {
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	struct timespec req;
 
 	if (client)
@@ -36,14 +37,13 @@ void cleanup(int ret)
 				nanosleep(&req, &req);
 			}
 		}
-
-#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 		jack_deactivate(client);
 		jack_client_close(client);
-#else
-		pthread_cancel(dummyprocessthread);
-#endif
 	}
+#else
+	pthread_cancel(dummyprocessthread);
+	pthread_join(dummyprocessthread, NULL);
+#endif
 
 	_delTrack(s, &w->previewtrack);
 
@@ -124,11 +124,11 @@ void init(int argc, char *argv[])
 	} else reapplyBpm(); /* implied by the other branch */
 
 	/* trap signals */
-	signal(SIGINT,   cleanup );
-	signal(SIGTERM,  cleanup );
-	signal(SIGSEGV,  cleanup ); /* TODO: might be unsafe? */
-	signal(SIGFPE,   cleanup ); /* TODO: might be unsafe? */
-	signal(SIGABRT,  cleanup ); /* TODO: might be unsafe? */
+	signal(SIGINT  , cleanup );
+	signal(SIGTERM , cleanup );
+	// signal(SIGSEGV , cleanup ); /* TODO: might be unsafe? */
+	// signal(SIGFPE  , cleanup ); /* TODO: might be unsafe? */
+	// signal(SIGABRT , cleanup ); /* TODO: might be unsafe? */
 	signal(SIGWINCH, sigwinch);
 
 

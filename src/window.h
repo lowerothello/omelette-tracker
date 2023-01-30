@@ -22,7 +22,7 @@ enum PTRIG {
 	PTRIG_FILE,   /* queued filebrowser preview   */
 };
 
-#define MAX_OCTAVE 7
+#define MAX_OCTAVE 7 /* this +2 is accessible with the keyboard */
 #define MIN_OCTAVE 0
 #define TRACKERFX_MIN -1
 #define TRACKERFX_VISUAL_MIN 0
@@ -31,10 +31,11 @@ typedef struct _UI {
 	Vtrig   *vbtrig    [TRACK_MAX];
 	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */
 	int8_t   pbfx[2];    /* patternbuffer horizontal clipping region */
-	Instrument instrumentbuffer; /* instrument paste buffer */
 	uint8_t    defvariantlength;
 
-	TrackData trackbuffer; /* track paste buffer */
+	Instrument instrumentbuffer; /* instrument paste buffer */
+	TrackData  trackbuffer;      /* track paste buffer */
+	Effect     effectbuffer;     /* effect paste buffer */
 
 	char filepath[COMMAND_LENGTH];
 
@@ -76,7 +77,6 @@ typedef struct _UI {
 	uint8_t     count; /* action repeat count, follows similar rules to w->chord */
 	signed char octave;
 	uint8_t     step;
-	char        keyboardmacro;
 	bool        follow;
 
 	Row     previewrow;

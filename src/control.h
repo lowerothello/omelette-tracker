@@ -1,0 +1,93 @@
+enum ControlNibbles {
+	CONTROL_NIBBLES_BOOL   = 0, /* shows either "X" or " ", click/return to toggle (ignores other input) */
+	CONTROL_NIBBLES_PRETTY = 1, /* shows -1 to 15, reads pretty names */
+	CONTROL_NIBBLES_UINT8  = 2, /* shows 0 to 0xff */
+	CONTROL_NIBBLES_INT8   = 3, /* shows 0 to 0x3f/0x40 and the sign bit */
+	CONTROL_NIBBLES_UINT16 = 4, /* shows 0 to 0xffff */
+	CONTROL_NIBBLES_INT16  = 5, /* shows 0 to 0x7fff/0x8000 and the sign bit, min and max are nibble-wise, min should be absolute */
+	CONTROL_NIBBLES_UINT32 = 8, /* shows 0 to 0xffffffff */
+	CONTROL_NIBBLES_UNSIGNED_FLOAT,
+	CONTROL_NIBBLES_SIGNED_FLOAT,
+	CONTROL_NIBBLES_UNSIGNED_INT,
+	CONTROL_NIBBLES_SIGNED_INT,
+	CONTROL_NIBBLES_TOGGLED,
+};
+
+typedef union {
+	float    f;
+	uint32_t i;
+} ControlRange;
+
+typedef struct {
+	ControlRange value;
+	char        *label;
+} ScalePoint;
+
+typedef struct
+{
+	short               x, y; /* position on the screen */
+	void               *value;
+	ControlRange        min, max, def;
+	enum ControlNibbles nibbles;
+	uint32_t            scalepointlen;
+	ScalePoint         *scalepoint;
+	uint32_t            scalepointptr;
+	uint32_t            scalepointcount;
+
+	void       (*callback)(void *arg); /* called when self->value is changed */
+	void        *callbackarg;
+} Control;
+
+typedef struct
+{
+	uint8_t cursor;
+	signed char fieldpointer;
+
+	uint8_t controlc; /* how many controls are assigned */
+	Control control[256];
+
+	bool mouseadjust;
+	bool keyadjust;
+	bool resetadjust;
+	short prevmousex;
+} ControlState;
+ControlState cc;
+
+
+void clearControls(ControlState*);
+void addControlInt(ControlState*, short x, short y, void *value, int8_t nibbles,
+		uint32_t min, uint32_t max, uint32_t def,
+		uint32_t scalepointlen, uint32_t scalepointcount,
+		void (*callback)(void *), void *callbackarg);
+void addControlFloat(ControlState*, short x, short y, void *value, int8_t nibbles,
+		float min, float max, float def,
+		uint32_t scalepointlen, uint32_t scalepointcount,
+		void (*callback)(void *), void *callbackarg);
+void addControlDummy(ControlState*, short x, short y);
+
+/* applies retroactively to the previously registered control */
+void addScalePointInt  (ControlState*, char *label, uint32_t value);
+void addScalePointFloat(ControlState*, char *label, uint32_t value);
+
+/* number of digits before the radix, up to 6 are checked for (float range) */
+/* don't think there's a more efficient way to do this? there might well be */
+int getPreRadixDigits(float);
+
+/* dump state to the screen */
+/* leaves the cursor over the selected control */
+void drawControls(ControlState*);
+
+void incControlValue(ControlState*);
+void decControlValue(ControlState*);
+void incControlCursor(ControlState*, uint8_t count);
+void decControlCursor(ControlState*, uint8_t count);
+void setControlCursor(ControlState*, uint8_t newcursor);
+void incControlFieldpointer(ControlState*);
+void decControlFieldpointer(ControlState*);
+
+void hexControlValue(ControlState*, char value);
+void toggleKeyControl(ControlState*);
+void revertKeyControl(ControlState*); /* TODO: doesn't work properly */
+void mouseControls(ControlState*, int button, int x, int y);
+
+#include "control.c"

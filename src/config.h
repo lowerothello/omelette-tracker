@@ -12,7 +12,7 @@
  *   running under gdb without stalling jackd.
  *
  *   pretty janky, but good enough for some debugging. */
-// #define DEBUG_DISABLE_AUDIO_OUTPUT
+#define DEBUG_DISABLE_AUDIO_OUTPUT
 
 /* DISABLE_RAW_INPUT
  *   only parse stdin, don't try to aquire raw events

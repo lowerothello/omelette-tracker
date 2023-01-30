@@ -30,6 +30,9 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t dec
 
 float semitoneShortToMultiplier(int16_t input);
 
+void initInstUICommonSamplerBlock(InstUIBlock *block);
+void initInstUIRangeSamplerBlock(InstUIBlock *block);
+
 void drawInstrumentSampler(ControlState *cc, Instrument *iv, short x, short w);
 
 void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r);

@@ -113,14 +113,14 @@ void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uin
 	uint8_t localsamplerate = iv->samplerate; if (cv->localsamplerate != -1) localsamplerate = cv->localsamplerate;
 	if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
 
-	if (iv->sample->tracks == 1)
+	if (iv->sample->channels == 1)
 	{
 		getSample(pointersnap + (uint32_t)(wtphase*framelen) *calcrate, localsamplerate, iv->bitdepth, iv->sample, l);
 		getSample(pointersnap + (uint32_t)(wtphase*framelen) *calcrate, localsamplerate, iv->bitdepth, iv->sample, r);
 	} else
 	{
-		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->tracks + 0, localsamplerate, iv->bitdepth, iv->sample, l);
-		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->tracks + 1, localsamplerate, iv->bitdepth, iv->sample, r);
+		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->channels + 0, localsamplerate, iv->bitdepth, iv->sample, l);
+		getSample((pointersnap + (uint32_t)(wtphase*framelen)) *calcrate * iv->sample->channels + 1, localsamplerate, iv->bitdepth, iv->sample, r);
 	}
 
 	hold = powf(2.0f, lfogain * iv->wavetable.lfo.gain*DIV256 * -1.0f);

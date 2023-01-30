@@ -26,12 +26,13 @@
 struct winsize ws;
 int DEBUG;
 jack_nframes_t samplerate, buffersize;
-#define MIN(X, Y) ((X)<(Y)?(X):(Y))
-#define MAX(X, Y) ((X)>(Y)?(X):(Y))
+#include "util.c"
 #include "config.h"
 #include "draw_helpers.c"
 #include "tooltip.h"
-#include "control.c"
+#include "tracker/variant.h" /* for NOTE_MAX */
+#include "tooltip.c"
+#include "control.h"
 #include "effect/autogenui.c"
 #include "effect/ladspa.h"
 

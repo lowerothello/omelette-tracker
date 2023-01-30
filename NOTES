@@ -18,8 +18,6 @@ lookback
 
 
 - don't like the global octave setting binds (number keys)
-- resident tooltip popup, togglable with '?'
-	- requires a huge rewrite to how input is handled
 
 binds to jump to the current channel's vtrig/note/inst/nth macro
 	- polyend inspired
@@ -28,5 +26,3 @@ binds to jump to the current channel's vtrig/note/inst/nth macro
 
 - lv2 atom ports
 - lv2 scale points
-
-- octaves are based off of C instead of A lol

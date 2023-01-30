@@ -1,12 +1,22 @@
-void drawMidi(ControlState *cc, Instrument *iv, short x)
+#define INSTUI_MIDI_WIDTH 18
+
+static void midiInstUICallback(short x, short y, Instrument *iv, uint8_t index)
 {
-	clearControls(cc);
-
-	short y = ws.ws_row - 12;
-
-	printf("\033[%d;%dHMIDI track:  [ ]", y+0, x);
-	printf("\033[%d;%dHMIDI program: [  ]", y+1, x);
-	addControlInt(cc, x+16, y+0, &iv->midi.channel, 1, -1, 15, -1, 0, 0, instrumentSamplerControlCallback, NULL);
-
-	drawControls(cc);
+	switch (index)
+	{
+		case 0:
+			printf("\033[%d;%dHMIDI channel:  [ ]", y, x);
+			addControlInt(&cc, x+16, y, &iv->midi.channel, 1, -1, 15, -1, 0, 0, instrumentSamplerControlCallback, NULL);
+			break;
+		case 1:
+			printf("\033[%d;%dHMIDI program: [  ]", y, x);
+			break;
+	}
+}
+void initInstUIMidi(InstUI **iui)
+{
+	*iui = allocInstUI(1);
+	(*iui)->width = INSTUI_MIDI_WIDTH;
+	(*iui)->block[0].count = 2;
+	(*iui)->block[0].callback = midiInstUICallback;
 }

@@ -5,9 +5,9 @@ enum InputMode {
 };
 
 void addCountBinds(TooltipState*, bool draw);
-void previewNote(int key, uint8_t inst);
+void previewNote(uint8_t note, uint8_t inst);
 void previewRow(Row*);
-void previewFileNote(UI*, int key);
+void previewFileNote(UI*, uint8_t note);
 void incControlValueRedraw(ControlState*);
 void decControlValueRedraw(ControlState*);
 void toggleKeyControlRedraw(ControlState*);

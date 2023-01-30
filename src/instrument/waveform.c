@@ -47,15 +47,8 @@ void drawMarker(uint32_t marker, size_t offset, size_t width)
 void *walkWaveformRoutine(Instrument *iv)
 {
 	size_t offset, width;
-	if (iv->algorithm == INST_ALG_WAVETABLE)
-	{
-		offset = iv->trimstart + (MIN((iv->sample->length - iv->trimstart) / MAX(1, iv->wavetable.framelength) - 1, iv->wavetable.wtpos)) * iv->wavetable.framelength;
-		width = iv->wavetable.framelength;
-	} else
-	{
-		offset = 0;
-		width = iv->sample->length;
-	}
+	offset = 0;
+	width = iv->sample->length;
 
 	if (w->waveformdrawpointer == 0)
 		fill(w->waveformcanvas, 0);
@@ -67,7 +60,7 @@ void *walkWaveformRoutine(Instrument *iv)
 	double divmaxj = 1.0f / (double)width;
 	float o = (float)w->waveformh * 0.5f;
 	float sample;
-	float trackmix = 1.0f / (float)iv->sample->tracks;
+	float trackmix = 1.0f / (float)iv->sample->channels;
 	struct timespec req;
 
 	while (w->waveformdrawpointer < width)
@@ -80,8 +73,8 @@ void *walkWaveformRoutine(Instrument *iv)
 		xx = (float)l * divmaxj * (float)w->waveformw;
 
 		sample = 0.0f;
-		for (i = 0; i < iv->sample->tracks; i++) /* mix all tracks */
-			sample += (iv->sample->data[(offset + k) * iv->sample->tracks + i] * trackmix);
+		for (i = 0; i < iv->sample->channels; i++) /* mix all channels */
+			sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * trackmix);
 		sample = (sample*DIVSHRT) * o + o;
 
 		set_pixel(w->waveformcanvas, 1, xx, sample);
@@ -101,22 +94,15 @@ void drawWaveform(Instrument *iv)
 	if (w->waveformbuffer)
 	{
 		size_t offset, width;
-		if (iv->algorithm == INST_ALG_WAVETABLE)
-		{
-			offset = iv->trimstart + (MIN((iv->sample->length - iv->trimstart) / MAX(1, iv->wavetable.framelength) - 1, iv->wavetable.wtpos)) * iv->wavetable.framelength;
-			width = iv->wavetable.framelength;
-		} else
-		{
-			offset = 0;
-			width = iv->sample->length;
-		}
+		offset = 0;
+		width = iv->sample->length;
 
 		if (w->waveformdrawpointer == 0)
 			fill(w->waveformcanvas, 0);
 
 		size_t k, xx;
 		uint32_t l;
-		float trackmix = 1.0f / (float)iv->sample->tracks;
+		float trackmix = 1.0f / (float)iv->sample->channels;
 		double divmaxj = 1.0f / (float)width;
 		float o = (float)w->waveformh * 0.5f;
 		float sample;
@@ -133,8 +119,8 @@ void drawWaveform(Instrument *iv)
 				xx = (float)l * divmaxj * (float)w->waveformw;
 
 				sample = 0.0f;
-				for (uint8_t i = 0; i < iv->sample->tracks; i++) /* mix all tracks */
-					sample += (iv->sample->data[(offset + k) * iv->sample->tracks + i] * trackmix);
+				for (uint8_t i = 0; i < iv->sample->channels; i++) /* mix all channels */
+					sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * trackmix);
 				sample = (sample*DIVSHRT) * o + o;
 
 				set_pixel(w->waveformcanvas, 1, xx, sample);
@@ -148,12 +134,9 @@ void drawWaveform(Instrument *iv)
 				p->redraw = 1; /* continue drawing asap */
 		}
 
-		if (iv->algorithm != INST_ALG_WAVETABLE)
-		{
-			drawMarker(iv->trimstart,                                                                                  offset, width);
-			drawMarker(MIN(iv->trimstart + iv->trimlength, iv->sample->length-1),                                      offset, width);
-			drawMarker(MAX(iv->trimstart, MIN(iv->trimstart + iv->trimlength, iv->sample->length-1) - iv->looplength), offset, width);
-		}
+		drawMarker(iv->trimstart,                                                                                  offset, width);
+		drawMarker(MIN(iv->trimstart + iv->trimlength, iv->sample->length-1),                                      offset, width);
+		drawMarker(MAX(iv->trimstart, MIN(iv->trimstart + iv->trimlength, iv->sample->length-1) - iv->looplength), offset, width);
 
 		draw(w->waveformcanvas, w->waveformbuffer);
 		for (size_t i = 0; w->waveformbuffer[i] != NULL; i++)

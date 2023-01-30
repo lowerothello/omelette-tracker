@@ -55,7 +55,7 @@ static void instrumentEnd(void)
 
 static void instrumentEscape(void *arg)
 {
-	previewNote(' ', INST_VOID);
+	previewNote(NOTE_OFF, INST_VOID);
 	cc.mouseadjust = cc.keyadjust = 0;
 	w->mode = MODE_NORMAL;
 	p->redraw = 1;
@@ -97,13 +97,13 @@ static void instrumentSampleBackspace(void *arg)
 		revertKeyControl(&cc);
 	p->redraw = 1;
 }
-static void instrumentSamplePreview(void *input)
+static void instrumentSamplePreview(size_t note)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
 	if (w->showfilebrowser)
-		fileBrowserPreview(fbstate, (int)(size_t)input);
+		fileBrowserPreview(fbstate, note);
 	else
-		previewNote((size_t)input, w->instrument);
+		previewNote(note, w->instrument);
 	p->redraw = 1;
 }
 
@@ -166,7 +166,7 @@ static void instrumentMouse(enum Button button, int x, int y)
 								break;
 							default: break;
 						}
-						previewNote(' ', INST_VOID);
+						previewNote(NOTE_OFF, INST_VOID);
 						break;
 				}
 			} p->redraw = 1; break;
@@ -226,7 +226,7 @@ void initInstrumentInput(TooltipState *tt)
 			break;
 		case MODE_INSERT:
 			addDecimalBinds(tt, "set octave"  , 0, setInsertOctave        );
-			addNoteBinds   (tt, "preview note", 0, instrumentSamplePreview);
+			addNoteBinds   (tt, "preview note", 0, w->octave, (void(*)(void*))instrumentSamplePreview);
 			break;
 		default: break;
 	}

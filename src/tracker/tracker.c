@@ -11,7 +11,6 @@
 #include "chord/yank.c"
 #include "chord/delete.c"
 #include "chord/graphic.c"
-#include "chord/insert.c"
 
 #include "input.c"
 
@@ -23,7 +22,7 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 	octave *= 12;
 	while (note > octave + 11) note -= 12;
 	while (note < octave + 0)  note += 12;
-	return MIN(NOTE_A10-1, note);
+	return note;
 }
 
 void trackerUpArrow(size_t count)

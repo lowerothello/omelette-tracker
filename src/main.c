@@ -33,9 +33,7 @@
 /* libdrawille */
 #include "../lib/libdrawille/src/Canvas.h"
 
-#define MIN(X, Y) ((X)<(Y)?(X):(Y))
-#define MAX(X, Y) ((X)>(Y)?(X):(Y))
-
+#include "util.c"
 
 /* version */
 const unsigned char MAJOR = 1;
@@ -221,7 +219,7 @@ int main(int argc, char *argv[])
 				{
 					Sample *sample = malloc(sizeof(Sample) + (w->recptr<<1)*sizeof(short));
 					sample->length = w->recptr;
-					sample->tracks = 2;
+					sample->channels = 2;
 					sample->rate = sample->defrate = samplerate;
 					memcpy(&sample->data, w->recbuffer, (w->recptr<<1)*sizeof(short));
 					free(w->recbuffer); w->recbuffer = NULL;
