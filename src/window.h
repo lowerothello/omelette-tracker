@@ -74,10 +74,8 @@ typedef struct _UI {
 	uint8_t     step;
 	bool        follow;
 
-	Row     previewrow;
-	Track   previewtrack;
+	Track   previewtrack[PREVIEW_TRACKS];
 	Sample *previewsample; /* used by the filebrowser to soft load samples */
-	char    previewtrigger;
 
 	uint8_t  instrumentreci; /* NOT a realindex */
 	uint8_t  instrumentrecv; /* value, set to an INST_REC_LOCK constant */

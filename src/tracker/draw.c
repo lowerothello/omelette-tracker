@@ -104,7 +104,7 @@ static void drawGlobalLineNumbers(short x, short minx, short maxx)
 		y = w->centre - w->trackerfy + i;
 		if (y > TRACK_ROW && y < ws.ws_row)
 		{
-			if (s->playing == PLAYING_CONT && s->playfy == i)                              printf("\033[1m");
+			if (s->playing && s->playfy == i)                                              printf("\033[1m");
 			else if (i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
 
 			/* print as special if the row has a bpm change, or if the row hasn't been fully allocated yet (rows allocate pretty slowly sometimes) */
@@ -237,7 +237,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 static void setRowIntensity(TrackData *cd, int i)
 {
 	if (cd->mute || i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
-	else if (s->playing == PLAYING_CONT && s->playfy == i)                                printf("\033[1m");
+	else if (s->playing && s->playfy == i)                                                printf("\033[1m");
 }
 
 static void drawStarColumn(short x, short minx, short maxx)
@@ -247,7 +247,7 @@ static void drawStarColumn(short x, short minx, short maxx)
 		if (w->centre - w->trackerfy + i > TRACK_ROW && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			if (i < STATE_ROWS)                                              strcpy(buffer, " ");
-			else if (s->playing == PLAYING_CONT && s->playfy == i)           strcpy(buffer, "-");
+			else if (s->playing && s->playfy == i)                           strcpy(buffer, "-");
 			else if (s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight)) strcpy(buffer, "*");
 			else                                                             strcpy(buffer, " ");
 			printCulling(buffer, x, w->centre - w->trackerfy + i, minx, maxx);
@@ -340,7 +340,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							if (ifVisual(track, i, 0))
 							{
 								printf("\033[22m");
-								if (s->playing == PLAYING_CONT && s->playfy == i) printf("\033[1m");
+								if (s->playing && s->playfy == i) printf("\033[1m");
 							}
 							if (instrumentSafe(s->instrument, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");

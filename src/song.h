@@ -1,10 +1,7 @@
-/* 0: not playing, not 0: playing */
-/* rarely needs to be interpreted further */
+/* true if the sequencer is running */
 enum Playing {
 	PLAYING_STOP = 0,
-	PLAYING_START,
-	PLAYING_CONT,
-	PLAYING_PREP_STOP
+	PLAYING_START = 1,
 };
 
 typedef struct _Song {

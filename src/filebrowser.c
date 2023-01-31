@@ -97,7 +97,7 @@ static uint32_t fileBrowserGetLineCount(void *data) { return ((struct FileBrowse
 static void cb_freeSemargSample(Event *e)
 {
 	size_t key = (size_t)e->callbackarg;
-	if (key) previewFileNote(p->w, key);
+	if (key) previewFileNote(key, 0);
 	if (e->src) free(e->src);
 	e->src = NULL;
 }
@@ -208,6 +208,6 @@ void fileBrowserPreview(BrowserState *b, int input)
 				e.callbackarg = (void *)((size_t)input);
 				pushEvent(&e);
 			} else strcpy(w->command.error, "failed to preview sample, out of memory");
-		} else previewFileNote(w, input);
+		} else previewFileNote(input, 0);
 	} free(path);
 }

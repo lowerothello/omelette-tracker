@@ -41,19 +41,16 @@ static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_
 				addScalePointInt(&cc, "HP24", FILTER_MODE_HP24);
 				addScalePointInt(&cc, "BP24", FILTER_MODE_BP24);
 				addScalePointInt(&cc, "NT24", FILTER_MODE_NT24);
-			addControlInt(&cc, x+10, y, &iv->filtercutoff,    2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(&cc, x+14, y, &iv->filterresonance, 2, 0x0, 0xff, 0x0,  0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+12, y, &iv->filtercutoff,    2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+16, y, &iv->filterresonance, 2, 0x0, 0xff, 0x0,  0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 6:
 			printf("\033[%d;%dH + [           ] + ", y, x);
-			addControlInt(&cc, x+4, y, &iv->algorithm, 1, 0, 4, 1, 10, 5, (void(*)(void*))instrumentControlCallback, NULL);
-				addScalePointInt(&cc, "   MINIMAL", INST_ALG_SIMPLE   );
-				addScalePointInt(&cc, "    CYCLIC", INST_ALG_CYCLIC   );
+			addControlInt(&cc, x+4, y, &iv->algorithm, 1, 0, 4, 1, 11, 5, (void(*)(void*))instrumentControlCallback, NULL);
+				addScalePointInt(&cc, "    MINIMAL", INST_ALG_SIMPLE   );
+				addScalePointInt(&cc, "     CYCLIC", INST_ALG_CYCLIC   );
 			break;
 	}
-	// printf("\033[%d;%dHC5 rate: [        ]  channel: [      ]", y+0, xx);
-	// printf("\033[%d;%dHquality: [ ][ ][  ]  gain:    [ ][   ]", y+1, xx);
-	// printf("\033[%d;%dHgain env:    [    ]  [    ]:  [  ][  ]", y+2, xx);
 }
 void initInstUICommonSamplerBlock(InstUIBlock *block)
 {
@@ -89,26 +86,26 @@ static void samplerInstUIGranularCallback(short x, short y, Instrument *iv, uint
 		case 0: printf("\033[%d;%dHunison:   [ ][ ][ ]", y, x); break;
 		case 1:
 			printf("\033[%d;%dHrev/ramp:   [  ][ ]", y, x);
-			addControlInt(&cc, x+12, y, &iv->granular.reversegrains,     2, 0x0,    0xff,   0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(&cc, x+16, y, &iv->granular.rampgrains,        1, 0x0,    0xf,    8,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+13, y, &iv->granular.reversegrains,     2, 0x0,    0xff,   0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+17, y, &iv->granular.rampgrains,        1, 0x0,    0xf,    8,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 2:
 			printf("\033[%d;%dHcycle:   [    ][  ]", y, x);
-			addControlInt(&cc, x+9,  y, &iv->granular.cyclelength,       4, 0x0,    0xffff, 0x3fff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(&cc, x+15, y, &iv->granular.cyclelengthjitter, 2, 0x0,    0xff,   0x0,    0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+10, y, &iv->granular.cyclelength,       4, 0x0,    0xffff, 0x3fff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+16, y, &iv->granular.cyclelengthjitter, 2, 0x0,    0xff,   0x0,    0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 3:
 			printf("\033[%d;%dHtime     [ ][     ]", y, x);
-			addControlInt(&cc, x+9,  y, &iv->granular.notestretch,       0, 0,      1,      0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(&cc, x+12, y, &iv->granular.timestretch,       5, 0x8bff, 0x7bff, 0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+10, y, &iv->granular.notestretch,       0, 0,      1,      0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+13, y, &iv->granular.timestretch,       5, 0x8bff, 0x7bff, 0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 4:
 			printf("\033[%d;%dHpan jitter:    [  ]", y, x);
-			addControlInt(&cc, x+15, y, &iv->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+16, y, &iv->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 5:
 			printf("\033[%d;%dHptr jitter:    [  ]", y, x);
-			addControlInt(&cc, x+15, y, &iv->granular.ptrjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(&cc, x+16, y, &iv->granular.ptrjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 	}
 }
@@ -173,8 +170,8 @@ static InstUI *initInstrumentUI(Instrument *iv)
 			initInstUICommonSamplerBlock(&iui->block[0]);
 			iui->flags |= INSTUI_DRAWWAVEFORM;
 			break;
-		case INST_ALG_MIDI: initInstUIMidi(&iui); break;
-		case INST_ALG_CYCLIC: initInstUICyclic(&iui); break;
+		case INST_ALG_MIDI: iui = initInstUIMidi(); break;
+		case INST_ALG_CYCLIC: iui = initInstUICyclic(); break;
 		// case INST_ALG_TONAL:
 		// 	drawTonal(cc, iv, xx);
 		// 	break;
@@ -303,13 +300,16 @@ void drawInstrument(ControlState *cc)
 				y += wh;
 			}
 
-			short iui_x = x + ((ws.ws_col - x - (cols*(iui->width + INSTUI_PADDING) - INSTUI_PADDING))>>1);
+			// short padding = (((ws.ws_col - x) - cols*iui->width)>>1) / (cols+1) + INSTUI_PADDING;
+			short padding = INSTUI_PADDING;
+
+			short iui_x = x + ((ws.ws_col - x - (cols*(iui->width + padding) - padding))>>1);
 
 			size_t ei = 0;
 			for (uint8_t i = 0; i < iui->blocks; i++)
 				for (uint8_t j = 0; j < iui->block[i].count; j++)
 				{
-					iui->block[i].callback(iui_x + (ei/rows)*(iui->width + INSTUI_PADDING), y + ei%rows, iv, j);
+					iui->block[i].callback(iui_x + (ei/rows)*(iui->width + padding), y + ei%rows, iv, j);
 					ei++;
 				}
 

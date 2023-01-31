@@ -12,7 +12,7 @@
  *   running under gdb without stalling jackd.
  *
  *   pretty janky, but good enough for some debugging. */
-#define DEBUG_DISABLE_AUDIO_OUTPUT
+// #define DEBUG_DISABLE_AUDIO_OUTPUT
 
 /* DISABLE_RAW_INPUT
  *   only parse stdin, don't try to aquire raw events
@@ -38,7 +38,7 @@
 
 /* like UPDATE_DELAY but for work threads */
 #define WORK_UPDATE_DELAY 1
-#define WORK_BLOCK_SIZE 100
+#define WORK_BLOCK_SIZE 500
 
 /* new file bpm */
 #define DEF_BPM 125
@@ -67,14 +67,11 @@
 #define PITCH_WHEEL_SAMPLES 500
 
 
-/* DISABLE_TRUECOLOUR
- *   don't try to generate inbetween colours with truecolour abuse
- *   $OML_NOTC can be set in the environment to force this */
-// #define DISABLE_TRUECOLOUR
-
 #define PROGRAM_TITLE "omelette tracker"
 
 /* DISABLE_BOX_OUTLINE
  *   skip outlining boxes
  */
 // #define DISABLE_BOX_OUTLINE
+
+#define PREVIEW_TRACKS 1

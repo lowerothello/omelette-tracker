@@ -13,10 +13,11 @@ static void midiInstUICallback(short x, short y, Instrument *iv, uint8_t index)
 			break;
 	}
 }
-void initInstUIMidi(InstUI **iui)
+InstUI *initInstUIMidi(void)
 {
-	*iui = allocInstUI(1);
-	(*iui)->width = INSTUI_MIDI_WIDTH;
-	(*iui)->block[0].count = 2;
-	(*iui)->block[0].callback = midiInstUICallback;
+	InstUI *iui = allocInstUI(1);
+	iui->width = INSTUI_MIDI_WIDTH;
+	iui->block[0].count = 2;
+	iui->block[0].callback = midiInstUICallback;
+	return iui;
 }

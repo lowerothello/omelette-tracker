@@ -70,18 +70,19 @@ static void stopWaveformThread(void)
 
 void resetWaveform(void)
 {
+	stopWaveformThread();
+
 	if (!waveformworkcanvas) return;
 
 	if (instrumentSafe(s->instrument, w->instrument))
-	{
-		stopWaveformThread();
 		pthread_create(&waveformthread, NULL, (void*(*)(void*))walkWaveformRoutine, &s->instrument->v[w->instrument]);
-	}
 }
 
 void freeWaveform(void)
 {
 	stopWaveformThread();
+	waveformw = 0;
+	waveformh = 0;
 	if (waveformworkcanvas) { free_canvas(waveformworkcanvas); waveformworkcanvas = NULL; }
 	if (waveformdrawcanvas) { free_canvas(waveformdrawcanvas); waveformdrawcanvas = NULL; }
 	if (waveformbuffer) { free_buffer(waveformbuffer); waveformbuffer = NULL; }

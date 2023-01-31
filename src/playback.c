@@ -20,7 +20,9 @@ void startPlayback(void)
 	s->sprp = 0;
 	if (w->follow)
 		w->trackerfy = s->playfy;
-	s->playing = PLAYING_START;
+	Event ev;
+	ev.sem = M_SEM_PLAYING_START;
+	pushEvent(&ev);
 	p->redraw = 1;
 }
 
@@ -31,7 +33,9 @@ void stopPlayback(void)
 	{
 		if (w->instrumentrecv == INST_REC_LOCK_CONT || w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
 			w->instrumentrecv = INST_REC_LOCK_PREP_END;
-		s->playing = PLAYING_PREP_STOP;
+		Event ev;
+		ev.sem = M_SEM_PLAYING_STOP;
+		pushEvent(&ev);
 	} else
 	{
 		if (s->loop[1]) w->trackerfy = s->loop[0];

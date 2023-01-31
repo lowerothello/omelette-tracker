@@ -14,6 +14,6 @@ void setChordDeleteInstrument(void *tt)
 	setTooltipTitle(tt, "delete");
 	addCountBinds(tt, 0);
 	addTooltipBind(tt, "delete instrument", 0, XK_d     , TT_DRAW, chordDeleteInstrument, NULL);
-	addTooltipBind(tt, "return"           , 0, XK_Escape, 0      , NULL                 , NULL);
-	w->chord = 'D'; p->redraw = 1;
+	addTooltipBind(tt, "return"           , 0, XK_Escape, 0      , instrumentEscape     , NULL);
+	w->chord = 'd'; p->redraw = 1;
 }

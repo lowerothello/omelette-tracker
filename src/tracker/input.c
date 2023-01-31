@@ -5,7 +5,7 @@ static void setStep(void *step)
 }
 static void trackerEscape(void)
 {
-	previewNote(NOTE_OFF, INST_VOID);
+	previewNote(NOTE_OFF, INST_VOID, 0);
 	if (cc.mouseadjust || cc.keyadjust)
 	{
 		cc.mouseadjust = cc.keyadjust = 0;
@@ -448,7 +448,7 @@ static void setNote(size_t note)
 			step = 1; break;
 	}
 
-	previewRow(r);
+	previewRow(r, 0);
 	regenGlobalRowc(s);
 	if (step) trackerDownArrow(w->step);
 	p->redraw = 1;
@@ -473,7 +473,7 @@ static void setNoteOctave(size_t octave)
 			step = 1; break;
 	}
 
-	previewRow(r);
+	previewRow(r, 0);
 	regenGlobalRowc(s);
 	if (step) trackerDownArrow(w->step);
 	p->redraw = 1;

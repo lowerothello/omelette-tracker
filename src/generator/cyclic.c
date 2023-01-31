@@ -1,14 +1,3 @@
-void initInstUICyclic(InstUI **iui)
-{
-	*iui = allocInstUI(4);
-	(*iui)->width = INSTUI_SAMPLER_WIDTH;
-	initInstUICommonSamplerBlock(&(*iui)->block[0]);
-	initInstUIGranularSamplerBlock(&(*iui)->block[1]);
-	initInstUIRangeSamplerBlock(&(*iui)->block[2]);
-	initInstUIPitchSamplerBlock(&(*iui)->block[3]);
-	(*iui)->flags |= INSTUI_DRAWWAVEFORM;
-}
-
 void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
 {
 	uint32_t length = MIN(iv->trimlength, iv->sample->length-1 - iv->trimstart);
@@ -104,4 +93,16 @@ void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32
 			cv->grainrampindex++;
 		}
 	}
+}
+
+InstUI *initInstUICyclic(void)
+{
+	InstUI *iui = allocInstUI(4);
+	iui->width = INSTUI_SAMPLER_WIDTH;
+	initInstUICommonSamplerBlock(&iui->block[0]);
+	initInstUIGranularSamplerBlock(&iui->block[1]);
+	initInstUIRangeSamplerBlock(&iui->block[2]);
+	initInstUIPitchSamplerBlock(&iui->block[3]);
+	iui->flags |= INSTUI_DRAWWAVEFORM;
+	return iui;
 }

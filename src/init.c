@@ -49,7 +49,8 @@ void cleanup(int ret)
 	pthread_join(dummyprocessthread, NULL);
 #endif
 
-	_delTrack(s, &w->previewtrack);
+	for (int i = 0; i < PREVIEW_TRACKS; i++)
+		_delTrack(s, &w->previewtrack[i]);
 
 	freeWaveform();
 
@@ -107,7 +108,8 @@ void init(int argc, char *argv[])
 
 	/* need to be called before the jack client is activated */
 	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
-	__addTrack(&w->previewtrack);
+	for (int i = 0; i < PREVIEW_TRACKS; i++)
+		__addTrack(&w->previewtrack[i]);
 
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT

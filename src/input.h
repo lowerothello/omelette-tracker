@@ -1,13 +1,14 @@
 enum InputMode {
-	INPUMODE_NONE,  /* just interpret stdin        */
-	INPUMODE_RAW,   /* use the raw driver, console */
-	INPUMODE_X,     /* use an x hack, xterm        */
+	INPUTMODE_NONE,  /* just interpret stdin        */
+	INPUTMODE_RAW,   /* use the raw driver, console */
+	INPUTMODE_X,     /* use an x hack, xterm        */
 };
 
 void addCountBinds(TooltipState*, bool draw);
-void previewNote(uint8_t note, uint8_t inst);
-void previewRow(Row*);
-void previewFileNote(UI*, uint8_t note);
+void previewNote(uint8_t note, uint8_t inst, bool release);
+void previewRow(Row*, bool release);
+void previewFileNote(uint8_t note, bool release);
+int getPreviewVoice(uint8_t note, bool release);
 void incControlValueRedraw(ControlState*);
 void decControlValueRedraw(ControlState*);
 void toggleKeyControlRedraw(ControlState*);

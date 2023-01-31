@@ -1,3 +1,5 @@
+static void instrumentEscape(void *arg);
+
 #include "chord/add.c"
 #include "chord/yank.c"
 #include "chord/delete.c"
@@ -55,7 +57,8 @@ static void instrumentEnd(void)
 
 static void instrumentEscape(void *arg)
 {
-	previewNote(NOTE_OFF, INST_VOID);
+	w->showfilebrowser = 0;
+	previewNote(NOTE_OFF, INST_VOID, 0);
 	cc.mouseadjust = cc.keyadjust = 0;
 	w->mode = MODE_NORMAL;
 	p->redraw = 1;
@@ -66,15 +69,19 @@ static void instrumentPgDn(void *count) { instrumentDownArrow((ws.ws_row>>1) * (
 
 static void instrumentCtrlUpArrow(void *count)
 {
+	w->showfilebrowser = 0;
 	w->instrument -= (size_t)count * MAX(1, w->count);
 	if (w->instrument < 0) w->instrument = 0;
 	resetWaveform();
+	p->redraw = 1;
 }
 static void instrumentCtrlDownArrow(void *count)
 {
+	w->showfilebrowser = 0;
 	w->instrument += (size_t)count * MAX(1, w->count);
 	if (w->instrument > 254) w->instrument = 254;
 	resetWaveform();
+	p->redraw = 1;
 }
 
 static void instrumentSampleReturn(void *arg)
@@ -101,7 +108,7 @@ static void instrumentSamplePreview(size_t note)
 	if (w->showfilebrowser)
 		fileBrowserPreview(fbstate, note);
 	else
-		previewNote(note, w->instrument);
+		previewNote(note, w->instrument, 0);
 	p->redraw = 1;
 }
 
@@ -164,7 +171,7 @@ static void instrumentMouse(enum Button button, int x, int y)
 								break;
 							default: break;
 						}
-						previewNote(NOTE_OFF, INST_VOID);
+						previewNote(NOTE_OFF, INST_VOID, 0);
 						break;
 				}
 			} p->redraw = 1; break;
@@ -188,6 +195,12 @@ static void setInsertOctave(void *octave)
 	p->redraw = 1;
 }
 
+static void emptyInstrumentIndex(void)
+{
+	w->instrument = emptyInstrument(0);
+	p->redraw = 1;
+}
+
 void initInstrumentInput(TooltipState *tt)
 {
 	setTooltipTitle(tt, "instrument");
@@ -200,8 +213,8 @@ void initInstrumentInput(TooltipState *tt)
 	addTooltipBind(tt, "cursor end"       , 0          , XK_End      , 0      , (void(*)(void*))instrumentEnd        , NULL    );
 	addTooltipBind(tt, "cursor pgup"      , 0          , XK_Page_Up  , 0      , instrumentPgUp                       , (void*)1);
 	addTooltipBind(tt, "cursor pgdn"      , 0          , XK_Page_Down, 0      , instrumentPgDn                       , (void*)1);
-	addTooltipBind(tt, "previous index"   , ControlMask, XK_Up       , 0      , instrumentCtrlUpArrow                , (void*)1);
-	addTooltipBind(tt, "next index"       , ControlMask, XK_Down     , 0      , instrumentCtrlDownArrow              , (void*)1);
+	addTooltipBind(tt, "previous index"   , ControlMask, XK_Up       , TT_DRAW, instrumentCtrlUpArrow                , (void*)1);
+	addTooltipBind(tt, "next index"       , ControlMask, XK_Down     , TT_DRAW, instrumentCtrlDownArrow              , (void*)1);
 	addTooltipBind(tt, "return"           , 0          , XK_Escape   , 0      , instrumentEscape                     , NULL    );
 	addTooltipBind(tt, "increment cell"   , ControlMask, XK_A        , TT_DRAW, (void(*)(void*))incControlValueRedraw, &cc     );
 	addTooltipBind(tt, "decrement cell"   , ControlMask, XK_X        , TT_DRAW, (void(*)(void*))decControlValueRedraw, &cc     );
@@ -211,19 +224,18 @@ void initInstrumentInput(TooltipState *tt)
 	{
 		case MODE_NORMAL:
 			addCountBinds(tt, 0);
-			addTooltipBind(tt, "set bpm"          , 0, XK_b, 0      , (void(*)(void*))setBpmCount  , NULL                        );
-			addTooltipBind(tt, "record"           , 0, XK_r, TT_DEAD, setChordRecord               , tt                          );
-			addTooltipBind(tt, "add"              , 0, XK_a, TT_DEAD, setChordAddInst              , tt                          );
-			addTooltipBind(tt, "add empty"        , 0, XK_e, TT_DEAD, setChordEmptyInst            , tt                          );
-			addTooltipBind(tt, "yank"             , 0, XK_y, TT_DEAD, setChordYankInstrument       , tt                          );
-			addTooltipBind(tt, "put"              , 0, XK_p, 0      , (void(*)(void*))putInstrument, (void*)(size_t)w->instrument);
-			addTooltipBind(tt, "delete"           , 0, XK_d, TT_DEAD, setChordDeleteInstrument     , tt                          );
-			addTooltipBind(tt, "delete (no chord)", 0, XK_x, TT_DEAD, chordDeleteInstrument        , NULL                        );
-			addTooltipBind(tt, "toggle browser"   , 0, XK_f, 0      , toggleBrowser                , NULL                        );
-			addTooltipBind(tt, "enter insert mode", 0, XK_i, 0      , instrumentEnterInsertMode    , NULL                        );
+			addTooltipBind(tt, "set bpm"          , 0, XK_b, 0              , (void(*)(void*))setBpmCount         , NULL                        );
+			addTooltipBind(tt, "record"           , 0, XK_r, TT_DEAD|TT_DRAW, setChordRecord                      , tt                          );
+			addTooltipBind(tt, "add"              , 0, XK_a, TT_DEAD|TT_DRAW, setChordAddInst                     , tt                          );
+			addTooltipBind(tt, "empty index"      , 0, XK_e, TT_DRAW        , (void(*)(void*))emptyInstrumentIndex, NULL                        );
+			addTooltipBind(tt, "yank"             , 0, XK_y, TT_DEAD|TT_DRAW, setChordYankInstrument              , tt                          );
+			addTooltipBind(tt, "put"              , 0, XK_p, TT_DRAW        , (void(*)(void*))putInstrument       , (void*)(size_t)w->instrument);
+			addTooltipBind(tt, "delete"           , 0, XK_d, TT_DEAD        , setChordDeleteInstrument            , tt                          );
+			addTooltipBind(tt, "toggle browser"   , 0, XK_f, TT_DRAW        , toggleBrowser                       , NULL                        );
+			addTooltipBind(tt, "enter insert mode", 0, XK_i, TT_DRAW        , instrumentEnterInsertMode           , NULL                        );
 			break;
 		case MODE_INSERT:
-			addDecimalBinds(tt, "set octave"  , 0, setInsertOctave        );
+			addDecimalBinds(tt, "set octave"  , 0, setInsertOctave);
 			addNoteBinds   (tt, "preview note", 0, w->octave, (void(*)(void*))instrumentSamplePreview);
 			break;
 		default: break;

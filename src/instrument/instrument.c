@@ -54,6 +54,7 @@ int copyInstrument(uint8_t index, Instrument *src)
 /* frees the contents of an instrument */
 void _delInstrument(Instrument *iv)
 {
+	freeWaveform();
 	if (iv->sample) free(iv->sample);
 	iv->sample = NULL;
 }
@@ -141,6 +142,7 @@ InstrumentChain *_addInstrument(uint8_t index, int8_t algorithm)
 int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event *))
 { /* fully atomic */
 	if (instrumentSafe(s->instrument, index)) return 1; /* index occupied */
+	freeWaveform();
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void **)&s->instrument;
@@ -307,6 +309,7 @@ Sample *_loadSample(char *path)
 void loadSample(uint8_t index, char *path) /* TODO: atomicity */
 {
 	if (!instrumentSafe(s->instrument, index)) return; /* instrument doesn't exist */
+	freeWaveform();
 	Instrument *iv = &s->instrument->v[s->instrument->i[index]];
 	Sample *newsample = _loadSample(path);
 	if (!newsample)

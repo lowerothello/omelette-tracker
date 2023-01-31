@@ -1,3 +1,5 @@
+enum InputMode input_mode;
+
 static void tooltipAddCount(void *add)
 {
 	w->count *= 10;
@@ -20,28 +22,78 @@ void addCountBinds(TooltipState *tt, bool draw)
 	addTooltipBind(tt, "add 9 to count", 0, XK_9, flags, tooltipAddCount, (void*)9);
 }
 
-static void _previewNote(UI *cw, uint8_t note, uint8_t inst)
-{
-	cw->previewrow.macro[0].c = '\0';
-	cw->previewrow.inst = inst;
-	cw->previewrow.note = note;
-}
-void previewNote(uint8_t note, uint8_t inst)
+void previewNote(uint8_t note, uint8_t inst, bool release)
 {
 	if (p->w->page == PAGE_VARIANT && p->s->playing) return;
-	_previewNote(w, note, inst);
-	w->previewtrigger = PTRIG_NORMAL;
+	Event ev;
+	ev.sem = M_SEM_PREVIEW;
+	ev.arg1 = note;
+	ev.arg2 = inst;
+	ev.arg3 = release;
+	pushEvent(&ev);
 }
-void previewRow(Row *r)
+void previewRow(Row *r, bool release)
 {
-	if (w->page == PAGE_VARIANT && s->playing) return;
-	memcpy(&w->previewrow, r, sizeof(Row));
-	w->previewtrigger = PTRIG_NORMAL;
+	previewNote(r->note, r->inst, release);
 }
-void previewFileNote(UI *cw, uint8_t note)
+void previewFileNote(uint8_t note, bool release)
 {
-	_previewNote(cw, note, 0); /* inst arg is unused so it doesn't matter */
-	w->previewtrigger = PTRIG_FILE;
+	Event ev;
+	ev.sem = M_SEM_PREVIEW;
+	ev.arg1 = note;
+	ev.arg2 = -1;
+	ev.arg3 = release;
+	pushEvent(&ev);
+}
+
+/* returns -1 to do nothing */
+int getPreviewVoice(uint8_t note, bool release)
+{
+	/* monophonic preview if key release events are unavailable */
+	if (input_mode == INPUTMODE_NONE)
+	{
+		if (w->previewtrack[0].r.note == note)
+		{
+			if (release) return 0;
+			else         return -1;
+		} else
+		{
+			if (release) return -1;
+			else         return 0;
+		}
+	}
+
+	int emptyslot = -1;
+
+	int      oldestslot = -1;
+	uint32_t oldestslotpointer = 0;
+
+	for (int i = 0; i < PREVIEW_TRACKS; i++)
+	{
+		if (w->previewtrack[i].r.note == note)
+		{
+			if (release) return i;
+			else         return -1;
+		}
+
+		if (w->previewtrack[i].r.note == NOTE_VOID)
+		{
+			if (emptyslot == -1)
+				emptyslot = i;
+		} else if (w->previewtrack[i].pointer > oldestslotpointer)
+		{
+			oldestslot = i;
+			oldestslotpointer = w->previewtrack[i].pointer;
+		}
+	}
+
+	if (release) return -1;
+
+	/* use the first empty slot if there are any */
+	if (emptyslot != -1) return emptyslot;
+
+	/* use the oldest slot */
+	return oldestslot;
 }
 
 void incControlValueRedraw(ControlState *cc) { incControlValue (cc); p->redraw = 1; }
@@ -53,12 +105,12 @@ void revertKeyControlRedraw(ControlState *cc) { revertKeyControl(cc); p->redraw 
 static enum InputMode getRawInputMode(void)
 {
 #ifdef DISABLE_RAW_INPUT
-	return INPUMODE_NONE;
+	return INPUTMODE_NONE;
 #endif
-	if (getenv("OML_STDIN"))              return INPUMODE_NONE;
-	if (!strcmp(getenv("TERM"), "LINUX")) return INPUMODE_RAW;
-	if (getenv("DISPLAY"))                return INPUMODE_X;
-	return INPUMODE_NONE; /* fallback */
+	if (getenv("OML_STDIN"))              return INPUTMODE_NONE;
+	if (!strcmp(getenv("TERM"), "LINUX")) return INPUTMODE_RAW;
+	if (getenv("DISPLAY"))                return INPUTMODE_X;
+	return INPUTMODE_NONE; /* fallback */
 }
 
 
@@ -88,8 +140,6 @@ static void *XEventThread(PlaybackInfo *arg)
 	return NULL;
 }
 
-enum InputMode input_mode;
-
 /* stdin is initialized by initTerminal() */
 /* returns true for failure */
 int initRawInput(void)
@@ -99,16 +149,16 @@ int initRawInput(void)
 	int revtoret;
 	switch (input_mode)
 	{
-		case INPUMODE_RAW:
+		case INPUTMODE_RAW:
 			// ioctl(0, KDSKBMODE, K_RAW); /* TODO: */
 			break;
-		case INPUMODE_X:
+		case INPUTMODE_X:
 			if (!(dpy = XOpenDisplay(NULL))) return 1;
 			XGetInputFocus(dpy, &wpy, &revtoret);
 			XGrabKey(dpy, AnyKey, AnyModifier, wpy, 1, GrabModeAsync, GrabModeAsync);
 			pthread_create(&xeventthread_id, NULL, (void*(*)(void*))XEventThread, &p);
 			break;
-		case INPUMODE_NONE: break;
+		case INPUTMODE_NONE: break;
 	}
 	return 0;
 }
@@ -118,10 +168,10 @@ void freeRawInput(void)
 {
 	switch (input_mode)
 	{
-		case INPUMODE_RAW:
+		case INPUTMODE_RAW:
 			// ioctl(0, KDSKBMODE, K_XLATE);
 			break;
-		case INPUMODE_X:
+		case INPUTMODE_X:
 			/* the xevent thread will die when this bit is set high after
 			 * the next event is recieved. it's usually killed by the
 			 * release event of whatever key triggered cleanup, but not
@@ -135,6 +185,6 @@ void freeRawInput(void)
 			XUngrabKey(dpy, AnyKey, AnyModifier, wpy);
 			XCloseDisplay(dpy);
 			break;
-		case INPUMODE_NONE: break;
+		case INPUTMODE_NONE: break;
 	}
 }
