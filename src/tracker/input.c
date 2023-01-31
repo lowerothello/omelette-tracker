@@ -428,9 +428,8 @@ static void setVtrig(void *arg)
 	regenGlobalRowc(s); p->redraw = 1;
 }
 
-static void setNote(size_t note)
+static bool setNote(size_t note, Row **r)
 {
-	Row *r = NULL;
 	short i;
 	bool step;
 	switch (w->mode)
@@ -438,19 +437,29 @@ static void setNote(size_t note)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, i);
-				r->note = note;
+				*r = getTrackRow(&s->track->v[w->track].data, i);
+				(*r)->note = note;
 			} step = 0; break;
 		default:
-			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
-			r->note = note;
-			r->inst = w->instrument;
+			*r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			(*r)->note = note;
+			(*r)->inst = w->instrument;
 			step = 1; break;
 	}
-
-	previewRow(r, 0);
+	return step;
+}
+static void pressNote(size_t note)
+{
+	Row *r = NULL;
+	bool step = setNote(note, &r);
+	previewNote(r->note, r->inst, 0);
 	regenGlobalRowc(s);
 	if (step) trackerDownArrow(w->step);
+	p->redraw = 1;
+}
+static void releaseNote(size_t note)
+{
+	previewNote(note, 0, 1);
 	p->redraw = 1;
 }
 
@@ -949,7 +958,8 @@ void initTrackerInput(TooltipState *tt)
 					break;
 				case 0: /* note */
 					addTooltipBind(tt, "toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
-					addNoteBinds(tt, "push cell", 0, w->octave, (void(*)(void*))setNote);
+					addNotePressBinds(tt, "push cell"      , TT_DRAW, w->octave, (void(*)(void*))pressNote  );
+					addNotePressBinds(tt, "release preview", 0      , w->octave, (void(*)(void*))releaseNote);
 					addDecimalBinds(tt, "set octave", 0, (void(*)(void*))setNoteOctave);
 					break;
 				case 1: /* inst */

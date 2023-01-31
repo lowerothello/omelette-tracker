@@ -102,13 +102,22 @@ static void instrumentSampleBackspace(void *arg)
 		revertKeyControl(&cc);
 	p->redraw = 1;
 }
-static void instrumentSamplePreview(size_t note)
+static void instrumentSamplePressPreview(size_t note)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
 	if (w->showfilebrowser)
-		fileBrowserPreview(fbstate, note);
+		fileBrowserPreview(fbstate, note, 0);
 	else
 		previewNote(note, w->instrument, 0);
+	p->redraw = 1;
+}
+static void instrumentSampleReleasePreview(size_t note)
+{
+	if (!instrumentSafe(s->instrument, w->instrument)) return;
+	if (w->showfilebrowser)
+		fileBrowserPreview(fbstate, note, 1);
+	else
+		previewNote(note, w->instrument, 1);
 	p->redraw = 1;
 }
 
@@ -236,7 +245,8 @@ void initInstrumentInput(TooltipState *tt)
 			break;
 		case MODE_INSERT:
 			addDecimalBinds(tt, "set octave"  , 0, setInsertOctave);
-			addNoteBinds   (tt, "preview note", 0, w->octave, (void(*)(void*))instrumentSamplePreview);
+			addNotePressBinds(tt, "preview note"   , TT_DRAW, w->octave, (void(*)(void*))instrumentSamplePressPreview  );
+			addNotePressBinds(tt, "preview release", 0,       w->octave, (void(*)(void*))instrumentSampleReleasePreview);
 			break;
 		default: break;
 	}

@@ -33,7 +33,7 @@ void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32
 	double calcshiftstereor = powf(2.0f, (float)(+localpitchwidth)*DIV1024);
 	double calcshift = semitoneShortToMultiplier(localpitchshift) / semitoneShortToMultiplier(iv->granular.timestretch);
 	double calcrate = (float)iv->sample->rate / (float)samplerate * semitoneShortToMultiplier(iv->granular.timestretch);
-	double calcpitch = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
+	double calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + cv->finetune);
 	if (iv->granular.notestretch)
 	{ /* note stretch */
 		if (iv->granular.reversegrains)

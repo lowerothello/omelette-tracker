@@ -159,8 +159,8 @@ bool processM_SEM(void)
 				/* stop preview */
 				for (i = 0; i < PREVIEW_TRACKS; i++)
 				{
-					p->w->previewtrack[i].r.note = p->w->previewtrack[i].samplernote = NOTE_VOID;
-					p->w->previewtrack[i].r.inst = p->w->previewtrack[i].samplerinst = INST_VOID;
+					p->w->previewtrack[i].r.note = NOTE_VOID;
+					p->w->previewtrack[i].r.inst = INST_VOID;
 				}
 
 				/* TODO: also stop the sampler's follower note */
@@ -191,8 +191,8 @@ bool processM_SEM(void)
 					cv = &p->s->track->v[i];
 					cv->delaysamples = 0;
 					cv->cutsamples = 0;
-					if (instrumentSafe(p->s->instrument, cv->samplerinst))
-						ramp(cv, (float)p->s->sprp / (float)p->s->spr, p->s->instrument->i[cv->samplerinst]);
+					if (instrumentSafe(p->s->instrument, cv->r.inst))
+						ramp(cv, (float)p->s->sprp / (float)p->s->spr, p->s->instrument->i[cv->r.inst]);
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 				}
 

@@ -106,20 +106,30 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 	/* TODO: note is NEVER set to NOTE_VOID in this file, pretty sure that's a bug */
 	switch (note)
 	{
-		case NOTE_VOID: break;
+		case NOTE_VOID:
 		case NOTE_OFF:
 			cv->data.release = 1;
 			cv->r.inst = inst;
-			cv->r.note = note;
+			cv->r.note = NOTE_VOID;
+			break;
+		case NOTE_CUT:
+			cv->data.release = 0;
+			cv->envgain = 0.0f;
+			cv->r.inst = inst;
+			cv->r.note = NOTE_VOID;
 			break;
 		default:
 			if (inst < 0)
 			{
 				cv->r.inst = INST_VOID;
-				cv->samplerinst = inst;
-			} else cv->r.inst = cv->samplerinst = inst;
+				cv->file = 1;
+			} else
+			{
+				cv->r.inst = inst;
+				cv->file = 0;
+			}
 
-			cv->r.note = cv->samplernote = note;
+			cv->r.note = note;
 			cv->pointer = cv->pitchedpointer = 0;
 			cv->data.reverse = 0;
 			cv->data.release = 0;
@@ -265,7 +275,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 
 	/* try to persist old state a little bit */
 	if      (r.note != NOTE_VOID && r.inst == INST_VOID) r.inst = cv->r.inst;
-	else if (r.inst != INST_VOID && r.note == NOTE_VOID) r.note = cv->r.note;
+	else if (r.note == NOTE_VOID && r.inst != INST_VOID) r.note = cv->r.note;
 
 	if ((!ifMacro(fptr, spr, cv, r, 'C') && r.note != NOTE_VOID)
 			&& !ifMacro(fptr, spr, cv, r, 'P')
@@ -295,8 +305,8 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 	if (cv->pointer && ifMacroRamp(cv, r))
 		triggerramp = 1;
 
-	if (triggerramp && instrumentSafe(p->s->instrument, cv->samplerinst))
-		ramp(&oldcv, 0.0f, p->s->instrument->i[cv->samplerinst]);
+	if (triggerramp && instrumentSafe(p->s->instrument, cv->r.inst))
+		ramp(&oldcv, 0.0f, p->s->instrument->i[cv->r.inst]);
 }
 
 void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
@@ -458,10 +468,10 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 	}
 
 	/* process the sampler */
-	if (instrumentSafe(p->s->instrument, cv->samplerinst) && cv->samplernote != NOTE_VOID
-			&& cv->samplernote != NOTE_OFF && cv->samplerinst != INST_VOID)
+	if (instrumentSafe(p->s->instrument, cv->r.inst)
+			&& cv->r.note != NOTE_VOID && cv->r.inst != INST_VOID)
 	{
-		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[cv->samplerinst]];
+		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
 		Envelope env, wtenv;
 		env.adsr = iv->envelope; if (cv->localenvelope != -1) env.adsr = cv->localenvelope;
 		applyEnvelopeControlChanges(&env);
@@ -507,8 +517,8 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 
 	if (cv->cutsamples && sprp > cv->cutsamples)
 	{
-		if (instrumentSafe(p->s->instrument, cv->samplerinst))
-			ramp(cv, rowprogress, p->s->instrument->i[cv->samplerinst]);
+		if (instrumentSafe(p->s->instrument, cv->r.inst))
+			ramp(cv, rowprogress, p->s->instrument->i[cv->r.inst]);
 		triggerNote(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 		cv->cutsamples = 0;
 	}
@@ -527,7 +537,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 	{
 		cv->portamentofinetune = cv->targetportamentofinetune;
 		cv->portamentosamplepointer++;
-		cv->samplernote += cv->targetportamentofinetune;
+		cv->r.note += cv->targetportamentofinetune;
 	} else if (cv->portamentosamplepointer < cv->portamentosamples)
 	{
 		cv->portamentofinetune = cv->startportamentofinetune +
@@ -561,91 +571,90 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 
 	float lf, rf;
 	float samplegain;
-	switch (cv->samplerinst)
+	if (cv->file)
 	{
-		case INST_FILEPREVIEW:
-			if (!cv->data.mute && p->w->previewsample && cv->samplernote != NOTE_VOID && cv->samplernote != NOTE_OFF)
+		if (!cv->data.mute && p->w->previewsample && cv->r.note != NOTE_VOID)
+		{
+			processMinimal(p->w->previewsample, cv->pointer, 0xff, 0xf, cv->r.note, &li, &ri);
+			cv->pointer++;
+			cv->output[0][fptr] = li*DIVSHRT;
+			cv->output[1][fptr] = ri*DIVSHRT;
+		} else
+		{
+			cv->output[0][fptr] = 0.0f;
+			cv->output[1][fptr] = 0.0f;
+		}
+	} else
+	{
+		if (instrumentSafe(p->s->instrument, cv->r.inst))
+		{
+			/* process the sampler */
+			if (cv->r.inst != INST_VOID && cv->r.note != NOTE_VOID)
 			{
-				processMinimal(p->w->previewsample, cv->pointer, 0xff, 0xf, cv->samplernote, &li, &ri);
-				cv->pointer++;
-				cv->output[0][fptr] = li*DIVSHRT;
-				cv->output[1][fptr] = ri*DIVSHRT;
-			} else
-			{
-				cv->output[0][fptr] = 0.0f;
-				cv->output[1][fptr] = 0.0f;
-			} break;
-		default:
-			if (instrumentSafe(p->s->instrument, cv->samplerinst))
-			{
-				/* process the sampler */
-				if (cv->samplerinst != INST_VOID && cv->samplernote != NOTE_VOID && cv->samplernote != NOTE_OFF)
+				if (cv->rtrigsamples)
 				{
-					if (cv->rtrigsamples)
-					{
-						uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
-						if (!rtrigoffset)
-						{ /* first sample of any retrigger */
-							if (cv->pointer > cv->rtrigpointer) /* first sample of any retrigger but the first */
-							{
-								triggerMidi(fptr, cv, cv->r.note, cv->r.note, cv->samplerinst);
-								cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
-								cv->rtrigcurrentpointer = cv->pointer;
-							}
-						}
-						if (cv->data.rtrig_rev)
+					uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
+					if (!rtrigoffset)
+					{ /* first sample of any retrigger */
+						if (cv->pointer > cv->rtrigpointer) /* first sample of any retrigger but the first */
 						{
-							uint32_t pointer, pitchedpointer;
-							if (cv->rtrigpointer > cv->pointer - cv->rtrigcurrentpointer)
-								pointer = cv->rtrigpointer - (cv->pointer - cv->rtrigcurrentpointer);
-							else pointer = 0;
-							if (cv->rtrigpitchedpointer > cv->pitchedpointer - cv->rtrigcurrentpitchedpointer)
-								pitchedpointer = cv->rtrigcurrentpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer);
-							else pitchedpointer = 0;
-							samplerProcess(p->s->instrument->i[cv->samplerinst], cv, rowprogress, pointer, pitchedpointer, &li, &ri);
-						} else samplerProcess(p->s->instrument->i[cv->samplerinst], cv, rowprogress, cv->rtrigpointer + (cv->pointer - cv->rtrigcurrentpointer), cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
-					} else samplerProcess(p->s->instrument->i[cv->samplerinst], cv, rowprogress, cv->pointer, cv->pitchedpointer, &li, &ri);
-
-					if (cv->portamentosamplepointer >= cv->portamentosamples)
-					{ /* only walk pitchedpointer if not pitch sliding */
-						if (cv->data.reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
-						else                                            cv->pitchedpointer++;
-					} cv->pointer++;
-				}
-			}
-
-			lf = li*DIVSHRT;
-			rf = ri*DIVSHRT;
-
-			if (cv->rampbuffer && cv->rampindex < rampmax)
-			{ // ramping
-				if (!cv->data.mute)
-				{
-					float gain = (float)cv->rampindex / (float)rampmax;
-
-					if (instrumentSafe(p->s->instrument, cv->samplerinst))
-					{
-						samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->samplerinst]].gain*DIV16);
-						lf *= samplegain * gain;
-						rf *= samplegain * gain;
+							triggerMidi(fptr, cv, cv->r.note, cv->r.note, cv->r.inst);
+							cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
+							cv->rtrigcurrentpointer = cv->pointer;
+						}
 					}
+					if (cv->data.rtrig_rev)
+					{
+						uint32_t pointer, pitchedpointer;
+						if (cv->rtrigpointer > cv->pointer - cv->rtrigcurrentpointer)
+							pointer = cv->rtrigpointer - (cv->pointer - cv->rtrigcurrentpointer);
+						else pointer = 0;
+						if (cv->rtrigpitchedpointer > cv->pitchedpointer - cv->rtrigcurrentpitchedpointer)
+							pitchedpointer = cv->rtrigcurrentpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer);
+						else pitchedpointer = 0;
+						samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, &li, &ri);
+					} else samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, cv->rtrigpointer + (cv->pointer - cv->rtrigcurrentpointer), cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
+				} else samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, cv->pointer, cv->pitchedpointer, &li, &ri);
 
-					lf += cv->rampbuffer[cv->rampindex*2 + 0] * (1.0f - gain);
-					rf += cv->rampbuffer[cv->rampindex*2 + 1] * (1.0f - gain);
+				if (cv->portamentosamplepointer >= cv->portamentosamples)
+				{ /* only walk pitchedpointer if not pitch sliding */
+					if (cv->data.reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
+					else                                            cv->pitchedpointer++;
+				} cv->pointer++;
+			}
+		}
 
-					postSampler(fptr, cv, rowprogress, lf, rf);
-				} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
+		lf = li*DIVSHRT;
+		rf = ri*DIVSHRT;
 
-				cv->rampindex++;
-			} else if (!cv->data.mute && instrumentSafe(p->s->instrument, cv->samplerinst))
+		if (cv->rampbuffer && cv->rampindex < rampmax)
+		{ // ramping
+			if (!cv->data.mute)
 			{
-				samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->samplerinst]].gain*DIV16);
-				lf *= samplegain;
-				rf *= samplegain;
+				float gain = (float)cv->rampindex / (float)rampmax;
+
+				if (instrumentSafe(p->s->instrument, cv->r.inst))
+				{
+					samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->r.inst]].gain*DIV16);
+					lf *= samplegain * gain;
+					rf *= samplegain * gain;
+				}
+
+				lf += cv->rampbuffer[cv->rampindex*2 + 0] * (1.0f - gain);
+				rf += cv->rampbuffer[cv->rampindex*2 + 1] * (1.0f - gain);
 
 				postSampler(fptr, cv, rowprogress, lf, rf);
 			} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
-			break;
+
+			cv->rampindex++;
+		} else if (!cv->data.mute && instrumentSafe(p->s->instrument, cv->r.inst))
+		{
+			samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->r.inst]].gain*DIV16);
+			lf *= samplegain;
+			rf *= samplegain;
+
+			postSampler(fptr, cv, rowprogress, lf, rf);
+		} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
 	}
 }
 
@@ -658,7 +667,7 @@ void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 	for (uint16_t i = 0; i < playfy; i++)
 	{
 		/* scope lookback notes within the most recent vtrig */
-		if (cv->data.variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_OFF; cv->envgain = 0.0f; }
+		if (cv->data.variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_VOID; cv->envgain = 0.0f; }
 
 		r = getTrackRow(&cv->data, i);
 		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) macroBpm(fptr, spr, p->s->bpmcache[i], cv, *r);
@@ -804,8 +813,8 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	/* handle the preview tracks first */
 	for (i = 0; i < PREVIEW_TRACKS; i++)
 	{
-		if (p->w->previewtrack[i].samplernote != NOTE_VOID
-				&& p->w->previewtrack[i].samplerinst != INST_VOID)
+		if (p->w->previewtrack[i].r.note != NOTE_VOID
+				&& p->w->previewtrack[i].r.inst != INST_VOID)
 		{
 			preview_thread_failed[i] = 0;
 #ifdef NO_MULTITHREADING

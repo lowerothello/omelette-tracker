@@ -1,8 +1,9 @@
 /* clears the playback state of a track */
 void clearTrackRuntime(Track *cv)
 {
-	cv->r.note = cv->samplernote = NOTE_VOID;
-	cv->r.inst = cv->samplerinst = INST_VOID;
+	cv->r.note = NOTE_VOID;
+	cv->r.inst = INST_VOID;
+	cv->file = 0;
 	cv->rtrigsamples = 0;
 	cv->data.rtrig_rev = 0;
 

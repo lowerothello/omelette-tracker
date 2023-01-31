@@ -61,7 +61,9 @@ void addTooltipBind(TooltipState*, const char *prettyname, unsigned int state, K
 void inputTooltip(TooltipState*, unsigned int state, KeySym input, bool release);
 void drawTooltip(TooltipState*);
 
-void addNoteBinds(TooltipState*, const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
+/* the callback's arg is the note offset cast to (void*) */
+void addNotePressBinds(TooltipState*, const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
+void addNoteReleaseBinds(TooltipState*, const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
 
 void addHexBinds(TooltipState*, const char *prettyname, unsigned int state, void (*callback)(void*));
 void addDecimalBinds(TooltipState*, const char *prettyname, unsigned int state, void (*callback)(void*));

@@ -190,7 +190,7 @@ void fileBrowserBackspace(BrowserState *b)
 	b->cursor = 0;
 	freePreviewSample();
 }
-void fileBrowserPreview(BrowserState *b, int input)
+void fileBrowserPreview(BrowserState *b, size_t note, bool release)
 {
 	char *path;
 	if (getSubdir(b->data, b->cursor, &path) == 1) /* hovered file is not a directory */
@@ -205,9 +205,9 @@ void fileBrowserPreview(BrowserState *b, int input)
 				e.dest = (void **)&w->previewsample;
 				e.src = newpreviewsample;
 				e.callback = cb_freeSemargSample;
-				e.callbackarg = (void *)((size_t)input);
+				e.callbackarg = (void *)((size_t)note);
 				pushEvent(&e);
 			} else strcpy(w->command.error, "failed to preview sample, out of memory");
-		} else previewFileNote(input, 0);
+		} else previewFileNote(note, release);
 	} free(path);
 }

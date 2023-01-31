@@ -55,7 +55,7 @@ void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uin
 {
 	float hold;
 	float calcrate = (float)iv->sample->rate / (float)samplerate;
-	float calcpitch = powf(M_12_ROOT_2, (short)cv->samplernote - NOTE_C5 + cv->finetune);
+	float calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + cv->finetune);
 
 	// uint16_t env = iv->envelope; if (cv->localenvelope != -1) env = cv->localenvelope;
 	/* mod envelope */

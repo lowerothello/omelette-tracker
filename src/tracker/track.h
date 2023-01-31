@@ -37,8 +37,7 @@ typedef struct {
 	} send;
 
 	Row      r;
-	uint8_t  samplernote;
-	short    samplerinst; /* signed for special instruments */
+	bool     file;
 	float    finetune;    /* calculated fine tune */
 
 	float    portamentofinetune;       /* portamento fine tune */

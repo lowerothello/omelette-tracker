@@ -10,12 +10,11 @@ enum NOTE_MASK {
 	NOTE_MIN        = 0x01, // 1
 	NOTE_C5         = 0x40, // 64
 	NOTE_MAX        = 0x78, // 120
-	NOTE_OFF        = 0xff,
-	NOTE_CUT        = 0xfe,
 	NOTE_UNUSED     = 0xfd,
+	NOTE_CUT        = 0xfe,
+	NOTE_OFF        = 0xff,
 };
 #define INST_VOID 255
-#define INST_FILEPREVIEW -1 /* signed, be careful with this */
 /* TODO: MACRO_VOID */
 
 typedef struct {
