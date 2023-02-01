@@ -156,9 +156,6 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 				if (instrumentSafe(p->s->instrument, inst))
 				{
 					Instrument *iv = &p->s->instrument->v[p->s->instrument->i[inst]];
-					cv->filter.mode[0] = cv->filter.mode[1] = iv->filtermode;
-					cv->filter.cut[0] =  cv->filter.cut[1] = cv->filter.randcut[0] =  cv->filter.randcut[1] = iv->filtercutoff;
-					cv->filter.res[0] =  cv->filter.res[1] = cv->filter.randres[0] =  cv->filter.randres[1] = iv->filterresonance;
 					iv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* instrument trig flash */
 				}
 				cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* track trig flash */
@@ -569,7 +566,8 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 		}
 	}
 
-	float lf, rf;
+	float lf = 0.0f;
+	float rf = 0.0f;
 	float samplegain;
 	if (cv->file)
 	{

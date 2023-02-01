@@ -77,12 +77,11 @@ void inputTooltip(TooltipState *tt, unsigned int state, KeySym input, bool relea
 	if ((state&ControlMask) && isascii(input))
 		input = toupper(input);
 
-	DEBUG = input;
 	bool dead;
 	for (int i = 0; i < tt->entryc; i++)
-		if ( tt->entryv[i].keysym == input
-		 &&  tt->entryv[i].state  == state
-		 && (tt->entryv[i].flags&TT_RELEASE) == release)
+		if (tt->entryv[i].keysym == input
+				&& tt->entryv[i].state == state
+				&& (bool)(tt->entryv[i].flags&TT_RELEASE) == release)
 		{
 			dead = tt->entryv[i].flags&TT_DEAD; /* save flags in case the callback fucks with tt */
 			if (tt->entryv[i].callback)

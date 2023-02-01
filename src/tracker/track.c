@@ -19,8 +19,8 @@ void clearTrackRuntime(Track *cv)
 
 	cv->filter.mode[0] = cv->filter.mode[1] = 0;
 	cv->filter.targetmode[0] = cv->filter.targetmode[1] = -1;
-	cv->filter.cut[0] = cv->filter.cut[1] = 255;
-	cv->filter.randcut[0] = cv->filter.randcut[1] = 255;
+	cv->filter.cut[0] = cv->filter.cut[1] = 0xff;
+	cv->filter.randcut[0] = cv->filter.randcut[1] = 0xff;
 	cv->filter.targetcut[0] = cv->filter.targetcut[1] = -1;
 	cv->filter.targetcut_rand = 0;
 	cv->filter.res[0] = cv->filter.res[1] = 0;

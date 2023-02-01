@@ -74,4 +74,4 @@
  */
 // #define DISABLE_BOX_OUTLINE
 
-#define PREVIEW_TRACKS 1
+#define PREVIEW_TRACKS 6

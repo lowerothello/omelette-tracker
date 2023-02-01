@@ -31,14 +31,17 @@ void freeEvents(void)
 /* return true to block the main thread (skip input&redraw) */
 bool mainM_SEM(void)
 {
+	DEBUG=p->eventc;
+	p->redraw = 1;
+mainM_SEM_start: /* allow for processing multiple events in one go */
 	if (p->eventc)
 		switch (p->event[0].sem)
 		{
 			case M_SEM_DONE:
-m_sem_done: /* allow for processing and pushing off the stack in one go */
+mainM_SEM_pop: /* allow for processing and popping off the stack in one go */
 				memmove(&p->event[0], &p->event[1], sizeof(Event) * (EVENT_QUEUE_MAX-1));
 				p->eventc--;
-				break;
+				goto mainM_SEM_start;
 
 			case M_SEM_RELOAD_REQ:
 			case M_SEM_SWAP_REQ:
@@ -48,41 +51,27 @@ m_sem_done: /* allow for processing and pushing off the stack in one go */
 			case M_SEM_CALLBACK:
 				if (p->event[0].callback)
 					p->event[0].callback(&p->event[0]);
-				goto m_sem_done;
-				break;
+				goto mainM_SEM_pop;
 
 			case M_SEM_INPUT: {
 					int keysymindex;
 					unsigned int state;
 					KeySym keysym;
 					XEvent *ev = p->event[0].callbackarg;
-					switch (ev->type)
-					{
-						case KeyPress:
-							state = ((XKeyEvent*)ev)->state;
-							if (state&LockMask) state^=ShiftMask;
-							keysymindex = (state&ShiftMask);
-							keysym = XLookupKeysym((XKeyEvent*)ev, keysymindex);
 
-							/* turn off the shift flag if it's already been processed */
-							if (isascii(keysym) && state&ShiftMask)
-								state^=ShiftMask;
+					state = ((XKeyEvent*)ev)->state;
+					if (state&LockMask) state^=ShiftMask;
+					keysymindex = (state&ShiftMask);
+					keysym = XLookupKeysym((XKeyEvent*)ev, keysymindex);
 
-							inputTooltip(&tt, state, keysym, 0);
-							break;
-						case KeyRelease:
-							state = ((XKeyEvent*)ev)->state;
-							if (state&LockMask) state^=ShiftMask;
-							keysymindex = (state&ShiftMask);
-							if (state&ShiftMask) state^=ShiftMask;
-							keysym = XLookupKeysym((XKeyEvent*)ev, keysymindex);
-							inputTooltip(&tt, state, keysym, 1);
-							break;
-						case Expose: while (XCheckTypedEvent(dpy, Expose, ev)); break;
-					}
+					/* turn off the shift flag if it's already been processed */
+					if (isascii(keysym) && state&ShiftMask)
+						state^=ShiftMask;
+
+					inputTooltip(&tt, state, keysym, ev->type - KeyPress);
+
 					free(p->event[0].callbackarg);
-					goto m_sem_done;
-				} break;
+				} goto mainM_SEM_pop;
 			default: break;
 		}
 	return 0;
@@ -151,6 +140,7 @@ bool processM_SEM(void)
 					}
 				}
 				p->event[0].sem = M_SEM_DONE;
+				p->redraw = 1;
 				break;
 			case M_SEM_PLAYING_START:
 				setBpm(&p->s->spr, p->s->songbpm);

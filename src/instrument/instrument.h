@@ -38,10 +38,6 @@ typedef struct {
 	bool     pingpong;
 	uint8_t  loopramp;
 
-	int8_t   filtermode;
-	uint8_t  filtercutoff;
-	uint8_t  filterresonance;
-
 	enum InstrumentAlg algorithm;
 
 	/* midi */

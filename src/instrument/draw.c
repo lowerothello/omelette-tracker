@@ -30,31 +30,11 @@ static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_
 			addControlInt(&cc, x+12, y, &iv->invert, 0, 0,    1,   0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			addControlInt(&cc, x+15, y, &iv->gain,   3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 5:
-			printf("\033[%d;%dH[    ]:    [  ][  ]", y, x);
-			addControlInt(&cc, x+1, y, &iv->filtermode, 1, 0, 7, 0, 4, 8, (void(*)(void*))instrumentControlCallback, NULL);
-				addScalePointInt(&cc, "LP12", FILTER_MODE_LP12);
-				addScalePointInt(&cc, "HP12", FILTER_MODE_HP12);
-				addScalePointInt(&cc, "BP12", FILTER_MODE_BP12);
-				addScalePointInt(&cc, "NT12", FILTER_MODE_NT12);
-				addScalePointInt(&cc, "LP24", FILTER_MODE_LP24);
-				addScalePointInt(&cc, "HP24", FILTER_MODE_HP24);
-				addScalePointInt(&cc, "BP24", FILTER_MODE_BP24);
-				addScalePointInt(&cc, "NT24", FILTER_MODE_NT24);
-			addControlInt(&cc, x+12, y, &iv->filtercutoff,    2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(&cc, x+16, y, &iv->filterresonance, 2, 0x0, 0xff, 0x0,  0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			break;
-		case 6:
-			printf("\033[%d;%dH + [           ] + ", y, x);
-			addControlInt(&cc, x+4, y, &iv->algorithm, 1, 0, 4, 1, 11, 5, (void(*)(void*))instrumentControlCallback, NULL);
-				addScalePointInt(&cc, "    MINIMAL", INST_ALG_SIMPLE   );
-				addScalePointInt(&cc, "     CYCLIC", INST_ALG_CYCLIC   );
-			break;
 	}
 }
 void initInstUICommonSamplerBlock(InstUIBlock *block)
 {
-	block->count = 7;
+	block->count = 5;
 	block->callback = samplerInstUICommonCallback;
 }
 

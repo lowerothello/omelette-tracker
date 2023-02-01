@@ -51,17 +51,7 @@ int getPreviewVoice(uint8_t note, bool release)
 {
 	/* monophonic preview if key release events are unavailable */
 	if (input_mode == INPUTMODE_NONE)
-	{
-		if (w->previewtrack[0].r.note == note)
-		{
-			if (release) return 0;
-			else         return -1;
-		} else
-		{
-			if (release) return -1;
-			else         return 0;
-		}
-	}
+		return 0;
 
 	int emptyslot = -1;
 
@@ -71,16 +61,11 @@ int getPreviewVoice(uint8_t note, bool release)
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 	{
 		if (w->previewtrack[i].r.note == note)
-		{
-			if (release) return i;
-			else         return -1;
-		}
+			return i;
 
 		if (w->previewtrack[i].r.note == NOTE_VOID)
-		{
-			if (emptyslot == -1)
-				emptyslot = i;
-		} else if (w->previewtrack[i].pointer > oldestslotpointer)
+			emptyslot = i;
+		else if (w->previewtrack[i].pointer > oldestslotpointer)
 		{
 			oldestslot = i;
 			oldestslotpointer = w->previewtrack[i].pointer;
@@ -121,6 +106,11 @@ static void *XEventThread(PlaybackInfo *arg)
 {
 	Event  e;        /* omelette event */
 	XEvent ev, *evp; /* Xorg events    */
+
+	int keyspressed = 0;
+	bool forcegrab = 0;
+
+	e.sem = M_SEM_INPUT;
 	while (1)
 	{
 		XNextEvent(dpy, &ev);
@@ -131,7 +121,24 @@ static void *XEventThread(PlaybackInfo *arg)
 			return NULL;
 		}
 
-		e.sem = M_SEM_INPUT;
+		switch (ev.type)
+		{
+			case KeyPress:
+				if (!keyspressed)
+					XGrabKeyboard(dpy, wpy, 1, GrabModeAsync, GrabModeAsync, CurrentTime);
+				keyspressed++;
+				break;
+			case KeyRelease:
+				keyspressed--;
+				if (!keyspressed)
+					XUngrabKeyboard(dpy, CurrentTime);
+				break;
+			case Expose:
+				while (XCheckTypedEvent(dpy, Expose, &ev));
+				continue;
+			default: continue;
+		}
+
 		evp = malloc(sizeof(XEvent));
 		memcpy(evp, &ev, sizeof(XEvent));
 		e.callbackarg = evp;
@@ -155,6 +162,7 @@ int initRawInput(void)
 		case INPUTMODE_X:
 			if (!(dpy = XOpenDisplay(NULL))) return 1;
 			XGetInputFocus(dpy, &wpy, &revtoret);
+			XAutoRepeatOff(dpy);
 			XGrabKey(dpy, AnyKey, AnyModifier, wpy, 1, GrabModeAsync, GrabModeAsync);
 			pthread_create(&xeventthread_id, NULL, (void*(*)(void*))XEventThread, &p);
 			break;
@@ -183,6 +191,8 @@ void freeRawInput(void)
 			pthread_join(xeventthread_id, NULL);
 
 			XUngrabKey(dpy, AnyKey, AnyModifier, wpy);
+			XUngrabKeyboard(dpy, CurrentTime);
+			XAutoRepeatOn(dpy); /* assume key repeat is wanted on, TODO: use whatever was set before */
 			XCloseDisplay(dpy);
 			break;
 		case INPUTMODE_NONE: break;

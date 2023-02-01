@@ -457,6 +457,7 @@ static void pressNote(size_t note)
 	if (step) trackerDownArrow(w->step);
 	p->redraw = 1;
 }
+
 static void releaseNote(size_t note)
 {
 	previewNote(note, 0, 1);
@@ -958,8 +959,8 @@ void initTrackerInput(TooltipState *tt)
 					break;
 				case 0: /* note */
 					addTooltipBind(tt, "toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
-					addNotePressBinds(tt, "push cell"      , TT_DRAW, w->octave, (void(*)(void*))pressNote  );
-					addNotePressBinds(tt, "release preview", 0      , w->octave, (void(*)(void*))releaseNote);
+					addNotePressBinds(tt, "push cell", 0, w->octave, (void(*)(void*))pressNote);
+					addNoteReleaseBinds(tt, "release preview", 0, w->octave, (void(*)(void*))releaseNote);
 					addDecimalBinds(tt, "set octave", 0, (void(*)(void*))setNoteOctave);
 					break;
 				case 1: /* inst */

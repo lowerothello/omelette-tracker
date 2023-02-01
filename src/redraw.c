@@ -1,7 +1,21 @@
 static void drawRuler(void)
 {
+	/* top ruler */
 	printf("\033[1m\033[0;%ldH%s\033[m", (ws.ws_col - strlen(PROGRAM_TITLE))>>1, PROGRAM_TITLE);
 	printf("\033[1m\033[0;%dHv%d.%03d  %d\033[m", ws.ws_col - 15, MAJOR, MINOR, DEBUG);
+
+	int previewtracks = PREVIEW_TRACKS;
+	if (input_mode == INPUTMODE_NONE)
+		previewtracks = 1;
+
+	printf("\033[%d;%dH", 2, ws.ws_col - previewtracks*4 - 2);
+	char buffer[4];
+	for (int i = 0; i < previewtracks; i++)
+	{
+		noteToString(w->previewtrack[i].r.note, buffer);
+		printf("%s ", buffer);
+	}
+	printf("%02x", w->instrument);
 
 	/* bottom ruler */
 	if (w->mode < 255)

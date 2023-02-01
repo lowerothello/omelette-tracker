@@ -116,7 +116,6 @@ void __addInstrument(Instrument *iv, int8_t algorithm)
 	iv->samplerate = 0xff;
 	iv->bitdepth = 0xf;
 	iv->envelope = 0x00f0;
-	iv->filtercutoff = 0xff;
 
 	iv->midi.channel = -1;
 
@@ -389,10 +388,6 @@ void serializeInstrument(Instrument *iv, FILE *fp)
 	fwrite(&iv->pingpong, sizeof(bool), 1, fp);
 	fwrite(&iv->loopramp, sizeof(uint8_t), 1, fp);
 
-	fwrite(&iv->filtermode, sizeof(int8_t), 1, fp);
-	fwrite(&iv->filtercutoff, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->filterresonance, sizeof(uint8_t), 1, fp);
-
 	fwrite(&iv->algorithm, sizeof(int8_t), 1, fp);
 
 	/* midi */
@@ -454,10 +449,6 @@ void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint
 	fread(&iv->invert, sizeof(bool), 1, fp);
 	fread(&iv->pingpong, sizeof(bool), 1, fp);
 	fread(&iv->loopramp, sizeof(uint8_t), 1, fp);
-
-	fread(&iv->filtermode, sizeof(int8_t), 1, fp);
-	fread(&iv->filtercutoff, sizeof(uint8_t), 1, fp);
-	fread(&iv->filterresonance, sizeof(uint8_t), 1, fp);
 
 	fread(&iv->algorithm, sizeof(int8_t), 1, fp);
 

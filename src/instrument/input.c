@@ -245,8 +245,8 @@ void initInstrumentInput(TooltipState *tt)
 			break;
 		case MODE_INSERT:
 			addDecimalBinds(tt, "set octave"  , 0, setInsertOctave);
-			addNotePressBinds(tt, "preview note"   , TT_DRAW, w->octave, (void(*)(void*))instrumentSamplePressPreview  );
-			addNotePressBinds(tt, "preview release", 0,       w->octave, (void(*)(void*))instrumentSampleReleasePreview);
+			addNotePressBinds(tt, "preview note", 0, w->octave, (void(*)(void*))instrumentSamplePressPreview);
+			addNoteReleaseBinds(tt, "preview release", 0, w->octave, (void(*)(void*))instrumentSampleReleasePreview);
 			break;
 		default: break;
 	}
