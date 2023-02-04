@@ -30,8 +30,8 @@ typedef struct _UI {
 	Variant *pbvariantv[TRACK_MAX];
 	Vtrig   *vbtrig    [TRACK_MAX];
 	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */
-	int8_t   pbfx[2];    /* patternbuffer horizontal clipping region */
-	uint8_t    defvariantlength;
+	int8_t   pbfx[2];  /* patternbuffer horizontal clipping region */
+	uint8_t  defvariantlength;
 
 	Instrument instrumentbuffer; /* instrument paste buffer */
 	TrackData  trackbuffer;      /* track paste buffer */
@@ -45,7 +45,7 @@ typedef struct _UI {
 	enum _Mode     mode, oldmode;
 	unsigned short centre;
 	uint8_t        pattern;    /* focused pattern */
-	uint8_t        track;    /* focused track */
+	uint8_t        track;      /* focused track */
 	short          instrument; /* focused instrument, TODO: should be a uint8_t */
 
 	uint16_t       trackerfy, visualfy;
@@ -87,6 +87,10 @@ typedef struct _UI {
 UI *w;
 
 void setBpmCount(void);
+void setRowHighlightCount(void);
+void setOctaveCount(void);
+void setStepCount(void);
+
 void showTracker(void);
 void showInstrument(void);
 void showEffect(void);

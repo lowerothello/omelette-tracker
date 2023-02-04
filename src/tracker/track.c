@@ -51,19 +51,19 @@ void initTrackData(TrackData *cd, uint16_t songlen) /* TODO: should be atomic */
 	if (cd->effect) clearEffectChain(cd->effect);
 }
 
-void clearTrackdata(Song *cs, TrackData *cd) /* TODO: should be atomic */
+void clearTrackData(TrackData *cd, uint16_t songlen) /* TODO: should be atomic */
 {
-	initTrackData(cd, cs->songlen);
+	initTrackData(cd, songlen);
 	freeVariantChain(&cd->variant);
 	if (cd->effect) { free(cd->effect); cd->effect = NULL; }
 }
 
-void __addTrack(Track *cv) /* __ layer of abstraction for initializing previewtrack */
+void addTrackRuntime(Track *cv)
 {
 	cv->rampindex = rampmax;
 	cv->rampbuffer = malloc(sizeof(float) * rampmax * 2); /* *2 for stereo */
-	cv->output[0] =       calloc(buffersize, sizeof(float));
-	cv->output[1] =       calloc(buffersize, sizeof(float));
+	cv->output[0] = calloc(buffersize, sizeof(float));
+	cv->output[1] = calloc(buffersize, sizeof(float));
 	cv->pluginoutput[0] = calloc(buffersize, sizeof(float));
 	cv->pluginoutput[1] = calloc(buffersize, sizeof(float));
 	cv->mainmult[0] = calloc(buffersize, sizeof(float));
@@ -73,13 +73,10 @@ void __addTrack(Track *cv) /* __ layer of abstraction for initializing previewtr
 	clearTrackRuntime(cv);
 }
 
-void _addTrack(Song *cs, Track *cv)
+void addTrackData(Track *cv, uint16_t songlen)
 {
-	__addTrack(cv);
-
 	cv->data.effect = newEffectChain(cv->output, cv->pluginoutput);
-
-	initTrackData(&cv->data, cs->songlen);
+	initTrackData(&cv->data, songlen);
 }
 
 void debug_dumpTrackState(Song *cs)
@@ -109,7 +106,9 @@ static void cb_addTrack(Event *e)
 	free(e->src); e->src = NULL;
 	regenGlobalRowc(s); /* sets p->redraw */
 }
-void addTrack(Song *cs, uint8_t index, uint16_t count)
+
+/* copyfrom can be NULL */
+void addTrack(Song *cs, uint8_t index, uint16_t count, TrackData *copyfrom)
 { /* fully atomic */
 	/* scale down count if necessary */
 	count = MIN(count, TRACK_MAX - cs->track->c);
@@ -129,7 +128,11 @@ void addTrack(Song *cs, uint8_t index, uint16_t count)
 
 	/* allocate new tracks */
 	for (uint16_t i = 0; i < count; i++)
-		_addTrack(cs, &newtrack->v[index+i]);
+	{
+		addTrackRuntime(&newtrack->v[index+i]);
+		addTrackData(&newtrack->v[index+i], cs->songlen);
+		copyTrackData(&newtrack->v[index+i].data, copyfrom);
+	}
 
 	newtrack->c += count;
 
@@ -143,7 +146,7 @@ void addTrack(Song *cs, uint8_t index, uint16_t count)
 
 void _delTrack(Song *cs, Track *cv)
 {
-	clearTrackdata(cs, &cv->data);
+	clearTrackData(&cv->data, cs->songlen);
 	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
 	if (cv->output      [0]) { free(cv->output      [0]); cv->output      [0] = NULL; }
 	if (cv->output      [1]) { free(cv->output      [1]); cv->output      [1] = NULL; }
@@ -174,7 +177,7 @@ void delTrack(uint8_t index, uint16_t count)
 	if (index + count > s->track->c)
 		index = s->track->c - count;
 
-	/* TODO: if the last track would be deleted then call clearTrackdata(s, &s->track->v[0].data) */
+	/* TODO: if the last track would be deleted then call clearTrackData(&s->track->v[0].data, s->songlen) */
 
 	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (s->track->c - count) * sizeof(Track));
 	newtrack->c = s->track->c - count;
@@ -198,16 +201,19 @@ void delTrack(uint8_t index, uint16_t count)
 	pushEvent(&e);
 }
 
-void copyTrackdata(TrackData *dest, TrackData *src) /* TODO: atomicity */
+void copyTrackData(TrackData *dest, TrackData *src) /* NOT atomic */
 {
+	if (!dest || !src) return;
+
 	freeVariantChain(&dest->variant);
 	dest->variant = dupVariantChain(src->variant);
 
-	dest->variant->main = dupVariant(src->variant->main, s->songlen);
-	dest->variant->trig = calloc(s->songlen, sizeof(Vtrig));
+	dest->variant->main = dupVariant(src->variant->main, src->variant->songlen);
+	dest->variant->trig = calloc(src->variant->songlen, sizeof(Vtrig));
 
-	if (src->variant->trig) memcpy(dest->variant->trig, src->variant->trig, s->songlen * sizeof(Vtrig));
-	else                    memset(dest->variant->trig, VARIANT_VOID, s->songlen * sizeof(Vtrig));
+	if (src->variant->trig) memcpy(dest->variant->trig, src->variant->trig, src->variant->songlen * sizeof(Vtrig));
+	else                    memset(dest->variant->trig, VARIANT_VOID, src->variant->songlen * sizeof(Vtrig));
+	resizeVariantChain(dest->variant, src->variant->songlen);
 
 	copyEffectChain(&dest->effect, src->effect);
 }
@@ -295,39 +301,16 @@ void cycleVariantDown(Variant *v, uint16_t bound)
 void serializeTrack(Song *cs, Track *cv, FILE *fp)
 {
 	fputc(cv->data.mute, fp);
-	fputc(cv->data.variant->macroc, fp);
-	for (int i = 0; i < VARIANT_MAX; i++)
-		fputc(cv->data.variant->i[i], fp);
-	fputc(cv->data.variant->c, fp);
-	for (int i = 0; i < cv->data.variant->c; i++)
-		serializeVariant(cv->data.variant->v[i], fp);
-
-	fwrite(cv->data.variant->trig, sizeof(Vtrig), cs->songlen, fp);
-	fwrite(cv->data.variant->main->rowv, sizeof(Row), cs->songlen, fp);
-
+	serializeVariantChain(cv->data.variant, fp);
 	serializeEffectChain(cv->data.effect, fp);
 }
 void deserializeTrack(Song *cs, Track *cv, FILE *fp, uint8_t major, uint8_t minor)
 {
-	_addTrack(cs, cv);
+	addTrackRuntime(cv);
+	addTrackData(cv, cs->songlen);
 	cv->data.mute = fgetc(fp);
-	cv->data.variant->macroc = fgetc(fp);
-	for (int i = 0; i < VARIANT_MAX; i++)
-		cv->data.variant->i[i] = fgetc(fp);
-	cv->data.variant->c = fgetc(fp);
-	for (int i = 0; i < cv->data.variant->c; i++)
-		deserializeVariant(&cv->data.variant->v[i], fp);
 
-	if (major <= 1 && minor < 1)
-		for (int i = 0; i < cs->songlen; i++)
-		{
-			fread(cv->data.variant->trig, sizeof(Vtrig), 1, fp);
-			fseek(fp, sizeof(Macro), SEEK_CUR);
-		}
-	else fread(cv->data.variant->trig, sizeof(Vtrig), cs->songlen, fp);
-
-	fread(cv->data.variant->main->rowv, sizeof(Row), cs->songlen, fp);
-
+	deserializeVariantChain(cv->data.variant, fp, major, minor);
 	deserializeEffectChain(&cv->data.effect, fp, major, minor);
 }
 

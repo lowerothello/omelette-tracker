@@ -36,9 +36,8 @@
  *   input. in nanoseconds, one million nanoseconds per milisecond. */
 #define UPDATE_DELAY 10000000 /* max: 100fps */
 
-/* like UPDATE_DELAY but for work threads */
-#define WORK_UPDATE_DELAY 1
-#define WORK_BLOCK_SIZE 500
+#define WAVEFORM_BLOCK_SIZE 8192
+#define WAVEFORM_THREADS 2
 
 /* new file bpm */
 #define DEF_BPM 125

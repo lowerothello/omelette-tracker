@@ -108,7 +108,6 @@ static void *XEventThread(PlaybackInfo *arg)
 	XEvent ev, *evp; /* Xorg events    */
 
 	int keyspressed = 0;
-	bool forcegrab = 0;
 
 	e.sem = M_SEM_INPUT;
 	while (1)

@@ -1,11 +1,24 @@
 void setBpmCount(void)
 {
-	if (w->count)
-	{
-		s->songbpm = MIN(255, MAX(32, w->count));
-		reapplyBpm();
-		p->redraw = 1;
-	}
+	s->songbpm = MIN(255, MAX(32, w->count));
+	reapplyBpm();
+	p->redraw = 1;
+}
+void setRowHighlightCount(void)
+{
+	s->rowhighlight = MIN(16, w->count);
+	regenGlobalRowc(s);
+	p->redraw = 1;
+}
+void setOctaveCount(void)
+{
+	w->octave = MIN(w->count, MAX_OCTAVE);
+	p->redraw = 1;
+}
+void setStepCount(void)
+{
+	w->step = w->count;
+	p->redraw = 1;
 }
 
 void showTracker(void)
@@ -34,12 +47,22 @@ UI *allocWindow(void)
 	ret->defvariantlength = 0x7;
 	ret->trackerfy = STATE_ROWS;
 
+	__addInstrument(&ret->instrumentbuffer, INST_ALG_SIMPLE);
+	for (int i = 0; i < PREVIEW_TRACKS; i++)
+		addTrackRuntime(&ret->previewtrack[i]);
+
+	// addTrackData(&ret->trackbuffer, 1);
+	ret->trackbuffer.effect = newEffectChain(NULL, NULL);
+	initTrackData(&ret->trackbuffer, 0);
+	
+
 	return ret;
 }
 void freeWindow(UI *cw)
 {
 	if (!cw) return;
 
+	clearTrackData(&cw->trackbuffer, 1);
 	_delInstrument(&cw->instrumentbuffer);
 	freeEffect(&cw->effectbuffer);
 

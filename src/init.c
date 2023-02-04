@@ -12,9 +12,7 @@ static void common_cleanup(int ret)
 	clearTooltip(&tt);
 
 	freeFileBrowser(fbstate);
-	free(fbstate);
 	freePluginBrowser(pbstate);
-	free(pbstate);
 
 	freeLadspaDB();
 	freeLV2DB();
@@ -99,18 +97,11 @@ void init(int argc, char *argv[])
 
 	w = allocWindow();
 	if (!w) { puts("out of memory"); common_cleanup(1); }
+	p->w = w;
 
 	s = allocSong();
 	if (!s) { puts("out of memory"); common_cleanup(1); }
-
 	p->s = s;
-	p->w = w;
-
-	/* need to be called before the jack client is activated */
-	__addInstrument(&w->instrumentbuffer, INST_ALG_SIMPLE);
-	for (int i = 0; i < PREVIEW_TRACKS; i++)
-		__addTrack(&w->previewtrack[i]);
-
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	jack_set_process_callback(client, (int(*)(jack_nframes_t, void*))process, p);

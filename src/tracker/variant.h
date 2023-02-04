@@ -23,7 +23,7 @@ typedef struct {
 	Macro   macro[8];
 } Row;
 
-#define C_VTRIG_LOOP (1<<0)
+#define C_VTRIG_LOOP (1<<0) /* variant should loop indefinitely */
 typedef struct {
 	uint8_t index;
 	uint8_t flags;
@@ -39,14 +39,14 @@ typedef struct {
 
 #define VARIANT_MAX 254
 typedef struct {
-	Vtrig   *trig;           /* variant triggers        */
-	Variant *main;           /* main fallback variant   */
-	uint8_t  macroc;         /* macro column count      */
-	uint8_t  notec;          /* note column count       */
-	uint8_t  c;              /* variant contents length */
-	uint8_t  i[VARIANT_MAX]; /* variant index/backref   */
-	Variant *v[];            /* variant contents        */
-} VariantChain; /* enough pattern data for a full track */
+	uint16_t songlen;        /* main variant length        */
+	Vtrig   *trig;           /* variant triggers           */
+	Variant *main;           /* main fallback variant      */
+	uint8_t  macroc;         /* macro column count         */
+	uint8_t  c;              /* variant contents length    */
+	uint8_t  i[VARIANT_MAX]; /* variant index/backref      */
+	Variant *v[];            /* variant contents           */
+} VariantChain; /* enough pattern data for a full track    */
 
 
 Variant *dupVariant(Variant *oldvariant, uint16_t newlen);
@@ -93,6 +93,9 @@ void setVariantChainTrig  (VariantChain **vc, uint16_t index, uint8_t value);
 int getVariantChainVariant      (Variant **output, VariantChain *vc, uint16_t index);
 /* like above, but ignore variant looping */
 int getVariantChainVariantNoLoop(Variant **output, VariantChain *vc, uint16_t index);
+
+void serializeVariantChain(VariantChain *v, FILE *fp);
+void deserializeVariantChain(VariantChain *vc, FILE *fp, uint8_t major, uint8_t minor);
 
 void serializeVariant(Variant *v, FILE *fp);
 void deserializeVariant(Variant **v, FILE *fp);

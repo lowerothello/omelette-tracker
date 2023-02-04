@@ -13,12 +13,11 @@ static void trackerEscape(void)
 		return;
 	}
 
-	if (w->page == PAGE_VARIANT)
-		switch (w->mode)
-		{
-			case MODE_VISUALREPLACE: w->mode = MODE_VISUAL; break;
-			default:                 w->mode = MODE_NORMAL; break;
-		}
+	switch (w->mode)
+	{
+		case MODE_VISUALREPLACE: w->mode = MODE_VISUAL; break;
+		default:                 w->mode = MODE_NORMAL; break;
+	}
 	p->redraw = 1;
 }
 static void trackerEnterVisualMode(void)
@@ -59,31 +58,6 @@ static void trackerEnterEffectMode(void)
 {
 	w->mode = MODE_EFFECT;
 	p->redraw = 1;
-}
-static void setOctaveCount(void)
-{
-	if (w->count)
-	{
-		w->octave = MIN(w->count, MAX_OCTAVE);
-		p->redraw = 1;
-	}
-}
-static void setStepCount(void)
-{
-	if (w->count)
-	{
-		w->step = w->count;
-		p->redraw = 1;
-	}
-}
-static void setRowHighlightCount(void)
-{
-	if (w->count)
-	{
-		s->rowhighlight = MIN(16, w->count);
-		regenGlobalRowc(s);
-		p->redraw = 1;
-	}
 }
 static void toggleSongFollow(void)
 {
@@ -861,7 +835,7 @@ static void addTrackerNavBinds(TooltipState *tt)
 static void addTrackerCountBinds(TooltipState *tt)
 {
 	addTooltipBind(tt, "count set bpm"          , 0, XK_B, 0, (void(*)(void*))setBpmCount         , NULL);
-	addTooltipBind(tt, "count set row highlight", 0, XK_T, 0, (void(*)(void*))setRowHighlightCount, NULL);
+	addTooltipBind(tt, "count set row highlight", 0, XK_R, 0, (void(*)(void*))setRowHighlightCount, NULL);
 	addTooltipBind(tt, "count set octave"       , 0, XK_O, 0, (void(*)(void*))setOctaveCount      , NULL);
 	addTooltipBind(tt, "count set step"         , 0, XK_S, 0, (void(*)(void*))setStepCount        , NULL);
 }

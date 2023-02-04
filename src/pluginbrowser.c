@@ -40,9 +40,10 @@ static void pluginBrowserDrawLine(BrowserState *b, int y)
 	/* ladspa */
 	if (pbd->i < ladspa_db.descc)
 	{
-		printf("\033[%d;1H%.*s",  y, (ws.ws_col>>1) - 3, ladspa_db.descv[pbd->i - ii]->Name);
-		printf("\033[%d;%dH%.*s", y,  ws.ws_col>>1, ws.ws_col - (ws.ws_col>>1) - 7, ladspa_db.descv[pbd->i - ii]->Maker);
-		printf("\033[%d;%dH%s",   y,  ws.ws_col - 5, "LADSPA");
+		printf("\033[%d;1H%.*s",  y, b->x + (b->w>>1) - 3, ladspa_db.descv[pbd->i - ii]->Name);
+		printCulling((char*)ladspa_db.descv[pbd->i - ii]->Name, b->x, y, b->x, b->x + (b->w>>1) - 2);
+		printCulling((char*)ladspa_db.descv[pbd->i - ii]->Maker, b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
+		printCulling("LADSPA", b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
 		return;
 	}
 	ii += ladspa_db.descc;
@@ -52,19 +53,19 @@ static void pluginBrowserDrawLine(BrowserState *b, int y)
 	const LilvPlugin *lp = lilv_plugins_get(pbd->lap, pbd->iter);
 	LilvNode *node;
 
-	node = lilv_plugin_get_name(lp);
-	if (node) {
-		printf("\033[%d;1H%.*s", y, (ws.ws_col>>1) - 4, lilv_node_as_string(node));
+	if ((node = lilv_plugin_get_name(lp)))
+	{
+		printCulling((char*)lilv_node_as_string(node), b->x, y, b->x, b->x + (b->w>>1) - 2);
 		lilv_node_free(node);
 	}
 
-	node = lilv_plugin_get_author_name(lp);
-	if (node) {
-		printf("\033[%d;%dH%.*s", y, ws.ws_col>>1, ws.ws_col - (ws.ws_col>>1) - 7, lilv_node_as_string(node));
+	if ((node = lilv_plugin_get_author_name(lp)))
+	{
+		printCulling((char*)lilv_node_as_string(node), b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
 		lilv_node_free(node);
 	}
 
-	printf("\033[%d;%dH%s", y, ws.ws_col - 5, "LV2");
+	printCulling("LV2", b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
 }
 
 static void cb_addEffectLadspaAfter(Event *e)
@@ -130,4 +131,8 @@ BrowserState *initPluginBrowser(void)
 	return ret;
 }
 
-void freePluginBrowser(BrowserState *b) { free(b->data); }
+void freePluginBrowser(BrowserState *b)
+{
+	free(b->data);
+	free(b);
+}

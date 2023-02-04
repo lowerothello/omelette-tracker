@@ -1,6 +1,8 @@
 #include "config.h"
 #include "dsp/dsp.c"
 
+#include "scrollbar.h"
+
 #include "playback.h"
 #include "init.h"
 

@@ -70,7 +70,7 @@ static void fileBrowserDrawLine(BrowserState *b, int y)
 {
 	struct FileBrowserData *fbd = b->data;
 
-	char  *testdirpath = malloc(strlen(fbd->path) + strlen(fbd->dirent->d_name) + 2); /* 1 for '/', one for '\0' */
+	char *testdirpath = malloc(strlen(fbd->path) + strlen(fbd->dirent->d_name) + 2); /* 1 for '/', one for '\0' */
 	strcpy(testdirpath, fbd->path);
 	strcat(testdirpath, "/");
 	strcat(testdirpath, fbd->dirent->d_name);
@@ -82,12 +82,14 @@ static void fileBrowserDrawLine(BrowserState *b, int y)
 	{ /* directory */
 		closedir(testdir);
 
-		/* the CSI X here is to clear the background */
-		printf("\033[%d;%dH\033[%dX%.*s/", y, b->x, b->w, b->w - 1, fbd->dirent->d_name);
+		char *dirname = malloc(strlen(fbd->dirent->d_name) + 2);
+		strcpy(dirname, fbd->dirent->d_name);
+		strcat(dirname, "/");
+		printCulling(dirname, b->x, y, b->x, b->x + b->w - 3);
+		free(dirname);
 	} else
 	{ /* file */
-		/* the CSI X here is to clear the background */
-		printf("\033[%d;%dH\033[%dX%.*s", y, b->x, b->w, b->w, fbd->dirent->d_name);
+		printCulling(fbd->dirent->d_name, b->x, y, b->x, b->x + b->w - 3);
 	}
 }
 
@@ -120,6 +122,10 @@ static void cb_fileBrowserCursor(void *data) { freePreviewSample(); }
 /* tries to load path into fbd */
 static void changeDirectory(struct FileBrowserData *fbd, char *path)
 {
+	/* pop off any leading slashes */
+	while (path[1] == '/')
+		memcpy(path, path+1, strlen(path));
+
 	DIR *testdir = opendir(path);
 	if (testdir) /* path is valid */
 	{
@@ -181,6 +187,7 @@ void freeFileBrowser(BrowserState *b)
 	closedir(((struct FileBrowserData *)b->data)->dir );
 	free    (((struct FileBrowserData *)b->data)->path);
 	free(b->data);
+	free(b);
 }
 
 

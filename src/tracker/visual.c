@@ -1003,9 +1003,9 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 
 	for (chnl = 0; chnl <= c2-c1; chnl++)
 	{
-		__addTrack(&chain->v[chnl]);
+		addTrackRuntime(&chain->v[chnl]);
 		initTrackData(&chain->v[chnl].data, s->songlen);
-		copyTrackdata(&chain->v[chnl].data, &s->track->v[c1+chnl].data);
+		copyTrackData(&chain->v[chnl].data, &s->track->v[c1+chnl].data);
 	}
 
 	/* calculate the buffer length needed */

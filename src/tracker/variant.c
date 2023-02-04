@@ -80,6 +80,8 @@ void resizeVariantChain(VariantChain *vc, uint16_t newlen)
 	for (uint16_t i = 0; i < newlen; i++)
 		newtrig[i].index = VARIANT_VOID;
 
+	vc->songlen = newlen;
+
 	/* depends on songv->rowc */
 	if (vc->main && vc->trig)
 		memcpy(newtrig, vc->trig, MIN(vc->main->rowc, newlen) * sizeof(Vtrig));
@@ -249,4 +251,34 @@ void deserializeVariant(Variant **v, FILE *fp)
 	fread(&rowc, sizeof(uint16_t), 1, fp);
 	*v = dupVariant(NULL, rowc);
 	fread((*v)->rowv, sizeof(Row), rowc, fp);
+}
+
+void serializeVariantChain(VariantChain *vc, FILE *fp)
+{
+	fwrite(&vc->songlen, sizeof(uint16_t), 1, fp);
+	fwrite(vc->trig, sizeof(Vtrig), vc->songlen, fp);
+	fwrite(vc->main->rowv, sizeof(Row), vc->songlen, fp);
+
+	fputc(vc->macroc, fp);
+	for (int i = 0; i < VARIANT_MAX; i++)
+		fputc(vc->i[i], fp);
+	fputc(vc->c, fp);
+	for (int i = 0; i < vc->c; i++)
+		serializeVariant(vc->v[i], fp);
+}
+void deserializeVariantChain(VariantChain *vc, FILE *fp, uint8_t major, uint8_t minor)
+{
+	fread(&vc->songlen, sizeof(uint16_t), 1, fp);
+	resizeVariantChain(vc, vc->songlen);
+	fread(vc->trig, sizeof(Vtrig), vc->songlen, fp);
+	fread(vc->main->rowv, sizeof(Row), vc->songlen, fp);
+
+
+	vc->macroc = fgetc(fp);
+	for (int i = 0; i < VARIANT_MAX; i++)
+		vc->i[i] = fgetc(fp);
+	vc->c = fgetc(fp);
+	for (int i = 0; i < vc->c; i++)
+		deserializeVariant(&vc->v[i], fp);
+
 }

@@ -1,4 +1,5 @@
 pthread_t waveformthread;
+
 Canvas   *waveformworkcanvas;
 Canvas   *waveformdrawcanvas;
 char    **waveformbuffer;
@@ -10,37 +11,41 @@ bool waveformthreadrunning = 0;
 static void *walkWaveformRoutine(Instrument *iv)
 {
 	waveformthreadrunning = 1;
-	size_t offset, width;
-	offset = 0;
-	width = iv->sample->length;
+	size_t offset = 0;
 
 	uint32_t drawpointer = 0;
 	fill(waveformworkcanvas, 0);
 
 	uint8_t i;
-	size_t k, xx;
+	size_t xx;
 	uint32_t l, m;
-	double samplesperpixel = (double)width / (double)waveformw;
-	double divmaxj = 1.0f / (double)width;
+	double samplesperpixel = (double)iv->sample->length / (double)waveformw;
 	float o = (float)waveformh * 0.5f;
 	float sample;
-	float trackmix = 1.0f / (float)iv->sample->channels;
+
 	struct timespec req;
+	req.tv_sec = 0;
+	req.tv_nsec = 1;
 
-	while (drawpointer < width)
+	while (1)
 	{
-		for (m = 0; m < WORK_BLOCK_SIZE; m++)
+		m = WAVEFORM_BLOCK_SIZE;
+		while (m--)
 		{
-			/* switch to left->right rendering if zoomed in far enough */
-			if (waveformw > width) l =  drawpointer;
-			else                      l = (drawpointer%waveformw)*samplesperpixel + drawpointer/waveformw;
+			if (drawpointer > iv->sample->length)
+				goto walkWaveformRoutineEnd;
 
-			k = (float)l * divmaxj * (float)width;
-			xx = (float)l * divmaxj * (float)waveformw;
+			/* switch to left->right rendering if zoomed in far enough */
+			if (waveformw > iv->sample->length)
+				l = drawpointer;
+			else
+				l = (drawpointer%waveformw)*samplesperpixel + drawpointer/waveformw;
+
+			xx = (float)l / (float)iv->sample->length * (float)waveformw;
 
 			sample = 0.0f;
 			for (i = 0; i < iv->sample->channels; i++) /* mix all channels */
-				sample += (iv->sample->data[(offset + k) * iv->sample->channels + i] * trackmix);
+				sample += (iv->sample->data[(offset + l) * iv->sample->channels + i] / (float)iv->sample->channels);
 			sample = (sample*DIVSHRT) * o + o;
 
 			set_pixel(waveformworkcanvas, 1, xx, sample);
@@ -48,11 +53,9 @@ static void *walkWaveformRoutine(Instrument *iv)
 			drawpointer++;
 		}
 		p->redraw = 1;
-
-		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
-		req.tv_nsec = WORK_UPDATE_DELAY;
-		while(nanosleep(&req, &req) < 0);
+		nanosleep(&req, NULL);
 	}
+walkWaveformRoutineEnd:
 	waveformthreadrunning = 0;
 	p->redraw = 1;
 	return NULL;

@@ -860,22 +860,19 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	if (p->s->track->c)
 		_trackThreadRoutine(&p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
 
-	/* join with the track threads */
 #ifndef NO_MULTITHREADING
 	if (!RUNNING_ON_VALGRIND)
+	{
+		/* join with the track threads */
 		for (i = 1; i < p->s->track->c; i++)
 			if (!thread_failed[i-1])
 				pthread_join(thread_ids[i-1], NULL);
+		/* join with the prevew threads */
+		for (i = 1; i < p->s->track->c; i++)
+			if (!preview_thread_failed[i])
+				pthread_join(preview_thread_ids[i], NULL);
+	}
 #endif
-
-
-	/* join with the prevew threads */
-#ifndef NO_MULTITHREADING
-	for (i = 1; i < p->s->track->c; i++)
-		if (!RUNNING_ON_VALGRIND && !preview_thread_failed[i])
-			pthread_join(preview_thread_ids[i], NULL);
-#endif
-
 
 	/* apply the new sprp and playfy track0 calculated */
 	if (c0playfy != p->s->playfy)

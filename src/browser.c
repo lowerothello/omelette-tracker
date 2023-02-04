@@ -14,7 +14,7 @@ void drawBrowser(BrowserState *b)
 	if (line)
 	{
 		if (strlen(line) > b->w) printf("\033[%d;%dH%.*s", b->y, b->x, b->w, line + ((unsigned short)strlen(line) - b->w));
-		else                     printf("\033[%d;%dH%.*s", b->y, b->x + ((b->w - (unsigned short)strlen(line))>>1), b->w, line);
+		else                     printf("\033[%d;%dH%.*s", b->y, b->x + ((b->w - 3 - (unsigned short)strlen(line))>>1), b->w-3, line);
 		free(line);
 	}
 
@@ -25,6 +25,8 @@ void drawBrowser(BrowserState *b)
 			b->drawLine(b, yo);
 		yo++;
 	}
+
+	drawVerticalScrollbar(b->x + b->w, b->y, b->h, b->getLineCount(b->data), b->cursor);
 
 	/* draw the cursor */
 	printf("\033[%d;%dH", b->y + (b->h>>1) + b->fyoffset, b->x);

@@ -1,10 +1,12 @@
 /* true if the sequencer is running */
-enum Playing {
+enum Playing
+{
 	PLAYING_STOP = 0,
 	PLAYING_START = 1,
 };
 
-typedef struct _Song {
+typedef struct _Song
+{
 	/* instruments */
 	InstrumentChain *instrument;
 

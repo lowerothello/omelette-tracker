@@ -21,6 +21,7 @@ typedef struct {
 
 #define INSTUI_SAMPLER_WIDTH 19
 #define INSTUI_PADDING 2
+#define INSTUI_WAVEFORM_MIN 3
 InstUI *allocInstUI(uint8_t blocks);
 void drawInstrument(ControlState*);
 

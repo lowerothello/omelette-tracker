@@ -31,8 +31,6 @@ void freeEvents(void)
 /* return true to block the main thread (skip input&redraw) */
 bool mainM_SEM(void)
 {
-	DEBUG=p->eventc;
-	p->redraw = 1;
 mainM_SEM_start: /* allow for processing multiple events in one go */
 	if (p->eventc)
 		switch (p->event[0].sem)

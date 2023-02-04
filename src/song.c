@@ -33,7 +33,10 @@ Song *allocSong(void)
 	regenGlobalRowc(ret);
 	ret->track->c = STARTING_TRACKC;
 	for (uint8_t i = 0; i < STARTING_TRACKC; i++)
-		_addTrack(ret, &ret->track->v[i]);
+	{
+		addTrackRuntime(&ret->track->v[i]);
+		addTrackData(&ret->track->v[i], ret->songlen);
+	}
 
 	return ret;
 }
@@ -96,7 +99,7 @@ int writeSong(Song *cs, char *path)
 
 	FILE *fp = fopen(pathext, "w");
 
-#ifdef DEBUG_LOGS /* TODO: too many #ifdefs here */
+#ifdef DEBUG_LOGS
 	FILE *debugfp = fopen(".oml_savedump", "a");
 	fprintf(debugfp, "===== SAVE DUMP =====");
 #endif

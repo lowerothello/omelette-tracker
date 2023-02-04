@@ -123,14 +123,17 @@ void regenGlobalRowc(struct _Song *cs);
 void clearTrackRuntime(Track *cv);
 
 void initTrackData(TrackData *cd, uint16_t songlen); /* TODO: should be atomic */
-void clearTrackdata(struct _Song *cs, TrackData *cd); /* TODO: should be atomic */
-void __addTrack(Track *cv); /* __ layer of abstraction for initializing previewtrack */
-void  _addTrack(struct _Song *cs, Track *cv);
+void clearTrackData(TrackData *cd, uint16_t songlen); /* TODO: should be atomic */
+void addTrackRuntime(Track *cv);
+void addTrackData(Track *cv, uint16_t songlen);
 void debug_dumpTrackState(struct _Song *cs);
-void addTrack(struct _Song *cs, uint8_t index, uint16_t count);
+
+/* copyfrom can be NULL */
+void addTrack(struct _Song *cs, uint8_t index, uint16_t count, TrackData *copyfrom);
+
 void _delTrack(struct _Song *cs, Track *cv);
 void delTrack(uint8_t index, uint16_t count);
-void copyTrackdata(TrackData *dest, TrackData *src); /* TODO: atomicity */
+void copyTrackData(TrackData *dest, TrackData *src); /* NOT atomic */
 Row *getTrackRow(TrackData *cd, uint16_t index);
 bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
 void regenBpmCache(struct _Song *cs);

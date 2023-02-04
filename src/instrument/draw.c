@@ -244,6 +244,7 @@ void drawInstrument(ControlState *cc)
 	}
 
 	short x = drawInstrumentIndex(1, 1, ws.ws_col) + 2;
+	static short scrolloffset;
 
 	if (instrumentSafe(s->instrument, w->instrument))
 	{
@@ -270,26 +271,39 @@ void drawInstrument(ControlState *cc)
 			/* TODO: sometimes leaves empty columns */
 			if (iui_entryc%cols)
 				rows++;
-			if (!rows) goto drawInstrumentEnd;
+
+			if (!rows)
+				goto drawInstrumentEnd;
 
 			short y = TRACK_ROW+1;
 			if (iui->flags&INSTUI_DRAWWAVEFORM)
 			{
-				short wh = (ws.ws_row - 1 - y) - rows;
+				short wh = MAX((ws.ws_row - 1 - y) - rows, INSTUI_WAVEFORM_MIN);
 				drawWaveform(iv, wh);
 				y += wh;
 			}
 
-			// short padding = (((ws.ws_col - x) - cols*iui->width)>>1) / (cols+1) + INSTUI_PADDING;
-			short padding = INSTUI_PADDING;
+			short iui_x = x + ((ws.ws_col - x - (cols*(iui->width + INSTUI_PADDING) - INSTUI_PADDING))>>1);
 
-			short iui_x = x + ((ws.ws_col - x - (cols*(iui->width + padding) - padding))>>1);
+			short viewportheight = ws.ws_row - 1 - y;
+			if (viewportheight <= 0)
+				goto drawInstrumentEnd;
+
+			/* ensure that scrolloffset is in range */
+			/* TODO: scrolloffset padding */
+			// scrolloffset = MIN(scrolloffset + viewportheight, rows           ); /* within range */
+			// scrolloffset = MIN(scrolloffset, cc->cursor%rows                 ); /* push up      */
+			// scrolloffset = MAX(scrolloffset, cc->cursor%rows - viewportheight); /* push down    */
 
 			size_t ei = 0;
+			short cx, cy;
 			for (uint8_t i = 0; i < iui->blocks; i++)
 				for (uint8_t j = 0; j < iui->block[i].count; j++)
 				{
-					iui->block[i].callback(iui_x + (ei/rows)*(iui->width + padding), y + ei%rows, iv, j);
+					cx = iui_x + (ei/rows)*(iui->width + INSTUI_PADDING);
+					cy = y + ei%rows;
+					if (cy < ws.ws_row - 1 && cy > scrolloffset)
+						iui->block[i].callback(cx, cy - scrolloffset, iv, j);
 					ei++;
 				}
 
