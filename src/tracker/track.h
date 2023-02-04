@@ -3,14 +3,13 @@
 
 #define TRACK_MAX 32
 typedef struct {
-	VariantChain *variant;
-
 	/* flags */
 	bool mute;
 	bool reverse;
 	bool release; /* DEPRECATED */
 	bool rtrig_rev;
 
+	VariantChain *variant;
 	EffectChain *effect;
 } TrackData; /* raw sequence data, cd */
 

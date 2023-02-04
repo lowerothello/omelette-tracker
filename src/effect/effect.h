@@ -1,15 +1,18 @@
-enum EFFECT_TYPE {
-	EFFECT_TYPE_DUMMY = 0,
-	EFFECT_TYPE_LADSPA,
-	EFFECT_TYPE_LV2,
+enum EFFECT_TYPE /* cast to a (uint8_t) */
+{ /* strict about indices */
+	EFFECT_TYPE_DUMMY  = 0,
+	EFFECT_TYPE_LADSPA = 1,
+	EFFECT_TYPE_LV2    = 2,
 };
 
-typedef struct {
-	enum EFFECT_TYPE type;
-	void            *state;
+typedef struct Effect
+{
+	uint8_t type;
+	void   *state;
 } Effect;
 #define EFFECT_CHAIN_LEN 16
-typedef struct {
+typedef struct EffectChain
+{
 	float  *input [2];
 	float  *output[2];
 	uint8_t c;

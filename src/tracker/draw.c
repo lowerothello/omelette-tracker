@@ -5,8 +5,8 @@ static void noteToString(short note, char *buffer)
 	switch (note)
 	{
 		case NOTE_VOID: strcpy(buffer, "..."); return;
-		case NOTE_OFF:  strcpy(buffer, "..."); return;
-		case NOTE_CUT:  strcpy(buffer, "..."); return;
+		case NOTE_OFF:  strcpy(buffer, "==="); return;
+		case NOTE_CUT:  strcpy(buffer, "^^^"); return;
 	}
 
 	note -= 1; /* pop off NOTE_VOID */

@@ -289,23 +289,34 @@ void decControlValue(ControlState *cc)
 	{
 		case CONTROL_NIBBLES_BOOL: /* fall through */
 		case CONTROL_NIBBLES_TOGGLED:
-			(*(bool*)c->value) = 0; break;
+			(*(bool*)c->value) = 0;
+			break;
 		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
-			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
+			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f);
+			break;
 		case CONTROL_NIBBLES_SIGNED_FLOAT:
-			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
+			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc->fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f);
+			break;
 		case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
 		case CONTROL_NIBBLES_SIGNED_INT:
-			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc->fieldpointer), c->min.f); break;
+			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc->fieldpointer), c->min.f);
+			break;
 		case CONTROL_NIBBLES_PRETTY: /* fall through */
 		case CONTROL_NIBBLES_INT8:
-			(*(int8_t*)c->value) = MAX((*(int8_t*)c->value) - (int8_t)pow32(16, cc->fieldpointer), (int8_t)c->min.i); break;
+			(*(int8_t*)c->value) = MAX((*(int8_t*)c->value) - (int8_t)pow32(16, cc->fieldpointer), (int8_t)c->min.i);
+			break;
 		case CONTROL_NIBBLES_UINT8:
-			(*(uint8_t*)c->value) = MAX((*(uint8_t*)c->value) - (uint8_t)pow32(16, cc->fieldpointer), (uint8_t)c->min.i); break;
+			(*(uint8_t*)c->value) = MAX((*(uint8_t*)c->value) - (uint8_t)pow32(16, cc->fieldpointer), (uint8_t)c->min.i);
+			break;
 		case CONTROL_NIBBLES_UINT16:
-			(*(uint16_t*)c->value) = MAX((*(uint16_t*)c->value) - (uint16_t)pow32(16, cc->fieldpointer), (uint16_t)c->min.i); break;
+			(*(uint16_t*)c->value) = MAX((*(uint16_t*)c->value) - (uint16_t)pow32(16, cc->fieldpointer), (uint16_t)c->min.i);
+			break;
 		case CONTROL_NIBBLES_UINT32:
-			(*(uint32_t*)c->value) = MAX((*(uint32_t*)c->value) - (uint32_t)pow32(16, cc->fieldpointer), (uint32_t)c->min.i); break;
+			if (*(uint32_t*)c->value - (uint32_t)c->min.i > (uint32_t)pow32(16, cc->fieldpointer))
+				(*(uint32_t*)c->value) = MAX((*(uint32_t*)c->value) - (uint32_t)pow32(16, cc->fieldpointer), (uint32_t)c->min.i);
+			else
+				(*(uint32_t*)c->value) = (uint32_t)c->min.i;
+			break;
 		case CONTROL_NIBBLES_INT16:
 			if (*(int16_t*)c->value < 0)
 			{
@@ -327,8 +338,7 @@ void decControlValue(ControlState *cc)
 					while (((*(int16_t*)c->value) & 0x0f00) > ((int16_t)c->max.i & 0x0f00)) (*(int16_t*)c->value) -= 0x0100;
 					while (((*(int16_t*)c->value) & 0xf000) > ((int16_t)c->max.i & 0xf000)) (*(int16_t*)c->value) -= 0x1000;
 				}
-			}
-			break;
+			} break;
 	}
 	if (c->callback) c->callback(c->callbackarg);
 }

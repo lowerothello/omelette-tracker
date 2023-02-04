@@ -6,7 +6,7 @@
 #include "playback.h"
 #include "init.h"
 
-#include "file.h"         /* file helper functions */
+#include "file/file.h"         /* file helper functions */
 
 #include "redraw.h"       /* the redraw callback (lol) */
 #include "draw_helpers.c" /* helper functions for drawing to the screen */
