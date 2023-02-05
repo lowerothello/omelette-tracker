@@ -24,6 +24,8 @@ enum PTRIG {
 
 #define MAX_OCTAVE 7 /* this +2 is accessible with the keyboard */
 #define MIN_OCTAVE 0
+#define MAX_STEP 15
+#define MIN_STEP 0
 #define TRACKERFX_MIN -1
 #define TRACKERFX_VISUAL_MIN 0
 typedef struct _UI {
@@ -71,7 +73,7 @@ typedef struct _UI {
 	char        chord; /* key chord buffer, vi-style multi-letter commands */
 	uint8_t     count; /* action repeat count, follows similar rules to w->chord */
 	signed char octave;
-	uint8_t     step;
+	signed char step;
 	bool        follow;
 
 	Track   previewtrack[PREVIEW_TRACKS];
@@ -91,9 +93,16 @@ void setRowHighlightCount(void);
 void setOctaveCount(void);
 void setStepCount(void);
 
+void addOctave(int delta);
+void incOctave(void) { addOctave( 1); }
+void decOctave(void) { addOctave(-1); }
+
+void addStep(int delta);
+void incStep(void) { addStep( 1); }
+void decStep(void) { addStep(-1); }
+
 void showTracker(void);
 void showInstrument(void);
-void showEffect(void);
 
 UI *allocWindow(void);
 void freeWindow(UI*);

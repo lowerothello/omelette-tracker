@@ -40,6 +40,7 @@ static void masterPgDn(void *count)
 
 static void masterMouse(enum Button button, int x, int y)
 {
+	if (rulerMouse(button, x, y)) return;
 	switch (button)
 	{
 		case WHEEL_UP: case WHEEL_UP_CTRL:     masterPgUp((void*)1); break;

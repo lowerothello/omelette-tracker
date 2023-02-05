@@ -29,6 +29,7 @@ jack_nframes_t samplerate, buffersize;
 #include "util.c"
 #include "config.h"
 #include "draw_helpers.c"
+#include "button.h"
 #include "tooltip.h"
 #include "tracker/variant.h" /* for NOTE_MAX */
 #include "tooltip.c"

@@ -5,6 +5,7 @@ static void setStep(void *step)
 }
 static void trackerEscape(void)
 {
+	setAutoRepeatOn();
 	previewNote(NOTE_OFF, INST_VOID, 0);
 	if (cc.mouseadjust || cc.keyadjust)
 	{
@@ -28,7 +29,7 @@ static void trackerEnterVisualMode(void)
 	switch (w->mode)
 	{
 		case MODE_VISUAL: w->mode = MODE_NORMAL; break;
-		default:            w->mode = MODE_VISUAL; break;
+		default:          w->mode = MODE_VISUAL; break;
 	}
 	p->redraw = 1;
 }
@@ -40,17 +41,19 @@ static void trackerEnterVisualLineMode(void)
 	switch (w->mode)
 	{
 		case MODE_VISUALLINE: w->mode = MODE_NORMAL;     break;
-		default:                w->mode = MODE_VISUALLINE; break;
+		default:              w->mode = MODE_VISUALLINE; break;
 	}
 	p->redraw = 1;
 }
 static void trackerEnterVisualReplaceMode(void)
 {
+	setAutoRepeatOff();
 	w->mode = MODE_VISUALREPLACE;
 	p->redraw = 1;
 }
 static void trackerEnterInsertMode(void)
 {
+	setAutoRepeatOff();
 	w->mode = MODE_INSERT;
 	p->redraw = 1;
 }
@@ -59,7 +62,7 @@ static void trackerEnterEffectMode(void)
 	w->mode = MODE_EFFECT;
 	p->redraw = 1;
 }
-static void toggleSongFollow(void)
+void toggleSongFollow(void)
 {
 	w->follow = !w->follow;
 	if (s->playing)
@@ -360,17 +363,6 @@ static void ripRows(void)
 	regenGlobalRowc(s); p->redraw = 1;
 }
 
-static void incOctave(void)
-{
-	w->octave = MIN(w->octave + 1, MAX_OCTAVE);
-	p->redraw = 1;
-}
-static void decOctave(void)
-{
-	w->octave = MAX(w->octave - 1, MIN_OCTAVE);
-	p->redraw = 1;
-}
-
 static void pushVtrig(void *arg)
 {
 	short i;
@@ -625,6 +617,8 @@ static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
 }
 static void trackerMouse(enum Button button, int x, int y)
 {
+	if (rulerMouse(button, x, y)) return;
+
 	short chanw;
 	int i, j;
 	TrackData *cd = &s->track->v[w->track].data;
@@ -806,20 +800,6 @@ static void copyChainEffect(EffectChain **chain)
 	copyEffect(&w->effectbuffer, &(*chain)->v[selectedindex], NULL, NULL);
 	p->redraw = 1;
 }
-// static void pasteChainEffectBelow(EffectChain **chain)
-// {
-// 	if (!(*chain)->c) return;
-// 	uint8_t selectedindex = getEffectFromCursor(*chain, cc.cursor);
-// 	copyEffect(&(*chain)->v[selectedindex], &w->effectbuffer, (*chain)->input, (*chain)->output);
-// 	p->redraw = 1;
-// }
-// static void pasteChainEffectAbove(EffectChain **chain)
-// {
-// 	if (!(*chain)->c) return;
-// 	uint8_t selectedindex = getEffectFromCursor(*chain, cc.cursor);
-// 	copyEffect(&(*chain)->v[selectedindex], &w->effectbuffer, (*chain)->input, (*chain)->output);
-// 	p->redraw = 1;
-// }
 
 static void addTrackerNavBinds(TooltipState *tt)
 {
@@ -832,7 +812,8 @@ static void addTrackerNavBinds(TooltipState *tt)
 	addTooltipBind(tt, "cursor pgup"       , 0          , XK_Page_Up  , 0      , (void(*)(void*))trackerPgUp      , (void*)1);
 	addTooltipBind(tt, "cursor pgdn"       , 0          , XK_Page_Down, 0      , (void(*)(void*))trackerPgDn      , (void*)1);
 }
-static void addTrackerCountBinds(TooltipState *tt)
+
+static void addTrackerSongBinds(TooltipState *tt)
 {
 	addTooltipBind(tt, "count set bpm"          , 0, XK_B, 0, (void(*)(void*))setBpmCount         , NULL);
 	addTooltipBind(tt, "count set row highlight", 0, XK_R, 0, (void(*)(void*))setRowHighlightCount, NULL);
@@ -853,7 +834,7 @@ void initTrackerInput(TooltipState *tt)
 		case MODE_EFFECT:
 			addCountBinds(tt, 0);
 			addTrackerNavBinds(tt);
-			addTrackerCountBinds(tt);
+			addTrackerSongBinds(tt);
 			addTrackerGraphicBinds(tt);
 			addTooltipBind(tt, "return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape         , NULL);
 			addTooltipBind(tt, "toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, &cc );
@@ -870,7 +851,7 @@ void initTrackerInput(TooltipState *tt)
 		case MODE_NORMAL:
 			addCountBinds(tt, 0);
 			addTrackerNavBinds(tt);
-			addTrackerCountBinds(tt);
+			addTrackerSongBinds(tt);
 			addTrackerGraphicBinds(tt);
 			addTooltipBind(tt, "mute current track"    , 0                   , XK_Return      , 0              , (void(*)(void*))muteCurrentTrack          , NULL     );
 			addTooltipBind(tt, "solo current track"    , 0                   , XK_s           , 0              , (void(*)(void*))soloCurrentTrack          , NULL     );

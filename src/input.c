@@ -146,6 +146,17 @@ static void *XEventThread(PlaybackInfo *arg)
 	return NULL;
 }
 
+void setAutoRepeatOn(void)
+{
+	if (input_mode == INPUTMODE_X)
+		XAutoRepeatOn(dpy); /* assume key repeat is wanted on, TODO: use whatever was set before */
+}
+void setAutoRepeatOff(void)
+{
+	if (input_mode == INPUTMODE_X)
+		XAutoRepeatOff(dpy);
+}
+
 /* stdin is initialized by initTerminal() */
 /* returns true for failure */
 int initRawInput(void)
@@ -161,7 +172,6 @@ int initRawInput(void)
 		case INPUTMODE_X:
 			if (!(dpy = XOpenDisplay(NULL))) return 1;
 			XGetInputFocus(dpy, &wpy, &revtoret);
-			XAutoRepeatOff(dpy);
 			XGrabKey(dpy, AnyKey, AnyModifier, wpy, 1, GrabModeAsync, GrabModeAsync);
 			pthread_create(&xeventthread_id, NULL, (void*(*)(void*))XEventThread, &p);
 			break;
@@ -191,7 +201,7 @@ void freeRawInput(void)
 
 			XUngrabKey(dpy, AnyKey, AnyModifier, wpy);
 			XUngrabKeyboard(dpy, CurrentTime);
-			XAutoRepeatOn(dpy); /* assume key repeat is wanted on, TODO: use whatever was set before */
+			setAutoRepeatOn();
 			XCloseDisplay(dpy);
 			break;
 		case INPUTMODE_NONE: break;

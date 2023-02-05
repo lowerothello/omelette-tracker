@@ -1,3 +1,12 @@
+#define RULER_WIDTH 19
+
+/* globals instead of static to the mouse function so they can be checked against in the draw code */
+int staging_octave = 0;
+int staging_step = 0;
+int staging_play = 0;
+
+#define STAGING_FORMAT "\033[7m"
+
 static void drawRuler(void)
 {
 	/* top ruler */
@@ -35,18 +44,69 @@ static void drawRuler(void)
 		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
 		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
 
-		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - 19);
+		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - RULER_WIDTH);
 
+		if (staging_play) printf(STAGING_FORMAT);
 		if (w->follow) printf(">");
 		else           printf(" ");
 
-		if (s->playing == PLAYING_STOP) printf("STOP");
-		else                            printf("PLAY");
+		if (s->playing) printf("PLAY");
+		else            printf("STOP");
 
 		if (w->follow) printf(">");
 		else           printf(" ");
+		printf("\033[m ");
 
-		printf(" &%d +%x  \033[1m%3dBPM\033[m", w->octave, w->step, s->songbpm);
+		if (staging_octave) printf(STAGING_FORMAT);
+		printf("&%d\033[m ", w->octave);
+		if (staging_step) printf(STAGING_FORMAT);
+		printf("+%x\033[m  ", w->step);
+		printf("\033[1m%3dBPM\033[m", s->songbpm);
+	}
+}
+
+/* returns 0 to fall through */
+int rulerMouse(enum Button button, int x, int y)
+{
+	switch (button)
+	{
+		case BUTTON1: /* fall through */
+		case WHEEL_UP:
+			if (y < ws.ws_row) return 0;
+			if (x >= ws.ws_col - RULER_WIDTH && x <= ws.ws_col - RULER_WIDTH + 5) staging_play = 1;
+			if (x >= ws.ws_col - RULER_WIDTH + 7 && x <= ws.ws_col - RULER_WIDTH + 8) staging_octave++;
+			if (x >= ws.ws_col - RULER_WIDTH + 10 && x <= ws.ws_col - RULER_WIDTH + 11) staging_step++;
+			p->redraw = 1;
+			return 1;
+
+		case BUTTON2:
+			if (y < ws.ws_row) return 0;
+			if (x >= ws.ws_col - RULER_WIDTH && x <= ws.ws_col - RULER_WIDTH + 5) staging_play = 2;
+			p->redraw = 1;
+			return 1;
+
+		case BUTTON3: /* fall through */
+		case WHEEL_DOWN:
+			if (y < ws.ws_row) return 0;
+			if (x >= ws.ws_col - RULER_WIDTH && x <= ws.ws_col - RULER_WIDTH + 5) staging_play = 3;
+			if (x >= ws.ws_col - RULER_WIDTH + 7 && x <= ws.ws_col - RULER_WIDTH + 8) staging_octave--;
+			if (x >= ws.ws_col - RULER_WIDTH + 10 && x <= ws.ws_col - RULER_WIDTH + 11) staging_step--;
+			p->redraw = 1;
+			return 1;
+
+		case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
+			switch (staging_play)
+			{
+				case 1: startPlayback(); staging_play = 0; break;
+				case 2: toggleSongFollow(); staging_play = 0; break;
+				case 3: stopPlayback(); staging_play = 0; break;
+			}
+
+			if (staging_octave) { addOctave(staging_octave); staging_octave = 0; }
+			if (staging_step) { addStep(staging_step); staging_step = 0; }
+			/* fall through */
+		default:
+			return 0;
 	}
 }
 

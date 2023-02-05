@@ -1,8 +1,18 @@
-static void instrumentEscape(void *arg);
+static void instrumentEscape(void *arg)
+{
+	setAutoRepeatOff();
+	w->showfilebrowser = 0;
+	previewNote(NOTE_OFF, INST_VOID, 0);
+	cc.mouseadjust = cc.keyadjust = 0;
+	w->mode = MODE_NORMAL;
+	p->redraw = 1;
+}
+
 
 #include "chord/add.c"
 #include "chord/yank.c"
 #include "chord/delete.c"
+
 
 static void instrumentUpArrow(size_t count)
 {
@@ -52,15 +62,6 @@ static void instrumentEnd(void)
 		browserEnd(fbstate);
 	else
 		setControlCursor(&cc, cc.controlc-1);
-	p->redraw = 1;
-}
-
-static void instrumentEscape(void *arg)
-{
-	w->showfilebrowser = 0;
-	previewNote(NOTE_OFF, INST_VOID, 0);
-	cc.mouseadjust = cc.keyadjust = 0;
-	w->mode = MODE_NORMAL;
 	p->redraw = 1;
 }
 
@@ -123,6 +124,8 @@ static void instrumentSampleReleasePreview(size_t note)
 
 static void instrumentMouse(enum Button button, int x, int y)
 {
+	if (rulerMouse(button, x, y)) return;
+
 	switch (button)
 	{
 		case BUTTON2_HOLD: case BUTTON2_HOLD_CTRL:
@@ -194,6 +197,7 @@ static void toggleBrowser(void *arg)
 }
 static void instrumentEnterInsertMode(void *arg)
 {
+	setAutoRepeatOff();
 	w->mode = MODE_INSERT;
 	p->redraw = 1;
 }

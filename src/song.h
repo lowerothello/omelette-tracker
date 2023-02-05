@@ -41,7 +41,6 @@ Song *_addSong(void);
 Song *allocSong(void);
 void freeSong(Song *cs);
 void reapplyBpm(void);
-void setBpmCount(void);
 
 int writeSong(Song *cs, char *path);
 Song *readSong(char *path);

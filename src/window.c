@@ -21,8 +21,24 @@ void setStepCount(void)
 	p->redraw = 1;
 }
 
+void addOctave(int delta)
+{
+	w->octave += delta;
+	w->octave = MIN(w->octave, MAX_OCTAVE);
+	w->octave = MAX(w->octave, MIN_OCTAVE);
+	p->redraw = 1;
+}
+void addStep(int delta)
+{
+	w->step += delta;
+	w->step = MIN(w->step, MAX_STEP);
+	w->step = MAX(w->step, MIN_STEP);
+	p->redraw = 1;
+}
+
 void showTracker(void)
 {
+	setAutoRepeatOn();
 	w->page = PAGE_VARIANT;
 	w->mode = MODE_NORMAL;
 	freePreviewSample();
@@ -30,6 +46,7 @@ void showTracker(void)
 }
 void showInstrument(void)
 {
+	setAutoRepeatOn();
 	w->showfilebrowser = 0;
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;

@@ -108,6 +108,7 @@ static bool commandCallback(char *command, enum _Mode *mode)
 }
 static void enterCommandMode(void *arg)
 {
+	setAutoRepeatOn();
 	setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
 	w->oldmode = w->mode;
 	switch (w->mode)
@@ -148,7 +149,6 @@ void resetInput(void)
 
 	addTooltipBind(&tt, "show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
 	addTooltipBind(&tt, "show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);
-	// addTooltipBind(&tt, "show effect",     0          , XK_F3   , 0, (void(*)(void*))showEffect    , NULL);
 
 	addTooltipBind(&tt, "start playback" , 0          , XK_F5   , 0, (void(*)(void*))startPlayback , NULL);
 	addTooltipBind(&tt, "stop playback"  , 0          , XK_F6   , 0, (void(*)(void*))stopPlayback  , NULL);

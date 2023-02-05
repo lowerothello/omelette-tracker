@@ -1,6 +1,7 @@
 #include "config.h"
 #include "dsp/dsp.c"
 
+#include "button.h"
 #include "scrollbar.h"
 
 #include "playback.h"
@@ -68,10 +69,11 @@ enum _Mode {
 #include "macros.h"
 #include "process.h"
 
+#include "input.h"
+
 #include "song.c"
 #include "window.c"
 
-#include "input.h"
 #include "event.c"
 
 #include "generator/sampler.h"

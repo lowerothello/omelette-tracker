@@ -82,6 +82,7 @@ static void pluginBrowserCommit(BrowserState *b)
 
 static void pluginBrowserMouse(enum Button button, int x, int y)
 {
+	if (rulerMouse(button, x, y)) return;
 	browserMouse(pbstate, button, x, y);
 	p->redraw = 1;
 }
