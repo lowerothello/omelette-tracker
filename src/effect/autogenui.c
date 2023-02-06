@@ -8,7 +8,7 @@ void drawCentreText(short x, short y, short w, const char *text)
 	else if (x > -w) printf("\033[%d;%dH%.*s", y, x, w-x, text-(x-1)); /* x should always be <= 0 */
 }
 
-void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
+void drawAutogenPluginLine(short x, short y, short w,
 		short ymin, short ymax,
 		const char *name, float *value,
 		bool toggled, bool integer,
@@ -29,7 +29,7 @@ void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
 		if (toggled) /* boolean */
 		{
 			controloffset -= 3;
-			addControlFloat(cc, x + controloffset, y,
+			addControlFloat(x + controloffset, y,
 					value, CONTROL_NIBBLES_TOGGLED,
 					min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 		} else if (min != NAN && max != NAN && min < 0.0f)
@@ -37,13 +37,13 @@ void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
 			if (integer) /* signed int */
 			{
 				controloffset -= 3 + getPreRadixDigits(max);
-				addControlFloat(cc, x + controloffset, y,
+				addControlFloat(x + controloffset, y,
 						value, CONTROL_NIBBLES_SIGNED_INT,
 						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			} else /* signed float */
 			{
 				controloffset -= 10;
-				addControlFloat(cc, x + controloffset, y,
+				addControlFloat(x + controloffset, y,
 						value, CONTROL_NIBBLES_SIGNED_FLOAT,
 						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			}
@@ -52,13 +52,13 @@ void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
 			if (integer) /* unsigned int */
 			{
 				controloffset -= 2 + getPreRadixDigits(max);
-				addControlFloat(cc, x + controloffset, y,
+				addControlFloat(x + controloffset, y,
 						value, CONTROL_NIBBLES_UNSIGNED_INT,
 						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			} else /* unsigned float */
 			{
 				controloffset -= 9;
-				addControlFloat(cc, x + controloffset, y,
+				addControlFloat(x + controloffset, y,
 						value, CONTROL_NIBBLES_UNSIGNED_FLOAT,
 						min, max, def, scalepointlen, scalepointcount, NULL, NULL);
 			}
@@ -82,5 +82,5 @@ void drawAutogenPluginLine(ControlState *cc, short x, short y, short w,
 			else if (x+1 + MIN(controloffset, (int)strlen(name)) > 1)
 				printf("\033[%d;%dH%.*s", y, x, controloffset-x, name-x);
 		}
-	} else addControlInt(cc, 0, 0, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL);
+	} else addControlInt(0, 0, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL);
 }

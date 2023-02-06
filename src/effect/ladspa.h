@@ -39,7 +39,7 @@ void serializeLadspaEffect(LadspaState*, FILE*);
 void deserializeLadspaEffect(LadspaState**, float **input, float **output, FILE*);
 
 /* the current text colour will apply to the header but not the contents */
-void drawLadspaEffect(LadspaState*, ControlState*,
+void drawLadspaEffect(LadspaState*,
 		short x, short w, short y, short ymin, short ymax);
 
 /* only valid to call if input and output are not NULL */

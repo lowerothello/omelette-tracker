@@ -81,10 +81,10 @@ int getPreviewVoice(uint8_t note, bool release)
 	return oldestslot;
 }
 
-void incControlValueRedraw(ControlState *cc) { incControlValue (cc); p->redraw = 1; }
-void decControlValueRedraw(ControlState *cc) { decControlValue (cc); p->redraw = 1; }
-void toggleKeyControlRedraw(ControlState *cc) { toggleKeyControl(cc); p->redraw = 1; }
-void revertKeyControlRedraw(ControlState *cc) { revertKeyControl(cc); p->redraw = 1; }
+void incControlValueRedraw(void) { incControlValue(); p->redraw = 1; }
+void decControlValueRedraw(void) { decControlValue(); p->redraw = 1; }
+void toggleKeyControlRedraw(void) { toggleKeyControl(); p->redraw = 1; }
+void revertKeyControlRedraw(void) { revertKeyControl(); p->redraw = 1; }
 
 
 static enum InputMode getRawInputMode(void)

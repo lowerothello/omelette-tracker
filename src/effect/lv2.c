@@ -241,7 +241,7 @@ void deserializeLV2Effect(LV2State **s, float **input, float **output, FILE *fp)
 }
 
 /* the current text colour will apply to the header but not the contents */
-void drawLV2Effect(Effect *e, ControlState *cc,
+void drawLV2Effect(Effect *e,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
@@ -322,7 +322,7 @@ void drawLV2Effect(Effect *e, ControlState *cc,
 					scalepointlen = MAX(scalepointlen, splen);
 				} lilv_scale_points_free(scalepoints);
 			} else
-				drawAutogenPluginLine(cc, x, y+1 + controlp, w, ymin, ymax,
+				drawAutogenPluginLine(x, y+1 + controlp, w, ymin, ymax,
 						lilv_node_as_string(name), &s->controlv[controlp],
 						lilv_port_has_property(s->plugin, lpo, lv2_db.toggled),
 						lilv_port_has_property(s->plugin, lpo, lv2_db.integer),

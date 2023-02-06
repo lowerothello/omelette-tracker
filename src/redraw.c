@@ -123,7 +123,7 @@ void redraw(void)
 	switch (w->page)
 	{
 		case PAGE_VARIANT:       drawTracker();        break;
-		case PAGE_INSTRUMENT:    drawInstrument(&cc);  break;
+		case PAGE_INSTRUMENT:    drawInstrument();     break;
 		case PAGE_PLUGINBROWSER: drawBrowser(pbstate); break;
 	}
 	drawCommand(&w->command, w->mode);

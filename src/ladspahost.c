@@ -92,12 +92,12 @@ void redraw(void)
 
 	if (lhs.state)
 	{
-		clearControls(&cc);
-		drawLadspaEffect(lhs.state, &cc,
+		clearControls();
+		drawLadspaEffect(lhs.state,
 				((ws.ws_col - EFFECT_WIDTH)>>1) + 1, EFFECT_WIDTH,
 				((ws.ws_row - getLadspaEffectHeight(lhs.state))>>1) + 2, 1, ws.ws_row);
 
-		drawControls(&cc);
+		drawControls();
 
 		/* drawTooltip(&tt); */
 	} else
@@ -120,23 +120,23 @@ void resize(void)
 	ioctl(1, TIOCGWINSZ, &ws);
 }
 
-static void toggleKeyControlRedraw(ControlState *cc) { toggleKeyControl(cc); lhs.redraw = 1; }
-static void revertKeyControlRedraw(ControlState *cc) { revertKeyControl(cc); lhs.redraw = 1; }
-static void incControlValueRedraw (ControlState *cc) { incControlValue (cc); lhs.redraw = 1; }
-static void decControlValueRedraw (ControlState *cc) { decControlValue (cc); lhs.redraw = 1; }
-static void upArrow  (void) { decControlCursor(&cc, 1); lhs.redraw = 1; }
-static void downArrow(void) { incControlCursor(&cc, 1); lhs.redraw = 1; }
-static void leftArrow (void) { incControlFieldpointer(&cc); lhs.redraw = 1; }
-static void rightArrow(void) { decControlFieldpointer(&cc); lhs.redraw = 1; }
-static void mouse(enum Button button, int x, int y) { mouseControls(&cc, button, x, y); lhs.redraw = 1; }
+static void toggleKeyControlRedraw(void) { toggleKeyControl(); lhs.redraw = 1; }
+static void revertKeyControlRedraw(void) { revertKeyControl(); lhs.redraw = 1; }
+static void incControlValueRedraw (void) { incControlValue (); lhs.redraw = 1; }
+static void decControlValueRedraw (void) { decControlValue (); lhs.redraw = 1; }
+static void upArrow  (void) { decControlCursor(1); lhs.redraw = 1; }
+static void downArrow(void) { incControlCursor(1); lhs.redraw = 1; }
+static void leftArrow (void) { incControlFieldpointer(); lhs.redraw = 1; }
+static void rightArrow(void) { decControlFieldpointer(); lhs.redraw = 1; }
+static void mouse(enum Button button, int x, int y) { mouseControls(button, x, y); lhs.redraw = 1; }
 void resetInput(void)
 {
 	clearTooltip(&tt);
 	setTooltipMouseCallback(&tt, mouse);
-	addTooltipBind(&tt, "toggle checkmark button" , 0          , XK_Return   , TT_DRAW, (void(*)(void*))toggleKeyControlRedraw, &cc );
-	addTooltipBind(&tt, "reset control to default", 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))revertKeyControlRedraw, &cc );
-	addTooltipBind(&tt, "increment value"         , ControlMask, XK_a        , TT_DRAW, (void(*)(void*))incControlValueRedraw , &cc );
-	addTooltipBind(&tt, "decrement value"         , ControlMask, XK_x        , TT_DRAW, (void(*)(void*))decControlValueRedraw , &cc );
+	addTooltipBind(&tt, "toggle checkmark button" , 0          , XK_Return   , TT_DRAW, (void(*)(void*))toggleKeyControlRedraw, NULL);
+	addTooltipBind(&tt, "reset control to default", 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))revertKeyControlRedraw, NULL);
+	addTooltipBind(&tt, "increment value"         , ControlMask, XK_a        , TT_DRAW, (void(*)(void*))incControlValueRedraw , NULL);
+	addTooltipBind(&tt, "decrement value"         , ControlMask, XK_x        , TT_DRAW, (void(*)(void*))decControlValueRedraw , NULL);
 	addTooltipBind(&tt, "up arrow"                , 0          , XK_Up       , TT_DRAW, (void(*)(void*))upArrow               , NULL);
 	addTooltipBind(&tt, "down arrow"              , 0          , XK_Down     , TT_DRAW, (void(*)(void*))downArrow             , NULL);
 	addTooltipBind(&tt, "left arrow"              , 0          , XK_Left     , TT_DRAW, (void(*)(void*))leftArrow             , NULL);

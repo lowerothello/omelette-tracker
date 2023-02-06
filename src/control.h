@@ -54,20 +54,20 @@ typedef struct
 ControlState cc;
 
 
-void clearControls(ControlState*);
-void addControlInt(ControlState*, short x, short y, void *value, int8_t nibbles,
+void clearControls(void);
+void addControlInt(short x, short y, void *value, int8_t nibbles,
 		uint32_t min, uint32_t max, uint32_t def,
 		uint32_t scalepointlen, uint32_t scalepointcount,
 		void (*callback)(void *), void *callbackarg);
-void addControlFloat(ControlState*, short x, short y, void *value, int8_t nibbles,
+void addControlFloat(short x, short y, void *value, int8_t nibbles,
 		float min, float max, float def,
 		uint32_t scalepointlen, uint32_t scalepointcount,
 		void (*callback)(void *), void *callbackarg);
-void addControlDummy(ControlState*, short x, short y);
+void addControlDummy(short x, short y);
 
 /* applies retroactively to the previously registered control */
-void addScalePointInt  (ControlState*, char *label, uint32_t value);
-void addScalePointFloat(ControlState*, char *label, uint32_t value);
+void addScalePointInt  (char *label, uint32_t value);
+void addScalePointFloat(char *label, uint32_t value);
 
 /* number of digits before the radix, up to 6 are checked for (float range) */
 /* don't think there's a more efficient way to do this? there might well be */
@@ -75,19 +75,19 @@ int getPreRadixDigits(float);
 
 /* dump state to the screen */
 /* leaves the cursor over the selected control */
-void drawControls(ControlState*);
+void drawControls(void);
 
-void incControlValue(ControlState*);
-void decControlValue(ControlState*);
-void incControlCursor(ControlState*, uint8_t count);
-void decControlCursor(ControlState*, uint8_t count);
-void setControlCursor(ControlState*, uint8_t newcursor);
-void incControlFieldpointer(ControlState*);
-void decControlFieldpointer(ControlState*);
+void incControlValue(void);
+void decControlValue(void);
+void incControlCursor(uint8_t count);
+void decControlCursor(uint8_t count);
+void setControlCursor(uint8_t newcursor);
+void incControlFieldpointer(void);
+void decControlFieldpointer(void);
 
-void hexControlValue(ControlState*, char value);
-void toggleKeyControl(ControlState*);
-void revertKeyControl(ControlState*); /* TODO: doesn't work properly */
-void mouseControls(ControlState*, int button, int x, int y);
+void hexControlValue(char value);
+void toggleKeyControl(void);
+void revertKeyControl(void); /* TODO: doesn't work properly */
+void mouseControls(int button, int x, int y);
 
 #include "control.c"

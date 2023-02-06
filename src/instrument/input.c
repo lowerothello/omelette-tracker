@@ -20,7 +20,7 @@ static void instrumentUpArrow(size_t count)
 	if (w->showfilebrowser)
 		browserUpArrow(fbstate, count);
 	else
-		decControlCursor(&cc, count*MAX(1, w->count));
+		decControlCursor(count*MAX(1, w->count));
 	p->redraw = 1;
 }
 static void instrumentDownArrow(size_t count)
@@ -29,21 +29,21 @@ static void instrumentDownArrow(size_t count)
 	if (w->showfilebrowser)
 		browserDownArrow(fbstate, count);
 	else
-		incControlCursor(&cc, count*MAX(1, w->count));
+		incControlCursor(count*MAX(1, w->count));
 	p->redraw = 1;
 }
 static void instrumentLeftArrow(void)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
 	if (!w->showfilebrowser)
-		incControlFieldpointer(&cc);
+		incControlFieldpointer();
 	p->redraw = 1;
 }
 static void instrumentRightArrow(void)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
 	if (!w->showfilebrowser)
-		decControlFieldpointer(&cc);
+		decControlFieldpointer();
 	p->redraw = 1;
 }
 static void instrumentHome(void)
@@ -52,7 +52,7 @@ static void instrumentHome(void)
 	if (w->showfilebrowser)
 		browserHome(fbstate);
 	else
-		setControlCursor(&cc, 0);
+		setControlCursor(0);
 	p->redraw = 1;
 }
 static void instrumentEnd(void)
@@ -61,7 +61,7 @@ static void instrumentEnd(void)
 	if (w->showfilebrowser)
 		browserEnd(fbstate);
 	else
-		setControlCursor(&cc, cc.controlc-1);
+		setControlCursor(cc.controlc-1);
 	p->redraw = 1;
 }
 
@@ -91,7 +91,7 @@ static void instrumentSampleReturn(void *arg)
 	if (w->showfilebrowser)
 		fbstate->commit(fbstate);
 	else
-		toggleKeyControl(&cc);
+		toggleKeyControl();
 	p->redraw = 1;
 }
 static void instrumentSampleBackspace(void *arg)
@@ -100,7 +100,7 @@ static void instrumentSampleBackspace(void *arg)
 	if (w->showfilebrowser)
 		fileBrowserBackspace(fbstate);
 	else
-		revertKeyControl(&cc);
+		revertKeyControl();
 	p->redraw = 1;
 }
 static void instrumentSamplePressPreview(size_t note)
@@ -142,7 +142,7 @@ static void instrumentMouse(enum Button button, int x, int y)
 				{
 					case WHEEL_UP: case WHEEL_UP_CTRL:     instrumentPgUp((void*)1); break;
 					case WHEEL_DOWN: case WHEEL_DOWN_CTRL: instrumentPgDn((void*)1); break;
-					default: mouseControls(&cc, button, x, y); break;
+					default: mouseControls(button, x, y); break;
 				}
 			} else
 			{
@@ -229,8 +229,8 @@ void initInstrumentInput(TooltipState *tt)
 	addTooltipBind(tt, "previous index"   , ControlMask, XK_Up       , TT_DRAW, instrumentCtrlUpArrow                , (void*)1);
 	addTooltipBind(tt, "next index"       , ControlMask, XK_Down     , TT_DRAW, instrumentCtrlDownArrow              , (void*)1);
 	addTooltipBind(tt, "return"           , 0          , XK_Escape   , 0      , instrumentEscape                     , NULL    );
-	addTooltipBind(tt, "increment cell"   , ControlMask, XK_A        , TT_DRAW, (void(*)(void*))incControlValueRedraw, &cc     );
-	addTooltipBind(tt, "decrement cell"   , ControlMask, XK_X        , TT_DRAW, (void(*)(void*))decControlValueRedraw, &cc     );
+	addTooltipBind(tt, "increment cell"   , ControlMask, XK_A        , TT_DRAW, (void(*)(void*))incControlValueRedraw, NULL    );
+	addTooltipBind(tt, "decrement cell"   , ControlMask, XK_X        , TT_DRAW, (void(*)(void*))decControlValueRedraw, NULL    );
 	addTooltipBind(tt, "toggle"           , 0          , XK_Return   , TT_DRAW, instrumentSampleReturn               , NULL    );
 	addTooltipBind(tt, "revert to default", 0          , XK_BackSpace, TT_DRAW, instrumentSampleBackspace            , NULL    );
 	switch (w->mode)

@@ -31,7 +31,7 @@ void trackerUpArrow(size_t count)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			decControlCursor(&cc, count);
+			decControlCursor(count);
 			break;
 		default:
 			w->follow = 0;
@@ -48,7 +48,7 @@ void trackerDownArrow(size_t count)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			incControlCursor(&cc, count);
+			incControlCursor(count);
 			break;
 		default:
 			w->follow = 0;
@@ -67,7 +67,7 @@ void trackerLeftArrow(size_t count)
 	{
 		case MODE_EFFECT:
 			for (i = 0; i < count; i++)
-				incControlFieldpointer(&cc);
+				incControlFieldpointer();
 			break;
 		default:
 			for (i = 0; i < count; i++)
@@ -107,7 +107,7 @@ void trackerRightArrow(size_t count)
 	{
 		case MODE_EFFECT:
 			for (i = 0; i < count; i++)
-				decControlFieldpointer(&cc);
+				decControlFieldpointer();
 			break;
 		default:
 			for (i = 0; i < count; i++)
@@ -144,7 +144,7 @@ void trackerHome(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			setControlCursor(&cc, 0);
+			setControlCursor(0);
 			break;
 		default:
 			w->follow = 0;
@@ -159,7 +159,7 @@ void trackerEnd(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			setControlCursor(&cc, cc.controlc-1);
+			setControlCursor(cc.controlc-1);
 			break;
 		default:
 			w->follow = 0;

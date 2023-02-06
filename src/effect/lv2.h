@@ -62,7 +62,7 @@ short getLV2EffectHeight(LV2State*);
 void serializeLV2Effect(LV2State*, FILE*);
 void deserializeLV2Effect(LV2State**, float **input, float **output, FILE*);
 
-void drawLV2Effect(Effect*, ControlState*,
+void drawLV2Effect(Effect*,
 		short x, short w,
 		short y, short ymin, short ymax);
 

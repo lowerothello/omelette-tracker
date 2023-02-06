@@ -256,7 +256,7 @@ void deserializeLadspaEffect(LadspaState **s, float **input, float **output, FIL
 }
 
 /* the current text colour will apply to the header but not the contents */
-void drawLadspaEffect(LadspaState *s, ControlState *cc,
+void drawLadspaEffect(LadspaState *s,
 		short x, short w, short y, short ymin, short ymax)
 {
 	if (ymin <= y-1 && ymax >= y-1)
@@ -274,7 +274,7 @@ void drawLadspaEffect(LadspaState *s, ControlState *cc,
 	for (uint32_t i = 0; i < s->desc->PortCount; i++)
 		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
 		{
-			drawAutogenPluginLine(cc, x, y+1 + controlp, w, ymin, ymax,
+			drawAutogenPluginLine(x, y+1 + controlp, w, ymin, ymax,
 					s->desc->PortNames[i], &s->controlv[controlp],
 					LADSPA_IS_HINT_TOGGLED(s->desc->PortRangeHints[i].HintDescriptor),
 					LADSPA_IS_HINT_INTEGER(s->desc->PortRangeHints[i].HintDescriptor),

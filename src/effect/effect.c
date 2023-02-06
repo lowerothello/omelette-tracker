@@ -259,8 +259,7 @@ short getEffectHeight(Effect *e)
 	return 0;
 }
 
-void drawDummyEffect(ControlState *cc,
-		short x, short w, short y, short ymin, short ymax)
+void drawDummyEffect(short x, short w, short y, short ymin, short ymax)
 {
 	if (ymin <= y-1 && ymax >= y-1)
 		printf("\033[%d;%dH\033[7mNULL\033[27m", y-1, x + 1);
@@ -273,10 +272,10 @@ void drawDummyEffect(ControlState *cc,
 		printf("\033[22m");
 	}
 
-	addControlDummy(cc, x + w - 3, y);
+	addControlDummy(x + w - 3, y);
 }
 
-static int _drawEffect(Effect *e, ControlState *cc, bool selected, short x, short width, short y, short ymin, short ymax)
+static int _drawEffect(Effect *e, bool selected, short x, short width, short y, short ymin, short ymax)
 {
 	if (!e) return 0;
 
@@ -287,20 +286,20 @@ static int _drawEffect(Effect *e, ControlState *cc, bool selected, short x, shor
 
 	switch (e->type)
 	{
-		case EFFECT_TYPE_DUMMY:  drawDummyEffect(cc, x, width, y, ymin, ymax); break;
-		case EFFECT_TYPE_LADSPA: drawLadspaEffect((LadspaState*)e->state, cc, x, width, y, ymin, ymax); break;
-		case EFFECT_TYPE_LV2:    drawLV2Effect   (e                     , cc, x, width, y, ymin, ymax); break;
+		case EFFECT_TYPE_DUMMY:  drawDummyEffect(x, width, y, ymin, ymax); break;
+		case EFFECT_TYPE_LADSPA: drawLadspaEffect((LadspaState*)e->state, x, width, y, ymin, ymax); break;
+		case EFFECT_TYPE_LV2:    drawLV2Effect   (e                     , x, width, y, ymin, ymax); break;
 	}
 	printf("\033[22;37m");
 
 	return ret;
 }
 
-void drawEffectChain(EffectChain *chain, ControlState *cc, short x, short width, short y)
+void drawEffectChain(EffectChain *chain, short x, short width, short y)
 {
 	if (x > ws.ws_col+1 || x+width < 1) return;
 
-	uint8_t focusedindex = getEffectFromCursor(chain, cc->cursor);
+	uint8_t focusedindex = getEffectFromCursor(chain, cc.cursor);
 	short ty = y + ((ws.ws_row-1 - y)>>1);
 
 	if (chain->c)
@@ -311,10 +310,10 @@ void drawEffectChain(EffectChain *chain, ControlState *cc, short x, short width,
 		ty -= getEffectHeight(&chain->v[focusedindex])>>1;
 
 		for (uint8_t i = 0; i < chain->c; i++)
-			ty += _drawEffect(&chain->v[i], cc,
+			ty += _drawEffect(&chain->v[i],
 					focusedindex == i, x, width,
 					ty+1, y, ws.ws_row-1);
-		drawVerticalScrollbar(x + width + 2, y, ws.ws_row-1 - y, cc->controlc, cc->cursor);
+		drawVerticalScrollbar(x + width + 2, y, ws.ws_row-1 - y, cc.controlc, cc.cursor);
 	} else
 	{
 		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT-1, 1, ws.ws_col, 1, ws.ws_row);
@@ -323,7 +322,7 @@ void drawEffectChain(EffectChain *chain, ControlState *cc, short x, short width,
 		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
 		printCulling(NULL_EFFECT_TEXT, x, y+1, 1, ws.ws_col);
 
-		addControlDummy(cc, MAX(1, MIN(ws.ws_col, x)), y+1);
+		addControlDummy(MAX(1, MIN(ws.ws_col, x)), y+1);
 	}
 }
 

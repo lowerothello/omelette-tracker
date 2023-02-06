@@ -659,7 +659,7 @@ static void trackerMouse(enum Button button, int x, int y)
 			switch (w->mode)
 			{
 				case MODE_EFFECT:
-					mouseControls(&cc, button, x, y);
+					mouseControls(button, x, y);
 					p->redraw = 1;
 					break;
 				default:
@@ -840,16 +840,16 @@ void initTrackerInput(TooltipState *tt)
 			addTrackerSongBinds(tt);
 			addTrackerGraphicBinds(tt);
 			addTooltipBind(tt, "return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape         , NULL);
-			addTooltipBind(tt, "toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, &cc );
-			addTooltipBind(tt, "reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControlRedraw, &cc );
+			addTooltipBind(tt, "toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, NULL);
+			addTooltipBind(tt, "reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControlRedraw, NULL);
 			addTooltipBind(tt, "add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow        , &s->track->v[w->track].data.effect);
 			addTooltipBind(tt, "add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove        , &s->track->v[w->track].data.effect);
 			addTooltipBind(tt, "paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow      , &s->track->v[w->track].data.effect);
 			addTooltipBind(tt, "paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove      , &s->track->v[w->track].data.effect);
 			addTooltipBind(tt, "delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect        , &s->track->v[w->track].data.effect);
 			addTooltipBind(tt, "copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect       , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValueRedraw , &cc );
-			addTooltipBind(tt, "decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValueRedraw , &cc );
+			addTooltipBind(tt, "increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValueRedraw , NULL);
+			addTooltipBind(tt, "decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValueRedraw , NULL);
 			break;
 		case MODE_NORMAL:
 			addCountBinds(tt, 0);

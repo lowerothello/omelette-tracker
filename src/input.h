@@ -9,10 +9,10 @@ void previewNote(uint8_t note, uint8_t inst, bool release);
 void previewRow(Row*, bool release);
 void previewFileNote(uint8_t note, bool release);
 int getPreviewVoice(uint8_t note, bool release);
-void incControlValueRedraw(ControlState*);
-void decControlValueRedraw(ControlState*);
-void toggleKeyControlRedraw(ControlState*);
-void revertKeyControlRedraw(ControlState*);
+void incControlValueRedraw(void);
+void decControlValueRedraw(void);
+void toggleKeyControlRedraw(void);
+void revertKeyControlRedraw(void);
 
 int initRawInput(void);
 void freeRawInput(void);

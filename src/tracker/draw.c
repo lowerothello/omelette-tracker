@@ -492,9 +492,9 @@ void drawTracker(void)
 		w->command.error[0] = '\0';
 
 		short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
-		clearControls(&cc);
-		drawEffectChain(s->track->v[w->track+w->trackoffset].data.effect, &cc, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
-		drawControls(&cc);
+		clearControls();
+		drawEffectChain(s->track->v[w->track+w->trackoffset].data.effect, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
+		drawControls();
 		return;
 	}
 

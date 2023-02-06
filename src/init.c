@@ -8,7 +8,7 @@ static void common_cleanup(int ret)
 	freeEvents();
 	if (p) free(p);
 
-	clearControls(&cc);
+	clearControls();
 	clearTooltip(&tt);
 
 	freeFileBrowser(fbstate);
