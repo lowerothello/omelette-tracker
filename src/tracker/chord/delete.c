@@ -8,12 +8,12 @@ void chordDeleteRow(void *_)
 }
 
 
-void setChordDeleteRow(void *tt)
+void setChordDeleteRow(void)
 {
-	clearTooltip(tt);
-	setTooltipTitle(tt, "delete");
-	addCountBinds(tt, 0);
-	addTooltipBind(tt, "delete row", 0, XK_d     , TT_DRAW, chordDeleteRow, NULL);
-	addTooltipBind(tt, "return"    , 0, XK_Escape, 0      , NULL          , NULL);
+	clearTooltip();
+	setTooltipTitle("delete");
+	addCountBinds(0);
+	addTooltipBind("delete row", 0, XK_d     , TT_DRAW, chordDeleteRow, NULL);
+	addTooltipBind("return"    , 0, XK_Escape, 0      , NULL          , NULL);
 	w->chord = 'd'; p->redraw = 1;
 }

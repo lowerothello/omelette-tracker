@@ -804,171 +804,158 @@ static void copyChainEffect(EffectChain **chain)
 	p->redraw = 1;
 }
 
-static void addTrackerNavBinds(TooltipState *tt)
+static void addTrackerNavBinds(void)
 {
-	addTooltipBind(tt, "cursor up"         , 0          , XK_Up       , 0      , (void(*)(void*))trackerUpArrow   , (void*)1);
-	addTooltipBind(tt, "cursor down"       , 0          , XK_Down     , 0      , (void(*)(void*))trackerDownArrow , (void*)1);
-	addTooltipBind(tt, "cursor left"       , 0          , XK_Left     , 0      , (void(*)(void*))trackerLeftArrow , (void*)1);
-	addTooltipBind(tt, "cursor right"      , 0          , XK_Right    , 0      , (void(*)(void*))trackerRightArrow, (void*)1);
-	addTooltipBind(tt, "cursor home"       , 0          , XK_Home     , 0      , (void(*)(void*))trackerHome      , NULL    );
-	addTooltipBind(tt, "cursor end"        , 0          , XK_End      , 0      , (void(*)(void*))trackerEnd       , NULL    );
-	addTooltipBind(tt, "cursor pgup"       , 0          , XK_Page_Up  , 0      , (void(*)(void*))trackerPgUp      , (void*)1);
-	addTooltipBind(tt, "cursor pgdn"       , 0          , XK_Page_Down, 0      , (void(*)(void*))trackerPgDn      , (void*)1);
+	addTooltipBind("cursor up"         , 0          , XK_Up       , 0      , (void(*)(void*))trackerUpArrow   , (void*)1);
+	addTooltipBind("cursor down"       , 0          , XK_Down     , 0      , (void(*)(void*))trackerDownArrow , (void*)1);
+	addTooltipBind("cursor left"       , 0          , XK_Left     , 0      , (void(*)(void*))trackerLeftArrow , (void*)1);
+	addTooltipBind("cursor right"      , 0          , XK_Right    , 0      , (void(*)(void*))trackerRightArrow, (void*)1);
+	addTooltipBind("cursor home"       , 0          , XK_Home     , 0      , (void(*)(void*))trackerHome      , NULL    );
+	addTooltipBind("cursor end"        , 0          , XK_End      , 0      , (void(*)(void*))trackerEnd       , NULL    );
+	addTooltipBind("cursor pgup"       , 0          , XK_Page_Up  , 0      , (void(*)(void*))trackerPgUp      , (void*)1);
+	addTooltipBind("cursor pgdn"       , 0          , XK_Page_Down, 0      , (void(*)(void*))trackerPgDn      , (void*)1);
 }
 
-static void addTrackerSongBinds(TooltipState *tt)
+void initTrackerInput(void)
 {
-	addTooltipBind(tt, "count set bpm"          , 0, XK_B, 0, (void(*)(void*))setBpmCount         , NULL);
-	addTooltipBind(tt, "count set row highlight", 0, XK_R, 0, (void(*)(void*))setRowHighlightCount, NULL);
-	addTooltipBind(tt, "count set octave"       , 0, XK_O, 0, (void(*)(void*))setOctaveCount      , NULL);
-	addTooltipBind(tt, "count set step"         , 0, XK_S, 0, (void(*)(void*))setStepCount        , NULL);
-}
-
-void initTrackerInput(TooltipState *tt)
-{
-	setTooltipTitle(tt, "tracker");
-	setTooltipMouseCallback(tt, trackerMouse);
-	addDecimalBinds(tt, "set step", Mod1Mask, setStep);
-	addTooltipBind(tt, "return"     , 0          , XK_Escape   , 0, (void(*)(void*))trackerEscape, NULL    );
-	addTooltipBind(tt, "track left" , ControlMask, XK_Left     , 0, (void(*)(void*))trackLeft    , (void*)1);
-	addTooltipBind(tt, "track right", ControlMask, XK_Right    , 0, (void(*)(void*))trackRight   , (void*)1);
+	setTooltipTitle("tracker");
+	setTooltipMouseCallback(trackerMouse);
+	addDecimalBinds("set step", Mod1Mask, setStep);
+	addTooltipBind("return"     , 0          , XK_Escape   , 0, (void(*)(void*))trackerEscape, NULL    );
+	addTooltipBind("track left" , ControlMask, XK_Left     , 0, (void(*)(void*))trackLeft    , (void*)1);
+	addTooltipBind("track right", ControlMask, XK_Right    , 0, (void(*)(void*))trackRight   , (void*)1);
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			addCountBinds(tt, 0);
-			addTrackerNavBinds(tt);
-			addTrackerSongBinds(tt);
-			addTrackerGraphicBinds(tt);
-			addTooltipBind(tt, "return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape         , NULL);
-			addTooltipBind(tt, "toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, NULL);
-			addTooltipBind(tt, "reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControlRedraw, NULL);
-			addTooltipBind(tt, "add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow        , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove        , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow      , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove      , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect        , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect       , &s->track->v[w->track].data.effect);
-			addTooltipBind(tt, "increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValueRedraw , NULL);
-			addTooltipBind(tt, "decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValueRedraw , NULL);
+			addCountBinds(0);
+			addTrackerNavBinds();
+			addRulerBinds();
+			addTrackerGraphicBinds();
+			addTooltipBind("return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape         , NULL);
+			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, NULL);
+			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControlRedraw, NULL);
+			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow        , &s->track->v[w->track].data.effect);
+			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove        , &s->track->v[w->track].data.effect);
+			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow      , &s->track->v[w->track].data.effect);
+			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove      , &s->track->v[w->track].data.effect);
+			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect        , &s->track->v[w->track].data.effect);
+			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect       , &s->track->v[w->track].data.effect);
+			addTooltipBind("increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValueRedraw , NULL);
+			addTooltipBind("decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValueRedraw , NULL);
 			break;
 		case MODE_NORMAL:
-			addCountBinds(tt, 0);
-			addTrackerNavBinds(tt);
-			addTrackerSongBinds(tt);
-			addTrackerGraphicBinds(tt);
-			addTooltipBind(tt, "mute current track"    , 0                   , XK_Return      , 0              , (void(*)(void*))muteCurrentTrack          , NULL     );
-			addTooltipBind(tt, "solo current track"    , 0                   , XK_s           , 0              , (void(*)(void*))soloCurrentTrack          , NULL     );
-			addTooltipBind(tt, "variant cycle up"      , ControlMask         , XK_Up          , 0              , (void(*)(void*))cycleUp                   , (void*)1 );
-			addTooltipBind(tt, "variant cycle down"    , ControlMask         , XK_Down        , 0              , (void(*)(void*))cycleDown                 , (void*)1 );
-			addTooltipBind(tt, "song shift up"         , ShiftMask           , XK_Up          , 0              , (void(*)(void*))shiftUp                   , (void*)1 );
-			addTooltipBind(tt, "song shift down"       , ShiftMask           , XK_Down        , 0              , (void(*)(void*))shiftDown                 , (void*)1 );
-			addTooltipBind(tt, "inc work octave"       , 0                   , XK_plus        , TT_DRAW        , (void(*)(void*))incOctave                 , NULL     );
-			addTooltipBind(tt, "inc work octave"       , 0                   , XK_equal       , 0              , (void(*)(void*))incOctave                 , NULL     );
-			addTooltipBind(tt, "dec work octave"       , 0                   , XK_minus       , TT_DRAW        , (void(*)(void*))decOctave                 , NULL     );
-			addTooltipBind(tt, "cursor left"           , 0                   , XK_h           , 0              , (void(*)(void*))trackerLeftArrow          , (void*)1 );
-			addTooltipBind(tt, "cursor down"           , 0                   , XK_j           , 0              , (void(*)(void*))trackerDownArrow          , (void*)1 );
-			addTooltipBind(tt, "cursor up"             , 0                   , XK_k           , 0              , (void(*)(void*))trackerUpArrow            , (void*)1 );
-			addTooltipBind(tt, "cursor right"          , 0                   , XK_l           , 0              , (void(*)(void*))trackerRightArrow         , (void*)1 );
-			addTooltipBind(tt, "variant cycle up"      , ControlMask         , XK_K           , 0              , (void(*)(void*))cycleUp                   , (void*)1 );
-			addTooltipBind(tt, "variant cycle down"    , ControlMask         , XK_J           , 0              , (void(*)(void*))cycleDown                 , (void*)1 );
-			addTooltipBind(tt, "track left"            , ControlMask         , XK_H           , 0              , (void(*)(void*))trackLeft                 , (void*)1 );
-			addTooltipBind(tt, "track right"           , ControlMask         , XK_L           , 0              , (void(*)(void*))trackRight                , (void*)1 );
-			addTooltipBind(tt, "song shift up"         , 0                   , XK_K           , 0              , (void(*)(void*))shiftUp                   , (void*)1 );
-			addTooltipBind(tt, "song shift down"       , 0                   , XK_J           , 0              , (void(*)(void*))shiftDown                 , (void*)1 );
-			addTooltipBind(tt, "enter insert mode"     , 0                   , XK_i           , 0              , (void(*)(void*))trackerEnterInsertMode    , NULL     );
-			addTooltipBind(tt, "enter effect mode"     , 0                   , XK_e           , 0              , (void(*)(void*))trackerEnterEffectMode    , NULL     );
-			addTooltipBind(tt, "enter visual mode"     , 0                   , XK_v           , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
-			addTooltipBind(tt, "enter visual mode"     , ControlMask         , XK_V           , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
-			addTooltipBind(tt, "enter visual line mode", 0                   , XK_V           , 0              , (void(*)(void*))trackerEnterVisualLineMode, NULL     );
-			addTooltipBind(tt, "delete"                , 0                   , XK_d           , TT_DEAD|TT_DRAW, (void(*)(void*))setChordDeleteRow         , tt       );
-			addTooltipBind(tt, "yank"                  , 0                   , XK_y           , TT_DEAD|TT_DRAW, setChordYankRow                           , tt       );
-			addTooltipBind(tt, "track"                 , 0                   , XK_c           , TT_DEAD|TT_DRAW, setChordTrack                             , tt       );
-			addTooltipBind(tt, "macro"                 , 0                   , XK_m           , TT_DEAD|TT_DRAW, setChordMacro                             , tt       );
-			addTooltipBind(tt, "row"                   , 0                   , XK_r           , TT_DEAD|TT_DRAW, setChordRow                               , tt       );
-			addTooltipBind(tt, "loop"                  , 0                   , XK_semicolon   , TT_DEAD|TT_DRAW, setChordLoop                              , tt       );
-			addTooltipBind(tt, "put"                   , 0                   , XK_p           , 0              , (void(*)(void*))putPartPattern            , (void*)1 );
-			addTooltipBind(tt, "mix put"               , 0                   , XK_P           , 0              , (void(*)(void*))mixPutPartPattern         , (void*)0 );
-			addTooltipBind(tt, "toggle song follow"    , 0                   , XK_f           , 0              , (void(*)(void*))toggleSongFollow          , NULL     );
-			addTooltipBind(tt, "clear cell"            , 0                   , XK_x           , 0              , (void(*)(void*))clearCell                 , NULL     );
-			addTooltipBind(tt, "clear cell"            , 0                   , XK_BackSpace   , 0              , (void(*)(void*))clearCell                 , NULL     );
-			addTooltipBind(tt, "jump loop points"      , 0                   , XK_percent     , 0              , (void(*)(void*))swapLoopPoint             , NULL     );
-			addTooltipBind(tt, "increment cell"        , ControlMask         , XK_A           , TT_DRAW        , trackerInc                                , (void*)1 );
-			addTooltipBind(tt, "decrement cell"        , ControlMask         , XK_X           , TT_DRAW        , trackerDec                                , (void*)1 );
-			addTooltipBind(tt, "octave increment cell" , ControlMask|Mod1Mask, XK_A           , TT_DRAW        , trackerInc                                , (void*)12);
-			addTooltipBind(tt, "octave decrement cell" , ControlMask|Mod1Mask, XK_X           , TT_DRAW        , trackerDec                                , (void*)12);
-			addTooltipBind(tt, "add empty variant"     , 0                   , XK_a           , 0              , (void(*)(void*))addEmptyVariant           , NULL     );
-			addTooltipBind(tt, "toggle variant loop"   , 0                   , XK_period      , 0              , (void(*)(void*))toggleVariantLoop         , NULL     );
-			addTooltipBind(tt, "toggle cell case"      , 0                   , XK_asciitilde  , 0              , toggleCellCase                            , (void*)1 );
+			addCountBinds(0);
+			addTrackerNavBinds();
+			addRulerBinds();
+			addTrackerGraphicBinds();
+			addTooltipBind("mute current track"    , 0                   , XK_Return      , 0              , (void(*)(void*))muteCurrentTrack          , NULL     );
+			addTooltipBind("solo current track"    , 0                   , XK_s           , 0              , (void(*)(void*))soloCurrentTrack          , NULL     );
+			addTooltipBind("variant cycle up"      , ControlMask         , XK_Up          , 0              , (void(*)(void*))cycleUp                   , (void*)1 );
+			addTooltipBind("variant cycle down"    , ControlMask         , XK_Down        , 0              , (void(*)(void*))cycleDown                 , (void*)1 );
+			addTooltipBind("song shift up"         , ShiftMask           , XK_Up          , 0              , (void(*)(void*))shiftUp                   , (void*)1 );
+			addTooltipBind("song shift down"       , ShiftMask           , XK_Down        , 0              , (void(*)(void*))shiftDown                 , (void*)1 );
+			addTooltipBind("inc work octave"       , 0                   , XK_plus        , TT_DRAW        , (void(*)(void*))incOctave                 , NULL     );
+			addTooltipBind("inc work octave"       , 0                   , XK_equal       , 0              , (void(*)(void*))incOctave                 , NULL     );
+			addTooltipBind("dec work octave"       , 0                   , XK_minus       , TT_DRAW        , (void(*)(void*))decOctave                 , NULL     );
+			addTooltipBind("cursor left"           , 0                   , XK_h           , 0              , (void(*)(void*))trackerLeftArrow          , (void*)1 );
+			addTooltipBind("cursor down"           , 0                   , XK_j           , 0              , (void(*)(void*))trackerDownArrow          , (void*)1 );
+			addTooltipBind("cursor up"             , 0                   , XK_k           , 0              , (void(*)(void*))trackerUpArrow            , (void*)1 );
+			addTooltipBind("cursor right"          , 0                   , XK_l           , 0              , (void(*)(void*))trackerRightArrow         , (void*)1 );
+			addTooltipBind("variant cycle up"      , ControlMask         , XK_K           , 0              , (void(*)(void*))cycleUp                   , (void*)1 );
+			addTooltipBind("variant cycle down"    , ControlMask         , XK_J           , 0              , (void(*)(void*))cycleDown                 , (void*)1 );
+			addTooltipBind("track left"            , ControlMask         , XK_H           , 0              , (void(*)(void*))trackLeft                 , (void*)1 );
+			addTooltipBind("track right"           , ControlMask         , XK_L           , 0              , (void(*)(void*))trackRight                , (void*)1 );
+			addTooltipBind("song shift up"         , 0                   , XK_K           , 0              , (void(*)(void*))shiftUp                   , (void*)1 );
+			addTooltipBind("song shift down"       , 0                   , XK_J           , 0              , (void(*)(void*))shiftDown                 , (void*)1 );
+			addTooltipBind("enter insert mode"     , 0                   , XK_i           , 0              , (void(*)(void*))trackerEnterInsertMode    , NULL     );
+			addTooltipBind("enter effect mode"     , 0                   , XK_e           , 0              , (void(*)(void*))trackerEnterEffectMode    , NULL     );
+			addTooltipBind("enter visual mode"     , 0                   , XK_v           , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
+			addTooltipBind("enter visual mode"     , ControlMask         , XK_V           , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
+			addTooltipBind("enter visual line mode", 0                   , XK_V           , 0              , (void(*)(void*))trackerEnterVisualLineMode, NULL     );
+			addTooltipBind("delete"                , 0                   , XK_d           , TT_DEAD|TT_DRAW, (void(*)(void*))setChordDeleteRow         , NULL     );
+			addTooltipBind("yank"                  , 0                   , XK_y           , TT_DEAD|TT_DRAW, (void(*)(void*))setChordYankRow           , NULL     );
+			addTooltipBind("track"                 , 0                   , XK_c           , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack             , NULL     );
+			addTooltipBind("macro"                 , 0                   , XK_m           , TT_DEAD|TT_DRAW, (void(*)(void*))setChordMacro             , NULL     );
+			addTooltipBind("row"                   , 0                   , XK_r           , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL     );
+			addTooltipBind("loop"                  , 0                   , XK_semicolon   , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL     );
+			addTooltipBind("put"                   , 0                   , XK_p           , 0              , (void(*)(void*))putPartPattern            , (void*)1 );
+			addTooltipBind("mix put"               , 0                   , XK_P           , 0              , (void(*)(void*))mixPutPartPattern         , (void*)0 );
+			addTooltipBind("toggle song follow"    , 0                   , XK_f           , 0              , (void(*)(void*))toggleSongFollow          , NULL     );
+			addTooltipBind("clear cell"            , 0                   , XK_x           , 0              , (void(*)(void*))clearCell                 , NULL     );
+			addTooltipBind("clear cell"            , 0                   , XK_BackSpace   , 0              , (void(*)(void*))clearCell                 , NULL     );
+			addTooltipBind("jump loop points"      , 0                   , XK_percent     , 0              , (void(*)(void*))swapLoopPoint             , NULL     );
+			addTooltipBind("increment cell"        , ControlMask         , XK_A           , TT_DRAW        , trackerInc                                , (void*)1 );
+			addTooltipBind("decrement cell"        , ControlMask         , XK_X           , TT_DRAW        , trackerDec                                , (void*)1 );
+			addTooltipBind("octave increment cell" , ControlMask|Mod1Mask, XK_A           , TT_DRAW        , trackerInc                                , (void*)12);
+			addTooltipBind("octave decrement cell" , ControlMask|Mod1Mask, XK_X           , TT_DRAW        , trackerDec                                , (void*)12);
+			addTooltipBind("add empty variant"     , 0                   , XK_a           , 0              , (void(*)(void*))addEmptyVariant           , NULL     );
+			addTooltipBind("toggle variant loop"   , 0                   , XK_period      , 0              , (void(*)(void*))toggleVariantLoop         , NULL     );
+			addTooltipBind("toggle cell case"      , 0                   , XK_asciitilde  , 0              , toggleCellCase                            , (void*)1 );
 			break;
 		case MODE_INSERT:
 		case MODE_VISUALREPLACE:
-			addTrackerNavBinds(tt);
-			addTooltipBind(tt, "mute current track"   , 0                   , XK_Return   , 0      , (void(*)(void*))muteCurrentTrack, NULL     );
-			addTooltipBind(tt, "increment cell"       , ControlMask         , XK_A        , TT_DRAW, trackerInc                      , (void*)1 );
-			addTooltipBind(tt, "decrement cell"       , ControlMask         , XK_X        , TT_DRAW, trackerDec                      , (void*)1 );
-			addTooltipBind(tt, "octave increment cell", ControlMask|Mod1Mask, XK_A        , TT_DRAW, trackerInc                      , (void*)12);
-			addTooltipBind(tt, "octave decrement cell", ControlMask|Mod1Mask, XK_X        , TT_DRAW, trackerDec                      , (void*)12);
-			addTooltipBind(tt, "clear cell"           , 0                   , XK_BackSpace, 0      , (void(*)(void*))clearCell       , NULL     );
+			addTrackerNavBinds();
+			addTooltipBind("mute current track"   , 0                   , XK_Return   , 0      , (void(*)(void*))muteCurrentTrack, NULL     );
+			addTooltipBind("increment cell"       , ControlMask         , XK_A        , TT_DRAW, trackerInc                      , (void*)1 );
+			addTooltipBind("decrement cell"       , ControlMask         , XK_X        , TT_DRAW, trackerDec                      , (void*)1 );
+			addTooltipBind("octave increment cell", ControlMask|Mod1Mask, XK_A        , TT_DRAW, trackerInc                      , (void*)12);
+			addTooltipBind("octave decrement cell", ControlMask|Mod1Mask, XK_X        , TT_DRAW, trackerDec                      , (void*)12);
+			addTooltipBind("clear cell"           , 0                   , XK_BackSpace, 0      , (void(*)(void*))clearCell       , NULL     );
 			switch (w->trackerfx)
 			{
 				case -1: /* vtrig */
-					addHexBinds(tt, "push cell", 0, pushVtrig);
-					addTooltipBind(tt, "stop cell", 0, XK_space, 0, setVtrig, (void*)VARIANT_OFF);
+					addHexBinds("push cell", 0, pushVtrig);
+					addTooltipBind("stop cell", 0, XK_space, 0, setVtrig, (void*)VARIANT_OFF);
 					break;
 				case 0: /* note */
-					addTooltipBind(tt, "toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
-					addNotePressBinds(tt, "push cell", 0, w->octave, (void(*)(void*))pressNote);
-					addNoteReleaseBinds(tt, "release preview", 0, w->octave, (void(*)(void*))releaseNote);
-					addDecimalBinds(tt, "set octave", 0, (void(*)(void*))setNoteOctave);
+					addTooltipBind("toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
+					addNotePressBinds("push cell", 0, w->octave, (void(*)(void*))pressNote);
+					addNoteReleaseBinds("release preview", 0, w->octave, (void(*)(void*))releaseNote);
+					addDecimalBinds("set octave", 0, (void(*)(void*))setNoteOctave);
 					break;
 				case 1: /* inst */
-					addHexBinds(tt, "push cell", 0, pushInst);
-					addTooltipBind(tt, "impose state on cell", 0, XK_space, 0, (void(*)(void*))imposeInst, NULL);
+					addHexBinds("push cell", 0, pushInst);
+					addTooltipBind("impose state on cell", 0, XK_space, 0, (void(*)(void*))imposeInst, NULL);
 					break;
 				default: /* macro */
-					addTooltipBind(tt, "toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
-					if (!(w->trackerfx&1)) /* macroc */ addMacroBinds(tt, "push cell", 0, pushMacroc);
-					else                   /* macrov */ addHexBinds  (tt, "push cell", 0, pushMacrov);
+					addTooltipBind("toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
+					if (!(w->trackerfx&1)) /* macroc */ addMacroBinds("push cell", 0, pushMacroc);
+					else                   /* macrov */ addHexBinds  ("push cell", 0, pushMacrov);
 					break;
 			} break;
 		case MODE_VISUAL:
 		case MODE_VISUALLINE:
-			addTrackerNavBinds(tt);
-			addTooltipBind(tt, "mute current track"   , 0                   , XK_Return      , 0      , (void(*)(void*))muteCurrentTrack             , NULL     );
-			addTooltipBind(tt, "solo current track"   , 0                   , XK_s           , 0      , (void(*)(void*))soloCurrentTrack             , NULL     );
-			addCountBinds(tt, 0);
-			addTooltipBind(tt, "cursor left"          , 0                   , XK_h           , 0      , (void(*)(void*))trackerLeftArrow             , (void*)1 );
-			addTooltipBind(tt, "cursor down"          , 0                   , XK_j           , 0      , (void(*)(void*))trackerDownArrow             , (void*)1 );
-			addTooltipBind(tt, "cursor up"            , 0                   , XK_k           , 0      , (void(*)(void*))trackerUpArrow               , (void*)1 );
-			addTooltipBind(tt, "cursor right"         , 0                   , XK_l           , 0      , (void(*)(void*))trackerRightArrow            , (void*)1 );
-			addTooltipBind(tt, "track left"           , 0                   , XK_bracketleft , 0      , (void(*)(void*))trackLeft                    , (void*)1 );
-			addTooltipBind(tt, "track right"          , 0                   , XK_bracketright, 0      , (void(*)(void*))trackRight                   , (void*)1 );
-			addTooltipBind(tt, "cell-wise"            , 0                   , XK_v           , 0      , (void(*)(void*))trackerEnterVisualMode       , NULL     );
-			addTooltipBind(tt, "cell-wise"            , ControlMask         , XK_V           , 0      , (void(*)(void*))trackerEnterVisualMode       , NULL     );
-			addTooltipBind(tt, "line-wise"            , 0                   , XK_V           , 0      , (void(*)(void*))trackerEnterVisualLineMode   , NULL     );
-			addTooltipBind(tt, "replace"              , 0                   , XK_r           , 0      , (void(*)(void*))trackerEnterVisualReplaceMode, NULL     );
-			addTooltipBind(tt, "toggle cell case"     , 0                   , XK_asciitilde  , TT_DRAW, toggleCellCase                               , (void*)0 );
-			addTooltipBind(tt, "interpolate cells"    , 0                   , XK_i           , TT_DRAW, (void(*)(void*))interpolateCells             , NULL     );
-			addTooltipBind(tt, "randomize cells"      , 0                   , XK_percent     , TT_DRAW, (void(*)(void*))randomCells                  , NULL     );
-			addTooltipBind(tt, "increment cell"       , ControlMask         , XK_A           , TT_DRAW, trackerInc                                   , (void*)1 );
-			addTooltipBind(tt, "decrement cell"       , ControlMask         , XK_X           , TT_DRAW, trackerDec                                   , (void*)1 );
-			addTooltipBind(tt, "octave increment cell", ControlMask|Mod1Mask, XK_A           , TT_DRAW, trackerInc                                   , (void*)12);
-			addTooltipBind(tt, "octave decrement cell", ControlMask|Mod1Mask, XK_X           , TT_DRAW, trackerDec                                   , (void*)12);
-			addTooltipBind(tt, "delete"               , 0                   , XK_x           , 0      , (void(*)(void*))clearCell                    , NULL     );
-			addTooltipBind(tt, "delete"               , 0                   , XK_d           , 0      , (void(*)(void*))clearCell                    , NULL     );
-			addTooltipBind(tt, "delete"               , 0                   , XK_BackSpace   , 0      , (void(*)(void*))clearCell                    , NULL     );
-			addTooltipBind(tt, "yank"                 , 0                   , XK_y           , 0      , (void(*)(void*))yankCell                     , NULL     );
-			addTooltipBind(tt, "rip rows to sample"   , 0                   , XK_b           , TT_DRAW, (void(*)(void*))bounceRows                   , NULL     );
-			addTooltipBind(tt, "rip rows to variant"  , 0                   , XK_a           , TT_DRAW, (void(*)(void*))ripRows                      , NULL     );
-			addTooltipBind(tt, "toggle variant loop"  , 0                   , XK_period      , 0      , (void(*)(void*))toggleVisualVariantLoop      , NULL     );
-			addTooltipBind(tt, "jump loop points"     , 0                   , XK_percent     , 0      , (void(*)(void*))swapLoopPoint                , NULL     );
-			addTooltipBind(tt, "set loop range"       , 0                   , XK_semicolon   , TT_DRAW, (void(*)(void*))setLoopPoints                , NULL     );
+			addTrackerNavBinds();
+			addTooltipBind("mute current track"   , 0                   , XK_Return      , 0      , (void(*)(void*))muteCurrentTrack             , NULL     );
+			addTooltipBind("solo current track"   , 0                   , XK_s           , 0      , (void(*)(void*))soloCurrentTrack             , NULL     );
+			addCountBinds(0);
+			addTooltipBind("cursor left"          , 0                   , XK_h           , 0      , (void(*)(void*))trackerLeftArrow             , (void*)1 );
+			addTooltipBind("cursor down"          , 0                   , XK_j           , 0      , (void(*)(void*))trackerDownArrow             , (void*)1 );
+			addTooltipBind("cursor up"            , 0                   , XK_k           , 0      , (void(*)(void*))trackerUpArrow               , (void*)1 );
+			addTooltipBind("cursor right"         , 0                   , XK_l           , 0      , (void(*)(void*))trackerRightArrow            , (void*)1 );
+			addTooltipBind("track left"           , 0                   , XK_bracketleft , 0      , (void(*)(void*))trackLeft                    , (void*)1 );
+			addTooltipBind("track right"          , 0                   , XK_bracketright, 0      , (void(*)(void*))trackRight                   , (void*)1 );
+			addTooltipBind("cell-wise"            , 0                   , XK_v           , 0      , (void(*)(void*))trackerEnterVisualMode       , NULL     );
+			addTooltipBind("cell-wise"            , ControlMask         , XK_V           , 0      , (void(*)(void*))trackerEnterVisualMode       , NULL     );
+			addTooltipBind("line-wise"            , 0                   , XK_V           , 0      , (void(*)(void*))trackerEnterVisualLineMode   , NULL     );
+			addTooltipBind("replace"              , 0                   , XK_r           , 0      , (void(*)(void*))trackerEnterVisualReplaceMode, NULL     );
+			addTooltipBind("toggle cell case"     , 0                   , XK_asciitilde  , TT_DRAW, toggleCellCase                               , (void*)0 );
+			addTooltipBind("interpolate cells"    , 0                   , XK_i           , TT_DRAW, (void(*)(void*))interpolateCells             , NULL     );
+			addTooltipBind("randomize cells"      , 0                   , XK_percent     , TT_DRAW, (void(*)(void*))randomCells                  , NULL     );
+			addTooltipBind("increment cell"       , ControlMask         , XK_A           , TT_DRAW, trackerInc                                   , (void*)1 );
+			addTooltipBind("decrement cell"       , ControlMask         , XK_X           , TT_DRAW, trackerDec                                   , (void*)1 );
+			addTooltipBind("octave increment cell", ControlMask|Mod1Mask, XK_A           , TT_DRAW, trackerInc                                   , (void*)12);
+			addTooltipBind("octave decrement cell", ControlMask|Mod1Mask, XK_X           , TT_DRAW, trackerDec                                   , (void*)12);
+			addTooltipBind("delete"               , 0                   , XK_x           , 0      , (void(*)(void*))clearCell                    , NULL     );
+			addTooltipBind("delete"               , 0                   , XK_d           , 0      , (void(*)(void*))clearCell                    , NULL     );
+			addTooltipBind("delete"               , 0                   , XK_BackSpace   , 0      , (void(*)(void*))clearCell                    , NULL     );
+			addTooltipBind("yank"                 , 0                   , XK_y           , 0      , (void(*)(void*))yankCell                     , NULL     );
+			addTooltipBind("rip rows to sample"   , 0                   , XK_b           , TT_DRAW, (void(*)(void*))bounceRows                   , NULL     );
+			addTooltipBind("rip rows to variant"  , 0                   , XK_a           , TT_DRAW, (void(*)(void*))ripRows                      , NULL     );
+			addTooltipBind("toggle variant loop"  , 0                   , XK_period      , 0      , (void(*)(void*))toggleVisualVariantLoop      , NULL     );
+			addTooltipBind("jump loop points"     , 0                   , XK_percent     , 0      , (void(*)(void*))swapLoopPoint                , NULL     );
+			addTooltipBind("set loop range"       , 0                   , XK_semicolon   , TT_DRAW, (void(*)(void*))setLoopPoints                , NULL     );
 			break;
 		default: break;
 	}
 }
-
-						// case 'f': /* toggle inst browsr */ w->instrument = emptyInstrument(0); chordAddSample(0); return;
-						// case 'r': /* record inst        */ setChordRecord(); p->redraw = 1; return;
-						// case 'a': /* add empty inst     */ w->instrument = emptyInstrument(0); setChordAddInst(); p->redraw = 1; return;
-					// case 'e': /* add empty inst     */                                     setChordAddInst(); p->redraw = 1; return;

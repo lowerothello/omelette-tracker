@@ -4,18 +4,18 @@ void chordGraphicHome(void *_)
 	p->redraw = 1;
 }
 
-void setChordGraphic(void *tt)
+void setChordGraphic(void)
 {
-	clearTooltip(tt);
-	setTooltipTitle(tt, "graphic");
-	addCountBinds(tt, 0);
-	addTooltipBind(tt, "home"  , 0, XK_g     , TT_DRAW, chordGraphicHome, NULL);
-	addTooltipBind(tt, "return", 0, XK_Escape, 0      , NULL            , NULL);
+	clearTooltip();
+	setTooltipTitle("graphic");
+	addCountBinds(0);
+	addTooltipBind("home"  , 0, XK_g     , TT_DRAW, chordGraphicHome, NULL);
+	addTooltipBind("return", 0, XK_Escape, 0      , NULL            , NULL);
 	w->chord = 'g'; p->redraw = 1;
 }
 
-void addTrackerGraphicBinds(TooltipState *tt)
+void addTrackerGraphicBinds()
 {
-	addTooltipBind(tt, "graphic"    , 0, XK_g, TT_DEAD|TT_DRAW, setChordGraphic           , tt  );
-	addTooltipBind(tt, "graphic end", 0, XK_G, 0              , (void(*)(void*))trackerEnd, NULL);
+	addTooltipBind("graphic"    , 0, XK_g, TT_DEAD|TT_DRAW, (void(*)(void*))setChordGraphic, NULL);
+	addTooltipBind("graphic end", 0, XK_G, 0              , (void(*)(void*))trackerEnd     , NULL);
 }

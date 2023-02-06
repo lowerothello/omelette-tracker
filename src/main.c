@@ -143,27 +143,27 @@ void resetInput(void)
 {
 	w->count = 0;
 	w->chord = 0;
-	clearTooltip(&tt);
-	addTooltipBind(&tt, "SIGINT"         , ControlMask, XK_C    , 0, (void(*)(void*))cleanup       , NULL);
-	addTooltipBind(&tt, "show file info" , ControlMask, XK_G    , 0, (void(*)(void*))showFileInfo  , NULL);
+	clearTooltip();
+	addTooltipBind("SIGINT"         , ControlMask, XK_C    , 0, (void(*)(void*))cleanup       , NULL);
+	addTooltipBind("show file info" , ControlMask, XK_G    , 0, (void(*)(void*))showFileInfo  , NULL);
 
-	addTooltipBind(&tt, "show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
-	addTooltipBind(&tt, "show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);
+	addTooltipBind("show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
+	addTooltipBind("show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);
 
-	addTooltipBind(&tt, "start playback" , 0          , XK_F5   , 0, (void(*)(void*))startPlayback , NULL);
-	addTooltipBind(&tt, "stop playback"  , 0          , XK_F6   , 0, (void(*)(void*))stopPlayback  , NULL);
+	addTooltipBind("start playback" , 0          , XK_F5   , 0, (void(*)(void*))startPlayback , NULL);
+	addTooltipBind("stop playback"  , 0          , XK_F6   , 0, (void(*)(void*))stopPlayback  , NULL);
 
 	switch (w->mode)
 	{
-		case MODE_COMMAND: initCommandInput(&tt); break;
+		case MODE_COMMAND: initCommandInput(); break;
 		default:
-			addTooltipBind(&tt, "command mode", 0, XK_colon   , 0, enterCommandMode             , NULL);
-			addTooltipBind(&tt, "hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
+			addTooltipBind("command mode", 0, XK_colon   , 0, enterCommandMode             , NULL);
+			addTooltipBind("hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
 			switch (w->page)
 			{
-				case PAGE_VARIANT:       initTrackerInput            (&tt); break;
-				case PAGE_INSTRUMENT:    initInstrumentInput         (&tt); break;
-				case PAGE_PLUGINBROWSER: initPluginEffectBrowserInput(&tt); break;
+				case PAGE_VARIANT: initTrackerInput(); break;
+				case PAGE_INSTRUMENT: initInstrumentInput(); break;
+				case PAGE_PLUGINBROWSER: initPluginEffectBrowserInput(); break;
 			} break;
 	}
 }
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 				w->instrumentrecv = INST_REC_LOCK_OK;
 				p->redraw = 1;
 			}
-			handleStdin(&tt); /* ensure that semaphores are handled between input and draw */
+			handleStdin(); /* ensure that semaphores are handled between input and draw */
 		}
 
 		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */

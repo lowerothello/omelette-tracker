@@ -41,12 +41,12 @@ bool changeMacro(int input, char *dest)
 	return 0;
 }
 
-void addMacroBinds(TooltipState *tt, const char *prettyname, unsigned int state, void (*callback)(void*))
+void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(tt, prettyname, state, "macro");
+	addTooltipPrettyPrint(prettyname, state, "macro");
 	for (size_t i = 0; i < 128; i++)
 		if (MACRO_SET(i))
-			addTooltipBind(tt, MACRO_PRETTYNAME(i), state, swapCase(i), 0, callback, (void*)i);
+			addTooltipBind(MACRO_PRETTYNAME(i), state, swapCase(i), 0, callback, (void*)i);
 }
 
 static bool _macroVibrato(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)

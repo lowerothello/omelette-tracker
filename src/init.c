@@ -9,7 +9,7 @@ static void common_cleanup(int ret)
 	if (p) free(p);
 
 	clearControls();
-	clearTooltip(&tt);
+	clearTooltip();
 
 	freeFileBrowser(fbstate);
 	freePluginBrowser(pbstate);

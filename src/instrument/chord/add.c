@@ -1,5 +1,5 @@
-void chordAddSample(void *_) { addInstrument(w->instrument, INST_ALG_CYCLIC, cb_addInstrument); w->showfilebrowser = 1; p->redraw = 1; }
-void chordAddMIDI  (void *_) { addInstrument(w->instrument, INST_ALG_MIDI,   cb_addInstrument); p->redraw = 1; }
+void chordAddSample(void *_) { addInstrument(w->instrument, INST_ALG_SAMPLER, cb_addInstrument); w->showfilebrowser = 1; p->redraw = 1; }
+void chordAddMIDI  (void *_) { addInstrument(w->instrument, INST_ALG_MIDI,    cb_addInstrument); p->redraw = 1; }
 
 void chordRecordToggle(void *_)
 {
@@ -30,26 +30,26 @@ void chordRecordCancel(void *_)
 }
 
 
-void setChordAddInst(void *tt)
+void setChordAddInst(void)
 {
-	clearTooltip(tt);
-	setTooltipTitle(tt, "add instrument");
-	addCountBinds(tt, 0); /* TODO: count support would be cool */
-	addTooltipBind(tt, "load sample      ", 0, XK_a     , TT_DRAW, chordAddSample      , NULL);
-	addTooltipBind(tt, "record sample    ", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
-	addTooltipBind(tt, "cue sample record", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
-	addTooltipBind(tt, "MIDI             ", 0, XK_m     , TT_DRAW, chordAddMIDI        , NULL);
-	addTooltipBind(tt, "return"           , 0, XK_Escape, 0      , instrumentEscape    , NULL);
+	clearTooltip();
+	setTooltipTitle("add instrument");
+	addCountBinds(0); /* TODO: count support would be cool */
+	addTooltipBind("load sample      ", 0, XK_a     , TT_DRAW, chordAddSample      , NULL);
+	addTooltipBind("record sample    ", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
+	addTooltipBind("cue sample record", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
+	addTooltipBind("MIDI             ", 0, XK_m     , TT_DRAW, chordAddMIDI        , NULL);
+	addTooltipBind("return"           , 0, XK_Escape, 0      , instrumentEscape    , NULL);
 	w->chord = 'a'; p->redraw = 1;
 }
-void setChordRecord(void *tt)
+void setChordRecord(void)
 {
-	clearTooltip(tt);
-	setTooltipTitle(tt, "record");
-	addCountBinds(tt, 0); /* TODO: count support would be cool */
-	addTooltipBind(tt, "toggle recording now", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
-	addTooltipBind(tt, "cue toggle recording", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
-	addTooltipBind(tt, "cancel recording    ", 0, XK_c     , TT_DRAW, chordRecordCancel   , NULL);
-	addTooltipBind(tt, "return"              , 0, XK_Escape, 0      , instrumentEscape    , NULL);
+	clearTooltip();
+	setTooltipTitle("record");
+	addCountBinds(0); /* TODO: count support would be cool */
+	addTooltipBind("toggle recording now", 0, XK_r     , TT_DRAW, chordRecordToggle   , NULL);
+	addTooltipBind("cue toggle recording", 0, XK_q     , TT_DRAW, chordRecordCueToggle, NULL);
+	addTooltipBind("cancel recording    ", 0, XK_c     , TT_DRAW, chordRecordCancel   , NULL);
+	addTooltipBind("return"              , 0, XK_Escape, 0      , instrumentEscape    , NULL);
 	w->chord = 'r'; p->redraw = 1;
 }

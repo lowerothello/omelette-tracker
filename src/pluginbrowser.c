@@ -103,18 +103,18 @@ static void pluginBrowserCommitBind(void *arg) /* TODO: shitty disambiguation */
 	p->redraw = 1;
 }
 
-void initPluginEffectBrowserInput(TooltipState *tt)
+void initPluginEffectBrowserInput(void)
 {
-	setTooltipTitle(tt, "pluginbrowser");
-	setTooltipMouseCallback(tt, pluginBrowserMouse);
-	addTooltipBind(tt, "cursor up"   , 0, XK_Up       , 0, pluginBrowserUpArrow       , (void*)1);
-	addTooltipBind(tt, "cursor down" , 0, XK_Down     , 0, pluginBrowserDownArrow     , (void*)1);
-	addTooltipBind(tt, "cursor home" , 0, XK_Home     , 0, (void(*)(void*))browserHome, pbstate );
-	addTooltipBind(tt, "cursor end"  , 0, XK_End      , 0, (void(*)(void*))browserEnd , pbstate );
-	addTooltipBind(tt, "cursor pgup" , 0, XK_Page_Up  , 0, pluginBrowserPgUp          , (void*)1);
-	addTooltipBind(tt, "cursor pgdn" , 0, XK_Page_Down, 0, pluginBrowserPgDn          , (void*)1);
-	addTooltipBind(tt, "return"      , 0, XK_Escape   , 0, pluginBrowserEscape        , NULL    );
-	addTooltipBind(tt, "commit"      , 0, XK_Return   , 0, pluginBrowserCommitBind    , NULL    );
+	setTooltipTitle("pluginbrowser");
+	setTooltipMouseCallback(pluginBrowserMouse);
+	addTooltipBind("cursor up"   , 0, XK_Up       , 0, pluginBrowserUpArrow       , (void*)1);
+	addTooltipBind("cursor down" , 0, XK_Down     , 0, pluginBrowserDownArrow     , (void*)1);
+	addTooltipBind("cursor home" , 0, XK_Home     , 0, (void(*)(void*))browserHome, pbstate );
+	addTooltipBind("cursor end"  , 0, XK_End      , 0, (void(*)(void*))browserEnd , pbstate );
+	addTooltipBind("cursor pgup" , 0, XK_Page_Up  , 0, pluginBrowserPgUp          , (void*)1);
+	addTooltipBind("cursor pgdn" , 0, XK_Page_Down, 0, pluginBrowserPgDn          , (void*)1);
+	addTooltipBind("return"      , 0, XK_Escape   , 0, pluginBrowserEscape        , NULL    );
+	addTooltipBind("commit"      , 0, XK_Return   , 0, pluginBrowserCommitBind    , NULL    );
 }
 
 BrowserState *initPluginBrowser(void)

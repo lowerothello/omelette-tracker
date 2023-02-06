@@ -1,4 +1,5 @@
-typedef struct {
+typedef struct Macro
+{
 	char    c; /* command  */
 	uint8_t v; /* argument */
 } Macro;
@@ -17,14 +18,16 @@ enum NOTE_MASK {
 #define INST_VOID 255
 /* TODO: MACRO_VOID */
 
-typedef struct {
+typedef struct Row
+{
 	uint8_t note; /* MIDI compatible  | NOTE_* declares */
 	uint8_t inst; /* instrument index | INST_* declares */
 	Macro   macro[8];
 } Row;
 
 #define C_VTRIG_LOOP (1<<0) /* variant should loop indefinitely */
-typedef struct {
+typedef struct Vtrig
+{
 	uint8_t index;
 	uint8_t flags;
 } Vtrig;
@@ -32,13 +35,15 @@ typedef struct {
 #define VARIANT_VOID 255
 #define VARIANT_OFF 254
 #define VARIANT_ROWMAX 255
-typedef struct {
+typedef struct Variant
+{
 	uint16_t rowc;
 	Row      rowv[];
 } Variant;
 
 #define VARIANT_MAX 254
-typedef struct {
+typedef struct VariantChain
+{
 	uint16_t songlen;        /* main variant length        */
 	Vtrig   *trig;           /* variant triggers           */
 	Variant *main;           /* main fallback variant      */

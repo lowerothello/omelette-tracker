@@ -107,8 +107,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 				for (k = 0; k <= w->pbfx[1] - w->pbfx[0]; k++)
 				{
 					if (targetmacro+k < 0) continue;
-					dest->macro[targetmacro+k].c = src->macro[w->pbfx[0]-2+k].c;
-					dest->macro[targetmacro+k].v = src->macro[w->pbfx[0]-2+k].v;
+					memcpy(&dest->macro[targetmacro+k], &src->macro[w->pbfx[0]-2+k], sizeof(Macro));
 				}
 			} w->trackerfx = vfxToTfx(targetmacro+(w->pbfx[1] - w->pbfx[0])+2);
 		} else
@@ -127,10 +126,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1) dest->inst = src->inst;
 				for (k = 0; k <= cd->variant->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2)
-					{
-						dest->macro[k].c = src->macro[k].c;
-						dest->macro[k].v = src->macro[k].v;
-					}
+						memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 			} w->trackerfx = vfxToTfx(w->pbfx[0]);
 		}
 	} else
@@ -156,10 +152,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 						if (w->pbfx[0] <= 1) dest->inst = src->inst;
 						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[0] <= k+2)
-							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
-							}
+								memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 					} else if (i == w->pbtrackc-1) // last track
 					{
 						if (w->pbfx[0] >= -1)
@@ -171,10 +164,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 						if (w->pbfx[1] >= 1) dest->inst = src->inst;
 						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[1] >= k+2)
-							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
-							}
+								memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 					} else
 					{
 						cd->variant->trig[w->trackerfy+j] = w->vbtrig[i][j];
@@ -217,10 +207,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 				{
 					if (targetmacro+k < 0) continue;
 					if (src->macro[w->pbfx[0]-2+k].c)
-					{
-						dest->macro[targetmacro+k].c = src->macro[w->pbfx[0]-2+k].c;
-						dest->macro[targetmacro+k].v = src->macro[w->pbfx[0]-2+k].v;
-					}
+						memcpy(&dest->macro[targetmacro+k], &src->macro[w->pbfx[0]-2+k], sizeof(Macro));
 				}
 			} w->trackerfx = vfxToTfx(targetmacro+(w->pbfx[1] - w->pbfx[0])+2);
 		} else
@@ -236,10 +223,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 				if (w->pbfx[0] <= 1 && w->pbfx[1] >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
 				for (k = 0; k <= cd->variant->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2 && src->macro[k].c)
-					{
-						dest->macro[k].c = src->macro[k].c;
-						dest->macro[k].v = src->macro[k].v;
-					}
+						memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 			} w->trackerfx = vfxToTfx(w->pbfx[0]);
 		}
 	} else
@@ -262,10 +246,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 						if (w->pbfx[0] <= 1 && src->inst != INST_VOID) dest->inst = src->inst;
 						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[0] <= k+2 && src->macro[k].c)
-							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
-							}
+								memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 					} else if (i == w->pbtrackc-1) // last track
 					{
 						if (w->pbfx[0] >= -1 && w->vbtrig[0][j].index != VARIANT_VOID)
@@ -274,10 +255,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 						if (w->pbfx[1] >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
 						for (k = 0; k <= cd->variant->macroc; k++)
 							if (w->pbfx[1] >= k+2 && src->macro[k].c)
-							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
-							}
+								memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 					} else // middle track
 					{
 						if (w->vbtrig[0][j].index != VARIANT_VOID)
@@ -286,10 +264,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 						if (src->inst != INST_VOID) dest->inst = src->inst;
 						for (k = 0; k <= cd->variant->macroc; k++)
 							if (src->macro[k].c)
-							{
-								dest->macro[k].c = src->macro[k].c;
-								dest->macro[k].v = src->macro[k].v;
-							}
+								memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
 					}
 				}
 			else break;

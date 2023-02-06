@@ -26,4 +26,4 @@ short genSfx(short minx);
 short genConstSfx(short trackw);
 
 void drawTracker(void);
-void initTrackerInput(TooltipState *tt);
+void initTrackerInput(void);

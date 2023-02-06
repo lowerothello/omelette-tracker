@@ -9,7 +9,6 @@
 
 #include "file/file.h"         /* file helper functions */
 
-#include "redraw.h"       /* the redraw callback (lol) */
 #include "draw_helpers.c" /* helper functions for drawing to the screen */
 #include "event.h"        /* event library */
 
@@ -36,6 +35,8 @@ enum WAVE_SHAPE {
 
 #include "tooltip.h" /* like half the input handling code */
 #include "control.h" /* cool visual control library */
+
+#include "redraw.h" /* the redraw callback and ruler code */
 
 /* TODO: merge modulation with oscillators? */
 #include "modulation/envelope.c"

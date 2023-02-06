@@ -99,7 +99,7 @@ void redraw(void)
 
 		drawControls();
 
-		/* drawTooltip(&tt); */
+		/* drawTooltip(); */
 	} else
 	{ /* invalid plugin requested */
 #define INDEX_TEXT ", index "
@@ -131,16 +131,16 @@ static void rightArrow(void) { decControlFieldpointer(); lhs.redraw = 1; }
 static void mouse(enum Button button, int x, int y) { mouseControls(button, x, y); lhs.redraw = 1; }
 void resetInput(void)
 {
-	clearTooltip(&tt);
-	setTooltipMouseCallback(&tt, mouse);
-	addTooltipBind(&tt, "toggle checkmark button" , 0          , XK_Return   , TT_DRAW, (void(*)(void*))toggleKeyControlRedraw, NULL);
-	addTooltipBind(&tt, "reset control to default", 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))revertKeyControlRedraw, NULL);
-	addTooltipBind(&tt, "increment value"         , ControlMask, XK_a        , TT_DRAW, (void(*)(void*))incControlValueRedraw , NULL);
-	addTooltipBind(&tt, "decrement value"         , ControlMask, XK_x        , TT_DRAW, (void(*)(void*))decControlValueRedraw , NULL);
-	addTooltipBind(&tt, "up arrow"                , 0          , XK_Up       , TT_DRAW, (void(*)(void*))upArrow               , NULL);
-	addTooltipBind(&tt, "down arrow"              , 0          , XK_Down     , TT_DRAW, (void(*)(void*))downArrow             , NULL);
-	addTooltipBind(&tt, "left arrow"              , 0          , XK_Left     , TT_DRAW, (void(*)(void*))leftArrow             , NULL);
-	addTooltipBind(&tt, "right arrow"             , 0          , XK_Right    , TT_DRAW, (void(*)(void*))rightArrow            , NULL);
+	clearTooltip();
+	setTooltipMouseCallback(mouse);
+	addTooltipBind("toggle checkmark button" , 0          , XK_Return   , TT_DRAW, (void(*)(void*))toggleKeyControlRedraw, NULL);
+	addTooltipBind("reset control to default", 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))revertKeyControlRedraw, NULL);
+	addTooltipBind("increment value"         , ControlMask, XK_a        , TT_DRAW, (void(*)(void*))incControlValueRedraw , NULL);
+	addTooltipBind("decrement value"         , ControlMask, XK_x        , TT_DRAW, (void(*)(void*))decControlValueRedraw , NULL);
+	addTooltipBind("up arrow"                , 0          , XK_Up       , TT_DRAW, (void(*)(void*))upArrow               , NULL);
+	addTooltipBind("down arrow"              , 0          , XK_Down     , TT_DRAW, (void(*)(void*))downArrow             , NULL);
+	addTooltipBind("left arrow"              , 0          , XK_Left     , TT_DRAW, (void(*)(void*))leftArrow             , NULL);
+	addTooltipBind("right arrow"             , 0          , XK_Right    , TT_DRAW, (void(*)(void*))rightArrow            , NULL);
 }
 
 void reload(void)
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 		if (lhs.reload) reload();
 		if (lhs.resize) resize();
 		if (lhs.redraw) redraw();
-		handleStdin(&tt);
+		handleStdin();
 
 		req.tv_sec = 0;
 		req.tv_nsec = UPDATE_DELAY;

@@ -66,7 +66,7 @@ mainM_SEM_pop: /* allow for processing and popping off the stack in one go */
 					if (isascii(keysym) && state&ShiftMask)
 						state^=ShiftMask;
 
-					inputTooltip(&tt, state, keysym, ev->type - KeyPress);
+					inputTooltip(state, keysym, ev->type - KeyPress);
 
 					free(p->event[0].callbackarg);
 				} goto mainM_SEM_pop;

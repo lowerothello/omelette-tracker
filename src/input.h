@@ -4,7 +4,7 @@ enum InputMode {
 	INPUTMODE_X,     /* use an x hack, xterm        */
 };
 
-void addCountBinds(TooltipState*, bool draw);
+void addCountBinds(bool draw);
 void previewNote(uint8_t note, uint8_t inst, bool release);
 void previewRow(Row*, bool release);
 void previewFileNote(uint8_t note, bool release);

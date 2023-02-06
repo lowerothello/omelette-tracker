@@ -9,14 +9,29 @@ typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .tracks) */
 
 #define INSTRUMENT_VOID 255
 #define INSTRUMENT_MAX 255
-enum InstrumentAlg {
-	INST_ALG_SIMPLE,
-	INST_ALG_CYCLIC,
-	// INST_ALG_WAVETABLE,
+
+enum InstAlg {
+	INST_ALG_NULL,
+	INST_ALG_SAMPLER,
 	INST_ALG_MIDI,
 };
 
-// #include "osc/oscillator.h"
+struct InstAlgSampler
+{
+	enum InstAlg alg;
+};
+struct InstAlgMidi
+{
+	enum InstAlg alg;
+	int8_t       channel;
+};
+
+union InstrumentUnion
+{
+	enum InstAlg          alg;
+	struct InstAlgSampler sampler;
+	struct InstAlgMidi    midi;
+};
 
 typedef struct {
 	Sample *sample;
@@ -38,7 +53,7 @@ typedef struct {
 	bool     pingpong;
 	uint8_t  loopramp;
 
-	enum InstrumentAlg algorithm;
+	enum InstAlg algorithm;
 
 	/* midi */
 	struct {
@@ -148,7 +163,7 @@ void sampleLoadCallback(char *path); /* TODO: atomicity */
 void serializeInstrument  (Instrument*, FILE *fp);
 void deserializeInstrument(Instrument*, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor);
 
-void initInstrumentInput(TooltipState*);
+void initInstrumentInput(void);
 void instrumentControlCallback(void);
 
 #include "waveform.h"

@@ -46,20 +46,20 @@ void chordLoopScaleToCursor  (void *_)
 
 
 /* TODO: explicit loop reset bind, not sure which key to bind it to */
-void setChordLoop(void *tt)
+void setChordLoop(void)
 {
-	clearTooltip(tt);
-	setTooltipTitle(tt, "loop range");
-	addCountBinds(tt, 0);
-	addTooltipBind(tt, "loop bars                ", 0, XK_semicolon, TT_DRAW, chordLoopBars           , NULL);
-	addTooltipBind(tt, "loop the current variant ", 0, XK_v        , TT_DRAW, chordLoopVariant        , NULL);
-	addTooltipBind(tt, "double the loop length   ", 0, XK_plus     , TT_DRAW, chordDoubleLoopLength   , NULL);
-	addTooltipBind(tt, "double the loop length   ", 0, XK_asterisk , TT_DRAW, chordDoubleLoopLength   , NULL);
-	addTooltipBind(tt, "halve the loop length    ", 0, XK_minus    , TT_DRAW, chordHalveLoopLength    , NULL);
-	addTooltipBind(tt, "halve the loop length    ", 0, XK_slash    , TT_DRAW, chordHalveLoopLength    , NULL);
-	addTooltipBind(tt, "increment the loop length", 0, XK_a        , TT_DRAW, chordIncrementLoopLength, NULL);
-	addTooltipBind(tt, "decrement the loop length", 0, XK_d        , TT_DRAW, chordDecrementLoopLength, NULL);
-	addTooltipBind(tt, "scale loop to cursor     ", 0, XK_c        , TT_DRAW, chordLoopScaleToCursor  , NULL);
-	addTooltipBind(tt, "return"                   , 0, XK_Escape   , 0      , NULL                    , NULL);
+	clearTooltip();
+	setTooltipTitle("loop range");
+	addCountBinds(0);
+	addTooltipBind("loop bars                ", 0, XK_semicolon, TT_DRAW, chordLoopBars           , NULL);
+	addTooltipBind("loop the current variant ", 0, XK_v        , TT_DRAW, chordLoopVariant        , NULL);
+	addTooltipBind("double the loop length   ", 0, XK_plus     , TT_DRAW, chordDoubleLoopLength   , NULL);
+	addTooltipBind("double the loop length   ", 0, XK_asterisk , TT_DRAW, chordDoubleLoopLength   , NULL);
+	addTooltipBind("halve the loop length    ", 0, XK_minus    , TT_DRAW, chordHalveLoopLength    , NULL);
+	addTooltipBind("halve the loop length    ", 0, XK_slash    , TT_DRAW, chordHalveLoopLength    , NULL);
+	addTooltipBind("increment the loop length", 0, XK_a        , TT_DRAW, chordIncrementLoopLength, NULL);
+	addTooltipBind("decrement the loop length", 0, XK_d        , TT_DRAW, chordDecrementLoopLength, NULL);
+	addTooltipBind("scale loop to cursor     ", 0, XK_c        , TT_DRAW, chordLoopScaleToCursor  , NULL);
+	addTooltipBind("return"                   , 0, XK_Escape   , 0      , NULL                    , NULL);
 	w->chord = ';'; p->redraw = 1;
 }

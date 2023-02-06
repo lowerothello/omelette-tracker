@@ -144,20 +144,9 @@ static InstUI *initInstrumentUI(Instrument *iv)
 
 	switch (iv->algorithm)
 	{
-		case INST_ALG_SIMPLE:
-			iui = allocInstUI(1);
-			iui->width = INSTUI_SAMPLER_WIDTH;
-			initInstUICommonSamplerBlock(&iui->block[0]);
-			iui->flags |= INSTUI_DRAWWAVEFORM;
-			break;
+		case INST_ALG_NULL: break;
 		case INST_ALG_MIDI: iui = initInstUIMidi(); break;
-		case INST_ALG_CYCLIC: iui = initInstUICyclic(); break;
-		// case INST_ALG_TONAL:
-		// 	drawTonal(iv, xx);
-		// 	break;
-		// case INST_ALG_BEAT:
-		// 	drawBeat(iv, xx);
-		// 	break;
+		case INST_ALG_SAMPLER: iui = initInstUICyclic(); break;
 	}
 	return iui;
 }

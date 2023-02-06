@@ -7,12 +7,12 @@ void chordYankRow(void *_)
 }
 
 
-void setChordYankRow(void *tt)
+void setChordYankRow(void)
 {
-	clearTooltip(tt);
-	setTooltipTitle(tt, "yank");
-	addCountBinds(tt, 0);
-	addTooltipBind(tt, "yank row", 0, XK_y     , TT_DRAW, chordYankRow, NULL);
-	addTooltipBind(tt, "return"  , 0, XK_Escape, 0      , NULL        , NULL);
+	clearTooltip();
+	setTooltipTitle("yank");
+	addCountBinds(0);
+	addTooltipBind("yank row", 0, XK_y     , TT_DRAW, chordYankRow, NULL);
+	addTooltipBind("return"  , 0, XK_Escape, 0      , NULL        , NULL);
 	w->chord = 'y'; p->redraw = 1;
 }

@@ -64,7 +64,7 @@ UI *allocWindow(void)
 	ret->defvariantlength = 0x7;
 	ret->trackerfy = STATE_ROWS;
 
-	__addInstrument(&ret->instrumentbuffer, INST_ALG_SIMPLE);
+	__addInstrument(&ret->instrumentbuffer, INST_ALG_NULL);
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 		addTrackRuntime(&ret->previewtrack[i]);
 

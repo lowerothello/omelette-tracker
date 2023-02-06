@@ -26,4 +26,4 @@ void setCommand(Command*,
 
 void drawCommand(Command*, enum _Mode mode);
 
-void initCommandInput(TooltipState*);
+void initCommandInput(void);

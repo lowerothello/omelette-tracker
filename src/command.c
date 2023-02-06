@@ -160,20 +160,20 @@ static void commandInputKey(void *key)
 	p->redraw = 1;
 }
 
-void initCommandInput(TooltipState *tt)
+void initCommandInput(void)
 {
-	setTooltipTitle(tt, "command");
-	addTooltipBind(tt, "previous history"  , 0          , XK_Up       , 0      , previousHistory    , NULL);
-	addTooltipBind(tt, "next history"      , 0          , XK_Down     , 0      , nextHistory        , NULL);
-	addTooltipBind(tt, "cursor left"       , 0          , XK_Left     , 0      , cursorLeft         , NULL);
-	addTooltipBind(tt, "cursor right"      , 0          , XK_Right    , 0      , cursorRight        , NULL);
-	addTooltipBind(tt, "cursor home"       , 0          , XK_Home     , 0      , cursorHome         , NULL);
-	addTooltipBind(tt, "cursor end"        , 0          , XK_End      , 0      , cursorEnd          , NULL);
-	addTooltipBind(tt, "leave command mode", 0          , XK_Escape   , 0      , commandEscape      , NULL);
-	addTooltipBind(tt, "autocomplete"      , 0          , XK_Tab      , TT_DRAW, commandAutocomplete, NULL);
-	addTooltipBind(tt, "commit"            , 0          , XK_Return   , TT_DRAW, commandCommit      , NULL);
-	addTooltipBind(tt, "backspace"         , 0          , XK_BackSpace, 0      , commandBackspace   , NULL);
-	addTooltipBind(tt, "clear to beginning", ControlMask, XK_U        , 0      , commandCtrlU       , NULL);
-	addTooltipBind(tt, "clear to end"      , ControlMask, XK_K        , 0      , commandCtrlK       , NULL);
-	addPrintableAsciiBinds(tt, "input", 0, commandInputKey);
+	setTooltipTitle("command");
+	addTooltipBind("previous history"  , 0          , XK_Up       , 0      , previousHistory    , NULL);
+	addTooltipBind("next history"      , 0          , XK_Down     , 0      , nextHistory        , NULL);
+	addTooltipBind("cursor left"       , 0          , XK_Left     , 0      , cursorLeft         , NULL);
+	addTooltipBind("cursor right"      , 0          , XK_Right    , 0      , cursorRight        , NULL);
+	addTooltipBind("cursor home"       , 0          , XK_Home     , 0      , cursorHome         , NULL);
+	addTooltipBind("cursor end"        , 0          , XK_End      , 0      , cursorEnd          , NULL);
+	addTooltipBind("leave command mode", 0          , XK_Escape   , 0      , commandEscape      , NULL);
+	addTooltipBind("autocomplete"      , 0          , XK_Tab      , TT_DRAW, commandAutocomplete, NULL);
+	addTooltipBind("commit"            , 0          , XK_Return   , TT_DRAW, commandCommit      , NULL);
+	addTooltipBind("backspace"         , 0          , XK_BackSpace, 0      , commandBackspace   , NULL);
+	addTooltipBind("clear to beginning", ControlMask, XK_U        , 0      , commandCtrlU       , NULL);
+	addTooltipBind("clear to end"      , ControlMask, XK_K        , 0      , commandCtrlK       , NULL);
+	addPrintableAsciiBinds("input", 0, commandInputKey);
 }

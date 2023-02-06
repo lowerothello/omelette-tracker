@@ -110,6 +110,15 @@ int rulerMouse(enum Button button, int x, int y)
 	}
 }
 
+void addRulerBinds(void)
+{
+	addTooltipBind("count set bpm"          , 0, XK_B, 0, (void(*)(void*))setBpmCount         , NULL);
+	addTooltipBind("count set row highlight", 0, XK_R, 0, (void(*)(void*))setRowHighlightCount, NULL);
+	addTooltipBind("count set octave"       , 0, XK_O, 0, (void(*)(void*))setOctaveCount      , NULL);
+	addTooltipBind("count set step"         , 0, XK_S, 0, (void(*)(void*))setStepCount        , NULL);
+}
+
+
 void redraw(void)
 {
 	fcntl(0, F_SETFL, 0); /* blocking */
@@ -128,7 +137,7 @@ void redraw(void)
 	}
 	drawCommand(&w->command, w->mode);
 
-	if (w->showtooltip) drawTooltip(&tt);
+	if (w->showtooltip) drawTooltip();
 
 	fflush(stdout);
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */

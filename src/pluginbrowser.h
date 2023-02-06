@@ -1,5 +1,5 @@
 BrowserState *pbstate;
 
-void initPluginEffectBrowserInput(TooltipState*);
+void initPluginEffectBrowserInput(void);
 BrowserState *initPluginBrowser(void);
 void freePluginBrowser(BrowserState*);

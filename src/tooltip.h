@@ -30,20 +30,20 @@ TooltipState tt;
 /* must be defined elsewhere */
 void resetInput(void);
 
-void clearTooltip(TooltipState*);
-void setTooltipTitle(TooltipState*, char *prettytitle);
-void setTooltipMouseCallback(TooltipState*, void (*callback)(enum Button, int, int));
-void addTooltipPrettyPrint(TooltipState*, const char *prettyname, unsigned int state, const char *prettykeysym);
-void addTooltipBind(TooltipState*, const char *prettyname, unsigned int state, KeySym keysym, uint8_t flags, void (*callback)(void *), void *arg);
-void inputTooltip(TooltipState*, unsigned int state, KeySym input, bool release);
-void drawTooltip(TooltipState*);
+void clearTooltip(void);
+void setTooltipTitle(char *prettytitle);
+void setTooltipMouseCallback(void (*callback)(enum Button, int, int));
+void addTooltipPrettyPrint(const char *prettyname, unsigned int state, const char *prettykeysym);
+void addTooltipBind(const char *prettyname, unsigned int state, KeySym keysym, uint8_t flags, void (*callback)(void *), void *arg);
+void inputTooltip(unsigned int state, KeySym input, bool release);
+void drawTooltip(void);
 
 /* the callback's arg is the note offset cast to (void*) */
-void addNotePressBinds(TooltipState*, const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
-void addNoteReleaseBinds(TooltipState*, const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
+void addNotePressBinds(const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
+void addNoteReleaseBinds(const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*));
 
-void addHexBinds(TooltipState*, const char *prettyname, unsigned int state, void (*callback)(void*));
-void addDecimalBinds(TooltipState*, const char *prettyname, unsigned int state, void (*callback)(void*));
-void addPrintableAsciiBinds(TooltipState*, const char *prettyname, unsigned int state, void (*callback)(void*));
+void addHexBinds(const char *prettyname, unsigned int state, void (*callback)(void*));
+void addDecimalBinds(const char *prettyname, unsigned int state, void (*callback)(void*));
+void addPrintableAsciiBinds(const char *prettyname, unsigned int state, void (*callback)(void*));
 
-void handleStdin(TooltipState*);
+void handleStdin(void);
