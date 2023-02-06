@@ -23,25 +23,31 @@ static void trackerEscape(void)
 }
 static void trackerEnterVisualMode(void)
 {
-	w->visualfx = tfxToVfx(w->trackerfx);
-	w->visualfy = w->trackerfy;
-	w->visualtrack = w->track;
 	switch (w->mode)
 	{
 		case MODE_VISUAL: w->mode = MODE_NORMAL; break;
-		default:          w->mode = MODE_VISUAL; break;
+		case MODE_VISUALLINE: w->mode = MODE_VISUAL; break;
+		default:
+			w->visualfx = tfxToVfx(w->trackerfx);
+			w->visualfy = w->trackerfy;
+			w->visualtrack = w->track;
+			w->mode = MODE_VISUAL;
+			break;
 	}
 	p->redraw = 1;
 }
 static void trackerEnterVisualLineMode(void)
 {
-	w->visualfx = tfxToVfx(w->trackerfx);
-	w->visualfy = w->trackerfy;
-	w->visualtrack = w->track;
 	switch (w->mode)
 	{
-		case MODE_VISUALLINE: w->mode = MODE_NORMAL;     break;
-		default:              w->mode = MODE_VISUALLINE; break;
+		case MODE_VISUALLINE: w->mode = MODE_NORMAL; break;
+		case MODE_VISUAL: w->mode = MODE_VISUALLINE; break;
+		default:
+			w->visualfx = tfxToVfx(w->trackerfx);
+			w->visualfy = w->trackerfy;
+			w->visualtrack = w->track;
+			w->mode = MODE_VISUALLINE;
+			break;
 	}
 	p->redraw = 1;
 }
@@ -109,11 +115,16 @@ static void swapLoopPoint(void)
 		else if (w->trackerfy == s->loop[1]) w->trackerfy = s->loop[0];
 		else if (w->trackerfy < (s->loop[0] + s->loop[1])>>1) w->trackerfy = s->loop[0];
 		else                                                  w->trackerfy = s->loop[1];
-	} p->redraw = 1;
+	}
+	p->redraw = 1;
 }
-static void setLoopPoints(void) /* TODO: shitty disambiguation */
+static void setLoopPoints(void)
 {
-	setLoopRange(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy));
+	if (s->loop[0] == MIN(w->trackerfy, w->visualfy) && s->loop[1] == MAX(w->trackerfy, w->visualfy))
+		setLoopRange(0, 0);
+	else
+		setLoopRange(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy));
+
 	regenGlobalRowc(s);
 	p->redraw = 1;
 }
@@ -225,6 +236,7 @@ static void trackerAdd(signed char value)
 
 	regenGlobalRowc(s); p->redraw = 1;
 }
+
 static void trackerInc(void *count) { trackerAdd(+(MAX(1, w->count) * (size_t)count)); }
 static void trackerDec(void *count) { trackerAdd(-(MAX(1, w->count) * (size_t)count)); }
 
@@ -359,8 +371,7 @@ static void ripRows(void)
 				}
 
 		setVariantChainTrig(&cd->variant, vminrow, vindex);
-	}
-	regenGlobalRowc(s); p->redraw = 1;
+	} regenGlobalRowc(s); p->redraw = 1;
 }
 
 static void pushVtrig(void *arg)
@@ -375,8 +386,7 @@ static void pushVtrig(void *arg)
 		default:
 			inputVariantChainTrig(&s->track->v[w->track].data.variant, w->trackerfy, (size_t)arg);
 			break;
-	}
-	regenGlobalRowc(s); p->redraw = 1;
+	} regenGlobalRowc(s); p->redraw = 1;
 }
 static void setVtrig(void *arg)
 {
@@ -390,8 +400,7 @@ static void setVtrig(void *arg)
 		default:
 			setVariantChainTrig(&s->track->v[w->track].data.variant, w->trackerfy, (size_t)arg);
 			break;
-	}
-	regenGlobalRowc(s); p->redraw = 1;
+	} regenGlobalRowc(s); p->redraw = 1;
 }
 
 static bool setNote(size_t note, Row **r)
@@ -411,8 +420,7 @@ static bool setNote(size_t note, Row **r)
 			(*r)->note = note;
 			(*r)->inst = w->instrument;
 			step = 1; break;
-	}
-	return step;
+	} return step;
 }
 static void pressNote(size_t note)
 {
@@ -471,8 +479,7 @@ static void imposeInst(void)
 			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
 			r->inst = w->instrument;
 			break;
-	}
-	regenGlobalRowc(s); p->redraw = 1;
+	} regenGlobalRowc(s); p->redraw = 1;
 }
 
 static void pushInst(void *arg)
@@ -519,9 +526,7 @@ static void pushMacrov(void *arg)
 			r->macro[macro].v <<= 4;
 			r->macro[macro].v += (size_t)arg;
 			break;
-	}
-
-	regenGlobalRowc(s); p->redraw = 1;
+	} regenGlobalRowc(s); p->redraw = 1;
 }
 static void pushMacroc(void *arg)
 {
@@ -540,9 +545,7 @@ static void pushMacroc(void *arg)
 			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
 			r->macro[macro].c = (size_t)arg;
 			break;
-	}
-
-	regenGlobalRowc(s); p->redraw = 1;
+	} regenGlobalRowc(s); p->redraw = 1;
 }
 
 
@@ -944,9 +947,9 @@ void initTrackerInput(TooltipState *tt)
 			addTooltipBind(tt, "cell-wise"            , ControlMask         , XK_V           , 0      , (void(*)(void*))trackerEnterVisualMode       , NULL     );
 			addTooltipBind(tt, "line-wise"            , 0                   , XK_V           , 0      , (void(*)(void*))trackerEnterVisualLineMode   , NULL     );
 			addTooltipBind(tt, "replace"              , 0                   , XK_r           , 0      , (void(*)(void*))trackerEnterVisualReplaceMode, NULL     );
-			addTooltipBind(tt, "toggle cell case"     , 0                   , XK_asciitilde  , 0      , toggleCellCase                               , (void*)0 );
-			addTooltipBind(tt, "interpolate cells"    , 0                   , XK_i           , 0      , (void(*)(void*))interpolateCells             , NULL     );
-			addTooltipBind(tt, "randomize cells"      , 0                   , XK_percent     , 0      , (void(*)(void*))randomCells                  , NULL     );
+			addTooltipBind(tt, "toggle cell case"     , 0                   , XK_asciitilde  , TT_DRAW, toggleCellCase                               , (void*)0 );
+			addTooltipBind(tt, "interpolate cells"    , 0                   , XK_i           , TT_DRAW, (void(*)(void*))interpolateCells             , NULL     );
+			addTooltipBind(tt, "randomize cells"      , 0                   , XK_percent     , TT_DRAW, (void(*)(void*))randomCells                  , NULL     );
 			addTooltipBind(tt, "increment cell"       , ControlMask         , XK_A           , TT_DRAW, trackerInc                                   , (void*)1 );
 			addTooltipBind(tt, "decrement cell"       , ControlMask         , XK_X           , TT_DRAW, trackerDec                                   , (void*)1 );
 			addTooltipBind(tt, "octave increment cell", ControlMask|Mod1Mask, XK_A           , TT_DRAW, trackerInc                                   , (void*)12);
@@ -955,11 +958,11 @@ void initTrackerInput(TooltipState *tt)
 			addTooltipBind(tt, "delete"               , 0                   , XK_d           , 0      , (void(*)(void*))clearCell                    , NULL     );
 			addTooltipBind(tt, "delete"               , 0                   , XK_BackSpace   , 0      , (void(*)(void*))clearCell                    , NULL     );
 			addTooltipBind(tt, "yank"                 , 0                   , XK_y           , 0      , (void(*)(void*))yankCell                     , NULL     );
-			addTooltipBind(tt, "rip rows to sample"   , 0                   , XK_b           , 0      , (void(*)(void*))bounceRows                   , NULL     );
-			addTooltipBind(tt, "rip rows to variant"  , 0                   , XK_a           , 0      , (void(*)(void*))ripRows                      , NULL     );
+			addTooltipBind(tt, "rip rows to sample"   , 0                   , XK_b           , TT_DRAW, (void(*)(void*))bounceRows                   , NULL     );
+			addTooltipBind(tt, "rip rows to variant"  , 0                   , XK_a           , TT_DRAW, (void(*)(void*))ripRows                      , NULL     );
 			addTooltipBind(tt, "toggle variant loop"  , 0                   , XK_period      , 0      , (void(*)(void*))toggleVisualVariantLoop      , NULL     );
 			addTooltipBind(tt, "jump loop points"     , 0                   , XK_percent     , 0      , (void(*)(void*))swapLoopPoint                , NULL     );
-			addTooltipBind(tt, "set loop range"       , 0                   , XK_semicolon   , 0      , (void(*)(void*))setLoopPoints                , NULL     );
+			addTooltipBind(tt, "set loop range"       , 0                   , XK_semicolon   , TT_DRAW, (void(*)(void*))setLoopPoints                , NULL     );
 			break;
 		default: break;
 	}

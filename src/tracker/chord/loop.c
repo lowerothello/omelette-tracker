@@ -12,8 +12,10 @@ void chordLoopBars(void *_)
 {
 	uint16_t ltrackerfy = MAX(w->trackerfy, STATE_ROWS);
 	if (s->loop[0] == ltrackerfy)
-		 setLoopRange(0, 0);
-	else setLoopRange(ltrackerfy, ltrackerfy + (4*s->rowhighlight)*MAX(1, w->count) - 1);
+		setLoopRange(0, 0);
+	else
+		setLoopRange(ltrackerfy, ltrackerfy + (4*s->rowhighlight)*MAX(1, w->count) - 1);
+
 	regenGlobalRowc(s);
 }
 void chordLoopVariant(void *_)
