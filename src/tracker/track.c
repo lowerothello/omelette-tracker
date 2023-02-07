@@ -298,22 +298,6 @@ void cycleVariantDown(Variant *v, uint16_t bound)
 	regenGlobalRowc(s);
 }
 
-void serializeTrack(Song *cs, Track *cv, FILE *fp)
-{
-	fputc(cv->mute, fp);
-	serializeVariantChain(cv->variant, fp);
-	serializeEffectChain(cv->effect, fp);
-}
-void deserializeTrack(Song *cs, Track *cv, FILE *fp, uint8_t major, uint8_t minor)
-{
-	addTrackRuntime(cv);
-	addTrackData(cv, cs->songlen);
-	cv->mute = fgetc(fp);
-
-	deserializeVariantChain(cv->variant, fp, major, minor);
-	deserializeEffectChain(&cv->effect, fp, major, minor);
-}
-
 void applyTrackMutes(void)
 {
 	Event e;

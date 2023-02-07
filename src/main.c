@@ -36,8 +36,7 @@
 #include "util.c"
 
 /* version */
-const unsigned char MAJOR = 1;
-const unsigned char MINOR = 1;
+const uint16_t version = 0x0001;
 
 #define LINENO_COLS 7
 
@@ -62,7 +61,7 @@ void filebrowserEditCallback(char *path)
 {
 	if (path)
 	{
-		strcpy(w->newfilename, path);
+		strcpy(w->filepath, path);
 		Event e;
 		e.sem = M_SEM_RELOAD_REQ;
 		e.callback = cb_reloadFile;
@@ -84,17 +83,17 @@ static bool commandCallback(char *command, enum _Mode *mode)
 	wordSplit(buffer, command, 0);
 	if      (!strcmp(buffer, "q"))   { free(buffer); buffer = NULL; return 1; }
 	else if (!strcmp(buffer, "q!"))  { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSong(s, buffer); }
+	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSongNew(s, buffer); }
 	else if (!strcmp(buffer, "wq"))
 	{
 		wordSplit(buffer, command, 1);
-		if (!writeSong(s, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
+		if (!writeSongNew(s, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
 	} else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
 		if (strcmp(buffer, ""))
 		{
-			strcpy(w->newfilename, buffer);
+			strcpy(w->filepath, buffer);
 			Event e;
 			e.sem = M_SEM_RELOAD_REQ;
 			e.callback = cb_reloadFile;
@@ -191,7 +190,7 @@ int main(int argc, char *argv[])
 {
 	if (argc > 1 && (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")))
 	{
-		printf("%s, v%d.%03d\n", PROGRAM_TITLE, MAJOR, MINOR);
+		printf("%s, v$%04x\n", PROGRAM_TITLE, version);
 		return 0;
 	}
 

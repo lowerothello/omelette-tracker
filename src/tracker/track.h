@@ -135,8 +135,6 @@ void regenBpmCache(struct _Song *cs);
 void regenGlobalRowc(struct _Song *cs);
 void cycleVariantUp(Variant *v, uint16_t bound);
 void cycleVariantDown(Variant *v, uint16_t bound);
-void serializeTrack(struct _Song *cs, Track *cv, FILE *fp);
-void deserializeTrack(struct _Song *cs, Track *cv, FILE *fp, uint8_t major, uint8_t minor);
 
 void applyTrackMutes(void);
 void toggleTrackMute(uint8_t track);

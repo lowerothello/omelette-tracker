@@ -11,7 +11,8 @@ static void drawRuler(void)
 {
 	/* top ruler */
 	printf("\033[1m\033[0;%ldH%s\033[m", (ws.ws_col - strlen(PROGRAM_TITLE))>>1, PROGRAM_TITLE);
-	printf("\033[1m\033[0;%dHv%d.%03d  %d\033[m", ws.ws_col - 15, MAJOR, MINOR, DEBUG);
+		printf("%s, v$%04X\n", PROGRAM_TITLE, version);
+	printf("\033[1m\033[0;%dHv$%04x  %d\033[m", ws.ws_col - 15, version, DEBUG);
 
 	int previewtracks = PREVIEW_TRACKS;
 	if (input_mode == INPUTMODE_NONE)

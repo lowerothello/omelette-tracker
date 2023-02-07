@@ -178,7 +178,6 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 	if (!src) return;
 
 	freeEffect(dest);
-	dest->type = src->type;
 	switch (src->type)
 	{
 		case EFFECT_TYPE_DUMMY:  break;
@@ -198,51 +197,6 @@ void copyEffectChain(EffectChain **dest, EffectChain *src)
 	clearEffectChain(*dest);
 	free(*dest);
 	*dest = ret;
-}
-
-
-void serializeEffect(Effect *e, FILE *fp)
-{
-	if (!e) return;
-	fputc(e->type, fp);
-
-	switch (e->type)
-	{
-		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: serializeLadspaEffect(&e->ladspa, fp); break;
-		case EFFECT_TYPE_LV2:    serializeLV2Effect   (&e->lv2, fp); break;
-	}
-}
-void serializeEffectChain(EffectChain *chain, FILE *fp)
-{
-	fwrite(&chain->c, sizeof(uint8_t), 1, fp);
-	for (int i = 0; i < chain->c; i++)
-		serializeEffect(&chain->v[i], fp);
-}
-
-void deserializeEffect(EffectChain *chain, Effect *e, FILE *fp, uint8_t major, uint8_t minor)
-{
-	if (!e) return;
-	e->type = fgetc(fp);
-
-	switch (e->type)
-	{
-		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect(&e->ladspa, chain->input, chain->output, fp); break;
-		case EFFECT_TYPE_LV2:    deserializeLV2Effect   (&e->lv2, chain->input, chain->output, fp); break;
-	}
-}
-void deserializeEffectChain(EffectChain **chain, FILE *fp, uint8_t major, uint8_t minor)
-{
-	uint8_t tempc;
-	fread(&tempc, sizeof(uint8_t), 1, fp); /* how many effects to allocate */
-
-	if (*chain) free(*chain);
-	*chain = calloc(1, sizeof(EffectChain) + tempc * sizeof(Effect));
-	(*chain)->c = tempc;
-
-	for (int i = 0; i < (*chain)->c; i++)
-		deserializeEffect(*chain, &(*chain)->v[i], fp, major, minor);
 }
 
 short getEffectHeight(Effect *e)

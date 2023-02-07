@@ -1,8 +1,5 @@
-/* caller should free the returned value */
-char *fileExtension(char *path, char *ext);
-
-void writeSongNew(Song *cs, FILE *fp);
-Song *readSongNew(FILE *fp);
+int writeSongNew(Song *cs, char *path);
+Song *readSongNew(char *path);
 
 /* every key that can be stored in mod files */
 /* each enum must fit in 1 byte */
@@ -13,7 +10,8 @@ enum FileKeyHeader
 	FKH_SAMPLERATE   = 2, /* samplerate the file was saved with */
 	FKH_BPM          = 3,
 	FKH_ROWHIGHLIGHT = 4,
-	FKH_LOOP         = 5, /* loop range */
+	FKH_SONGLEN      = 5,
+	FKH_LOOP         = 6, /* loop range */
 	FKH_GOTO_TRACK   = 100,
 	FKH_GOTO_INST    = 101,
 };
@@ -45,12 +43,10 @@ enum FileKeyEffect
 	FKE_COUNT           = 1, /* how many effects to expect */
 	FKE_EFFECT          = 2, /* set target effect */
 	FKE_TYPE            = 3, /* enum EFFECT_TYPE */
-	FKE_LADSPA_UUID     = 10,
-	FKE_LADSPA_CONTROLC = 11,
-	FKE_LADSPA_CONTROLV = 12,
+	FKE_LADSPA_UID      = 10, /* uint32_t for the UniqueID, then the NULL terminated Label */
+	FKE_LADSPA_CONTROLV = 11,
 	FKE_LV2_URI         = 20, /* NULL terminated string */
-	FKE_LV2_CONTROLC    = 21,
-	FKE_LV2_CONTROLV    = 22,
+	FKE_LV2_CONTROLV    = 21,
 };
 
 enum FileKeyInst
@@ -58,6 +54,7 @@ enum FileKeyInst
 	FKI_EOF   = 0, /* return */
 	FKI_COUNT = 1, /* how many instruments to expect */
 	FKI_INST  = 2, /* set target instrument */
+	FKI_INDEX = 3,
 };
 
 #include "file.c"

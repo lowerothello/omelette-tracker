@@ -118,7 +118,7 @@ void init(int argc, char *argv[])
 
 	if (argc > 1)
 	{
-		strcpy(w->newfilename, argv[1]);
+		strcpy(w->filepath, argv[1]);
 		Event e;
 		e.sem = M_SEM_RELOAD_REQ;
 		e.callback = cb_reloadFile;

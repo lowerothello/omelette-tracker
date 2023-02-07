@@ -98,9 +98,3 @@ void setVariantChainTrig  (VariantChain **vc, uint16_t index, uint8_t value);
 int getVariantChainVariant      (Variant **output, VariantChain *vc, uint16_t index);
 /* like above, but ignore variant looping */
 int getVariantChainVariantNoLoop(Variant **output, VariantChain *vc, uint16_t index);
-
-void serializeVariantChain(VariantChain *v, FILE *fp);
-void deserializeVariantChain(VariantChain *vc, FILE *fp, uint8_t major, uint8_t minor);
-
-void serializeVariant(Variant *v, FILE *fp);
-void deserializeVariant(Variant **v, FILE *fp);

@@ -83,8 +83,6 @@ typedef struct _UI {
 	uint8_t  instrumentrecv; /* value, set to an INST_REC_LOCK constant */
 	short   *recbuffer;      /* disallow removing an instrument while recording to it */
 	uint32_t recptr;
-
-	char newfilename[COMMAND_LENGTH]; /* used by readSong */
 } UI;
 UI *w;
 

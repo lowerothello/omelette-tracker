@@ -33,7 +33,8 @@ union InstrumentUnion
 	struct InstAlgMidi    midi;
 };
 
-typedef struct {
+typedef struct Instrument
+{
 	Sample *sample;
 
 	int8_t channelmode;
@@ -159,9 +160,6 @@ void loadSample(uint8_t index, char *path); /* TODO: atomicity */
 void sampleLoadCallback(char *path); /* TODO: atomicity */
 
 // int sampleExportCallback(char *command, unsigned char *mode) /* TODO: unmaintained */
-
-void serializeInstrument  (Instrument*, FILE *fp);
-void deserializeInstrument(Instrument*, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor);
 
 void initInstrumentInput(void);
 void instrumentControlCallback(void);

@@ -59,11 +59,6 @@ uint8_t getCursorFromEffect(EffectChain*, uint8_t index);
 void copyEffect(Effect *dest, Effect *src, float **input, float **output);
 void copyEffectChain(EffectChain **dest, EffectChain *src);
 
-void serializeEffect(Effect*, FILE*);
-void deserializeEffect(EffectChain*, Effect*, FILE*, uint8_t major, uint8_t minor);
-void serializeEffectChain(EffectChain*, FILE*);
-void deserializeEffectChain(EffectChain**, FILE*, uint8_t major, uint8_t minor);
-
 short getEffectHeight(Effect*);
 
 /* draw the full effect page */

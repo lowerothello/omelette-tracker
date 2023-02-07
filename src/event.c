@@ -202,7 +202,7 @@ bool processM_SEM(void)
 
 void cb_reloadFile(Event *e)
 {
-	Song *cs = readSong(w->newfilename);
+	Song *cs = readSongNew(w->filepath);
 	if (cs) { freeSong(s); s = cs; }
 	p->s = s;
 	if (s->loop[1]) w->trackerfy = s->loop[0];

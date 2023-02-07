@@ -162,9 +162,8 @@ static LADSPA_Data getLadspaPortDef(LADSPA_PortRangeHint hint)
 	return ret;
 }
 
-void startLadspaEffect(LadspaState *s, float **input, float **output)
+static void startLadspaEffect(LadspaState *s, float **input, float **output)
 {
-	s->uuid = s->desc->UniqueID; /* TODO: maybe set this somewhere else */
 	s->instance = s->desc->instantiate(s->desc, samplerate);
 
 	/* iterate first to find the size of the control block */
@@ -231,25 +230,9 @@ void initLadspaEffect(LadspaState *s, float **input, float **output, const LADSP
 
 void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output)
 {
+	dest->type = src->type;
 	initLadspaEffect(dest, input, output, src->desc);
 	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
-}
-
-void serializeLadspaEffect(LadspaState *s, FILE *fp)
-{
-	fwrite(&s->uuid, sizeof(uint32_t), 1, fp);
-	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
-	fwrite(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
-}
-void deserializeLadspaEffect(LadspaState *s, float **input, float **output, FILE *fp)
-{
-	fread(&s->uuid, sizeof(uint32_t), 1, fp);
-	fread(&s->controlc, sizeof(uint32_t), 1, fp);
-	s->controlv = calloc(s->controlc, sizeof(LADSPA_Data));
-	fread(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
-
-	/* TODO: look up desc based on uuid */
-	startLadspaEffect(s, input, output);
 }
 
 /* the current text colour will apply to the header but not the contents */

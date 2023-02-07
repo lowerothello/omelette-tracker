@@ -369,130 +369,130 @@ void sampleLoadCallback(char *path) /* TODO: atomicity */
 // 	return 0;
 // }
 
-void serializeInstrument(Instrument *iv, FILE *fp)
-{
-	fwrite(&iv->sample->length, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->sample->channels, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
-	fwrite(&iv->sample->rate, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->sample->defrate, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->bitdepth, sizeof(int8_t), 1, fp);
-	fwrite(&iv->interpolate, sizeof(bool), 1, fp);
-	fwrite(&iv->trimstart, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->trimlength, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->looplength, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->envelope, sizeof(uint16_t), 1, fp);
-	fwrite(&iv->gain, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->invert, sizeof(bool), 1, fp);
-	fwrite(&iv->pingpong, sizeof(bool), 1, fp);
-	fwrite(&iv->loopramp, sizeof(uint8_t), 1, fp);
-
-	fwrite(&iv->algorithm, sizeof(int8_t), 1, fp);
-
-	/* midi */
-	fwrite(&iv->midi.channel, sizeof(int8_t), 1, fp);
-
-	/* granular */
-	fwrite(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
-	fwrite(&iv->granular.reversegrains, sizeof(bool), 1, fp);
-	fwrite(&iv->granular.rampgrains, sizeof(int8_t), 1, fp);
-	fwrite(&iv->granular.timestretch, sizeof(int16_t), 1, fp);
-	fwrite(&iv->granular.notestretch, sizeof(bool), 1, fp);
-	fwrite(&iv->granular.pitchshift, sizeof(int16_t), 1, fp);
-	fwrite(&iv->granular.pitchstereo, sizeof(int8_t), 1, fp);
-
-	/* wavetable */
-	fwrite(&iv->wavetable.framelength, sizeof(uint32_t), 1, fp);
-	fwrite(&iv->wavetable.wtpos, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.envelope, sizeof(uint16_t), 1, fp);
-	fwrite(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
-	fwrite(&iv->wavetable.env.wtpos, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.env.sync, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.env.cutoff, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.env.phase, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.env.pwm, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.env.pdyn, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.gain, sizeof(uint8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.wtpos, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.sync, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.cutoff, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.phase, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
-	fwrite(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
-
-	if (iv->sample->length)
-		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->channels, fp);
-}
-void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor)
-{
-	Sample *newsample = malloc(sizeof(Sample));
-	if (major == 0 && minor < 99) fseek(fp, sizeof(uint32_t), SEEK_CUR);
-	fread(&newsample->length, sizeof(uint32_t), 1, fp);
-	fread(&newsample->channels, sizeof(uint8_t), 1, fp);
-	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
-	fread(&newsample->rate, sizeof(uint32_t), 1, fp);    newsample->rate *= ratemultiplier;
-	fread(&newsample->defrate, sizeof(uint32_t), 1, fp); newsample->defrate *= ratemultiplier;
-	fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
-	fread(&iv->bitdepth, sizeof(int8_t), 1, fp);
-	fread(&iv->interpolate, sizeof(bool), 1, fp);
-	fread(&iv->trimstart, sizeof(uint32_t), 1, fp);
-	fread(&iv->trimlength, sizeof(uint32_t), 1, fp);
-	fread(&iv->looplength, sizeof(uint32_t), 1, fp);
-	fread(&iv->envelope, sizeof(uint16_t), 1, fp);
-	fread(&iv->gain, sizeof(uint8_t), 1, fp);
-	fread(&iv->invert, sizeof(bool), 1, fp);
-	fread(&iv->pingpong, sizeof(bool), 1, fp);
-	fread(&iv->loopramp, sizeof(uint8_t), 1, fp);
-
-	fread(&iv->algorithm, sizeof(int8_t), 1, fp);
-
-	/* midi */
-	fread(&iv->midi.channel, sizeof(int8_t), 1, fp);
-
-	/* granular */
-	fread(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
-	fread(&iv->granular.reversegrains, sizeof(bool), 1, fp);
-	fread(&iv->granular.rampgrains, sizeof(int8_t), 1, fp);
-	fread(&iv->granular.timestretch, sizeof(int16_t), 1, fp);
-	fread(&iv->granular.notestretch, sizeof(bool), 1, fp);
-	fread(&iv->granular.pitchshift, sizeof(int16_t), 1, fp);
-	fread(&iv->granular.pitchstereo, sizeof(int8_t), 1, fp);
-
-	/* wavetable */
-	fread(&iv->wavetable.framelength, sizeof(uint32_t), 1, fp);
-	fread(&iv->wavetable.wtpos, sizeof(uint8_t), 1, fp);
-	fread(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.envelope, sizeof(uint16_t), 1, fp);
-	fread(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
-	fread(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
-	fread(&iv->wavetable.env.wtpos, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.env.sync, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.env.cutoff, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.env.phase, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.env.pwm, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.env.pdyn, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfo.gain, sizeof(uint8_t), 1, fp);
-	fread(&iv->wavetable.lfo.wtpos, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfo.sync, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfo.cutoff, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfo.phase, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
-	fread(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
-
-	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->channels);
-	if (newsample->length)
-		fread(newsample->data, sizeof(short), newsample->length*newsample->channels, fp);
-	iv->sample = newsample;
-}
+// void serializeInstrument(Instrument *iv, FILE *fp)
+// {
+// 	fwrite(&iv->sample->length, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->sample->channels, sizeof(uint8_t), 1, fp);
+// 	fwrite(&iv->channelmode, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->sample->rate, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->sample->defrate, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->samplerate, sizeof(uint8_t), 1, fp);
+// 	fwrite(&iv->bitdepth, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->interpolate, sizeof(bool), 1, fp);
+// 	fwrite(&iv->trimstart, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->trimlength, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->looplength, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->envelope, sizeof(uint16_t), 1, fp);
+// 	fwrite(&iv->gain, sizeof(uint8_t), 1, fp);
+// 	fwrite(&iv->invert, sizeof(bool), 1, fp);
+// 	fwrite(&iv->pingpong, sizeof(bool), 1, fp);
+// 	fwrite(&iv->loopramp, sizeof(uint8_t), 1, fp);
+//
+// 	fwrite(&iv->algorithm, sizeof(int8_t), 1, fp);
+//
+// 	/* midi */
+// 	fwrite(&iv->midi.channel, sizeof(int8_t), 1, fp);
+//
+// 	/* granular */
+// 	fwrite(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
+// 	fwrite(&iv->granular.reversegrains, sizeof(bool), 1, fp);
+// 	fwrite(&iv->granular.rampgrains, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->granular.timestretch, sizeof(int16_t), 1, fp);
+// 	fwrite(&iv->granular.notestretch, sizeof(bool), 1, fp);
+// 	fwrite(&iv->granular.pitchshift, sizeof(int16_t), 1, fp);
+// 	fwrite(&iv->granular.pitchstereo, sizeof(int8_t), 1, fp);
+//
+// 	/* wavetable */
+// 	fwrite(&iv->wavetable.framelength, sizeof(uint32_t), 1, fp);
+// 	fwrite(&iv->wavetable.wtpos, sizeof(uint8_t), 1, fp);
+// 	fwrite(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.envelope, sizeof(uint16_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
+// 	fwrite(&iv->wavetable.env.wtpos, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.env.sync, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.env.cutoff, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.env.phase, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.env.pwm, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.env.pdyn, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.gain, sizeof(uint8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.wtpos, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.sync, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.cutoff, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.phase, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
+// 	fwrite(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
+//
+// 	if (iv->sample->length)
+// 		fwrite(iv->sample->data, sizeof(short), iv->sample->length * iv->sample->channels, fp);
+// }
+// void deserializeInstrument(Instrument *iv, FILE *fp, double ratemultiplier, uint8_t major, uint8_t minor)
+// {
+// 	Sample *newsample = malloc(sizeof(Sample));
+// 	if (major == 0 && minor < 99) fseek(fp, sizeof(uint32_t), SEEK_CUR);
+// 	fread(&newsample->length, sizeof(uint32_t), 1, fp);
+// 	fread(&newsample->channels, sizeof(uint8_t), 1, fp);
+// 	fread(&iv->channelmode, sizeof(int8_t), 1, fp);
+// 	fread(&newsample->rate, sizeof(uint32_t), 1, fp);    newsample->rate *= ratemultiplier;
+// 	fread(&newsample->defrate, sizeof(uint32_t), 1, fp); newsample->defrate *= ratemultiplier;
+// 	fread(&iv->samplerate, sizeof(uint8_t), 1, fp);
+// 	fread(&iv->bitdepth, sizeof(int8_t), 1, fp);
+// 	fread(&iv->interpolate, sizeof(bool), 1, fp);
+// 	fread(&iv->trimstart, sizeof(uint32_t), 1, fp);
+// 	fread(&iv->trimlength, sizeof(uint32_t), 1, fp);
+// 	fread(&iv->looplength, sizeof(uint32_t), 1, fp);
+// 	fread(&iv->envelope, sizeof(uint16_t), 1, fp);
+// 	fread(&iv->gain, sizeof(uint8_t), 1, fp);
+// 	fread(&iv->invert, sizeof(bool), 1, fp);
+// 	fread(&iv->pingpong, sizeof(bool), 1, fp);
+// 	fread(&iv->loopramp, sizeof(uint8_t), 1, fp);
+//
+// 	fread(&iv->algorithm, sizeof(int8_t), 1, fp);
+//
+// 	/* midi */
+// 	fread(&iv->midi.channel, sizeof(int8_t), 1, fp);
+//
+// 	/* granular */
+// 	fread(&iv->granular.cyclelength, sizeof(uint16_t), 1, fp);
+// 	fread(&iv->granular.reversegrains, sizeof(bool), 1, fp);
+// 	fread(&iv->granular.rampgrains, sizeof(int8_t), 1, fp);
+// 	fread(&iv->granular.timestretch, sizeof(int16_t), 1, fp);
+// 	fread(&iv->granular.notestretch, sizeof(bool), 1, fp);
+// 	fread(&iv->granular.pitchshift, sizeof(int16_t), 1, fp);
+// 	fread(&iv->granular.pitchstereo, sizeof(int8_t), 1, fp);
+//
+// 	/* wavetable */
+// 	fread(&iv->wavetable.framelength, sizeof(uint32_t), 1, fp);
+// 	fread(&iv->wavetable.wtpos, sizeof(uint8_t), 1, fp);
+// 	fread(&iv->wavetable.syncoffset, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.pulsewidth, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.phasedynamics, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.envelope, sizeof(uint16_t), 1, fp);
+// 	fread(&iv->wavetable.lfospeed, sizeof(uint8_t), 1, fp);
+// 	fread(&iv->wavetable.lfoduty, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfoshape, sizeof(bool), 1, fp);
+// 	fread(&iv->wavetable.env.wtpos, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.env.sync, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.env.cutoff, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.env.phase, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.env.pwm, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.env.pdyn, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.gain, sizeof(uint8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.wtpos, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.sync, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.cutoff, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.phase, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.pwm, sizeof(int8_t), 1, fp);
+// 	fread(&iv->wavetable.lfo.pdyn, sizeof(int8_t), 1, fp);
+//
+// 	newsample = realloc(newsample, sizeof(Sample) + sizeof(short)*newsample->length*newsample->channels);
+// 	if (newsample->length)
+// 		fread(newsample->data, sizeof(short), newsample->length*newsample->channels, fp);
+// 	iv->sample = newsample;
+// }
 
 void instrumentControlCallback(void)
 {

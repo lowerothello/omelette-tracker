@@ -95,7 +95,7 @@ float getLV2PortDef(LV2State *s, const LilvPort *lpo, const LilvNode *node)
 	return ret;
 }
 
-void startLV2Effect(LV2State *s, float **input, float **output)
+static void startLV2Effect(LV2State *s, float **input, float **output)
 {
 	LilvNode *node;
 
@@ -176,10 +176,9 @@ void freeLV2Effect(LV2State *s)
 	if (s->dummyport) free(s->dummyport);
 }
 
-void initLV2Effect(LV2State *s, float **input, float **output, const LilvPlugin *lp)
+void initLV2Effect(LV2State *s, float **input, float **output, const LilvPlugin *plugin)
 {
-	s->plugin = lp;
-	s->uri = lilv_plugin_get_uri(lp);
+	s->plugin = plugin;
 
 	s->urid_map.handle = s->urid_unmap.handle = &s->urid;
 	s->urid_map.map = lv2_map_uri;
@@ -199,41 +198,13 @@ void initLV2Effect(LV2State *s, float **input, float **output, const LilvPlugin 
 
 void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output)
 {
+	dest->type = src->type;
 	initLV2Effect(dest, input, output, src->plugin);
 	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(float));
 }
 
 uint32_t getLV2EffectControlCount(LV2State *s) { return s->controlc; }
 short getLV2EffectHeight(LV2State *s) { return s->controlc + 3; }
-
-void serializeLV2Effect(LV2State *s, FILE *fp)
-{
-	const char *suri = lilv_node_as_string(s->uri);
-	size_t surilen = strlen(suri);
-	fwrite(&surilen, sizeof(size_t), 1, fp);
-	fwrite(suri, sizeof(char), surilen+1, fp);
-
-	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
-	fwrite(s->controlv, sizeof(float), s->controlc, fp);
-}
-void deserializeLV2Effect(LV2State *s, float **input, float **output, FILE *fp)
-{
-	size_t surilen;
-	fread(&surilen, sizeof(size_t), 1, fp);
-	char *suri = malloc(surilen+1);
-	fread(suri, sizeof(char), surilen+1, fp);
-	s->uri = lilv_new_string(lv2_db.world, suri);
-	free(suri);
-
-	s->plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), s->uri);
-
-	fread(&s->controlc, sizeof(uint32_t), 1, fp);
-	s->controlv = calloc(s->controlc, sizeof(float));
-	fread(s->controlv, sizeof(float), s->controlc, fp);
-
-	/* TODO: look up desc based on uuid */
-	startLV2Effect(s, input, output);
-}
 
 /* the current text colour will apply to the header but not the contents */
 void drawLV2Effect(LV2State *s,

@@ -44,24 +44,18 @@ typedef struct {
 	uint32_t          controlc; /* input control port count */
 	float            *controlv; /* input control ports      */
 	float            *dummyport;
-	const LilvNode   *uri; /* not read from desc cos even if desc is null this needs to be serialized */
 } LV2State;
 
 float getLV2PortMin(LV2State*, const LilvPort*, const LilvNode*);
 float getLV2PortMax(LV2State*, const LilvPort*, const LilvNode*);
 float getLV2PortDef(LV2State*, const LilvPort*, const LilvNode*);
 
-void startLV2Effect(LV2State*, float **input, float **output);
-
 void freeLV2Effect(LV2State*);
-void initLV2Effect(LV2State*, float **input, float **output, const LilvPlugin*);
+void initLV2Effect(LV2State*, float **input, float **output, const LilvPlugin *plugin);
 void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output);
 
 uint32_t getLV2EffectControlCount(LV2State*);
 short getLV2EffectHeight(LV2State*);
-
-void serializeLV2Effect(LV2State*, FILE*);
-void deserializeLV2Effect(LV2State*, float **input, float **output, FILE*);
 
 void drawLV2Effect(LV2State*,
 		short x, short w,
