@@ -8,7 +8,7 @@ log
 
 # test mod files, some contain dmca-able samples so excluded
 testmods
-*.omlm # old extension
+*.omlm
 *.egg
 
 # files omelette spits out for debugging
