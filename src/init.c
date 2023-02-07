@@ -60,23 +60,26 @@ void cleanup(int ret)
 
 static void sigwinch(int signal) { p->resize = 1; }
 
+void jackError(const char *message)
+{ /* stub jack error callback to hide errors, TODO: do something more useful */
+	return;
+}
+
 void init(int argc, char *argv[])
 {
 	srand(time(NULL)); /* seed rand */
 
 	initTerminal();
-
 	initRawInput();
-
 	initLadspaDB();
 	initLV2DB();
 
-	/* jack stuffs */
 	p = malloc(sizeof(PlaybackInfo));
 	if (!p) { puts("out of memory"); common_cleanup(1); }
 	memset(p, 0, sizeof(PlaybackInfo));
 
 #ifndef DEBUG_DISABLE_AUDIO_OUTPUT
+	jack_set_error_function(jackError);
 	client = jack_client_open("omelette", JackNullOption, NULL);
 	if (!client) { puts("failed to init the jack client"); common_cleanup(1); }
 

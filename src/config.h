@@ -22,13 +22,13 @@
 /* NO_MULTITHREADING
  *   executes all track processing in a single thread
  *   instead of spawning a thread for each track. */
-#define NO_MULTITHREADING
+// #define NO_MULTITHREADING
 
 /* filebrowser starting dir */
 #define SAMPLES_DIR "/media/prod"
 
 /* file extension used when writing omelette modules */
-#define MODULE_EXTENSION ".egg"
+#define MODULE_EXTENSION ".omlm"
 
 /* UPDATE_DELAY
  *   how often to poll for input. since omelette needs to be able

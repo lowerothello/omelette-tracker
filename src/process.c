@@ -799,13 +799,11 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	/*                        MULTITHREADING                         */
 	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
 	/* honestly half this file probably isn't strictly realtime-safe */
-	bool                 preview_thread_failed[PREVIEW_TRACKS];
+	bool preview_thread_failed[PREVIEW_TRACKS]; /* TODO: more descriptive name */
 	memset(preview_thread_failed, 1, PREVIEW_TRACKS); /* set high by default, gcc probably makes this static or smth */
 #ifndef NO_MULTITHREADING
 	jack_native_thread_t preview_thread_ids   [PREVIEW_TRACKS];
 	jack_native_thread_t thread_ids   [p->s->track->c-1]; /* index 0 is the preview track */
-	bool                 thread_failed[p->s->track->c-1]; /* if the thread failed to initialize, try REALLY hard not to segfault */
-	memset(thread_failed, 0, p->s->track->c-1); /* set low by default, gcc probably makes this static or smth */
 #endif
 
 	/* handle the preview tracks first */
@@ -814,21 +812,17 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 		if (p->w->previewtrack[i].r.note != NOTE_VOID
 				&& p->w->previewtrack[i].r.inst != INST_VOID)
 		{
-			preview_thread_failed[i] = 0;
 #ifdef NO_MULTITHREADING
 			previewTrackThreadRoutine(&p->w->previewtrack[i]);
 #else
+			preview_thread_failed[i] = 0; /* set low if the thread needs to be joined with */
 			if (RUNNING_ON_VALGRIND)
 				previewTrackThreadRoutine(&p->w->previewtrack[i]);
 			else
-				/* try spawning a thread, if it fails then do the work in this thread */
-				if (jack_client_create_thread(client, &preview_thread_ids[i],
+				/* try spawning a thread, if it fails then try again */
+				while (jack_client_create_thread(client, &preview_thread_ids[i],
 						jack_client_real_time_priority(client), jack_is_realtime(client),
-						previewTrackThreadRoutine, &p->w->previewtrack[i]))
-				{
-					preview_thread_failed[i] = 1;
-					previewTrackThreadRoutine(&p->w->previewtrack[i]);
-				}
+						previewTrackThreadRoutine, &p->w->previewtrack[i]));
 #endif
 		}
 	}
@@ -842,14 +836,10 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 		if (RUNNING_ON_VALGRIND)
 			trackThreadRoutine(&p->s->track->v[i]);
 		else
-			/* try spawning a thread, if it fails then do the work in this thread */
-			if (jack_client_create_thread(client, &thread_ids[i-1],
+			/* try spawning a thread, if it fails then try again */
+			while (jack_client_create_thread(client, &thread_ids[i-1],
 					jack_client_real_time_priority(client), jack_is_realtime(client),
-					trackThreadRoutine, &p->s->track->v[i]))
-			{
-				thread_failed[i-1] = 1;
-				trackThreadRoutine(&p->s->track->v[i]);
-			}
+					trackThreadRoutine, &p->s->track->v[i]));
 #endif
 	}
 
@@ -865,8 +855,7 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	{
 		/* join with the track threads */
 		for (i = 1; i < p->s->track->c; i++)
-			if (!thread_failed[i-1])
-				pthread_join(thread_ids[i-1], NULL);
+			pthread_join(thread_ids[i-1], NULL);
 		/* join with the prevew threads */
 		for (i = 1; i < p->s->track->c; i++)
 			if (!preview_thread_failed[i])

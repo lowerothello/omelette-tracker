@@ -110,12 +110,19 @@ int rulerMouse(enum Button button, int x, int y)
 	}
 }
 
+static void setBpmCount(void) { s->songbpm = MIN(255, MAX(32, w->count)); reapplyBpm(); p->redraw = 1; }
+static void setRowHighlightCount(void) { s->rowhighlight = MIN(16, w->count); regenGlobalRowc(s); p->redraw = 1; }
+static void setOctaveCount(void) { w->octave = MIN(w->count, MAX_OCTAVE); p->redraw = 1; }
+static void setStepCount(void) { w->step = MIN(w->count, MAX_STEP); p->redraw = 1; }
+static void setInstCount(void) { w->instrument = MIN(w->count, INSTRUMENT_MAX); p->redraw = 1; }
+
 void addRulerBinds(void)
 {
 	addTooltipBind("count set bpm"          , 0, XK_B, 0, (void(*)(void*))setBpmCount         , NULL);
 	addTooltipBind("count set row highlight", 0, XK_R, 0, (void(*)(void*))setRowHighlightCount, NULL);
 	addTooltipBind("count set octave"       , 0, XK_O, 0, (void(*)(void*))setOctaveCount      , NULL);
 	addTooltipBind("count set step"         , 0, XK_S, 0, (void(*)(void*))setStepCount        , NULL);
+	addTooltipBind("count set instrument"   , 0, XK_I, 0, (void(*)(void*))setInstCount        , NULL);
 }
 
 

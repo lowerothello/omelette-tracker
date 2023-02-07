@@ -183,7 +183,7 @@ Song *readSong(char *path)
 	{
 		fclose(fp);
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' isn't valid", path);
+		snprintf(w->command.error, COMMAND_LENGTH, "file '%s' has invalid magic", path);
 		p->redraw = 1; return NULL;
 	}
 

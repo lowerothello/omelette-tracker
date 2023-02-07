@@ -98,8 +98,6 @@ void redraw(void)
 				((ws.ws_row - getLadspaEffectHeight(lhs.state))>>1) + 2, 1, ws.ws_row);
 
 		drawControls();
-
-		/* drawTooltip(); */
 	} else
 	{ /* invalid plugin requested */
 #define INDEX_TEXT ", index "

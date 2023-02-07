@@ -5,6 +5,7 @@ enum EFFECT_TYPE /* cast to a (uint8_t) */
 	EFFECT_TYPE_LV2    = 2,
 };
 
+/* TODO: effect should be a union */
 typedef struct Effect
 {
 	uint8_t type;

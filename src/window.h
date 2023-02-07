@@ -88,11 +88,6 @@ typedef struct _UI {
 } UI;
 UI *w;
 
-void setBpmCount(void);
-void setRowHighlightCount(void);
-void setOctaveCount(void);
-void setStepCount(void);
-
 void addOctave(int delta);
 void incOctave(void) { addOctave( 1); }
 void decOctave(void) { addOctave(-1); }

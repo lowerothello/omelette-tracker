@@ -7,8 +7,6 @@
 #include "playback.h"
 #include "init.h"
 
-#include "file/file.h"         /* file helper functions */
-
 #include "draw_helpers.c" /* helper functions for drawing to the screen */
 #include "event.h"        /* event library */
 
@@ -62,6 +60,8 @@ enum _Mode {
 
 #include "song.h"
 #include "window.h"
+
+#include "file/file.h"
 
 #include "browser.h"
 #include "filebrowser.h"

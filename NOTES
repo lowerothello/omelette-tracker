@@ -8,21 +8,7 @@ lookback
 	- not sure the solution to this design-wise
 - bpm macros are really fucked, lookback reads macros it shouldn't be able to see
 
-
-- multithreading is currently (slightly) broken
-	- threads fail to initialize randomly, not sure why (idk pthreads very well)
-		- they also print to stderr when they fail (think this is caused by the jack wrapper)
-- the first time a channel plays a granular instrument it's much clickier than it is every later time
-	- granular algorithm bug, not present for simple instruments (didn't test wavetable)
-	- exaggerated by O00 calls (not fully eliminated by using pitchedpointer as the time base)
-
-
 - don't like the global octave setting binds (number keys)
-
-binds to jump to the current channel's vtrig/note/inst/nth macro
-	- polyend inspired
-	- toggle vtrig/note/inst/macro visibility
-	- toggle column visual line inclusion?
 
 - lv2 atom ports
 - lv2 scale points

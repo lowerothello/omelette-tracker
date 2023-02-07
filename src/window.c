@@ -1,26 +1,3 @@
-void setBpmCount(void)
-{
-	s->songbpm = MIN(255, MAX(32, w->count));
-	reapplyBpm();
-	p->redraw = 1;
-}
-void setRowHighlightCount(void)
-{
-	s->rowhighlight = MIN(16, w->count);
-	regenGlobalRowc(s);
-	p->redraw = 1;
-}
-void setOctaveCount(void)
-{
-	w->octave = MIN(w->count, MAX_OCTAVE);
-	p->redraw = 1;
-}
-void setStepCount(void)
-{
-	w->step = w->count;
-	p->redraw = 1;
-}
-
 void addOctave(int delta)
 {
 	w->octave += delta;
