@@ -161,10 +161,8 @@ DEBUG=lilv_nodes_size(nodes); p->redraw=1;
 	lilv_instance_activate(s->instance);
 }
 
-void freeLV2Effect(Effect *e)
+void freeLV2Effect(LV2State *s)
 {
-	LV2State *s = e->state;
-
 	lilv_instance_deactivate(s->instance);
 	lilv_instance_free(s->instance);
 	free(s->features);
@@ -178,31 +176,30 @@ void freeLV2Effect(Effect *e)
 	if (s->dummyport) free(s->dummyport);
 }
 
-void initLV2Effect(LV2State **s, float **input, float **output, const LilvPlugin *lp)
+void initLV2Effect(LV2State *s, float **input, float **output, const LilvPlugin *lp)
 {
-	*s = calloc(1, sizeof(LV2State));
-	(*s)->plugin = lp;
-	(*s)->uri = lilv_plugin_get_uri(lp);
+	s->plugin = lp;
+	s->uri = lilv_plugin_get_uri(lp);
 
-	(*s)->urid_map.handle = (*s)->urid_unmap.handle = &(*s)->urid;
-	(*s)->urid_map.map = lv2_map_uri;
-	(*s)->urid_unmap.unmap = lv2_unmap_uri;
-	(*s)->urid_map_feature =   (LV2_Feature){ LV2_URID__map,   &(*s)->urid_map   };
-	(*s)->urid_unmap_feature = (LV2_Feature){ LV2_URID__unmap, &(*s)->urid_unmap };
+	s->urid_map.handle = s->urid_unmap.handle = &s->urid;
+	s->urid_map.map = lv2_map_uri;
+	s->urid_unmap.unmap = lv2_unmap_uri;
+	s->urid_map_feature =   (LV2_Feature){ LV2_URID__map,   &s->urid_map   };
+	s->urid_unmap_feature = (LV2_Feature){ LV2_URID__unmap, &s->urid_unmap };
 
-	(*s)->features = calloc(LV2_SUPPORTED_FEATURE_COUNT + 1, sizeof(LV2_Feature));
-	(*s)->features[0] = &(*s)->urid_map_feature;
-	(*s)->features[1] = &(*s)->urid_unmap_feature;
-	(*s)->features[LV2_SUPPORTED_FEATURE_COUNT] = NULL;
+	s->features = calloc(LV2_SUPPORTED_FEATURE_COUNT + 1, sizeof(LV2_Feature));
+	s->features[0] = &s->urid_map_feature;
+	s->features[1] = &s->urid_unmap_feature;
+	s->features[LV2_SUPPORTED_FEATURE_COUNT] = NULL;
 
-	(*s)->dummyport = malloc(sizeof(float) * samplerate);
+	s->dummyport = malloc(sizeof(float) * samplerate);
 
-	startLV2Effect(*s, input, output);
+	startLV2Effect(s, input, output);
 }
 
 void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output)
 {
-	initLV2Effect(&dest, input, output, src->plugin);
+	initLV2Effect(dest, input, output, src->plugin);
 	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(float));
 }
 
@@ -219,34 +216,30 @@ void serializeLV2Effect(LV2State *s, FILE *fp)
 	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
 	fwrite(s->controlv, sizeof(float), s->controlc, fp);
 }
-void deserializeLV2Effect(LV2State **s, float **input, float **output, FILE *fp)
+void deserializeLV2Effect(LV2State *s, float **input, float **output, FILE *fp)
 {
-	*s = calloc(1, sizeof(LV2State));
-
 	size_t surilen;
 	fread(&surilen, sizeof(size_t), 1, fp);
 	char *suri = malloc(surilen+1);
 	fread(suri, sizeof(char), surilen+1, fp);
-	(*s)->uri = lilv_new_string(lv2_db.world, suri);
+	s->uri = lilv_new_string(lv2_db.world, suri);
 	free(suri);
 
-	(*s)->plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), (*s)->uri);
+	s->plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), s->uri);
 
-	fread(&(*s)->controlc, sizeof(uint32_t), 1, fp);
-	(*s)->controlv = calloc((*s)->controlc, sizeof(float));
-	fread((*s)->controlv, sizeof(float), (*s)->controlc, fp);
+	fread(&s->controlc, sizeof(uint32_t), 1, fp);
+	s->controlv = calloc(s->controlc, sizeof(float));
+	fread(s->controlv, sizeof(float), s->controlc, fp);
 
 	/* TODO: look up desc based on uuid */
-	startLV2Effect(*s, input, output);
+	startLV2Effect(s, input, output);
 }
 
 /* the current text colour will apply to the header but not the contents */
-void drawLV2Effect(Effect *e,
+void drawLV2Effect(LV2State *s,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
-	LV2State *s = e->state;
-
 	if (ymin <= y-1 && ymax >= y-1)
 		printf("\033[%d;%dH\033[7mLV2\033[27m", y-1, x + 1);
 	printf("\033[37;40m");
@@ -343,19 +336,17 @@ void drawLV2Effect(Effect *e,
 	}
 }
 
-void runLV2Effect(uint32_t samplecount, EffectChain *chain, Effect *e)
+void runLV2Effect(uint32_t samplecount, LV2State *s, float **input, float **output)
 {
-	LV2State *s = e->state;
-
 	lilv_instance_run(s->instance, samplecount);
 
 	if (s->outputc == 1) /* handle mono output correctly */
 	{
-		memcpy(chain->input[0], chain->output[0], sizeof(float) * samplecount);
-		memcpy(chain->input[1], chain->output[0], sizeof(float) * samplecount);
+		memcpy(input[0], output[0], sizeof(float) * samplecount);
+		memcpy(input[1], output[0], sizeof(float) * samplecount);
 	} else if (s->outputc >= 2)
 	{
-		memcpy(chain->input[0], chain->output[0], sizeof(float) * samplecount);
-		memcpy(chain->input[1], chain->output[0], sizeof(float) * samplecount);
+		memcpy(input[0], output[0], sizeof(float) * samplecount);
+		memcpy(input[1], output[0], sizeof(float) * samplecount);
 	}
 }

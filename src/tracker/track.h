@@ -11,10 +11,6 @@ typedef struct {
 
 	VariantChain *variant;
 	EffectChain *effect;
-} TrackData; /* raw sequence data, cd */
-
-typedef struct {
-	TrackData data; /* saved to disk */
 
 	/* runtime state */
 	uint32_t pointer;        /* clock */
@@ -121,19 +117,19 @@ void regenGlobalRowc(struct _Song *cs);
 /* clears the playback state of a track */
 void clearTrackRuntime(Track *cv);
 
-void initTrackData(TrackData *cd, uint16_t songlen); /* TODO: should be atomic */
-void clearTrackData(TrackData *cd, uint16_t songlen); /* TODO: should be atomic */
+void initTrackData(Track *cv, uint16_t songlen); /* TODO: should be atomic */
+void clearTrackData(Track *cv, uint16_t songlen);
 void addTrackRuntime(Track *cv);
 void addTrackData(Track *cv, uint16_t songlen);
 void debug_dumpTrackState(struct _Song *cs);
 
 /* copyfrom can be NULL */
-void addTrack(struct _Song *cs, uint8_t index, uint16_t count, TrackData *copyfrom);
+void addTrack(struct _Song *cs, uint8_t index, uint16_t count, Track *copyfrom);
 
 void _delTrack(struct _Song *cs, Track *cv);
 void delTrack(uint8_t index, uint16_t count);
-void copyTrackData(TrackData *dest, TrackData *src); /* NOT atomic */
-Row *getTrackRow(TrackData *cd, uint16_t index);
+void copyTrack(Track *dest, Track *src); /* NOT atomic */
+Row *getTrackRow(Track *cv, uint16_t index);
 bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
 void regenBpmCache(struct _Song *cs);
 void regenGlobalRowc(struct _Song *cs);

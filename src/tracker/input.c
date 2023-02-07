@@ -131,22 +131,22 @@ static void setLoopPoints(void)
 
 static void addEmptyVariant(void)
 {
-	TrackData *cd = &s->track->v[w->track].data;
-	setVariantChainTrig(&cd->variant, w->trackerfy, dupEmptyVariantIndex(cd->variant, cd->variant->trig[w->trackerfy].index));
+	Track *cv = &s->track->v[w->track];
+	setVariantChainTrig(&cv->variant, w->trackerfy, dupEmptyVariantIndex(cv->variant, cv->variant->trig[w->trackerfy].index));
 	regenGlobalRowc(s); p->redraw = 1;
 }
 /* returns true to force disable step */
 static bool visualRange(int8_t *minx, int8_t *maxx, short *miny, short *maxy, uint8_t *mintrack, uint8_t *maxtrack)
 {
-	TrackData *cd;
+	Track *cv;
 	bool ret = 0;
 
 	switch (w->mode)
 	{ /* x range */
 		case MODE_VISUALLINE:
-			cd = &s->track->v[MAX(w->track, w->visualtrack)].data;
+			cv = &s->track->v[MAX(w->track, w->visualtrack)];
 			*minx = TRACKERFX_VISUAL_MIN;
-			*maxx = 2+cd->variant->macroc;
+			*maxx = 2+cv->variant->macroc;
 			break;
 		case MODE_VISUAL:
 			if (w->track == w->visualtrack)
@@ -291,9 +291,9 @@ static void yankCell(void)
 
 static void toggleVariantLoop(void)
 {
-	TrackData *cd = &s->track->v[w->track].data;
-	int i = getVariantChainPrevVtrig(cd->variant, w->trackerfy);
-	if (i != -1) cd->variant->trig[i].flags ^= C_VTRIG_LOOP;
+	Track *cv = &s->track->v[w->track];
+	int i = getVariantChainPrevVtrig(cv->variant, w->trackerfy);
+	if (i != -1) cv->variant->trig[i].flags ^= C_VTRIG_LOOP;
 	regenGlobalRowc(s); p->redraw = 1;
 }
 static void toggleVisualVariantLoop(void)
@@ -326,31 +326,31 @@ static void bounceRows(void)
 
 static void ripRows(void)
 {
-	TrackData *cd = &s->track->v[w->track].data;
+	Track *cv = &s->track->v[w->track];
 	Row *r;
 	uint8_t vindex = 0;
 	short vminrow = MIN(w->trackerfy, w->visualfy);
 	/* loop to find the lowest common free index */
 	for (int i = MIN(w->track, w->visualtrack); i <= MAX(w->track, w->visualtrack); i++)
-		vindex = MAX(vindex, getEmptyVariantIndex(s->track->v[i].data.variant, vindex));
+		vindex = MAX(vindex, getEmptyVariantIndex(s->track->v[i].variant, vindex));
 
 	/* loop to actually rip */
 	uint8_t vlength;
 	for (int i = MIN(w->track, w->visualtrack); i <= MAX(w->track, w->visualtrack); i++)
 	{
 		vlength = MIN(VARIANT_ROWMAX, MAX(w->trackerfy, w->visualfy) - vminrow);
-		cd = &s->track->v[i].data;
+		cv = &s->track->v[i];
 
-		addVariant(&cd->variant, vindex, vlength);
+		addVariant(&cv->variant, vindex, vlength);
 
 		/* move rows to the new variant */
 		for (int j = 0; j <= vlength; j++)
 		{
-			r = getTrackRow(cd, vminrow + j);
-			memcpy(&cd->variant->v[cd->variant->i[vindex]]->rowv[j], r, sizeof(Row));
+			r = getTrackRow(cv, vminrow + j);
+			memcpy(&cv->variant->v[cv->variant->i[vindex]]->rowv[j], r, sizeof(Row));
 
 			/* only clear the source row if it's in the global variant */
-			if (getVariantChainVariant(NULL, cd->variant, vminrow + j) == -1)
+			if (getVariantChainVariant(NULL, cv->variant, vminrow + j) == -1)
 			{
 				memset(r, 0, sizeof(Row));
 				r->note = NOTE_VOID;
@@ -359,18 +359,18 @@ static void ripRows(void)
 		}
 
 		/* unnecessarily complex edge case handling */
-		if (cd->variant->trig[vminrow + vlength].index == VARIANT_VOID)
+		if (cv->variant->trig[vminrow + vlength].index == VARIANT_VOID)
 			for (int j = vminrow + vlength; j > vminrow; j--)
-				if (cd->variant->trig[j].index != VARIANT_VOID)
+				if (cv->variant->trig[j].index != VARIANT_VOID)
 				{
-					if (cd->variant->i[cd->variant->trig[j].index] != VARIANT_VOID && j + cd->variant->v[cd->variant->i[cd->variant->trig[j].index]]->rowc > vminrow + vlength)
+					if (cv->variant->i[cv->variant->trig[j].index] != VARIANT_VOID && j + cv->variant->v[cv->variant->i[cv->variant->trig[j].index]]->rowc > vminrow + vlength)
 					{
-						cd->variant->trig[vminrow + vlength].index = cd->variant->trig[j].index;
+						cv->variant->trig[vminrow + vlength].index = cv->variant->trig[j].index;
 						// TODO: set vtrig offset to align this correctly
 					} break;
 				}
 
-		setVariantChainTrig(&cd->variant, vminrow, vindex);
+		setVariantChainTrig(&cv->variant, vminrow, vindex);
 	} regenGlobalRowc(s); p->redraw = 1;
 }
 
@@ -381,10 +381,10 @@ static void pushVtrig(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				inputVariantChainTrig(&s->track->v[w->track].data.variant, i, (size_t)arg);
+				inputVariantChainTrig(&s->track->v[w->track].variant, i, (size_t)arg);
 			break;
 		default:
-			inputVariantChainTrig(&s->track->v[w->track].data.variant, w->trackerfy, (size_t)arg);
+			inputVariantChainTrig(&s->track->v[w->track].variant, w->trackerfy, (size_t)arg);
 			break;
 	} regenGlobalRowc(s); p->redraw = 1;
 }
@@ -395,10 +395,10 @@ static void setVtrig(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				setVariantChainTrig(&s->track->v[w->track].data.variant, i, (size_t)arg);
+				setVariantChainTrig(&s->track->v[w->track].variant, i, (size_t)arg);
 			break;
 		default:
-			setVariantChainTrig(&s->track->v[w->track].data.variant, w->trackerfy, (size_t)arg);
+			setVariantChainTrig(&s->track->v[w->track].variant, w->trackerfy, (size_t)arg);
 			break;
 	} regenGlobalRowc(s); p->redraw = 1;
 }
@@ -412,11 +412,11 @@ static bool setNote(size_t note, Row **r)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				*r = getTrackRow(&s->track->v[w->track].data, i);
+				*r = getTrackRow(&s->track->v[w->track], i);
 				(*r)->note = note;
 			} step = 0; break;
 		default:
-			*r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			*r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 			(*r)->note = note;
 			(*r)->inst = w->instrument;
 			step = 1; break;
@@ -448,11 +448,11 @@ static void setNoteOctave(size_t octave)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, i);
+				r = getTrackRow(&s->track->v[w->track], i);
 				r->note = octave*12 + (r->note-NOTE_MIN)%12 + NOTE_MIN;
 			} step = 0; break;
 		default:
-			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 			r->note = octave*12 + (r->note-NOTE_MIN)%12 + NOTE_MIN;
 			step = 1; break;
 	}
@@ -472,11 +472,11 @@ static void imposeInst(void)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, i);
+				r = getTrackRow(&s->track->v[w->track], i);
 				r->inst = w->instrument;
 			} break;
 		default:
-			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 			r->inst = w->instrument;
 			break;
 	} regenGlobalRowc(s); p->redraw = 1;
@@ -491,13 +491,13 @@ static void pushInst(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, i);
+				r = getTrackRow(&s->track->v[w->track], i);
 				if (r->inst == INST_VOID) r->inst++;
 				r->inst <<= 4;
 				r->inst += (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 			if (r->inst == INST_VOID) r->inst++;
 			r->inst <<= 4;
 			r->inst += (size_t)arg;
@@ -517,12 +517,12 @@ static void pushMacrov(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, i);
+				r = getTrackRow(&s->track->v[w->track], i);
 				r->macro[macro].v <<= 4;
 				r->macro[macro].v += (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 			r->macro[macro].v <<= 4;
 			r->macro[macro].v += (size_t)arg;
 			break;
@@ -538,28 +538,28 @@ static void pushMacroc(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, i);
+				r = getTrackRow(&s->track->v[w->track], i);
 				r->macro[macro].c = (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+			r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 			r->macro[macro].c = (size_t)arg;
 			break;
 	} regenGlobalRowc(s); p->redraw = 1;
 }
 
 
-static void trackerAdjustRight(TrackData *cd) /* mouse adjust only */
+static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+	Row *r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 	short macro;
 	switch (w->trackerfx)
 	{
 		case -1:
 			if (!s->playing)
 			{
-				if (w->fieldpointer) setVariantChainTrig(&cd->variant, w->trackerfy, cd->variant->trig[w->trackerfy].index+16);
-				else                 setVariantChainTrig(&cd->variant, w->trackerfy, cd->variant->trig[w->trackerfy].index+1);
+				if (w->fieldpointer) setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index+16);
+				else                 setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index+1);
 			} break;
 		case 0: r->note++; break;
 		case 1:
@@ -575,17 +575,17 @@ static void trackerAdjustRight(TrackData *cd) /* mouse adjust only */
 			} break;
 	} regenGlobalRowc(s);
 }
-static void trackerAdjustLeft(TrackData *cd) /* mouse adjust only */
+static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+	Row *r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 	short macro;
 	switch (w->trackerfx)
 	{
 		case -1:
 			if (!s->playing)
 			{
-				if (w->fieldpointer) setVariantChainTrig(&cd->variant, w->trackerfy, cd->variant->trig[w->trackerfy].index-16);
-				else                 setVariantChainTrig(&cd->variant, w->trackerfy, cd->variant->trig[w->trackerfy].index-1);
+				if (w->fieldpointer) setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index-16);
+				else                 setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index-1);
 			} break;
 		case 0: r->note--; break;
 		case 1:
@@ -606,7 +606,7 @@ static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
 	if (y <= TRACK_ROW)
 		for (int i = 0; i < s->track->c; i++)
 		{
-			*tx += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].data.variant->macroc+1);
+			*tx += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].variant->macroc+1);
 			if (*tx > x)
 				switch (button)
 				{
@@ -624,7 +624,7 @@ static void trackerMouse(enum Button button, int x, int y)
 
 	short chanw;
 	int i, j;
-	TrackData *cd = &s->track->v[w->track].data;
+	Track *cv = &s->track->v[w->track];
 	short oldtrackerfx = w->trackerfx;
 	uint8_t oldtrack = w->track;
 
@@ -671,8 +671,8 @@ static void trackerMouse(enum Button button, int x, int y)
 							w->follow = 0;
 							if (w->mode == MODE_MOUSEADJUST)
 							{
-								if      (x > w->mousex) { trackerAdjustRight(cd); }
-								else if (x < w->mousex) { trackerAdjustLeft (cd); }
+								if      (x > w->mousex) { trackerAdjustRight(cv); }
+								else if (x < w->mousex) { trackerAdjustLeft (cv); }
 							}
 							w->mousex = x; break;
 						default: /* click */
@@ -681,7 +681,7 @@ static void trackerMouse(enum Button button, int x, int y)
 
 							for (i = 0; i < s->track->c; i++)
 							{
-								chanw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].data.variant->macroc+1);
+								chanw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].variant->macroc+1);
 								if (i == s->track->c-1 || tx+chanw > x) /* clicked on track i */
 								{
 									if (button == BUTTON1_CTRL) { w->step = MIN(15, abs(y - w->centre)); break; }
@@ -714,15 +714,15 @@ static void trackerMouse(enum Button button, int x, int y)
 										w->trackerfx = 1;
 										if (x-tx < TRACK_TRIG_PAD + 8) w->fieldpointer = 1;
 										else                              w->fieldpointer = 0;
-									} else if (x-tx > TRACK_TRIG_PAD + 8 + 4*(s->track->v[i].data.variant->macroc+1)) /* star column */
+									} else if (x-tx > TRACK_TRIG_PAD + 8 + 4*(s->track->v[i].variant->macroc+1)) /* star column */
 									{
 										w->trackerfx = 3;
 										w->fieldpointer = 0;
 									} else /* macro column */
 									{
 										j = x-tx - (TRACK_TRIG_PAD + 9);
-										if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i].data.variant->macroc - (j>>2))<<1)+0;
-										else            w->trackerfx = 3 + ((s->track->v[i].data.variant->macroc - (j>>2))<<1)-1;
+										if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i].variant->macroc - (j>>2))<<1)+0;
+										else            w->trackerfx = 3 + ((s->track->v[i].variant->macroc - (j>>2))<<1)-1;
 										if (j&0x1) w->fieldpointer = 0;
 										else       w->fieldpointer = 1;
 									}
@@ -834,12 +834,12 @@ void initTrackerInput(void)
 			addTooltipBind("return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape         , NULL);
 			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, NULL);
 			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControlRedraw, NULL);
-			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow        , &s->track->v[w->track].data.effect);
-			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove        , &s->track->v[w->track].data.effect);
-			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow      , &s->track->v[w->track].data.effect);
-			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove      , &s->track->v[w->track].data.effect);
-			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect        , &s->track->v[w->track].data.effect);
-			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect       , &s->track->v[w->track].data.effect);
+			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow        , &s->track->v[w->track].effect);
+			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove        , &s->track->v[w->track].effect);
+			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow      , &s->track->v[w->track].effect);
+			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove      , &s->track->v[w->track].effect);
+			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect        , &s->track->v[w->track].effect);
+			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect       , &s->track->v[w->track].effect);
 			addTooltipBind("increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValueRedraw , NULL);
 			addTooltipBind("decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValueRedraw , NULL);
 			break;

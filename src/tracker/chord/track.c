@@ -1,6 +1,6 @@
 void chordClearTrack(void)
 {
-	initTrackData(&s->track->v[w->track].data, s->songlen);
+	initTrackData(&s->track->v[w->track], s->songlen); /* TODO: not atomic */
 	regenGlobalRowc(s);
 }
 
@@ -22,7 +22,7 @@ void chordDeleteTrack(void) { delTrack(w->track, MAX(1, w->count)); }
 
 void chordCopyTrack(void)
 {
-	copyTrackData(&w->trackbuffer, &s->track->v[w->track].data);
+	copyTrack(&w->trackbuffer, &s->track->v[w->track]);
 	regenGlobalRowc(s);
 }
 

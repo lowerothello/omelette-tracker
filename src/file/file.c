@@ -76,23 +76,23 @@ static void readSongTrack(Song *ret, FILE *fp, uint16_t version)
 
 			case FKT_TRACK:
 				fread(&track, size, 1, fp);
-				ret->track->v[track].data.variant->songlen = ret->songlen;
-				resizeVariantChain(ret->track->v[track].data.variant, ret->songlen);
+				ret->track->v[track].variant->songlen = ret->songlen;
+				resizeVariantChain(ret->track->v[track].variant, ret->songlen);
 				continue;
 
-			case FKT_VTRIG:         fread(&ret->track->v[track].data.variant->trig,             vtrigsize, size/vtrigsize, fp); continue;
-			case FKT_MAIN:          fread(&ret->track->v[track].data.variant->main->rowv,       rowsize, size/rowsize, fp); continue;
-			case FKT_VARIANTV_ROWV: fread(&ret->track->v[track].data.variant->v[variant]->rowv, rowsize, size/rowsize, fp); continue;
-			case FKT_VARIANTV_ROWC: fread(&ret->track->v[track].data.variant->v[variant]->rowc, size, 1, fp); continue;
+			case FKT_VTRIG:         fread(&ret->track->v[track].variant->trig,             vtrigsize, size/vtrigsize, fp); continue;
+			case FKT_MAIN:          fread(&ret->track->v[track].variant->main->rowv,       rowsize, size/rowsize, fp); continue;
+			case FKT_VARIANTV_ROWV: fread(&ret->track->v[track].variant->v[variant]->rowv, rowsize, size/rowsize, fp); continue;
+			case FKT_VARIANTV_ROWC: fread(&ret->track->v[track].variant->v[variant]->rowc, size, 1, fp); continue;
 			case FKT_VARIANT:       fread(&variant,                                             size, 1, fp); continue;
 			case FKT_ROWSIZE:       fread(&rowsize,                                             size, 1, fp); continue;
 			case FKT_VTRIGSIZE:     fread(&vtrigsize,                                           size, 1, fp); continue;
-			case FKT_MUTE:          fread(&ret->track->v[track].data.mute,                      size, 1, fp); continue;
-			case FKT_MACROC:        fread(&ret->track->v[track].data.variant->macroc,           size, 1, fp); continue;
-			case FKT_VARIANTC:      fread(&ret->track->v[track].data.variant->c,                size, 1, fp); continue;
-			case FKT_VARIANTI:      fread( ret->track->v[track].data.variant->i,                1, size, fp); continue;
+			case FKT_MUTE:          fread(&ret->track->v[track].mute,                           size, 1, fp); continue;
+			case FKT_MACROC:        fread(&ret->track->v[track].variant->macroc,           size, 1, fp); continue;
+			case FKT_VARIANTC:      fread(&ret->track->v[track].variant->c,                size, 1, fp); continue;
+			case FKT_VARIANTI:      fread( ret->track->v[track].variant->i,                1, size, fp); continue;
 
-			case FKT_GOTO_EFFECT: readSongEffect(&ret->track->v[track].data.effect, fp, version); continue;
+			case FKT_GOTO_EFFECT: readSongEffect(&ret->track->v[track].effect, fp, version); continue;
 
 			default: fseek(fp, size, SEEK_CUR); continue;
 		}

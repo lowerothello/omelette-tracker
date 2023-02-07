@@ -36,7 +36,7 @@ typedef struct _UI {
 	uint8_t  defvariantlength;
 
 	Instrument instrumentbuffer; /* instrument paste buffer */
-	TrackData  trackbuffer;      /* track paste buffer */
+	Track      trackbuffer;      /* track paste buffer */
 	Effect     effectbuffer;     /* effect paste buffer */
 
 	char filepath[COMMAND_LENGTH];

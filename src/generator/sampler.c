@@ -81,7 +81,7 @@ void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uin
 	env.adsr = iv->envelope; if (cv->localenvelope != -1) env.adsr = cv->localenvelope;
 	applyEnvelopeControlChanges(&env);
 	env.output = cv->envgain;
-	env.release = cv->data.release;
+	env.release = cv->release;
 	env.pointer = pointer;
 	/* return if the envelope has finished */
 	if (envelope(&env)) return;

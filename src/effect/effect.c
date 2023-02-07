@@ -1,21 +1,19 @@
+#include "ladspa.c"
+#include "lv2.c"
+
 /* IMPORTANT NOTE: effects should not register any more than 16 controls */
 /* TODO: fix this, controls should be dynamically allocated              */
 
-#include "ladspa.h"
-#include "lv2.h"
-
 void freeEffect(Effect *e)
 {
-	if (!e || !e->state) return;
+	if (!e) return;
 
 	switch (e->type)
 	{
 		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: freeLadspaEffect((LadspaState*)e->state); break;
-		case EFFECT_TYPE_LV2:    freeLV2Effect   (e);                      break;
+		case EFFECT_TYPE_LADSPA: freeLadspaEffect(&e->ladspa); break;
+		case EFFECT_TYPE_LV2:    freeLV2Effect   (&e->lv2);    break;
 	}
-	free(e->state);
-	e->state = NULL;
 }
 
 EffectChain *newEffectChain(float *input[2], float *output[2])
@@ -48,8 +46,8 @@ uint8_t getEffectControlCount(Effect *e)
 		switch (e->type)
 		{
 			case EFFECT_TYPE_DUMMY:  return 1;
-			case EFFECT_TYPE_LADSPA: return getLadspaEffectControlCount(e->state);
-			case EFFECT_TYPE_LV2:    return getLV2EffectControlCount   (e->state);
+			case EFFECT_TYPE_LADSPA: return getLadspaEffectControlCount(&e->ladspa);
+			case EFFECT_TYPE_LV2:    return getLV2EffectControlCount   (&e->lv2);
 		}
 	return 0;
 }
@@ -80,7 +78,7 @@ EffectChain *_addEffect(EffectChain *chain, unsigned long pluginindex, uint8_t i
 	if (pluginindex < ladspa_db.descc) /* ladspa */
 	{
 		ret->v[index].type = EFFECT_TYPE_LADSPA;
-		initLadspaEffect((LadspaState**)&ret->v[index].state, ret->input, ret->output, ladspa_db.descv[pluginindex]);
+		initLadspaEffect(&ret->v[index].ladspa, ret->input, ret->output, ladspa_db.descv[pluginindex]);
 	} else /* lv2 */
 	{
 		const LilvPlugins *lap = lilv_world_get_all_plugins(lv2_db.world);
@@ -89,7 +87,7 @@ EffectChain *_addEffect(EffectChain *chain, unsigned long pluginindex, uint8_t i
 			if (i == pluginindex - ladspa_db.descc)
 			{
 				ret->v[index].type = EFFECT_TYPE_LV2;
-				initLV2Effect((LV2State**)&ret->v[index].state, ret->input, ret->output, lilv_plugins_get(lap, iter));
+				initLV2Effect(&ret->v[index].lv2, ret->input, ret->output, lilv_plugins_get(lap, iter));
 				break;
 			} else i++;
 	}
@@ -184,8 +182,8 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 	switch (src->type)
 	{
 		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: copyLadspaEffect((LadspaState**)(&dest->state), src->state, input, output); break;
-		case EFFECT_TYPE_LV2:    copyLV2Effect   (dest->state, src->state, input, output); break;
+		case EFFECT_TYPE_LADSPA: copyLadspaEffect(&dest->ladspa, &src->ladspa, input, output); break;
+		case EFFECT_TYPE_LV2:    copyLV2Effect   (&dest->lv2, &src->lv2, input, output); break;
 	}
 }
 void copyEffectChain(EffectChain **dest, EffectChain *src)
@@ -211,8 +209,8 @@ void serializeEffect(Effect *e, FILE *fp)
 	switch (e->type)
 	{
 		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: serializeLadspaEffect((LadspaState*)e->state, fp); break;
-		case EFFECT_TYPE_LV2:    serializeLV2Effect   ((LV2State   *)e->state, fp); break;
+		case EFFECT_TYPE_LADSPA: serializeLadspaEffect(&e->ladspa, fp); break;
+		case EFFECT_TYPE_LV2:    serializeLV2Effect   (&e->lv2, fp); break;
 	}
 }
 void serializeEffectChain(EffectChain *chain, FILE *fp)
@@ -230,8 +228,8 @@ void deserializeEffect(EffectChain *chain, Effect *e, FILE *fp, uint8_t major, u
 	switch (e->type)
 	{
 		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect((LadspaState**)&e->state, chain->input, chain->output, fp); break;
-		case EFFECT_TYPE_LV2:    deserializeLV2Effect   ((LV2State   **)&e->state, chain->input, chain->output, fp); break;
+		case EFFECT_TYPE_LADSPA: deserializeLadspaEffect(&e->ladspa, chain->input, chain->output, fp); break;
+		case EFFECT_TYPE_LV2:    deserializeLV2Effect   (&e->lv2, chain->input, chain->output, fp); break;
 	}
 }
 void deserializeEffectChain(EffectChain **chain, FILE *fp, uint8_t major, uint8_t minor)
@@ -253,8 +251,8 @@ short getEffectHeight(Effect *e)
 		switch (e->type)
 		{
 			case EFFECT_TYPE_DUMMY:  return NULL_EFFECT_HEIGHT;
-			case EFFECT_TYPE_LADSPA: return getLadspaEffectHeight(e->state);
-			case EFFECT_TYPE_LV2:    return getLV2EffectHeight   (e->state);
+			case EFFECT_TYPE_LADSPA: return getLadspaEffectHeight(&e->ladspa);
+			case EFFECT_TYPE_LV2:    return getLV2EffectHeight   (&e->lv2);
 		}
 	return 0;
 }
@@ -287,8 +285,8 @@ static int _drawEffect(Effect *e, bool selected, short x, short width, short y, 
 	switch (e->type)
 	{
 		case EFFECT_TYPE_DUMMY:  drawDummyEffect(x, width, y, ymin, ymax); break;
-		case EFFECT_TYPE_LADSPA: drawLadspaEffect((LadspaState*)e->state, x, width, y, ymin, ymax); break;
-		case EFFECT_TYPE_LV2:    drawLV2Effect   (e                     , x, width, y, ymin, ymax); break;
+		case EFFECT_TYPE_LADSPA: drawLadspaEffect(&e->ladspa, x, width, y, ymin, ymax); break;
+		case EFFECT_TYPE_LV2:    drawLV2Effect   (&e->lv2,    x, width, y, ymin, ymax); break;
 	}
 	printf("\033[22;37m");
 
@@ -333,8 +331,8 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	switch (e->type)
 	{
 		case EFFECT_TYPE_DUMMY:  break;
-		case EFFECT_TYPE_LADSPA: runLadspaEffect(samplecount, (LadspaState*)e->state, chain->input, chain->output); break;
-		case EFFECT_TYPE_LV2:    runLV2Effect   (samplecount, chain, e);                                            break;
+		case EFFECT_TYPE_LADSPA: runLadspaEffect(samplecount, &e->ladspa, chain->input, chain->output); break;
+		case EFFECT_TYPE_LV2:    runLV2Effect   (samplecount, &e->lv2, chain->input, chain->output);    break;
 	}
 }
 

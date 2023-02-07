@@ -105,7 +105,7 @@ bool processM_SEM(void)
 					for (uint8_t c = 0; c < p->s->track->c; c++)
 					{
 						cv = &p->s->track->v[c];
-						if (cv->data.mute && instrumentSafe(p->s->instrument, cv->r.inst))
+						if (cv->mute && instrumentSafe(p->s->instrument, cv->r.inst))
 						{
 							iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
 							if (iv->midi.channel != -1)
@@ -160,7 +160,7 @@ bool processM_SEM(void)
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 					lookback(0, &p->s->spr, p->s->playfy, cv);
-					processRow(0, &p->s->spr, 1, &p->s->track->v[c], *getTrackRow(&p->s->track->v[c].data, p->s->playfy));
+					processRow(0, &p->s->spr, 1, &p->s->track->v[c], *getTrackRow(&p->s->track->v[c], p->s->playfy));
 				}
 
 

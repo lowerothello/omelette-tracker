@@ -29,6 +29,7 @@ const char *lv2_unmap_uri(LV2_URID_Unmap_Handle, LV2_URID urid);
 
 
 typedef struct {
+	uint8_t             type;
 	const LilvPlugin   *plugin;
 	LilvInstance       *instance;
 	struct _UridMapping urid;
@@ -52,20 +53,18 @@ float getLV2PortDef(LV2State*, const LilvPort*, const LilvNode*);
 
 void startLV2Effect(LV2State*, float **input, float **output);
 
-void freeLV2Effect(Effect*);
-void initLV2Effect(LV2State**, float **input, float **output, const LilvPlugin*);
+void freeLV2Effect(LV2State*);
+void initLV2Effect(LV2State*, float **input, float **output, const LilvPlugin*);
 void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output);
 
 uint32_t getLV2EffectControlCount(LV2State*);
 short getLV2EffectHeight(LV2State*);
 
 void serializeLV2Effect(LV2State*, FILE*);
-void deserializeLV2Effect(LV2State**, float **input, float **output, FILE*);
+void deserializeLV2Effect(LV2State*, float **input, float **output, FILE*);
 
-void drawLV2Effect(Effect*,
+void drawLV2Effect(LV2State*,
 		short x, short w,
 		short y, short ymin, short ymax);
 
-void runLV2Effect(uint32_t samplecount, EffectChain*, Effect*);
-
-#include "lv2.c"
+void runLV2Effect(uint32_t samplecount, LV2State*, float **input, float **output);

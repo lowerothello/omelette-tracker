@@ -20,7 +20,7 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 			float oldenvgain = cv->envgain;
 			float oldmodenvgain = cv->modenvgain;
 			short l, r;
-			if (cv->data.reverse)
+			if (cv->reverse)
 			{
 				jack_nframes_t localrampmax;
 				if (pointeroffset < rampmax)
@@ -86,7 +86,7 @@ void midiCC(jack_nframes_t fptr, uint8_t miditrack, uint8_t controller, uint8_t 
 
 bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
-	if (note != NOTE_VOID && !cv->data.mute && instrumentSafe(p->s->instrument, inst))
+	if (note != NOTE_VOID && !cv->mute && instrumentSafe(p->s->instrument, inst))
 	{
 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[inst]];
 		if (iv->algorithm == INST_ALG_MIDI)
@@ -108,12 +108,12 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 	{
 		case NOTE_VOID:
 		case NOTE_OFF:
-			cv->data.release = 1;
+			cv->release = 1;
 			cv->r.inst = inst;
 			cv->r.note = NOTE_VOID;
 			break;
 		case NOTE_CUT:
-			cv->data.release = 0;
+			cv->release = 0;
 			cv->envgain = 0.0f;
 			cv->r.inst = inst;
 			cv->r.note = NOTE_VOID;
@@ -131,8 +131,8 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 
 			cv->r.note = note;
 			cv->pointer = cv->pitchedpointer = 0;
-			cv->data.reverse = 0;
-			cv->data.release = 0;
+			cv->reverse = 0;
+			cv->release = 0;
 			cv->portamentosamples = 0; cv->portamentosamplepointer = 1;
 			cv->startportamentofinetune = cv->targetportamentofinetune = cv->portamentofinetune = 0.0f;
 			cv->microtonalfinetune = 0.0f;
@@ -148,10 +148,10 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 			
 			/* must stop retriggers cos pointers are no longer guaranteed to be valid */
 			cv->rtrigblocksize = 0;
-			cv->data.rtrig_rev = 0;
+			cv->rtrig_rev = 0;
 			cv->rtrigsamples = 0;
 
-			if (inst >= 0 && !cv->data.mute) /* if inst is not special and unmuted */
+			if (inst >= 0 && !cv->mute) /* if inst is not special and unmuted */
 			{
 				if (instrumentSafe(p->s->instrument, inst))
 				{
@@ -246,7 +246,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 	Track oldcv;
 	memcpy(&oldcv, cv, sizeof(Track)); /* rampbuffer is still accesible from this copy */
 
-	for (int i = 0; i <= cv->data.variant->macroc; i++)
+	for (int i = 0; i <= cv->variant->macroc; i++)
 		cv->r.macro[i] = r.macro[i];
 
 	handleLerpMacros(fptr, spr, cv, r);
@@ -257,7 +257,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 			cv->rtrigblocksize--;
 		else
 		{
-			cv->data.rtrig_rev = 0;
+			cv->rtrig_rev = 0;
 			cv->rtrigsamples = 0;
 		}
 	}
@@ -294,7 +294,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 
 	if (cv->rtrigsamples && cv->rtrigblocksize == -2)
 	{ /* clean up if the last row had an altRxx and this row doesn't */
-		cv->data.rtrig_rev = 0;
+		cv->rtrig_rev = 0;
 		cv->rtrigsamples = 0;
 	}
 
@@ -448,7 +448,7 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 			cv->portamentofinetune = cv->startportamentofinetune +
 				(cv->targetportamentofinetune - cv->startportamentofinetune) * (float)cv->portamentosamplepointer/(float)cv->portamentosamples;
 
-			if (cv->data.reverse)
+			if (cv->reverse)
 			{
 				if (cv->pitchedpointer > *spr - sprs) cv->pitchedpointer -= *spr - sprs;
 				else                                  cv->pitchedpointer = 0;
@@ -477,7 +477,7 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 		env.pointer = wtenv.pointer = cv->pointer;
 		env.output = cv->envgain;
 		wtenv.output = cv->modenvgain;
-		env.release = wtenv.release = cv->data.release;
+		env.release = wtenv.release = cv->release;
 		for (sprp = 0; sprp < *spr - sprs; sprp++)
 		{
 			envelope(&env);
@@ -488,7 +488,7 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 
 		if (cv->portamentosamplepointer >= cv->portamentosamples)
 		{ /* only walk pitchedpointer if not pitch sliding */
-			if (cv->data.reverse)
+			if (cv->reverse)
 			{
 				if (cv->pitchedpointer > *spr - sprs) cv->pitchedpointer -= *spr - sprs;
 				else                                  cv->pitchedpointer = 0;
@@ -543,7 +543,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 		multiplier = powf(M_12_ROOT_2, cv->portamentofinetune);
 		delta = (int)((cv->portamentosamplepointer+1)*multiplier) - (int)(cv->portamentosamplepointer*multiplier);
 
-		if (cv->data.reverse)
+		if (cv->reverse)
 		{
 			if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
 			else                            cv->pitchedpointer = 0;
@@ -571,7 +571,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 	float samplegain;
 	if (cv->file)
 	{
-		if (!cv->data.mute && p->w->previewsample && cv->r.note != NOTE_VOID)
+		if (!cv->mute && p->w->previewsample && cv->r.note != NOTE_VOID)
 		{
 			processMinimal(p->w->previewsample, cv->pointer, 0xff, 0xf, cv->r.note, &li, &ri);
 			cv->pointer++;
@@ -601,7 +601,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 							cv->rtrigcurrentpointer = cv->pointer;
 						}
 					}
-					if (cv->data.rtrig_rev)
+					if (cv->rtrig_rev)
 					{
 						uint32_t pointer, pitchedpointer;
 						if (cv->rtrigpointer > cv->pointer - cv->rtrigcurrentpointer)
@@ -616,8 +616,8 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 
 				if (cv->portamentosamplepointer >= cv->portamentosamples)
 				{ /* only walk pitchedpointer if not pitch sliding */
-					if (cv->data.reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
-					else                                            cv->pitchedpointer++;
+					if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
+					else                                       cv->pitchedpointer++;
 				} cv->pointer++;
 			}
 		}
@@ -627,7 +627,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 
 		if (cv->rampbuffer && cv->rampindex < rampmax)
 		{ // ramping
-			if (!cv->data.mute)
+			if (!cv->mute)
 			{
 				float gain = (float)cv->rampindex / (float)rampmax;
 
@@ -645,7 +645,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 			} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
 
 			cv->rampindex++;
-		} else if (!cv->data.mute && instrumentSafe(p->s->instrument, cv->r.inst))
+		} else if (!cv->mute && instrumentSafe(p->s->instrument, cv->r.inst))
 		{
 			samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->r.inst]].gain*DIV16);
 			lf *= samplegain;
@@ -665,9 +665,9 @@ void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 	for (uint16_t i = 0; i < playfy; i++)
 	{
 		/* scope lookback notes within the most recent vtrig */
-		if (cv->data.variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_VOID; cv->envgain = 0.0f; }
+		if (cv->variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_VOID; cv->envgain = 0.0f; }
 
-		r = getTrackRow(&cv->data, i);
+		r = getTrackRow(cv, i);
 		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) macroBpm(fptr, spr, p->s->bpmcache[i], cv, *r);
 		processRow(fptr, spr, 0, cv, *r);
 		playTrackLookback(fptr, spr, cv);
@@ -709,7 +709,7 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 				}
 
 				/* preprocess track */
-				r = getTrackRow(&cv->data, *playfy);
+				r = getTrackRow(cv, *playfy);
 				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->s->bpmcache[*playfy], cv, *r);
 				processRow(fptr, spr, 1, cv, *r);
 			}
@@ -717,9 +717,9 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 	}
 
 	/* track insert effects */
-	if (cv->data.effect) /* previewtrack doesn't have any effects so this check is required */
-		for (uint8_t i = 0; i < cv->data.effect->c; i++)
-			runEffect(buffersize, cv->data.effect, &cv->data.effect->v[i]);
+	if (cv->effect) /* previewtrack doesn't have any effects so this check is required */
+		for (uint8_t i = 0; i < cv->effect->c; i++)
+			runEffect(buffersize, cv->effect, &cv->effect->v[i]);
 }
 
 static void *trackThreadRoutine(void *arg) /* wrapper for some temp variables */

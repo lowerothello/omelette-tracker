@@ -1,3 +1,6 @@
+#include "ladspa.h"
+#include "lv2.h"
+
 enum EFFECT_TYPE /* cast to a (uint8_t) */
 { /* strict about indices */
 	EFFECT_TYPE_DUMMY  = 0,
@@ -6,11 +9,13 @@ enum EFFECT_TYPE /* cast to a (uint8_t) */
 };
 
 /* TODO: effect should be a union */
-typedef struct Effect
+typedef union
 {
-	uint8_t type;
-	void   *state;
+	uint8_t     type;
+	LadspaState ladspa;
+	LV2State    lv2;
 } Effect;
+
 #define EFFECT_CHAIN_LEN 16
 typedef struct EffectChain
 {

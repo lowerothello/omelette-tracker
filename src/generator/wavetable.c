@@ -63,7 +63,7 @@ void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uin
 	env.adsr = iv->wavetable.envelope;
 	applyEnvelopeControlChanges(&env);
 	env.output = cv->modenvgain;
-	env.release = cv->data.release;
+	env.release = cv->release;
 	env.pointer = pointer;
 	envelope(&env);
 	cv->modenvgain = env.output;

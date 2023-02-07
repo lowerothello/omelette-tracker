@@ -1,7 +1,7 @@
 short tfxToVfx(int8_t tfx);
 short vfxToTfx(int8_t vfx);
-short tfxToVmo(TrackData *cd, short tfx);
-short vfxToVmo(TrackData *cd, short vfx);
+short tfxToVmo(Track *cv, short tfx);
+short vfxToVmo(Track *cv, short vfx);
 short vfxVmoMin(short x1, short x2);
 short vfxVmoMax(short x1, short x2);
 

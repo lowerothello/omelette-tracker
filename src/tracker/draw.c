@@ -59,7 +59,7 @@ short genSfx(short minx)
 
 	for (int i = 0; i < s->track->c; i++)
 	{
-		trackw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].data.variant->macroc+1);
+		trackw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].variant->macroc+1);
 		x += trackw;
 		if (i == w->track) ret = x - (trackw>>1); /* should only be set once */
 		/* keep iterating so x is the full width of all tracks */
@@ -204,7 +204,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 						{
 							if (vfxVmoRangeIncl(
 									w->visualtrack == track ? w->visualfx : tfxToVfx(w->trackerfx),
-									1 + s->track->v[track].data.variant->macroc,
+									1 + s->track->v[track].variant->macroc,
 									fieldpointer))
 								return 1;
 						} else if (track == MAX(w->visualtrack, w->track)) /* last track */
@@ -234,10 +234,10 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 	} return 0;
 }
 
-static void setRowIntensity(TrackData *cd, int i)
+static void setRowIntensity(bool mute, int i)
 {
-	if (cd->mute || i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
-	else if (s->playing && s->playfy == i)                                                printf("\033[1m");
+	if (mute || i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
+	else if (s->playing && s->playfy == i)                                            printf("\033[1m");
 }
 
 static void drawStarColumn(short x, short minx, short maxx)
@@ -258,12 +258,12 @@ static void drawStarColumn(short x, short minx, short maxx)
 #define TRACK_HEADER_LEN 8
 static void drawTrackHeader(uint8_t track, short x, short minx, short maxx)
 {
-	TrackData *cd = &s->track->v[track].data;
+	Track *cv = &s->track->v[track];
 
 	char headerbuffer[9];
 	snprintf(headerbuffer, 9, "TRACK %02x", track);
 
-	if (cd->mute) printf("\033[2m");
+	if (cv->mute) printf("\033[2m");
 	else          printf("\033[1m");
 	if (s->track->v[track].triggerflash) printf("\033[3%dm", track%6 + 1);
 	if (track == w->track + w->trackoffset) printf("\033[7m");
@@ -280,12 +280,12 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 	char buffer[16];
 	memset(buffer, 0, 16);
 
-	TrackData *cd = &s->track->v[track].data;
+	Track *cv = &s->track->v[track];
 
 	short x, y;
 	int lineno;
 
-	if (bx <= maxx && bx + TRACK_TRIG_PAD + 12 + 4*(cd->variant->macroc+1) > minx)
+	if (bx <= maxx && bx + TRACK_TRIG_PAD + 12 + 4*(cv->variant->macroc+1) > minx)
 	{
 		for (int i = 0; i < s->songlen; i++)
 		{
@@ -293,23 +293,23 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 			if (y > TRACK_ROW && y < ws.ws_row)
 			{
 				x = bx;
-				lineno = getVariantChainVariant(NULL, cd->variant, i);
+				lineno = getVariantChainVariant(NULL, cv->variant, i);
 
 				if (ifVisual(track, i, -1)) printf("\033[2;7m");
 
-				if (cd->variant->trig[i].index == VARIANT_OFF)
+				if (cv->variant->trig[i].index == VARIANT_OFF)
 				{
 					printf("\033[1m");
 					strcpy(buffer, " ==  ");
-				} else if (cd->variant->trig[i].index != VARIANT_VOID)
+				} else if (cv->variant->trig[i].index != VARIANT_VOID)
 				{
-					printf("\033[1;3%dm", cd->variant->trig[i].index%6 + 1);
-					if (cd->variant->trig[i].flags&C_VTRIG_LOOP) snprintf(buffer, 6, "l%02x  ", cd->variant->trig[i].index);
-					else                                         snprintf(buffer, 6, " %02x  ", cd->variant->trig[i].index);
+					printf("\033[1;3%dm", cv->variant->trig[i].index%6 + 1);
+					if (cv->variant->trig[i].flags&C_VTRIG_LOOP) snprintf(buffer, 6, "l%02x  ", cv->variant->trig[i].index);
+					else                                         snprintf(buffer, 6, " %02x  ", cv->variant->trig[i].index);
 				} else
 				{
 					printf("\033[2m");
-					lineno = getVariantChainVariant(NULL, cd->variant, i);
+					lineno = getVariantChainVariant(NULL, cv->variant, i);
 					if (lineno == -1) strcpy(buffer, " ..  ");
 					else              snprintf(buffer, 6, " %02x  ", lineno);
 				}
@@ -317,15 +317,15 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 
 				/* box drawing variant range thing, drawn separately cos multibyte chars break things */
 				if (x+5 < maxx && x+4 > minx && lineno != -1)
-					printf("\033[1D\033[22;3%dm│", cd->variant->trig[getVariantChainPrevVtrig(cd->variant, i)].index%6 + 1);
+					printf("\033[1D\033[22;3%dm│", cv->variant->trig[getVariantChainPrevVtrig(cv->variant, i)].index%6 + 1);
 
 				stopVisual(track, i, -1);
 				printf("\033[22;37;40m");
 
 				x += 3 + TRACK_TRIG_PAD;
 
-				r = getTrackRow(cd, i);
-				setRowIntensity(cd, i);
+				r = getTrackRow(cv, i);
+				setRowIntensity(cv->mute, i);
 
 				if (ifVisual(track, i, 0)) printf("\033[2;7m");
 
@@ -334,7 +334,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 					if (r->note != NOTE_VOID)
 					{
 						noteToString(r->note, buffer);
-						if (cd->mute) printCulling(buffer, x, y, minx, maxx);
+						if (cv->mute) printCulling(buffer, x, y, minx, maxx);
 						else
 						{
 							if (ifVisual(track, i, 0))
@@ -354,7 +354,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(track, i, 0);
-					setRowIntensity(cd, i);
+					setRowIntensity(cv->mute, i);
 				}
 
 				x+=3;
@@ -365,12 +365,12 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 					startVisual(track, i, 1);
 					if (r->inst != INST_VOID)
 					{
-						if (!cd->mute)
+						if (!cv->mute)
 						{
 							if (ifVisual(track, i, 1))
 							{
 								printf("\033[22m");
-								setRowIntensity(cd, i);
+								setRowIntensity(cv->mute, i);
 							}
 							if (instrumentSafe(s->instrument, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");
@@ -384,12 +384,12 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(track, i, 1);
-					setRowIntensity(cd, i);
+					setRowIntensity(cv->mute, i);
 				}
 
 				x+=3;
 
-				for (int j = cd->variant->macroc; j >= 0; j--)
+				for (int j = cv->variant->macroc; j >= 0; j--)
 				{
 					if (x <= maxx)
 					{
@@ -399,11 +399,11 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							if (ifVisual(track, i, 2+j))
 							{
 								printf("\033[22m");
-								setRowIntensity(cd, i);
+								setRowIntensity(cv->mute, i);
 							}
 
 							snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
-							if (cd->mute)
+							if (cv->mute)
 								printCulling(buffer, x, y, minx, maxx);
 							else
 							{
@@ -420,7 +420,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							printCulling(buffer, x, y, minx, maxx);
 						}
 						stopVisual(track, i, 2+j);
-						setRowIntensity(cd, i);
+						setRowIntensity(cv->mute, i);
 					}
 					x += 4;
 				}
@@ -429,7 +429,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 			}
 		}
 	}
-	return TRACK_TRIG_PAD + 11 + 4*(cd->variant->macroc+1);
+	return TRACK_TRIG_PAD + 11 + 4*(cv->variant->macroc+1);
 }
 
 /* returns the xpos at the start of the cursor track */
@@ -479,10 +479,10 @@ void drawTracker(void)
 	x = 1 + TRACK_LINENO_COLS + 2 + sfx;
 	for (uint8_t i = 0; i < s->track->c; i++)
 	{
-		drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i].data.variant->macroc+1) - TRACK_HEADER_LEN)>>1),
+		drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i].variant->macroc+1) - TRACK_HEADER_LEN)>>1),
 				LINENO_COLS, ws.ws_col);
 
-		x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].data.variant->macroc+1);
+		x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].variant->macroc+1);
 	}
 
 	if (w->mode == MODE_EFFECT)
@@ -493,7 +493,7 @@ void drawTracker(void)
 
 		short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		clearControls();
-		drawEffectChain(s->track->v[w->track+w->trackoffset].data.effect, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
+		drawEffectChain(s->track->v[w->track+w->trackoffset].effect, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
 		drawControls();
 		return;
 	}
@@ -509,7 +509,7 @@ void drawTracker(void)
 		case MODE_INSERT:
 			if (w->trackerfx > 1)
 			{
-				r = getTrackRow(&s->track->v[w->track].data, w->trackerfy);
+				r = getTrackRow(&s->track->v[w->track], w->trackerfy);
 				macro = (w->trackerfx - 2)>>1;
 				if (MACRO_PRETTYNAME(r->macro[macro].c))
 					printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen(MACRO_PRETTYNAME(r->macro[macro].c))) / 2, MACRO_PRETTYNAME(r->macro[macro].c));
@@ -530,8 +530,8 @@ void drawTracker(void)
 		case  1: printf("\033[%d;%dH", y, sx+sfx + 8 + TRACK_TRIG_PAD - w->fieldpointer); break;
 		default: /* macro columns */
 			macro = (w->trackerfx - 2)>>1;
-			if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 10 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset].data.variant->macroc - macro)*4);
-			else                       printf("\033[%d;%dH", y, sx+sfx + 12 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset].data.variant->macroc - macro)*4 - w->fieldpointer);
+			if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 10 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset].variant->macroc - macro)*4);
+			else                       printf("\033[%d;%dH", y, sx+sfx + 12 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset].variant->macroc - macro)*4 - w->fieldpointer);
 			break;
 	}
 }

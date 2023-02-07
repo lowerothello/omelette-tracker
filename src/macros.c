@@ -8,7 +8,7 @@ bool ifMacro(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m)
 bool ifMacroCallback(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m, bool (*callback)(jack_nframes_t, uint16_t*, int, Track*, Row))
 {
 	char ret = 0;
-	for (int i = 0; i <= cv->data.variant->macroc; i++)
+	for (int i = 0; i <= cv->variant->macroc; i++)
 		if (r.macro[i].c == m && MACRO_SET(r.macro[i].c))
 			ret = callback(fptr, spr, r.macro[i].v, cv, r);
 	return ret;
@@ -17,7 +17,7 @@ bool ifMacroCallback(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char 
 /* if the row needs to be ramped in based on the macros present */
 bool ifMacroRamp(Track *cv, Row r)
 {
-	for (int i = 0; i <= cv->data.variant->macroc; i++)
+	for (int i = 0; i <= cv->variant->macroc; i++)
 		if (MACRO_RAMP(r.macro[i].c)) return 1;
 
 	return 0;
@@ -175,12 +175,12 @@ static bool _macroTickRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *c
 }
 bool macroTickRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
-	cv->data.rtrig_rev = 0;
+	cv->rtrig_rev = 0;
 	return _macroTickRetrig(fptr, spr, m, cv, r);
 }
 bool macroReverseTickRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
-	cv->data.rtrig_rev = 1;
+	cv->rtrig_rev = 1;
 	return _macroTickRetrig(fptr, spr, m, cv, r);
 }
 bool macroBlockRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
@@ -194,7 +194,7 @@ bool macroBlockRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row 
 }
 bool macroReverseBlockRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
-	cv->data.rtrig_rev = 1;
+	cv->rtrig_rev = 1;
 	return macroBlockRetrig(fptr, spr, m, cv, r);
 }
 
@@ -210,7 +210,7 @@ bool macroRowChance(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 // bool midicctargetc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->midiccindex = m%128; return 1; }
 // bool midipcc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 // {
-// 	if (!cv->data.mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
+// 	if (!cv->mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 // 	{
 // 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
 // 		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.channel, m%128);
@@ -219,7 +219,7 @@ bool macroRowChance(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 // bool midiccc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 // {
 // 	cv->midicc = m%128;
-// 	if (cv->midiccindex != -1 && !cv->data.mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
+// 	if (cv->midiccindex != -1 && !cv->mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 // 	{
 // 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
 // 		if (iv->algorithm == INST_ALG_MIDI) midiCC(fptr, iv->midi.channel, cv->midiccindex, cv->midicc);
@@ -241,12 +241,12 @@ static bool _macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, R
 }
 bool macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
-	cv->data.reverse = 0;
+	cv->reverse = 0;
 	return _macroOffset(fptr, spr, m, cv, r);
 }
 bool macroReverseOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
-	cv->data.reverse = 1;
+	cv->reverse = 1;
 	if (m) return _macroOffset(fptr, spr, m, cv, r);
 	return 0;
 }
@@ -273,7 +273,7 @@ bool macroOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row
 /* TODO: should never reverse in place, kinda important cos this case ramps wrongly */
 bool macroReverseOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
-	cv->data.reverse = !cv->data.reverse;
+	cv->reverse = !cv->reverse;
 	return macroOffsetJitter(fptr, spr, m, cv, r);
 }
 

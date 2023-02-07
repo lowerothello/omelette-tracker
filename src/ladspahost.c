@@ -36,6 +36,7 @@ jack_nframes_t samplerate, buffersize;
 #include "control.h"
 #include "effect/autogenui.c"
 #include "effect/ladspa.h"
+#include "effect/ladspa.c"
 
 typedef struct {
 	bool           redraw;
@@ -43,7 +44,7 @@ typedef struct {
 	bool           reload;
 	const char    *soname;
 	unsigned long  index;
-	LadspaState   *state;
+	LadspaState   *ladspa;
 	void          *dl;
 	float         *input[2];
 	float         *output[2];
@@ -61,10 +62,10 @@ void cleanup(int signal)
 
 	cleanupTerminal();
 
-	if (lhs.state)
+	if (lhs.ladspa)
 	{
-		freeLadspaEffect(lhs.state);
-		free(lhs.state);
+		freeLadspaEffect(lhs.ladspa);
+		free(lhs.ladspa);
 	}
 	if (lhs.dl) dlclose(lhs.dl);
 
@@ -90,12 +91,12 @@ void redraw(void)
 	/* "CSI 2   q"    sets the cursor shape to block */
 	printf("\033[2J\033[?25h\033[2 q");
 
-	if (lhs.state)
+	if (lhs.ladspa)
 	{
 		clearControls();
-		drawLadspaEffect(lhs.state,
+		drawLadspaEffect(lhs.ladspa,
 				((ws.ws_col - EFFECT_WIDTH)>>1) + 1, EFFECT_WIDTH,
-				((ws.ws_row - getLadspaEffectHeight(lhs.state))>>1) + 2, 1, ws.ws_row);
+				((ws.ws_row - getLadspaEffectHeight(lhs.ladspa))>>1) + 2, 1, ws.ws_row);
 
 		drawControls();
 	} else
@@ -155,10 +156,10 @@ void reload(void)
 		while (nanosleep(&req, &req) < 0);
 	}
 
-	if (lhs.state)
+	if (lhs.ladspa)
 	{
-		freeLadspaEffect(lhs.state);
-		free(lhs.state);
+		freeLadspaEffect(lhs.ladspa);
+		free(lhs.ladspa);
 	}
 	if (lhs.dl) dlclose(lhs.dl);
 
@@ -166,7 +167,7 @@ void reload(void)
 	lhs.dl = getSpecificLadspaDescriptor(&desc, lhs.soname, lhs.index);
 	if (desc)
 	{
-		initLadspaEffect(&lhs.state, lhs.input, lhs.output, desc);
+		initLadspaEffect(lhs.ladspa, lhs.input, lhs.output, desc);
 	}
 
 	lhs.unsafe = 0;
@@ -180,7 +181,7 @@ int process(jack_nframes_t bufsize, void *arg)
 	if (lhs.unsafe == 1)
 		lhs.unsafe++;
 
-	if (lhs.unsafe || !lhs.state) return 0;
+	if (lhs.unsafe || !lhs.ladspa) return 0;
 
 	jack_default_audio_sample_t *inl = jack_port_get_buffer(lhs.inport[0], bufsize);
 	jack_default_audio_sample_t *inr = jack_port_get_buffer(lhs.inport[1], bufsize);
@@ -189,7 +190,7 @@ int process(jack_nframes_t bufsize, void *arg)
 
 	memcpy(lhs.input[0], inl, sizeof(float) * bufsize);
 	memcpy(lhs.input[1], inr, sizeof(float) * bufsize);
-	runLadspaEffect(bufsize, lhs.state, lhs.input, lhs.output);
+	runLadspaEffect(bufsize, lhs.ladspa, lhs.input, lhs.output);
 	memcpy(outl, lhs.output[0], sizeof(float) * bufsize);
 	memcpy(outr, lhs.output[1], sizeof(float) * bufsize);
 

@@ -18,6 +18,7 @@ void freeSpecificLadspaDescriptor(void *dl);
 
 typedef struct
 {
+	uint8_t                  type;
 	const LADSPA_Descriptor *desc;
 	LADSPA_Handle            instance;
 	uint32_t                 inputc;   /* input audio port count   */
@@ -31,12 +32,12 @@ typedef struct
 uint32_t getLadspaEffectControlCount(LadspaState*);
 short getLadspaEffectHeight(LadspaState*);
 
-void initLadspaEffect(LadspaState**, float **input, float **output, const LADSPA_Descriptor*);
+void initLadspaEffect(LadspaState*, float **input, float **output, const LADSPA_Descriptor*);
 void freeLadspaEffect(LadspaState*);
-void copyLadspaEffect(LadspaState **dest, LadspaState *src, float **input, float **output);
+void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output);
 
 void serializeLadspaEffect(LadspaState*, FILE*);
-void deserializeLadspaEffect(LadspaState**, float **input, float **output, FILE*);
+void deserializeLadspaEffect(LadspaState*, float **input, float **output, FILE*);
 
 /* the current text colour will apply to the header but not the contents */
 void drawLadspaEffect(LadspaState*,
@@ -44,5 +45,3 @@ void drawLadspaEffect(LadspaState*,
 
 /* only valid to call if input and output are not NULL */
 void runLadspaEffect(uint32_t samplecount, LadspaState*, float **input, float **output);
-
-#include "ladspa.c"

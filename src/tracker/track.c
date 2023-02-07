@@ -5,7 +5,7 @@ void clearTrackRuntime(Track *cv)
 	cv->r.inst = INST_VOID;
 	cv->file = 0;
 	cv->rtrigsamples = 0;
-	cv->data.rtrig_rev = 0;
+	cv->rtrig_rev = 0;
 
 	cv->gain.base = 0x88;
 	cv->gain.rand = 0x88;
@@ -32,30 +32,30 @@ void clearTrackRuntime(Track *cv)
 }
 
 /* clears the global variant and frees all local variants */
-void initTrackData(TrackData *cd, uint16_t songlen) /* TODO: should be atomic */
+void initTrackData(Track *cv, uint16_t songlen) /* TODO: should be atomic */
 {
 
-	freeVariantChain(&cd->variant);
-	cd->variant = calloc(1, sizeof(VariantChain));
+	freeVariantChain(&cv->variant);
+	cv->variant = calloc(1, sizeof(VariantChain));
 
 	/* resizing NULL will give a zero'ed out variant of size newlen */
-	// cd->variant->main = dupVariant(NULL, cs->songlen);
-	// cd->variant->trig = calloc(cs->songlen, sizeof(Vtrig));
-	resizeVariantChain(cd->variant, songlen);
+	// cv->variant->main = dupVariant(NULL, cs->songlen);
+	// cv->variant->trig = calloc(cs->songlen, sizeof(Vtrig));
+	resizeVariantChain(cv->variant, songlen);
 
-	memset(cd->variant->i, VARIANT_VOID, sizeof(uint8_t) * VARIANT_MAX);
-	cd->variant->macroc = 1;
+	memset(cv->variant->i, VARIANT_VOID, sizeof(uint8_t) * VARIANT_MAX);
+	cv->variant->macroc = 1;
 
-	cd->mute = 0;
+	cv->mute = 0;
 
-	if (cd->effect) clearEffectChain(cd->effect);
+	if (cv->effect) clearEffectChain(cv->effect);
 }
 
-void clearTrackData(TrackData *cd, uint16_t songlen) /* TODO: should be atomic */
-{
-	initTrackData(cd, songlen);
-	freeVariantChain(&cd->variant);
-	if (cd->effect) { free(cd->effect); cd->effect = NULL; }
+void clearTrackData(Track *cv, uint16_t songlen)
+{ /* NOT atomic */
+	initTrackData(cv, songlen);
+	freeVariantChain(&cv->variant);
+	if (cv->effect) { free(cv->effect); cv->effect = NULL; }
 }
 
 void addTrackRuntime(Track *cv)
@@ -75,8 +75,8 @@ void addTrackRuntime(Track *cv)
 
 void addTrackData(Track *cv, uint16_t songlen)
 {
-	cv->data.effect = newEffectChain(cv->output, cv->pluginoutput);
-	initTrackData(&cv->data, songlen);
+	cv->effect = newEffectChain(cv->output, cv->pluginoutput);
+	initTrackData(cv, songlen);
 }
 
 void debug_dumpTrackState(Song *cs)
@@ -91,8 +91,8 @@ void debug_dumpTrackState(Song *cs)
 	for (int i = 0; i < cs->track->c; i++)
 	{
 		fprintf(fp, "TRACK %02x:\n", i);
-		fprintf(fp, "length: %d\n", getSignificantRowc(cs->track->v[i].data.variant));
-		fprintf(fp, "output[0]: %p\n", cs->track->v[i].data.effect->output[0]);
+		fprintf(fp, "length: %d\n", getSignificantRowc(cs->track->v[i].variant));
+		fprintf(fp, "output[0]: %p\n", cs->track->v[i].effect->output[0]);
 		fprintf(fp, "\n");
 	}
 
@@ -108,7 +108,7 @@ static void cb_addTrack(Event *e)
 }
 
 /* copyfrom can be NULL */
-void addTrack(Song *cs, uint8_t index, uint16_t count, TrackData *copyfrom)
+void addTrack(Song *cs, uint8_t index, uint16_t count, Track *copyfrom)
 { /* fully atomic */
 	/* scale down count if necessary */
 	count = MIN(count, TRACK_MAX - cs->track->c);
@@ -131,7 +131,7 @@ void addTrack(Song *cs, uint8_t index, uint16_t count, TrackData *copyfrom)
 	{
 		addTrackRuntime(&newtrack->v[index+i]);
 		addTrackData(&newtrack->v[index+i], cs->songlen);
-		copyTrackData(&newtrack->v[index+i].data, copyfrom);
+		copyTrack(&newtrack->v[index+i], copyfrom);
 	}
 
 	newtrack->c += count;
@@ -145,8 +145,8 @@ void addTrack(Song *cs, uint8_t index, uint16_t count, TrackData *copyfrom)
 }
 
 void _delTrack(Song *cs, Track *cv)
-{
-	clearTrackData(&cv->data, cs->songlen);
+{ /* NOT atomic */
+	clearTrackData(cv, cs->songlen);
 	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
 	if (cv->output      [0]) { free(cv->output      [0]); cv->output      [0] = NULL; }
 	if (cv->output      [1]) { free(cv->output      [1]); cv->output      [1] = NULL; }
@@ -177,7 +177,7 @@ void delTrack(uint8_t index, uint16_t count)
 	if (index + count > s->track->c)
 		index = s->track->c - count;
 
-	/* TODO: if the last track would be deleted then call clearTrackData(&s->track->v[0].data, s->songlen) */
+	/* TODO: if the last track would be deleted then call clearTrackData(&s->track->v[0], s->songlen) */
 
 	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (s->track->c - count) * sizeof(Track));
 	newtrack->c = s->track->c - count;
@@ -201,7 +201,7 @@ void delTrack(uint8_t index, uint16_t count)
 	pushEvent(&e);
 }
 
-void copyTrackData(TrackData *dest, TrackData *src) /* NOT atomic */
+void copyTrack(Track *dest, Track *src) /* NOT atomic */
 {
 	if (!dest || !src) return;
 
@@ -218,15 +218,15 @@ void copyTrackData(TrackData *dest, TrackData *src) /* NOT atomic */
 	copyEffectChain(&dest->effect, src->effect);
 }
 
-Row *getTrackRow(TrackData *cd, uint16_t index)
+Row *getTrackRow(Track *cv, uint16_t index)
 {
-	int i = getVariantChainPrevVtrig(cd->variant, index);
-	if (i != -1 && cd->variant->trig[i].index != VARIANT_OFF
-			&& (cd->variant->trig[i].flags&C_VTRIG_LOOP
-			|| (cd->variant->i[cd->variant->trig[i].index] < cd->variant->c && cd->variant->v[cd->variant->i[cd->variant->trig[i].index]]->rowc >= index - i)))
-		return getVariantRow(cd->variant->v[cd->variant->i[cd->variant->trig[i].index]], index - i);
+	int i = getVariantChainPrevVtrig(cv->variant, index);
+	if (i != -1 && cv->variant->trig[i].index != VARIANT_OFF
+			&& (cv->variant->trig[i].flags&C_VTRIG_LOOP
+			|| (cv->variant->i[cv->variant->trig[i].index] < cv->variant->c && cv->variant->v[cv->variant->i[cv->variant->trig[i].index]]->rowc >= index - i)))
+		return getVariantRow(cv->variant->v[cv->variant->i[cv->variant->trig[i].index]], index - i);
 	else
-		return getVariantRow(cd->variant->main, index);
+		return getVariantRow(cv->variant->main, index);
 }
 
 bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
@@ -249,7 +249,7 @@ void regenBpmCache(Song *cs)
 
 	for (uint16_t i = 0; i < cs->songlen; i++)
 		for (uint8_t j = 0; j < cs->track->c; j++)
-			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], *getTrackRow(&cs->track->v[j].data, i), 'B', &checkBpmCache);
+			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], *getTrackRow(&cs->track->v[j], i), 'B', &checkBpmCache);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
@@ -264,7 +264,7 @@ void regenGlobalRowc(Song *cs)
 {
 	cs->songlen = STATE_ROWS;
 	for (uint8_t i = 0; i < cs->track->c; i++)
-		cs->songlen = MAX(cs->songlen, getSignificantRowc(cs->track->v[i].data.variant));
+		cs->songlen = MAX(cs->songlen, getSignificantRowc(cs->track->v[i].variant));
 
 	/* both zeroed out if the loop range is unset              */
 	/* only check loop1 cos loop1 is always greater than loop0 */
@@ -274,7 +274,7 @@ void regenGlobalRowc(Song *cs)
 	cs->songlen += 4*cs->rowhighlight;
 
 	for (uint8_t i = 0; i < cs->track->c; i++)
-		resizeVariantChain(cs->track->v[i].data.variant, cs->songlen);
+		resizeVariantChain(cs->track->v[i].variant, cs->songlen);
 
 	w->trackerfy = MIN(cs->songlen-1, w->trackerfy);
 
@@ -300,18 +300,18 @@ void cycleVariantDown(Variant *v, uint16_t bound)
 
 void serializeTrack(Song *cs, Track *cv, FILE *fp)
 {
-	fputc(cv->data.mute, fp);
-	serializeVariantChain(cv->data.variant, fp);
-	serializeEffectChain(cv->data.effect, fp);
+	fputc(cv->mute, fp);
+	serializeVariantChain(cv->variant, fp);
+	serializeEffectChain(cv->effect, fp);
 }
 void deserializeTrack(Song *cs, Track *cv, FILE *fp, uint8_t major, uint8_t minor)
 {
 	addTrackRuntime(cv);
 	addTrackData(cv, cs->songlen);
-	cv->data.mute = fgetc(fp);
+	cv->mute = fgetc(fp);
 
-	deserializeVariantChain(cv->data.variant, fp, major, minor);
-	deserializeEffectChain(&cv->data.effect, fp, major, minor);
+	deserializeVariantChain(cv->variant, fp, major, minor);
+	deserializeEffectChain(&cv->effect, fp, major, minor);
 }
 
 void applyTrackMutes(void)
@@ -322,7 +322,7 @@ void applyTrackMutes(void)
 }
 void toggleTrackMute(uint8_t track)
 {
-	s->track->v[track].data.mute = !s->track->v[track].data.mute;
+	s->track->v[track].mute = !s->track->v[track].mute;
 	applyTrackMutes();
 }
 void toggleTrackSolo(uint8_t track)
@@ -330,26 +330,26 @@ void toggleTrackSolo(uint8_t track)
 	int i;
 	bool reset = 0;
 
-	if (!s->track->v[track].data.mute)
+	if (!s->track->v[track].mute)
 	{
 		for (i = 0; i < s->track->c; i++)
-			if (s->track->v[i].data.mute)
+			if (s->track->v[i].mute)
 				reset = 1;
 
 		for (i = 0; i < s->track->c; i++)
-			if (i != track && !s->track->v[i].data.mute)
+			if (i != track && !s->track->v[i].mute)
 				reset = 0;
 	}
 
 	if (reset)
 	{
 		for (i = 0; i < s->track->c; i++)
-			s->track->v[i].data.mute = 0;
+			s->track->v[i].mute = 0;
 	} else
 	{
 		for (i = 0; i < s->track->c; i++)
-			s->track->v[i].data.mute = 1;
-		s->track->v[track].data.mute = 0;
+			s->track->v[i].mute = 1;
+		s->track->v[track].mute = 0;
 	}
 	applyTrackMutes();
 }

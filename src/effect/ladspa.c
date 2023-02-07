@@ -221,19 +221,18 @@ void startLadspaEffect(LadspaState *s, float **input, float **output)
 		s->desc->activate(s->instance);
 }
 
-void initLadspaEffect(LadspaState **s, float **input, float **output, const LADSPA_Descriptor *desc)
+void initLadspaEffect(LadspaState *s, float **input, float **output, const LADSPA_Descriptor *desc)
 {
-	*s = calloc(1, sizeof(LadspaState));
-	(*s)->desc = desc;
-	(*s)->dummyport = malloc(sizeof(LADSPA_Data) * samplerate);
+	s->desc = desc;
+	s->dummyport = malloc(sizeof(LADSPA_Data) * samplerate);
 
-	startLadspaEffect(*s, input, output);
+	startLadspaEffect(s, input, output);
 }
 
-void copyLadspaEffect(LadspaState **dest, LadspaState *src, float **input, float **output)
+void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output)
 {
 	initLadspaEffect(dest, input, output, src->desc);
-	memcpy((*dest)->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
+	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
 }
 
 void serializeLadspaEffect(LadspaState *s, FILE *fp)
@@ -242,17 +241,15 @@ void serializeLadspaEffect(LadspaState *s, FILE *fp)
 	fwrite(&s->controlc, sizeof(uint32_t), 1, fp);
 	fwrite(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
 }
-void deserializeLadspaEffect(LadspaState **s, float **input, float **output, FILE *fp)
+void deserializeLadspaEffect(LadspaState *s, float **input, float **output, FILE *fp)
 {
-	*s = calloc(1, sizeof(LadspaState));
-
-	fread(&(*s)->uuid, sizeof(uint32_t), 1, fp);
-	fread(&(*s)->controlc, sizeof(uint32_t), 1, fp);
-	(*s)->controlv = calloc((*s)->controlc, sizeof(LADSPA_Data));
-	fread((*s)->controlv, sizeof(LADSPA_Data), (*s)->controlc, fp);
+	fread(&s->uuid, sizeof(uint32_t), 1, fp);
+	fread(&s->controlc, sizeof(uint32_t), 1, fp);
+	s->controlv = calloc(s->controlc, sizeof(LADSPA_Data));
+	fread(s->controlv, sizeof(LADSPA_Data), s->controlc, fp);
 
 	/* TODO: look up desc based on uuid */
-	startLadspaEffect(*s, input, output);
+	startLadspaEffect(s, input, output);
 }
 
 /* the current text colour will apply to the header but not the contents */
