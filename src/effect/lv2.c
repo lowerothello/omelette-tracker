@@ -101,7 +101,6 @@ static void startLV2Effect(LV2State *s, float **input, float **output)
 
 	/* TODO: required features */
 	/* LilvNodes *nodes = lilv_plugin_get_required_features(s->plugin);
-DEBUG=lilv_nodes_size(nodes); p->redraw=1;
 	lilv_nodes_free(nodes); */
 
 	s->instance = lilv_plugin_instantiate(s->plugin, (double)samplerate, s->features);

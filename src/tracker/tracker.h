@@ -9,16 +9,18 @@ void trackerUpArrow   (size_t count);
 void trackerDownArrow (size_t count);
 void trackerLeftArrow (size_t count);
 void trackerRightArrow(size_t count);
-void trackLeft (size_t count);
-void trackRight(size_t count);
+void trackLeft (void);
+void trackRight(void);
+void trackHome (void);
+void trackEnd  (void);
 void trackerHome(void);
 void trackerEnd (void);
-void cycleUp  (size_t count);
-void cycleDown(size_t count);
-void shiftUp  (size_t count);
-void shiftDown(size_t count);
-void trackerPgUp(size_t count);
-void trackerPgDn(size_t count);
+void cycleUp  (void);
+void cycleDown(void);
+void shiftUp  (void);
+void shiftDown(void);
+void trackerPgUp(void);
+void trackerPgDn(void);
 
 /* generate sfx using dynamic width tracks */
 short genSfx(short minx);

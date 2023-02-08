@@ -89,16 +89,6 @@ void trackerLeftArrow(size_t count)
 	} p->redraw = 1;
 }
 
-void trackLeft(size_t count)
-{
-	count *= MAX(1, w->count);
-	if (count > w->track) w->track = 0;
-	else                    w->track -= count;
-	if (w->trackerfx > 3 + s->track->v[w->track].variant->macroc * 2)
-		w->trackerfx = 3 + s->track->v[w->track].variant->macroc * 2;
-	p->redraw = 1;
-}
-
 void trackerRightArrow(size_t count)
 {
 	int i;
@@ -129,15 +119,18 @@ void trackerRightArrow(size_t count)
 	} p->redraw = 1;
 }
 
-void trackRight(size_t count)
+static void trackSet(uint8_t track)
 {
-	count *= MAX(1, w->count);
-	w->track += count;
-	if (w->track > s->track->c-1) w->track = s->track->c-1;
+	w->track = track;
 	if (w->trackerfx > 3 + s->track->v[w->track].variant->macroc * 2)
 		w->trackerfx = 3 + s->track->v[w->track].variant->macroc * 2;
 	p->redraw = 1;
 }
+
+void trackLeft (void) { trackSet(MAX((int)w->track - MAX(1, w->count), 0)); }
+void trackRight(void) { trackSet(MIN(w->track + MAX(1, w->count), s->track->c-1)); }
+void trackHome (void) { trackSet(0); }
+void trackEnd  (void) { trackSet(s->track->c-1); }
 
 void trackerHome(void)
 {
@@ -169,9 +162,9 @@ void trackerEnd(void)
 	} p->redraw = 1;
 }
 
-void cycleUp(size_t count)
+void cycleUp(void)
 {
-	count *= MAX(1, w->count);
+	size_t count = MAX(1, w->count);
 	Variant *v;
 	int bound;
 	switch (w->page)
@@ -198,9 +191,9 @@ void cycleUp(size_t count)
 	} p->redraw = 1;
 }
 
-void cycleDown(size_t count)
+void cycleDown(void)
 {
-	count *= MAX(1, w->count);
+	size_t count = MAX(1, w->count);
 	Variant *v;
 	int bound;
 	switch (w->page)
@@ -227,9 +220,9 @@ void cycleDown(size_t count)
 	} p->redraw = 1;
 }
 
-void shiftUp(size_t count)
+void shiftUp(void)
 {
-	count *= MAX(1, w->count);
+	size_t count = MAX(1, w->count);
 	Track *cv;
 	switch (w->page)
 	{
@@ -250,9 +243,9 @@ void shiftUp(size_t count)
 	} p->redraw = 1;
 }
 
-void shiftDown(size_t count)
+void shiftDown(void)
 {
-	count *= MAX(1, w->count);
+	size_t count = MAX(1, w->count);
 	Track *cv;
 	switch (w->page)
 	{
@@ -283,30 +276,30 @@ void shiftDown(size_t count)
 }
 
 
-void trackerPgUp(size_t count)
+void trackerPgUp(void)
 {
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			count *= MAX(1, w->count);
-			cc.cursor = getCursorFromEffect(s->track->v[w->track].effect, MAX(0, getEffectFromCursor(s->track->v[w->track].effect, cc.cursor) - (int)count));
+			cc.cursor = getCursorFromEffect(s->track->v[w->track].effect,
+					MAX(0, getEffectFromCursor(s->track->v[w->track].effect, cc.cursor) - (int)MAX(1, w->count)));
 			p->redraw = 1; break;
 		default:
-			trackerUpArrow(s->rowhighlight*count);
+			trackerUpArrow(s->rowhighlight);
 			break;
 	}
 }
 
-void trackerPgDn(size_t count)
+void trackerPgDn(void)
 {
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			count *= MAX(1, w->count);
-			cc.cursor = getCursorFromEffect(s->track->v[w->track].effect, MIN(s->track->v[w->track].effect->c-1, getEffectFromCursor(s->track->v[w->track].effect, cc.cursor) + count));
+			cc.cursor = getCursorFromEffect(s->track->v[w->track].effect,
+					MIN(s->track->v[w->track].effect->c-1, getEffectFromCursor(s->track->v[w->track].effect, cc.cursor) + MAX(1, w->count)));
 			p->redraw = 1; break;
 		default:
-			trackerDownArrow(s->rowhighlight*count);
+			trackerDownArrow(s->rowhighlight);
 			break;
 	}
 }

@@ -113,7 +113,7 @@ void addTrack(Song *cs, uint8_t index, uint16_t count, Track *copyfrom)
 	/* scale down count if necessary */
 	count = MIN(count, TRACK_MAX - cs->track->c);
 
-	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (cs->track->c+count) * sizeof(Track));
+	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (cs->track->c+count)*sizeof(Track));
 	newtrack->c = cs->track->c;
 
 	if (index)
@@ -135,6 +135,27 @@ void addTrack(Song *cs, uint8_t index, uint16_t count, Track *copyfrom)
 	}
 
 	newtrack->c += count;
+
+	Event e;
+	e.sem = M_SEM_SWAP_REQ;
+	e.dest = (void **)&cs->track;
+	e.src = newtrack;
+	e.callback = cb_addTrack;
+	pushEvent(&e);
+}
+
+void swapTracks(uint8_t index1, uint8_t index2)
+{ /* fully atomic */
+	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + s->track->c*sizeof(Track));
+	newtrack->c = s->track->c;
+
+	/* copy each track over individually, but swap the destinations for index{1,2} */
+	for (uint8_t i = 0; i < newtrack->c; i++)
+	{
+		if      (i == index1) memcpy(&newtrack->v[index2], &s->track->v[i], sizeof(Track));
+		else if (i == index2) memcpy(&newtrack->v[index1], &s->track->v[i], sizeof(Track));
+		else                  memcpy(&newtrack->v[i],      &s->track->v[i], sizeof(Track));
+	}
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
