@@ -987,12 +987,12 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	setBpm(&spr, s->songbpm);
 	for (row = 0; row < y1; row++)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacro(0, &spr, &chain->v[chnl], *getTrackRow(&chain->v[chnl], row), 'B');
+			ifMacro(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B');
 	buflen = 0;
 	for (row = y1; row <= y2; row++)
 	{
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacro(0, &spr, &chain->v[chnl], *getTrackRow(&chain->v[chnl], row), 'B');
+			ifMacro(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B');
 		buflen += spr;
 	}
 
@@ -1014,9 +1014,9 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
 		{
 			r = getTrackRow(&chain->v[chnl], row);
-			processRow(0, &spr, 0, &chain->v[chnl], *r);
+			processRow(0, &spr, 0, &chain->v[chnl], r);
 		}
-		if (s->bpmcachelen > row && s->bpmcache[row] != -1) macroBpm(fptr, &spr, s->bpmcache[row], NULL, *r);
+		if (s->bpmcachelen > row && s->bpmcache[row] != -1) macroBpm(fptr, &spr, s->bpmcache[row], NULL, r);
 
 		sprp = 0;
 		while (sprp < spr)

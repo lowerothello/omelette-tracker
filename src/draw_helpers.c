@@ -1,3 +1,6 @@
+#define STAGING_FORMAT "\033[1m"
+#define RESET_FORMAT "\033[34m"
+
 /* undefined behaviour if multibyte chars are printed  */
 /* only culls the x axis, culling the y axis is simple */
 void printCulling(char *s, short x, short y, short minx, short maxx)

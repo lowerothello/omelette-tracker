@@ -138,12 +138,6 @@ void drawControls(void)
 
 		if (c->x - 1 > 0) printf("\033[%d;%dH[", c->y, c->x - 1);
 
-		if (i == cc.cursor)
-		{
-			if (cc.mouseadjust || cc.keyadjust) printf("\033[1m");
-			else if (cc.resetadjust)             printf("\033[34m");
-		}
-
 		buffer = calloc(cw, sizeof(char)); /* doesn't need to be big enough to hold the leading and trailing square brackets */
 
 		if (c->scalepointptr)
@@ -179,29 +173,29 @@ void drawControls(void)
 					if (*(int8_t*)c->value < 0) strcpy(buffer, "=");
 					else                        sprintf(buffer, "%x", *(int8_t*)c->value);
 					break;
-				case CONTROL_NIBBLES_UINT8:
-					sprintf(buffer, "%02x", *(uint8_t*)c->value);
-					break;
+				case CONTROL_NIBBLES_UINT8: sprintf(buffer, "%02x", *(uint8_t*)c->value); break;
 				case CONTROL_NIBBLES_INT8:
 					if (*(int8_t*)c->value < 0) sprintf(buffer, "-%02x", (short)(*(int8_t*)c->value) * -1);
 					else                        sprintf(buffer, "+%02x", *(int8_t*)c->value);
 					break;
-				case CONTROL_NIBBLES_UINT16:
-					sprintf(buffer, "%04x", *(uint16_t*)c->value);
-					break;
+				case CONTROL_NIBBLES_UINT16: sprintf(buffer, "%04x", *(uint16_t*)c->value); break;
 				case CONTROL_NIBBLES_INT16:
 					if (*(int16_t*)c->value < 0) sprintf(buffer, "-%04x", (int)(*(int16_t*)c->value) * -1);
 					else                         sprintf(buffer, "+%04x", *(int16_t*)c->value);
 					break;
-				case CONTROL_NIBBLES_UINT32:
-					sprintf(buffer, "%08x", *(uint32_t*)c->value);
-					break;
+				case CONTROL_NIBBLES_UINT32: sprintf(buffer, "%08x", *(uint32_t*)c->value); break;
 				case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "%0*.*f", 7, 6-getPreRadixDigits(c->max.f), *(float*)c->value); break;
 				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "%+0*.*f", 8, 6-getPreRadixDigits(c->max.f), *(float*)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
 				case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "%0*.0f",      getPreRadixDigits(c->max.f), *(float*)c->value); break;
 				case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "%+0*.0f",    1+getPreRadixDigits(c->max.f), *(float*)c->value); break;
 			}
-		// if (c->x - 1 > 0) printf("\033[%d;%dH[", c->y, c->x - 1);
+
+		if (i == cc.cursor)
+		{
+			if (cc.mouseadjust || cc.keyadjust) printf(STAGING_FORMAT);
+			else if (cc.resetadjust)            printf(RESET_FORMAT);
+		}
+
 		if (c->x < 1) { if (c->x > 1 - (cw-2)) printf("\033[%d;%dH%s\033[m", c->y, 1, buffer+(1 - c->x)); }
 		else                                   printf("\033[%d;%dH%.*s\033[m", c->y, c->x, (ws.ws_col+1) - c->x, buffer);
 		free(buffer);
@@ -238,24 +232,16 @@ void incControlValue(void)
 	switch (c->nibbles)
 	{
 		case CONTROL_NIBBLES_BOOL: /* fall through */
-		case CONTROL_NIBBLES_TOGGLED:
-			(*(bool*)c->value) = 1; break;
-		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
-			(*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
-		case CONTROL_NIBBLES_SIGNED_FLOAT:
-			(*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
+		case CONTROL_NIBBLES_TOGGLED: (*(bool*)c->value) = 1; break;
+		case CONTROL_NIBBLES_UNSIGNED_FLOAT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
 		case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
-		case CONTROL_NIBBLES_SIGNED_INT:
-			(*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer), c->max.f); break;
+		case CONTROL_NIBBLES_SIGNED_INT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer), c->max.f); break;
 		case CONTROL_NIBBLES_PRETTY: /* fall through */
-		case CONTROL_NIBBLES_INT8:
-			(*(int8_t*)c->value) = MIN((*(int8_t*)c->value) + (int8_t)pow32(16, cc.fieldpointer), (int8_t)c->max.i); break;
-		case CONTROL_NIBBLES_UINT8:
-			(*(uint8_t*)c->value) = MIN((*(uint8_t*)c->value) + (uint8_t)pow32(16, cc.fieldpointer), (uint8_t)c->max.i); break;
-		case CONTROL_NIBBLES_UINT16:
-			(*(uint16_t*)c->value) = MIN((*(uint16_t*)c->value) + (uint16_t)pow32(16, cc.fieldpointer), (uint16_t)c->max.i); break;
-		case CONTROL_NIBBLES_UINT32:
-			(*(uint32_t*)c->value) = MIN((*(uint32_t*)c->value) + (uint32_t)pow32(16, cc.fieldpointer), (uint32_t)c->max.i); break;
+		case CONTROL_NIBBLES_INT8: (*(int8_t*)c->value) = MIN((*(int8_t*)c->value) + (int8_t)pow32(16, cc.fieldpointer), (int8_t)c->max.i); break;
+		case CONTROL_NIBBLES_UINT8: (*(uint8_t*)c->value) = MIN((*(uint8_t*)c->value) + (uint8_t)pow32(16, cc.fieldpointer), (uint8_t)c->max.i); break;
+		case CONTROL_NIBBLES_UINT16: (*(uint16_t*)c->value) = MIN((*(uint16_t*)c->value) + (uint16_t)pow32(16, cc.fieldpointer), (uint16_t)c->max.i); break;
+		case CONTROL_NIBBLES_UINT32: (*(uint32_t*)c->value) = MIN((*(uint32_t*)c->value) + (uint32_t)pow32(16, cc.fieldpointer), (uint32_t)c->max.i); break;
 		case CONTROL_NIBBLES_INT16:
 			if (*(int16_t*)c->value > 0)
 			{
@@ -288,29 +274,15 @@ void decControlValue(void)
 	switch (c->nibbles)
 	{
 		case CONTROL_NIBBLES_BOOL: /* fall through */
-		case CONTROL_NIBBLES_TOGGLED:
-			(*(bool*)c->value) = 0;
-			break;
-		case CONTROL_NIBBLES_UNSIGNED_FLOAT:
-			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f);
-			break;
-		case CONTROL_NIBBLES_SIGNED_FLOAT:
-			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f);
-			break;
+		case CONTROL_NIBBLES_TOGGLED: (*(bool*)c->value) = 0; break;
+		case CONTROL_NIBBLES_UNSIGNED_FLOAT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
 		case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
-		case CONTROL_NIBBLES_SIGNED_INT:
-			(*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer), c->min.f);
-			break;
+		case CONTROL_NIBBLES_SIGNED_INT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer), c->min.f); break;
 		case CONTROL_NIBBLES_PRETTY: /* fall through */
-		case CONTROL_NIBBLES_INT8:
-			(*(int8_t*)c->value) = MAX((*(int8_t*)c->value) - (int8_t)pow32(16, cc.fieldpointer), (int8_t)c->min.i);
-			break;
-		case CONTROL_NIBBLES_UINT8:
-			(*(uint8_t*)c->value) = MAX((*(uint8_t*)c->value) - (uint8_t)pow32(16, cc.fieldpointer), (uint8_t)c->min.i);
-			break;
-		case CONTROL_NIBBLES_UINT16:
-			(*(uint16_t*)c->value) = MAX((*(uint16_t*)c->value) - (uint16_t)pow32(16, cc.fieldpointer), (uint16_t)c->min.i);
-			break;
+		case CONTROL_NIBBLES_INT8: (*(int8_t*)c->value) = MAX((*(int8_t*)c->value) - (int8_t)pow32(16, cc.fieldpointer), (int8_t)c->min.i); break;
+		case CONTROL_NIBBLES_UINT8: (*(uint8_t*)c->value) = MAX((*(uint8_t*)c->value) - (uint8_t)pow32(16, cc.fieldpointer), (uint8_t)c->min.i); break;
+		case CONTROL_NIBBLES_UINT16: (*(uint16_t*)c->value) = MAX((*(uint16_t*)c->value) - (uint16_t)pow32(16, cc.fieldpointer), (uint16_t)c->min.i); break;
 		case CONTROL_NIBBLES_UINT32:
 			if (*(uint32_t*)c->value - (uint32_t)c->min.i > (uint32_t)pow32(16, cc.fieldpointer))
 				(*(uint32_t*)c->value) = MAX((*(uint32_t*)c->value) - (uint32_t)pow32(16, cc.fieldpointer), (uint32_t)c->min.i);
@@ -522,7 +494,7 @@ void toggleKeyControl(void)
 			break;
 	}
 }
-void revertKeyControl(void) /* TODO: doesn't work properly sometimes */
+void revertKeyControl(void)
 {
 	Control *c = &cc.control[cc.cursor];
 	if (!c->value) return;
@@ -559,6 +531,8 @@ void mouseControls(int button, int x, int y)
 			}
 			if (cc.mouseadjust)
 			{
+				if      (cc.mouseclickwalk > 0) incControlValue();
+				else if (cc.mouseclickwalk < 0) decControlValue();
 				cc.mouseadjust = 0;
 				cc.fieldpointer = 0;
 				c = &cc.control[cc.cursor];
@@ -575,14 +549,19 @@ void mouseControls(int button, int x, int y)
 					if (c->callback) c->callback(c->callbackarg);
 				}
 			} break;
-		case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL:
+		case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL: /* fall through */
+		case BUTTON3_HOLD: case BUTTON3_HOLD_CTRL:
 			if (cc.mouseadjust)
 			{
+				cc.mouseclickwalk = 0;
 				if      (x > cc.prevmousex) incControlValue();
 				else if (x < cc.prevmousex) decControlValue();
 				cc.prevmousex = x;
 			} break;
-		case BUTTON1: case BUTTON1_CTRL:
+		case BUTTON1: case BUTTON1_CTRL: /* fall through */
+		case BUTTON3: case BUTTON3_CTRL: /* fall through */
+		case WHEEL_UP: case WHEEL_UP_CTRL: /* fall through */
+		case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 			for (i = 0; i < cc.controlc; i++)
 			{
 				c = &cc.control[i];
@@ -591,6 +570,16 @@ void mouseControls(int button, int x, int y)
 					cc.cursor = i;
 					cc.prevmousex = x;
 					cc.mouseadjust = 1;
+					switch (button)
+					{
+						case BUTTON1: case BUTTON1_CTRL: /* fall through */
+						case WHEEL_UP: case WHEEL_UP_CTRL:
+							cc.mouseclickwalk = 1; break;
+
+						case BUTTON3: case BUTTON3_CTRL: /* fall through */
+						case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
+							cc.mouseclickwalk = -1; break;
+					}
 					switch (c->nibbles)
 					{
 						case CONTROL_NIBBLES_BOOL: /* fall through */

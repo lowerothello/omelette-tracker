@@ -250,7 +250,7 @@ Row *getTrackRow(Track *cv, uint16_t index)
 		return getVariantRow(cv->variant->main, index);
 }
 
-bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
+static bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 { /* use fptr as the songlen index, and *spr as a pointer to the new bpm cache */
 	((short *)spr)[fptr] = m;
 	return 0;
@@ -270,7 +270,7 @@ void regenBpmCache(Song *cs)
 
 	for (uint16_t i = 0; i < cs->songlen; i++)
 		for (uint8_t j = 0; j < cs->track->c; j++)
-			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], *getTrackRow(&cs->track->v[j], i), 'B', &checkBpmCache);
+			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], getTrackRow(&cs->track->v[j], i), 'B', &checkBpmCache);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;

@@ -47,6 +47,7 @@ typedef struct
 	Control control[256];
 
 	bool mouseadjust;
+	int8_t mouseclickwalk;
 	bool keyadjust;
 	bool resetadjust;
 	short prevmousex;

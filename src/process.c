@@ -166,90 +166,32 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 }
 
 
-static void handleLocalMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
-{
-	ifMacro(fptr, spr, cv, r, 'F');
-	ifMacro(fptr, spr, cv, r, 'f');
-	ifMacro(fptr, spr, cv, r, 'Z');
-	ifMacro(fptr, spr, cv, r, 'z');
-	// ifMacro(fptr, spr, cv, r, 'F');
-	// ifMacro(fptr, spr, cv, r, 'f');
-	// ifMacro(fptr, spr, cv, r, 'Z');
-	// ifMacro(fptr, spr, cv, r, 'z');
-	ifMacro(fptr, spr, cv, r, 'M');
-	ifMacro(fptr, spr, cv, r, 'm');
-	ifMacro(fptr, spr, cv, r, 'O');
-	ifMacro(fptr, spr, cv, r, 'U');
-	ifMacro(fptr, spr, cv, r, 'o');
-	ifMacro(fptr, spr, cv, r, 'u');
-	ifMacro(fptr, spr, cv, r, 'E');
-	ifMacro(fptr, spr, cv, r, 'e');
-	ifMacro(fptr, spr, cv, r, 'H');
-	ifMacro(fptr, spr, cv, r, 'h');
-	ifMacro(fptr, spr, cv, r, 'W');
-	ifMacro(fptr, spr, cv, r, 'w');
-	ifMacro(fptr, spr, cv, r, 'L');
-	ifMacro(fptr, spr, cv, r, 'l');
-	ifMacro(fptr, spr, cv, r, 'X');
-	ifMacro(fptr, spr, cv, r, 'x');
-}
-
-/* TODO: temp name */
-#define AA(TYPE, I) \
-	if (cv->filter.target##TYPE[I] != -1) \
-	{ \
-		if (cv->filter.target##TYPE##_rand) cv->filter.rand##TYPE[I] = cv->filter.target##TYPE[I]; \
-		else                                cv->filter.TYPE[I] = cv->filter.rand##TYPE[I] = cv->filter.target##TYPE[I]; \
-		cv->filter.target##TYPE[I] = -1; \
-	}
-
-static void handleLerpMacros(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r)
-{
-	if (cv->gain.target != -1)
-	{
-		if (cv->gain.target_rand) /* only apply the new gain to rand, not to base */
-		{
-			cv->gain.rand = cv->gain.target;
-			cv->gain.target_rand = 0;
-		} else cv->gain.base = cv->gain.rand = cv->gain.target;
-		cv->gain.target = -1;
-	}
-	if (cv->send.target != -1)
-	{
-		if (cv->send.target_rand) /* only apply the new gain to rand, not to base */
-		{
-			cv->send.rand = cv->send.target;
-			cv->send.target_rand = 0;
-		} else cv->send.base = cv->send.rand = cv->send.target;
-		cv->send.target = -1;
-	}
-
-	if (cv->filter.targetmode[0] != -1) { cv->filter.mode[0] = cv->filter.targetmode[0]; cv->filter.targetmode[0] = -1; }
-	if (cv->filter.targetmode[1] != -1) { cv->filter.mode[1] = cv->filter.targetmode[1]; cv->filter.targetmode[1] = -1; }
-
-	AA(cut, 0); AA(cut, 1); cv->filter.targetcut_rand = 0;
-	AA(res, 0); AA(res, 1); cv->filter.targetres_rand = 0;
-
-	if (cv->targetlocalsamplerate != -1) { cv->localsamplerate = cv->targetlocalsamplerate; cv->targetlocalsamplerate = -1; }
-	if (cv->targetlocalpitchshift != -1) { cv->localpitchshift = cv->targetlocalpitchshift; cv->targetlocalpitchshift = -1; }
-	if (cv->targetlocalpitchwidth != -1) { cv->localpitchwidth = cv->targetlocalpitchwidth; cv->targetlocalpitchwidth = -1; }
-
-	ifMacro(fptr, spr, cv, r, 'g');
-	ifMacro(fptr, spr, cv, r, 'j');
-	ifMacro(fptr, spr, cv, r, 's');
-	ifMacro(fptr, spr, cv, r, 'k');
-}
-
-void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
+void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 {
 	bool triggerramp = 0;
 	Track oldcv;
 	memcpy(&oldcv, cv, sizeof(Track)); /* rampbuffer is still accesible from this copy */
 
 	for (int i = 0; i <= cv->variant->macroc; i++)
-		cv->r.macro[i] = r.macro[i];
+		cv->r.macro[i] = r->macro[i];
 
-	handleLerpMacros(fptr, spr, cv, r);
+	/* try to persist old state a little bit */
+	if      (r->note != NOTE_VOID && r->inst == INST_VOID) r->inst = cv->r.inst;
+	else if (r->note == NOTE_VOID && r->inst != INST_VOID) r->note = cv->r.note;
+
+	ifMacro(fptr, spr, cv, r, 'g');
+	ifMacro(fptr, spr, cv, r, 'j');
+	ifMacro(fptr, spr, cv, r, 's');
+	ifMacro(fptr, spr, cv, r, 'k');
+
+	if (!ifMacro(fptr, spr, cv, r, 'V')) cv->vibratosamples = 0;
+
+	ifMacro(fptr, spr, cv, r, 'G');
+	ifMacro(fptr, spr, cv, r, 'S');
+	ifMacro(fptr, spr, cv, r, 'K');
+	ifMacro(fptr, spr, cv, r, 'P');
+	ifMacro(fptr, spr, cv, r, 'D');
+	ifMacro(fptr, spr, cv, r, 'C');
 
 	if (cv->rtrigsamples)
 	{
@@ -262,29 +204,14 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r)
 		}
 	}
 
-	if (!ifMacro(fptr, spr, cv, r, 'V')) cv->vibratosamples = 0;
-	if ( ifMacro(fptr, spr, cv, r, '%')) return;
-
-	ifMacro(fptr, spr, cv, r, 'G');
-	ifMacro(fptr, spr, cv, r, 'I');
-	ifMacro(fptr, spr, cv, r, 'S');
-	ifMacro(fptr, spr, cv, r, 'K');
-
-	/* try to persist old state a little bit */
-	if      (r.note != NOTE_VOID && r.inst == INST_VOID) r.inst = cv->r.inst;
-	else if (r.note == NOTE_VOID && r.inst != INST_VOID) r.note = cv->r.note;
-
-	if ((!ifMacro(fptr, spr, cv, r, 'C') && r.note != NOTE_VOID)
-			&& !ifMacro(fptr, spr, cv, r, 'P')
-			&& !ifMacro(fptr, spr, cv, r, 'D'))
+	if (ifMacro(fptr, spr, cv, r, '%')) return;
+	if (r->note != NOTE_VOID)
 	{
-		triggerNote(fptr, cv, cv->r.note, r.note, r.inst);
+		triggerNote(fptr, cv, cv->r.note, r->note, r->inst);
 		triggerramp = 1;
 	}
 
-	handleLocalMacros(fptr, spr, cv, r);
-
-	ifMacro(fptr, spr, cv, r, 'p'); /* microtonal offset  */
+	handleMacroType(MT_LOCAL, fptr, spr, cv, r);
 
 	/* retrigger macros */
 	if (!ifMacro(fptr, spr, cv, r, 'q')
@@ -427,7 +354,7 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 		triggerNote(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
 		cv->delaysamples = 0;
 
-		handleLocalMacros(fptr, spr, cv, cv->r);
+		handleMacroType(MT_LOCAL, fptr, spr, cv, &cv->r);
 		cv->envgain = cv->modenvgain = 0.0f; /* TODO: necessary? */ /* not perfect but a safe enough assumption */
 	} else if (cv->cutsamples)
 	{ /* cut is set and takes priority over delay */
@@ -526,7 +453,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 		triggerNote(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
 		cv->delaysamples = 0;
 
-		handleLocalMacros(fptr, spr, cv, cv->r);
+		handleMacroType(MT_LOCAL, fptr, spr, cv, &cv->r);
 	}
 
 	cv->finetune = cv->microtonalfinetune;
@@ -561,7 +488,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 		if (cv->vibratosamplepointer > cv->vibratosamples)
 		{
 			cv->vibratosamplepointer = 0;
-			if (!ifMacro(fptr, spr, cv, cv->r, 'V'))
+			if (!ifMacro(fptr, spr, cv, &cv->r, 'V'))
 				cv->vibratosamples = 0;
 		}
 	}
@@ -668,8 +595,8 @@ void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 		if (cv->variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_VOID; cv->envgain = 0.0f; }
 
 		r = getTrackRow(cv, i);
-		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) macroBpm(fptr, spr, p->s->bpmcache[i], cv, *r);
-		processRow(fptr, spr, 0, cv, *r);
+		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) macroBpm(fptr, spr, p->s->bpmcache[i], cv, r);
+		processRow(fptr, spr, 0, cv, r);
 		playTrackLookback(fptr, spr, cv);
 	}
 }
@@ -710,8 +637,8 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 
 				/* preprocess track */
 				r = getTrackRow(cv, *playfy);
-				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->s->bpmcache[*playfy], cv, *r);
-				processRow(fptr, spr, 1, cv, *r);
+				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->s->bpmcache[*playfy], cv, r);
+				processRow(fptr, spr, 1, cv, r);
 			}
 		}
 	}

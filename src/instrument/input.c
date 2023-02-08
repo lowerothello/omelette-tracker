@@ -129,7 +129,6 @@ static void instrumentMouse(enum Button button, int x, int y)
 	switch (button)
 	{
 		case BUTTON2_HOLD: case BUTTON2_HOLD_CTRL:
-		case BUTTON3_HOLD: case BUTTON3_HOLD_CTRL:
 			break;
 		default:
 			if (instrumentSafe(s->instrument, w->instrument) && w->showfilebrowser
@@ -137,14 +136,8 @@ static void instrumentMouse(enum Button button, int x, int y)
 				browserMouse(fbstate, button, x, y);
 			else if (cc.mouseadjust || (instrumentSafe(s->instrument, w->instrument)
 						&& y > TRACK_ROW-2 && x >= INSTRUMENT_INDEX_COLS))
-			{
-				switch (button)
-				{
-					case WHEEL_UP: case WHEEL_UP_CTRL:     instrumentPgUp((void*)1); break;
-					case WHEEL_DOWN: case WHEEL_DOWN_CTRL: instrumentPgDn((void*)1); break;
-					default: mouseControls(button, x, y); break;
-				}
-			} else
+				mouseControls(button, x, y);
+			else
 			{
 				switch (button)
 				{
@@ -186,7 +179,8 @@ static void instrumentMouse(enum Button button, int x, int y)
 						previewNote(NOTE_OFF, INST_VOID, 0);
 						break;
 				}
-			} p->redraw = 1; break;
+			}
+			p->redraw = 1; break;
 	}
 }
 

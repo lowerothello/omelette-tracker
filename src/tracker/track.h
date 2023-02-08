@@ -130,7 +130,6 @@ void _delTrack(struct _Song *cs, Track *cv);
 void delTrack(uint8_t index, uint16_t count);
 void copyTrack(Track *dest, Track *src); /* NOT atomic */
 Row *getTrackRow(Track *cv, uint16_t index);
-bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r);
 void regenBpmCache(struct _Song *cs);
 void regenGlobalRowc(struct _Song *cs);
 void cycleVariantUp(Variant *v, uint16_t bound);

@@ -11,7 +11,7 @@ void midiCC(jack_nframes_t fptr, uint8_t miditrack, uint8_t controller, uint8_t 
 bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst);
 void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst);
 
-void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row r);
+void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r);
 void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf);
 
 void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv);

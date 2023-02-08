@@ -1,17 +1,14 @@
 #define RULER_WIDTH 19
 
 /* globals instead of static to the mouse function so they can be checked against in the draw code */
-int staging_octave = 0;
-int staging_step = 0;
+int staging_octave = 0; bool reset_octave = 0;
+int staging_step = 0; bool reset_step = 0;
 int staging_play = 0;
-
-#define STAGING_FORMAT "\033[7m"
 
 static void drawRuler(void)
 {
 	/* top ruler */
 	printf("\033[1m\033[0;%ldH%s\033[m", (ws.ws_col - strlen(PROGRAM_TITLE))>>1, PROGRAM_TITLE);
-		printf("%s, v$%04X\n", PROGRAM_TITLE, version);
 	printf("\033[1m\033[0;%dHv$%04x  %d\033[m", ws.ws_col - 15, version, DEBUG);
 
 	int previewtracks = PREVIEW_TRACKS;
@@ -58,10 +55,14 @@ static void drawRuler(void)
 		else           printf(" ");
 		printf("\033[m ");
 
-		if (staging_octave) printf(STAGING_FORMAT);
+		if (reset_octave) printf(RESET_FORMAT);
+		else if (staging_octave) printf(STAGING_FORMAT);
 		printf("&%d\033[m ", w->octave);
-		if (staging_step) printf(STAGING_FORMAT);
+
+		if (reset_step) printf(RESET_FORMAT);
+		else if (staging_step) printf(STAGING_FORMAT);
 		printf("+%x\033[m  ", w->step);
+
 		printf("\033[1m%3dBPM\033[m", s->songbpm);
 	}
 }
@@ -83,6 +84,8 @@ int rulerMouse(enum Button button, int x, int y)
 		case BUTTON2:
 			if (y < ws.ws_row) return 0;
 			if (x >= ws.ws_col - RULER_WIDTH && x <= ws.ws_col - RULER_WIDTH + 5) staging_play = 2;
+			if (x >= ws.ws_col - RULER_WIDTH + 7 && x <= ws.ws_col - RULER_WIDTH + 8) reset_octave = 1;
+			if (x >= ws.ws_col - RULER_WIDTH + 10 && x <= ws.ws_col - RULER_WIDTH + 11) reset_step = 1;
 			p->redraw = 1;
 			return 1;
 
@@ -103,8 +106,31 @@ int rulerMouse(enum Button button, int x, int y)
 				case 3: stopPlayback(); staging_play = 0; break;
 			}
 
-			if (staging_octave) { addOctave(staging_octave); staging_octave = 0; }
-			if (staging_step) { addStep(staging_step); staging_step = 0; }
+			if (reset_octave)
+			{
+				w->octave = DEF_OCTAVE;
+				reset_octave = 0;
+				p->redraw = 1;
+			}
+			if (staging_octave)
+			{
+				addOctave(staging_octave);
+				staging_octave = 0;
+				p->redraw = 1;
+			}
+
+			if (reset_step)
+			{
+				w->step = DEF_STEP;
+				reset_step = 0;
+				p->redraw = 1;
+			}
+			if (staging_step)
+			{
+				addStep(staging_step);
+				staging_step = 0;
+				p->redraw = 1;
+			}
 			/* fall through */
 		default:
 			return 0;

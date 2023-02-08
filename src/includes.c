@@ -67,8 +67,8 @@ enum _Mode {
 #include "filebrowser.h"
 #include "pluginbrowser.h"
 
-#include "macros.h"
 #include "process.h"
+#include "macros/macros.h"
 
 #include "input.h"
 
@@ -93,7 +93,7 @@ typedef struct {
 } portbuffers;
 portbuffers pb;
 
-#include "macros.c"
+#include "macros/macros.c"
 #include "process.c"
 
 #include "redraw.c"

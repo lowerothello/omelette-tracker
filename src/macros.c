@@ -1,16 +1,16 @@
 /* process macro .m if it's present in the row */
 bool ifMacro(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m)
 {
-	return ifMacroCallback(fptr, spr, cv, r, m, MACRO_CALLBACK(m));
+	return ifMacroCallback(fptr, spr, cv, r, m, MACRO_TRIGGERCALLBACK(m));
 }
 
-/* ifMacro(), but run .callback instead of guessing */
-bool ifMacroCallback(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m, bool (*callback)(jack_nframes_t, uint16_t*, int, Track*, Row))
+/* ifMacro(), but run .triggercallback instead of guessing */
+bool ifMacroCallback(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row r, char m, bool (*triggercallback)(jack_nframes_t, uint16_t*, int, Track*, Row))
 {
 	char ret = 0;
 	for (int i = 0; i <= cv->variant->macroc; i++)
 		if (r.macro[i].c == m && MACRO_SET(r.macro[i].c))
-			ret = callback(fptr, spr, r.macro[i].v, cv, r);
+			ret = triggercallback(fptr, spr, r.macro[i].v, cv, r);
 	return ret;
 }
 
@@ -49,7 +49,7 @@ void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(
 			addTooltipBind(MACRO_PRETTYNAME(i), state, swapCase(i), 0, callback, (void*)i);
 }
 
-static bool _macroVibrato(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
+bool macroVibrato(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 {
 	cv->vibrato = m&0xf;
 	if (!cv->vibratosamples) /* reset the phase if starting */
@@ -57,10 +57,6 @@ static bool _macroVibrato(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, 
 	cv->vibratosamples = *spr / (((m>>4) + 1) / 16.0); /* use floats for slower lfo speeds */
 	cv->vibratosamplepointer = MIN(cv->vibratosamplepointer, cv->vibratosamples - 1);
 	return 1;
-}
-bool macroVibrato(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
-{
-	return _macroVibrato(fptr, spr, m, cv, r);
 }
 
 bool macroBpm(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)

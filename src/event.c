@@ -160,7 +160,7 @@ bool processM_SEM(void)
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 					lookback(0, &p->s->spr, p->s->playfy, cv);
-					processRow(0, &p->s->spr, 1, &p->s->track->v[c], *getTrackRow(&p->s->track->v[c], p->s->playfy));
+					processRow(0, &p->s->spr, 1, &p->s->track->v[c], getTrackRow(&p->s->track->v[c], p->s->playfy));
 				}
 
 

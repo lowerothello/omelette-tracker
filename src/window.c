@@ -37,7 +37,9 @@ UI *allocWindow(void)
 	UI *ret = calloc(1, sizeof(UI));
 	if (!ret) return NULL;
 
-	ret->octave = 4;
+	ret->octave = DEF_OCTAVE;
+	ret->step = DEF_STEP;
+
 	ret->defvariantlength = 0x7;
 	ret->trackerfy = STATE_ROWS;
 
@@ -45,7 +47,6 @@ UI *allocWindow(void)
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 		addTrackRuntime(&ret->previewtrack[i]);
 
-	// addTrackData(&ret->trackbuffer, 1);
 	ret->trackbuffer.effect = newEffectChain(NULL, NULL);
 	initTrackData(&ret->trackbuffer, 0);
 	
