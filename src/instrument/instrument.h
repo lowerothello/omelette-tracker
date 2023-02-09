@@ -1,4 +1,4 @@
-typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .tracks) */
+typedef struct { /* alloc(sizeof(Sample) + sizeof(short) * .length * .channels) */
 	uint32_t length;
 	uint8_t  channels;
 	uint32_t rate;    /* rate to play C5 at */

@@ -654,6 +654,7 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 			} break;
 	} regenGlobalRowc(s);
 }
+
 static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
 {
 	if (y <= TRACK_ROW)
@@ -683,6 +684,8 @@ static void trackerMouse(enum Button button, int x, int y)
 
 	short tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS);
 
+	p->redraw = 1;
+
 	switch (button)
 	{
 		case BUTTON2_HOLD: case BUTTON2_HOLD_CTRL:
@@ -705,17 +708,12 @@ static void trackerMouse(enum Button button, int x, int y)
 
 			/* leave mouseadjust mode */
 			if (w->mode == MODE_MOUSEADJUST) w->mode = w->oldmode;
-
-			p->redraw = 1;
 			/* falls through intentionally */
 		default:
 			if (trackerMouseHeader(button, x, y, &tx)) break;
 			switch (w->mode)
 			{
-				case MODE_EFFECT:
-					mouseControls(button, x, y);
-					p->redraw = 1;
-					break;
+				case MODE_EFFECT: mouseControls(button, x, y); break;
 				default:
 					switch (button)
 					{
@@ -809,7 +807,8 @@ static void trackerMouse(enum Button button, int x, int y)
 								}
 								tx += chanw;
 							}
-					} p->redraw = 1; break;
+					}
+					break;
 			}
 	}
 }

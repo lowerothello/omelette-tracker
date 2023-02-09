@@ -5,12 +5,13 @@ Canvas   *waveformdrawcanvas;
 char    **waveformbuffer;
 int       waveformw;
 int       waveformh;
+Sample   *waveformsample;
 
-bool waveformthreadrunning = 0;
+bool waveformthreadreap = 0;
 
-static void *walkWaveformRoutine(Instrument *iv)
+static void *walkWaveformRoutine(void *_)
 {
-	waveformthreadrunning = 1;
+	waveformthreadreap = 1;
 	size_t offset = 0;
 
 	uint32_t drawpointer = 0;
@@ -19,7 +20,7 @@ static void *walkWaveformRoutine(Instrument *iv)
 	uint8_t i;
 	size_t xx;
 	uint32_t l, m;
-	double samplesperpixel = (double)iv->sample->length / (double)waveformw;
+	double samplesperpixel = (double)waveformsample->length / (double)waveformw;
 	float o = (float)waveformh * 0.5f;
 	float sample;
 
@@ -32,20 +33,20 @@ static void *walkWaveformRoutine(Instrument *iv)
 		m = WAVEFORM_BLOCK_SIZE;
 		while (m--)
 		{
-			if (drawpointer > iv->sample->length)
+			if (drawpointer > waveformsample->length)
 				goto walkWaveformRoutineEnd;
 
 			/* switch to left->right rendering if zoomed in far enough */
-			if (waveformw > iv->sample->length)
+			if (waveformw > waveformsample->length)
 				l = drawpointer;
 			else
 				l = (drawpointer%waveformw)*samplesperpixel + drawpointer/waveformw;
 
-			xx = (float)l / (float)iv->sample->length * (float)waveformw;
+			xx = (float)l / (float)waveformsample->length * (float)waveformw;
 
 			sample = 0.0f;
-			for (i = 0; i < iv->sample->channels; i++) /* mix all channels */
-				sample += (iv->sample->data[(offset + l) * iv->sample->channels + i] / (float)iv->sample->channels);
+			for (i = 0; i < waveformsample->channels; i++) /* mix all channels */
+				sample += (waveformsample->data[(offset + l) * waveformsample->channels + i] / (float)waveformsample->channels);
 			sample = (sample*DIVSHRT) * o + o;
 
 			set_pixel(waveformworkcanvas, 1, xx, sample);
@@ -56,18 +57,18 @@ static void *walkWaveformRoutine(Instrument *iv)
 		nanosleep(&req, NULL);
 	}
 walkWaveformRoutineEnd:
-	waveformthreadrunning = 0;
 	p->redraw = 1;
 	return NULL;
 }
 
 static void stopWaveformThread(void)
 {
-	if (waveformthreadrunning)
+	if (waveformthreadreap)
 	{
 		pthread_cancel(waveformthread);
 		pthread_join(waveformthread, NULL);
-		waveformthreadrunning = 0;
+		if (waveformsample) { free(waveformsample); waveformsample = NULL; }
+		waveformthreadreap = 0;
 	}
 }
 
@@ -77,8 +78,14 @@ void resetWaveform(void)
 
 	if (!waveformworkcanvas) return;
 
-	if (instrumentSafe(s->instrument, w->instrument))
-		pthread_create(&waveformthread, NULL, (void*(*)(void*))walkWaveformRoutine, &s->instrument->v[w->instrument]);
+	if (instrumentSafe(s->instrument, w->instrument) && s->instrument->v[s->instrument->i[w->instrument]].sample)
+	{
+		Sample *instsample = s->instrument->v[s->instrument->i[w->instrument]].sample;
+		waveformsample = malloc(sizeof(Sample) + sizeof(short) * instsample->length * instsample->channels);
+		memcpy(waveformsample, instsample, sizeof(Sample) + sizeof(short) * instsample->length * instsample->channels);
+		pthread_create(&waveformthread, NULL, (void*(*)(void*))walkWaveformRoutine, NULL);
+	}
+	p->redraw = 1;
 }
 
 void freeWaveform(void)

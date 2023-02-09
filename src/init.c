@@ -11,8 +11,8 @@ static void common_cleanup(int ret)
 	clearControls();
 	clearTooltip();
 
-	freeFileBrowser(fbstate);
-	freePluginBrowser(pbstate);
+	if (fbstate) freeFileBrowser(fbstate);
+	if (pbstate) freePluginBrowser(pbstate);
 
 	freeLadspaDB();
 	freeLV2DB();

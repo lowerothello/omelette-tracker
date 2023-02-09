@@ -265,8 +265,11 @@ static void drawTrackHeader(uint8_t track, short x, short minx, short maxx)
 
 	if (cv->mute) printf("\033[2m");
 	else          printf("\033[1m");
+
 	if (s->track->v[track].triggerflash) printf("\033[3%dm", track%6 + 1);
+
 	if (track == w->track + w->trackoffset) printf("\033[7m");
+
 	printCulling(headerbuffer, x, TRACK_ROW, minx, maxx);
 
 	printf("\033[m");
