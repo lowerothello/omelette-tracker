@@ -58,7 +58,7 @@ void freeWindow(UI *cw)
 	if (!cw) return;
 
 	clearTrackData(&cw->trackbuffer, 1);
-	_delInstrument(&cw->instrumentbuffer);
+	delInstrumentForce(&cw->instrumentbuffer);
 	freeEffect(&cw->effectbuffer);
 
 	if (cw->recbuffer) free(cw->recbuffer);

@@ -12,18 +12,8 @@
 
 struct _Song;
 struct _UI;
-typedef struct {
-	struct _Song  *s;
-	struct _UI    *w;
-	struct { jack_port_t *l, *r; } in, out;
-	jack_port_t   *midiout;
-	bool           redraw; /* request a screen redraw */
-	bool           resize; /* request a screen resize */
-	Event          event[EVENT_QUEUE_MAX];
-	uint8_t        eventc; /* the event index pushEvent() should populate */
-	uint8_t        xeventthreadsem; /* semaphore for the xevent thread, TODO: merge with the event system */
-} PlaybackInfo;
-PlaybackInfo *p;
+
+#include "playbackinfo.h"
 
 enum WAVE_SHAPE {
 	SHAPE_PULSE,
@@ -40,9 +30,13 @@ enum WAVE_SHAPE {
 #include "modulation/envelope.c"
 #include "modulation/lfo.c"
 
-#include "effect/effect.h"         /* audio effects (LADSPA, LV2) */
-#include "tracker/tracker.h"       /* tracker page code */
-#include "instrument/instrument.h" /* instrument page code */
+#include <omelette/effect.h>     /* audio effects (LADSPA, LV2) */
+#include "effect/draw.h"         /* audio effects (LADSPA, LV2) */
+#include "tracker/tracker.h"     /* tracker page */
+#include <omelette/instrument.h> /* instrument page */
+#include "instrument/input.h"
+#include "instrument/waveform.h"
+#include "instrument/draw.h"
 
 /* TODO: should be in a header */
 enum _Mode {
@@ -58,7 +52,7 @@ enum _Mode {
 
 #include "command.h"
 
-#include "song.h"
+#include <omelette/song.h>
 #include "window.h"
 
 #include "file/file.h"
@@ -81,7 +75,10 @@ enum _Mode {
 
 #include "tracker/tracker.c"
 #include "effect/effect.c"
+#include "effect/draw.c"
 #include "instrument/instrument.c"
+#include "instrument/input.c"
+#include "instrument/draw.c"
 
 #include "filebrowser.c"
 #include "pluginbrowser.c"

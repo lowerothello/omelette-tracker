@@ -168,7 +168,7 @@ bool processM_SEM(void)
 				if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START)
 					p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT;
 
-				p->s->playing = PLAYING_START;
+				p->s->playing = 1;
 				p->redraw = 1;
 				p->event[0].sem = M_SEM_DONE;
 				break;
@@ -190,7 +190,7 @@ bool processM_SEM(void)
 					p->s->loop[2] = 0;
 				}
 
-				p->s->playing = PLAYING_STOP;
+				p->s->playing = 0;
 				p->redraw = 1;
 				p->event[0].sem = M_SEM_DONE;
 				break;

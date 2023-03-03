@@ -25,7 +25,8 @@ void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(
 #include "granular.c"
 
 /* there can be up to 6 of these (colours 1-6 (no black/white)) */
-enum MacroColour {
+enum MacroColour
+{
 	MC_LOCAL,
 	MC_GAIN,
 	MC_FILTER,
@@ -34,7 +35,8 @@ enum MacroColour {
 	MC_SEQUENCER,
 };
 
-enum MacroType {
+enum MacroType
+{
 	MT_LOCAL,
 };
 void handleMacroType(enum MacroType type, jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r);
@@ -44,7 +46,8 @@ void handleMacroType(enum MacroType type, jack_nframes_t fptr, uint16_t *spr, Tr
 #define MF_RAMP        (1<<1) /* calls to this macro cause clicks, ramping needed */
 #define MF_SEQUENCED   (1<<2) /* macro only applies to tracks with an inst/note pair */
 
-typedef struct {
+typedef struct MacroDef
+{
 	bool             set; /* set high if this index is significant */
 	const char      *prettyname;
 	enum MacroColour colour;

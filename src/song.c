@@ -65,7 +65,7 @@ void freeSong(Song *cs)
 	free(cs->track);
 
 	for (int i = 0; i < cs->instrument->c; i++)
-		_delInstrument(&cs->instrument->v[i]);
+		delInstrumentForce(&cs->instrument->v[i]);
 	free(cs->instrument);
 
 	if (cs->bpmcache) free(cs->bpmcache);

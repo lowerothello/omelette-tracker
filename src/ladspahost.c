@@ -19,7 +19,7 @@
 #include <jack/jack.h>   /* audio i/o        */
 #include <jack/thread.h> /* threading helper */
 #include <ladspa.h>      /* LADSPA plugins   */
-#include <X11/Xlib.h> /* keysym defs */
+#include <X11/Xlib.h>    /* keysym defs      */
 #include <X11/keysym.h>
 
 /* omelette libs */
@@ -31,11 +31,13 @@ jack_nframes_t samplerate, buffersize;
 #include "draw_helpers.c"
 #include "button.h"
 #include "tooltip.h"
-#include "tracker/variant.h" /* for NOTE_MAX */
+#include <omelette/variant.h> /* for NOTE_MAX */
 #include "tooltip.c"
 #include "control.h"
-#include "effect/autogenui.c"
-#include "effect/ladspa.h"
+#define OMELETTE_EFFECT_NO_STRUCTS
+#include "effect/draw.h"
+#include "effect/draw.c"
+#include <omelette/ladspa.h>
 #include "effect/ladspa.c"
 
 typedef struct {

@@ -237,3 +237,8 @@ int getTrackVariantNoLoop(Variant **output, VariantChain *vc, uint16_t index)
 		return index - i;
 	} return -1; /* fallback */
 }
+
+Row *getVariantRow(Variant *v, uint16_t row)
+{
+	return &v->rowv[row%(v->rowc+1)];
+}

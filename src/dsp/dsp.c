@@ -13,12 +13,15 @@
 #define DIV255  0.00392156862745098
 #define DIV15   0.06666666666666667
 #define DIV1000 0.001f
-const double DIVSHRT = 1.0 / SHRT_MAX;
-const double DIVCHAR = 1.0 / SCHAR_MAX;
+const double DIVSHRT = 1.0 / SHRT_MAX;  /* TODO: should be a define */
+const double DIVCHAR = 1.0 / SCHAR_MAX; /* TODO: should be a define */
 
 #define M_12_ROOT_2 1.0594630943592953
 
-float hardclip(float input) { return MIN(1.0f, MAX(-1.0f, input)); }
+float hardclip(float input)
+{
+	return MIN(1.0f, MAX(-1.0f, input));
+}
 
 /* state variable filter */
 #define MAX_RESONANCE 0.005f /* how far off of infinite resonance to allow */
@@ -34,4 +37,6 @@ void runSVFilter(SVFilter *s, float input, float cutoff, float q)
 }
 
 float triosc(float phase)
-{ return (fabsf(fmodf(phase + 0.75f, 1.0f) - 0.5f) * 4.0f) - 1.0f; }
+{
+	return (fabsf(fmodf(phase + 0.75f, 1.0f) - 0.5f) * 4.0f) - 1.0f;
+}

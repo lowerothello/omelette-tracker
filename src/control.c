@@ -531,32 +531,44 @@ void mouseControls(int button, int x, int y)
 			}
 			if (cc.mouseadjust)
 			{
-				if      (cc.mouseclickwalk > 0) incControlValue();
-				else if (cc.mouseclickwalk < 0) decControlValue();
-				cc.mouseadjust = 0;
-				cc.fieldpointer = 0;
 				c = &cc.control[cc.cursor];
+				cc.mouseadjust = 0;
 
-				if (!c->value) break;
-				if (!c->nibbles)
-				{
-					(*(bool *)c->value) = !(*(bool *)c->value);
-					if (c->callback) c->callback(c->callbackarg);
-				} else if (c->nibbles == CONTROL_NIBBLES_TOGGLED)
-				{
-					if (*(float *)c->value > 0.0f) (*(float *)c->value) = 0.0f;
-					else                           (*(float *)c->value) = 1.0f;
-					if (c->callback) c->callback(c->callbackarg);
-				}
-			} break;
+				if (c->value)
+					switch (c->nibbles)
+					{
+						case CONTROL_NIBBLES_BOOL:
+							(*(bool *)c->value) = !(*(bool *)c->value);
+							if (c->callback) c->callback(c->callbackarg);
+							break;
+						case CONTROL_NIBBLES_TOGGLED:
+							if (*(float *)c->value > 0.0f) (*(float *)c->value) = 0.0f;
+							else                           (*(float *)c->value) = 1.0f;
+							if (c->callback) c->callback(c->callbackarg);
+							break;
+						default:
+							if      (cc.mouseclickwalk > 0) incControlValue();
+							else if (cc.mouseclickwalk < 0) decControlValue();
+							break;
+					}
+			}
+			cc.fieldpointer = 0;
+			break;
 		case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL: /* fall through */
 		case BUTTON3_HOLD: case BUTTON3_HOLD_CTRL:
 			if (cc.mouseadjust)
 			{
 				cc.mouseclickwalk = 0;
-				if      (x > cc.prevmousex) incControlValue();
-				else if (x < cc.prevmousex) decControlValue();
-				cc.prevmousex = x;
+				switch (cc.control[cc.cursor].nibbles)
+				{
+					case CONTROL_NIBBLES_BOOL: /* fall through */
+					case CONTROL_NIBBLES_TOGGLED: break;
+					default:
+						if      (x > cc.prevmousex) incControlValue();
+						else if (x < cc.prevmousex) decControlValue();
+						cc.prevmousex = x;
+						break;
+				}
 			} break;
 		case BUTTON1: case BUTTON1_CTRL: /* fall through */
 		case BUTTON3: case BUTTON3_CTRL: /* fall through */

@@ -6,7 +6,7 @@ typedef struct {
 	/* flags */
 	bool mute;
 	bool reverse;
-	bool release; /* DEPRECATED */
+	bool release;
 	bool rtrig_rev;
 
 	VariantChain *variant;
@@ -18,8 +18,8 @@ typedef struct {
 
 	/* gain */
 	struct {
-		uint8_t base; /* unsigned nibble per track */
-		uint8_t rand; /* base override for the altGxy macro */
+		uint8_t base;        /* unsigned nibble per track */
+		uint8_t rand;        /* base override for the altGxy macro */
 		short   target;      /* smoothing target, committed to both rand and base */
 		bool    target_rand; /* target should be commited to rand but NOT to base */
 	} gain;
@@ -88,8 +88,8 @@ typedef struct {
 	} filter;
 
 	/* ramping */
-	uint16_t rampindex;        /* progress through the ramp buffer, rampmax if not ramping */
-	float   *rampbuffer;       /* samples to ramp out */
+	uint16_t rampindex;  /* progress through the ramp buffer, rampmax if not ramping */
+	float   *rampbuffer; /* samples to ramp out */
 
 	/* sampler */
 	float envgain;

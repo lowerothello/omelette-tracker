@@ -1,6 +1,6 @@
 #include "waveform.c"
 
-void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
+static void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 {
 	if (dest->sample)
 	{ free(dest->sample); dest->sample = NULL; }
@@ -14,7 +14,7 @@ void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 	}
 }
 
-InstrumentChain *_copyInstrument(uint8_t index, Instrument *src)
+static InstrumentChain *_copyInstrument(uint8_t index, Instrument *src)
 {
 	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c+1) * sizeof(Instrument));
 	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain) + s->instrument->c * sizeof(Instrument));
@@ -31,7 +31,7 @@ InstrumentChain *_copyInstrument(uint8_t index, Instrument *src)
 static void cb_copyInstrument(Event *e)
 {
 	if (instrumentSafe(e->src, (size_t)e->callbackarg))
-		_delInstrument(&((InstrumentChain*)e->src)->v[(size_t)e->callbackarg]);
+		delInstrumentForce(&((InstrumentChain*)e->src)->v[(size_t)e->callbackarg]);
 
 	free(e->src); e->src = NULL;
 
@@ -52,7 +52,7 @@ int copyInstrument(uint8_t index, Instrument *src)
 }
 
 /* frees the contents of an instrument */
-void _delInstrument(Instrument *iv)
+void delInstrumentForce(Instrument *iv)
 {
 	freeWaveform();
 	if (iv->sample) free(iv->sample);
@@ -205,7 +205,7 @@ void putInstrument(size_t index)
 
 static void cb_delInstrument(Event *e)
 {
-	_delInstrument(&((InstrumentChain *)e->src)->v[(size_t)e->callbackarg]);
+	delInstrumentForce(&((InstrumentChain *)e->src)->v[(size_t)e->callbackarg]);
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
 }
@@ -498,6 +498,3 @@ void instrumentControlCallback(void)
 {
 	p->redraw = 1;
 }
-
-#include "input.c" /* void initInstrumentInput(TooltipState*) */
-#include "draw.c"
