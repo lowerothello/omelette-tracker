@@ -26,7 +26,7 @@ void wordSplit(char *output, char *line, int wordt)
 }
 
 void setCommand(Command *command,
-		bool (*callback)(char*, enum _Mode*),
+		bool (*callback)(char*, enum Mode*),
 		void (*keycallback)(char*),
 		void (*tabcallback)(char*),
 		char historyenabled,
@@ -46,7 +46,7 @@ void setCommand(Command *command,
 	command->commandptr = strlen(startvalue);
 }
 
-void drawCommand(Command *command, enum _Mode mode)
+void drawCommand(Command *command, enum Mode mode)
 {
 	if (mode == MODE_COMMAND) /* command mode */
 	{

@@ -560,26 +560,38 @@ static void pushInst(void *arg)
 	if (r && w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
 	regenGlobalRowc(s); p->redraw = 1;
 }
+
+static void _pushMacrov(Row *r, char nibble)
+{
+	short macro = (w->trackerfx - 2)>>1;
+	r->macro[macro].v <<= 4;
+	r->macro[macro].t <<= 4;
+	switch (nibble)
+	{
+		/* TODO: check validity before pushing tokens */
+		/* TODO: enum or smth for these constants     */
+		case '~': r->macro[macro].t += 1; break;
+		case '+': r->macro[macro].t += 2; break;
+		case '-': r->macro[macro].t += 3; break;
+		case '%': r->macro[macro].t += 4; break;
+
+		default: r->macro[macro].v += nibble; break;
+	}
+}
 static void pushMacrov(void *arg)
 {
-	Row *r;
-	short i;
-	short macro = (w->trackerfx - 2)>>1;
 	switch (w->mode)
 	{
 		case MODE_VISUALREPLACE:
-			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-			{
-				r = getTrackRow(&s->track->v[w->track], i);
-				r->macro[macro].v <<= 4;
-				r->macro[macro].v += (size_t)arg;
-			} break;
-		default:
-			r = getTrackRow(&s->track->v[w->track], w->trackerfy);
-			r->macro[macro].v <<= 4;
-			r->macro[macro].v += (size_t)arg;
+			for (short i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+				_pushMacrov(getTrackRow(&s->track->v[w->track], i), (size_t)arg);
 			break;
-	} regenGlobalRowc(s); p->redraw = 1;
+		default:
+			_pushMacrov(getTrackRow(&s->track->v[w->track], w->trackerfy), (size_t)arg);
+			break;
+	}
+	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 static void pushMacroc(void *arg)
 {
@@ -967,7 +979,6 @@ void initTrackerInput(void)
 					addTooltipBind("stop cell", 0, XK_space, 0, setVtrig, (void*)VARIANT_OFF);
 					break;
 				case 0: /* note */
-					addTooltipBind("toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
 					addNotePressBinds("push cell", 0, w->octave, (void(*)(void*))pressNote);
 					addNoteReleaseBinds("release preview", 0, w->octave, (void(*)(void*))releaseNote);
 					addDecimalBinds("set octave", 0, (void(*)(void*))setNoteOctave);
@@ -977,10 +988,16 @@ void initTrackerInput(void)
 					addTooltipBind("impose state on cell", 0, XK_space, 0, (void(*)(void*))imposeInst, NULL);
 					break;
 				default: /* macro */
-					addTooltipBind("toggle cell case", 0, XK_asciitilde, 0, toggleCellCase, (void*)0);
-					if (!(w->trackerfx&1)) /* macroc */ addMacroBinds("push cell", 0, pushMacroc);
-					else                   /* macrov */ addHexBinds  ("push cell", 0, pushMacrov);
-					break;
+					if (!(w->trackerfx&1)) /* macroc */
+						addMacroBinds("push cell", 0, pushMacroc);
+					else                   /* macrov */
+					{
+						addHexBinds("push cell", 0, pushMacrov);
+						addTooltipBind("push lfo token", 0, XK_asciitilde, 0, pushMacrov, (void*)'~');
+						addTooltipBind("push inc token", 0, XK_plus      , 0, pushMacrov, (void*)'+');
+						addTooltipBind("push dec token", 0, XK_minus     , 0, pushMacrov, (void*)'-');
+						addTooltipBind("push rng token", 0, XK_percent   , 0, pushMacrov, (void*)'%');
+					} break;
 			} break;
 		case MODE_VISUAL:
 		case MODE_VISUALLINE:

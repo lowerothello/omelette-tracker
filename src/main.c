@@ -56,7 +56,6 @@ struct winsize ws;
 /* yes, there's a whole ass file just for includes */
 #include "includes.c"
 
-
 void filebrowserEditCallback(char *path)
 {
 	if (path)
@@ -77,7 +76,7 @@ void filebrowserEditCallback(char *path)
 	free(buffer);
 } */
 
-static bool commandCallback(char *command, enum _Mode *mode)
+static bool commandCallback(char *command, enum Mode *mode)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);

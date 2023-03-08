@@ -51,11 +51,11 @@
 // 	} */
 // }
 
-void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
 	float hold;
 	float calcrate = (float)iv->sample->rate / (float)samplerate;
-	float calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + cv->finetune);
+	float calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + finetune);
 
 	// uint16_t env = iv->envelope; if (cv->localenvelope != -1) env = cv->localenvelope;
 	/* mod envelope */
@@ -110,8 +110,14 @@ void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uin
 
 	/* wavetable pos */
 	uint32_t pointersnap = iv->trimstart + MIN((iv->sample->length - iv->trimstart) / framelen - 1, MAX(0, (short)iv->wavetable.wtpos + (short)((cv->modenvgain * iv->wavetable.env.wtpos + lfogain * iv->wavetable.lfo.wtpos) * 2.0f))) * framelen;
-	uint8_t localsamplerate = iv->samplerate; if (cv->localsamplerate != -1) localsamplerate = cv->localsamplerate;
-	if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
+
+	float f;
+	uint8_t localsamplerate;
+	f = macroStateGetMono(&cv->samplerate, rp);
+	if (f != NAN)
+		localsamplerate = f*256;
+	else
+		localsamplerate = iv->samplerate;
 
 	if (iv->sample->channels == 1)
 	{

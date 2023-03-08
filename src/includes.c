@@ -15,7 +15,7 @@ struct _UI;
 
 #include "playbackinfo.h"
 
-enum WAVE_SHAPE {
+enum WaveShape {
 	SHAPE_PULSE,
 	SHAPE_LINEAR,
 	SHAPE_SINE,
@@ -39,7 +39,7 @@ enum WAVE_SHAPE {
 #include "instrument/draw.h"
 
 /* TODO: should be in a header */
-enum _Mode {
+enum Mode {
 	MODE_NORMAL,
 	MODE_INSERT,
 	MODE_EFFECT,

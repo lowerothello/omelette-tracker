@@ -406,12 +406,26 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							}
 
 							snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
+							switch (r->macro[j].t>>4)
+							{
+								case 1: buffer[2] = '~'; break;
+								case 2: buffer[2] = '+'; break;
+								case 3: buffer[2] = '-'; break;
+								case 4: buffer[2] = '%'; break;
+							}
+							switch (r->macro[j].t&15)
+							{
+								case 1: buffer[3] = '~'; break;
+								case 2: buffer[3] = '+'; break;
+								case 3: buffer[3] = '-'; break;
+								case 4: buffer[3] = '%'; break;
+							}
+
 							if (cv->mute)
 								printCulling(buffer, x, y, minx, maxx);
 							else
 							{
-								/* TODO: macro colour groups */
-								printf("\033[35m");
+								printf("\033[3%dm", MACRO_COLOUR(r->macro[j].c) + 1);
 								printCulling(buffer, x, y, minx, maxx);
 							}
 
@@ -476,7 +490,6 @@ void drawTracker(void)
 	short macro;
 
 	short sfx;
-	Row *r;
 
 	sfx = genSfx(TRACK_LINENO_COLS);
 	x = 1 + TRACK_LINENO_COLS + 2 + sfx;
@@ -510,14 +523,6 @@ void drawTracker(void)
 		case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
 		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
 		case MODE_INSERT:
-			if (w->trackerfx > 1)
-			{
-				r = getTrackRow(&s->track->v[w->track], w->trackerfy);
-				macro = (w->trackerfx - 2)>>1;
-				if (MACRO_PRETTYNAME(r->macro[macro].c))
-					printf("\033[%d;%ldH%s", ws.ws_row, (ws.ws_col - strlen(MACRO_PRETTYNAME(r->macro[macro].c))) / 2, MACRO_PRETTYNAME(r->macro[macro].c));
-			}
-
 			printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
 			printf("\033[6 q");
 			w->command.error[0] = '\0'; break;

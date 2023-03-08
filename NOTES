@@ -1,6 +1,5 @@
 - Ixy isn't always smoothed properly over trigs, should be fixed by Gxx-like slew
 
-- step should apply for push fields after 2 chars have been pushed
 - yy should respect the vtrig column
 
 lookback
@@ -12,3 +11,7 @@ lookback
 
 - lv2 atom ports
 - lv2 scale points
+
+- i don't like how hardcoded the send is
+	- arbitrary buses?
+	- no other ideas lol

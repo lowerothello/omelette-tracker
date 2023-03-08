@@ -7,26 +7,24 @@ void clearTrackRuntime(Track *cv)
 	cv->rtrigsamples = 0;
 	cv->rtrig_rev = 0;
 
-	cv->gain.base = 0x88;
-	cv->gain.rand = 0x88;
+	cv->gain.base = cv->gain.rand = 0x88;
 	cv->gain.target = -1;
 	cv->gain.target_rand = 0;
 
-	cv->send.base = 0x00;
-	cv->send.rand = 0x00;
+	cv->send.base = cv->send.rand = 0x00;
 	cv->send.target = -1;
 	cv->send.target_rand = 0;
 
 	cv->filter.mode[0] = cv->filter.mode[1] = 0;
 	cv->filter.targetmode[0] = cv->filter.targetmode[1] = -1;
-	cv->filter.cut[0] = cv->filter.cut[1] = 0xff;
-	cv->filter.randcut[0] = cv->filter.randcut[1] = 0xff;
-	cv->filter.targetcut[0] = cv->filter.targetcut[1] = -1;
-	cv->filter.targetcut_rand = 0;
-	cv->filter.res[0] = cv->filter.res[1] = 0;
-	cv->filter.randres[0] = cv->filter.randres[1] = 0;
-	cv->filter.targetres[0] = cv->filter.targetres[1] = -1;
-	cv->filter.targetres_rand = 0;
+
+	cv->filter.cut.base = cv->filter.cut.rand = 0xff;
+	cv->filter.cut.target = -1;
+	cv->filter.cut.target_rand = 0;
+
+	cv->filter.res.base = cv->filter.res.rand = 0x00;
+	cv->filter.res.target = -1;
+	cv->filter.res.target_rand = 0;
 
 	cv->midiccindex = -1; cv->midicc = 0;
 }
@@ -250,10 +248,9 @@ Row *getTrackRow(Track *cv, uint16_t index)
 		return getVariantRow(cv->variant->main, index);
 }
 
-static bool checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 { /* use fptr as the songlen index, and *spr as a pointer to the new bpm cache */
 	((short *)spr)[fptr] = m;
-	return 0;
 }
 static void cb_regenBpmCache(Event *e)
 { /* using cb_addTrack for this causes a loop */
@@ -270,7 +267,7 @@ void regenBpmCache(Song *cs)
 
 	for (uint16_t i = 0; i < cs->songlen; i++)
 		for (uint8_t j = 0; j < cs->track->c; j++)
-			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], getTrackRow(&cs->track->v[j], i), 'B', &checkBpmCache);
+			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], getTrackRow(&cs->track->v[j], i), 'B', checkBpmCache);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;

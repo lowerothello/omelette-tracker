@@ -1,15 +1,30 @@
-void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
 	uint32_t length = MIN(iv->trimlength, iv->sample->length-1 - iv->trimstart);
 	uint32_t loop   = MIN(iv->looplength, length);
 	uint16_t localcyclelength = iv->granular.cyclelength; if (cv->localcyclelength != -1) localcyclelength = cv->localcyclelength;
-	int16_t  localpitchshift =  iv->granular.pitchshift;  if (cv->localpitchshift  != -1) localpitchshift  = (cv->localpitchshift - 0x80)<<8;
-	int16_t  localpitchwidth =  iv->granular.pitchstereo; if (cv->localpitchwidth  != -1) localpitchwidth  = cv->localpitchwidth - 0x80;
-	if (cv->targetlocalpitchshift != -1) localpitchshift += (((cv->targetlocalpitchshift - 0x80)<<8) - localpitchshift) * rp;
-	if (cv->targetlocalpitchwidth != -1) localpitchwidth +=  ((cv->targetlocalpitchwidth - 0x80)     - localpitchwidth) * rp;
 
-	uint8_t localsamplerate = iv->samplerate; if (cv->localsamplerate != -1) localsamplerate = cv->localsamplerate;
-	if (cv->targetlocalsamplerate != -1) localsamplerate += (cv->targetlocalsamplerate - localsamplerate) * rp;
+	float f;
+	uint16_t localpitchshift;
+	f = macroStateGetMono(&cv->pitchshift, rp);
+	if (f != NAN)
+		localpitchshift = (f - 0.5f) * (127<<9);
+	else
+		localpitchshift = iv->granular.pitchshift;
+
+	uint16_t localpitchwidth;
+	f = macroStateGetMono(&cv->pitchwidth, rp);
+	if (f != NAN)
+		localpitchwidth = (f - 0.5f) * (127<<1);
+	else
+		localpitchwidth = iv->granular.pitchstereo;
+
+	uint8_t localsamplerate;
+	f = macroStateGetMono(&cv->samplerate, rp);
+	if (f != NAN)
+		localsamplerate = f*256;
+	else
+		localsamplerate = iv->samplerate;
 
 	uint16_t cyclelength = MAX(1, samplerate*DIV1000 * TIMESTRETCH_CYCLE_UNIT_MS * MAX(1, localcyclelength));
 	uint32_t pointersnap = pointer % cyclelength;
@@ -33,7 +48,7 @@ void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32
 	double calcshiftstereor = powf(2.0f, (float)(+localpitchwidth)*DIV1024);
 	double calcshift = semitoneShortToMultiplier(localpitchshift) / semitoneShortToMultiplier(iv->granular.timestretch);
 	double calcrate = (float)iv->sample->rate / (float)samplerate * semitoneShortToMultiplier(iv->granular.timestretch);
-	double calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + cv->finetune);
+	double calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + finetune);
 	if (iv->granular.notestretch)
 	{ /* note stretch */
 		if (iv->granular.reversegrains)

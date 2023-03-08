@@ -1,100 +1,116 @@
-/* TODO: temp name */
-#define AA(TYPE, I) \
-	if (cv->filter.target##TYPE[I] != -1) \
+#define MACRO_FILTER             'F'
+#define MACRO_SMOOTH_FILTER      'f'
+#define MACRO_RESONANCE          'Z'
+#define MACRO_SMOOTH_RESONANCE   'z'
+#define MACRO_FILTER_MODE        'M'
+#define MACRO_SMOOTH_FILTER_MODE 'm'
+
+void macroFilterPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+{
+	macroStateApply(&cv->filter.cut);
+	macroStateApply(&cv->filter.res);
+
+	FOR_ROW_MACROS(i, cv)
+		switch (r->macro[i].c)
+		{
+			case MACRO_FILTER:           macroStateSet   (&cv->filter.cut, r->macro[i]); break;
+			case MACRO_SMOOTH_FILTER:    macroStateSmooth(&cv->filter.cut, r->macro[i]); break;
+			case MACRO_RESONANCE:        macroStateSet   (&cv->filter.res, r->macro[i]); break;
+			case MACRO_SMOOTH_RESONANCE: macroStateSmooth(&cv->filter.res, r->macro[i]); break;
+			case MACRO_FILTER_MODE:
+				cv->filter.mode[0] = (r->macro[i].v&0x70)>>4; /* ignore the '8' bit */
+				cv->filter.mode[1] =  r->macro[i].v&0x07;     /* ignore the '8' bit */
+				break;
+			case MACRO_SMOOTH_FILTER_MODE:
+				if (cv->filter.targetmode[0] != -1) { cv->filter.mode[0] = cv->filter.targetmode[0]; cv->filter.targetmode[0] = -1; }
+				if (cv->filter.targetmode[1] != -1) { cv->filter.mode[1] = cv->filter.targetmode[1]; cv->filter.targetmode[1] = -1; }
+				cv->filter.targetmode[0] = (r->macro[i].v&0x70)>>4; /* ignore the '8' bit */
+				cv->filter.targetmode[1] =  r->macro[i].v&0x07;     /* ignore the '8' bit */
+				break;
+		}
+}
+
+void macroFilterPostSampler(jack_nframes_t fptr, Track *cv, float rp, float *lf, float *rf)
+{
+	float cutoff_l = 0.0f, cutoff_r = 0.0f;
+	float resonance_l = 0.0f, resonance_r = 0.0f;
+	macroStateGetStereo(&cv->filter.cut, rp, &cutoff_l, &cutoff_r);
+	macroStateGetStereo(&cv->filter.res, rp, &resonance_l, &resonance_r);
+
+/* #define RUN_FILTER(CHANNEL, MODE, PASS) \
+	runSVFilter(&cv->filter.f##CHANNEL[0], *CHANNEL##f, cutoff_##CHANNEL, resonance_##CHANNEL); \
+	switch (cv->filter.mode[MODE]&0x3) \
 	{ \
-		if (cv->filter.target##TYPE##_rand) cv->filter.rand##TYPE[I] = cv->filter.target##TYPE[I]; \
-		else                                cv->filter.TYPE[I] = cv->filter.rand##TYPE[I] = cv->filter.target##TYPE[I]; \
-		cv->filter.target##TYPE[I] = -1; \
+		case 0: if (cutoff_##CHANNEL < 1.0f) *CHANNEL##f = cv->filter.f##CHANNEL[PASS].CHANNEL; break; \
+	} */
+
+	/* first pass (12dB/oct) */
+	runSVFilter(&cv->filter.fl[0], *lf, cutoff_l, resonance_l);
+	runSVFilter(&cv->filter.fr[0], *rf, cutoff_r, resonance_r);
+	switch (cv->filter.mode[0]&0x3)
+	{
+		case 0: /* low-pass  */ if (cutoff_l < 1.0f) *lf = cv->filter.fl[0].l; break;
+		case 1: /* high-pass */ if (cutoff_l > 0.0f) *lf = cv->filter.fl[0].h; break;
+		case 2: /* band-pass */ *lf = cv->filter.fl[0].b; break;
+		case 3: /* notch     */ *lf = cv->filter.fl[0].n; break;
 	}
+	if (cv->filter.targetmode[0] != -1)
+		switch (cv->filter.targetmode[0]&0x3)
+		{
+			case 0: /* low-pass  */ if (cutoff_l < 1.0f) *lf += (cv->filter.fl[0].l - *lf) * rp; break;
+			case 1: /* high-pass */ if (cutoff_l > 0.0f) *lf += (cv->filter.fl[0].h - *lf) * rp; break;
+			case 2: /* band-pass */ *lf += (cv->filter.fl[0].b - *lf) * rp; break;
+			case 3: /* notch     */ *lf += (cv->filter.fl[0].n - *lf) * rp; break;
+		}
+	switch (cv->filter.mode[1]&0x3)
+	{
+		case 0: /* low-pass  */ if (cutoff_r < 1.0f) *rf = cv->filter.fr[0].l; break;
+		case 1: /* high-pass */ if (cutoff_r > 0.0f) *rf = cv->filter.fr[0].h; break;
+		case 2: /* band-pass */ *rf = cv->filter.fr[0].b; break;
+		case 3: /* notch     */ *rf = cv->filter.fr[0].n; break;
+	}
+	if (cv->filter.targetmode[1] != -1)
+		switch (cv->filter.targetmode[1]&0x3)
+		{
+			case 0: /* low-pass  */ if (cutoff_r < 1.0f) *rf += (cv->filter.fr[0].l - *rf) * rp; break;
+			case 1: /* high-pass */ if (cutoff_r > 0.0f) *rf += (cv->filter.fr[0].h - *rf) * rp; break;
+			case 2: /* band-pass */ *rf += (cv->filter.fr[0].b - *rf) * rp; break;
+			case 3: /* notch     */ *rf += (cv->filter.fr[0].n - *rf) * rp; break;
+		}
 
-bool macroCutoff(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->filter.cut[0] = cv->filter.randcut[0] =  m&0xf0;
-	cv->filter.cut[1] = cv->filter.randcut[1] = (m&0x0f)<<4;
-	return 1;
-}
-bool macroSmoothCutoff(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	AA(cut, 0); AA(cut, 1); cv->filter.targetcut_rand = 0;
-	if (m < 0) return 0;
-
-	cv->filter.targetcut[0] =  m&0xf0;
-	cv->filter.targetcut[1] = (m&0x0f)<<4;
-	return 1;
-}
-bool macroCutoffJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	short stereo = rand()%((m&0xf0)+1);
-	cv->filter.randcut[0] = MAX(0, cv->filter.cut[0] - stereo - rand()%(((m&0x0f)<<4)+1));
-	cv->filter.randcut[1] = MAX(0, cv->filter.cut[1] - stereo - rand()%(((m&0x0f)<<4)+1));
-	return 1;
-}
-bool macroSmoothCutoffJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->filter.targetcut_rand = 1;
-	short stereo = rand()%((m&0xf0)+1);
-	cv->filter.targetcut[0] = MAX(0, cv->filter.cut[0] - stereo - rand()%(((m&0x0f)<<4)+1));
-	cv->filter.targetcut[1] = MAX(0, cv->filter.cut[1] - stereo - rand()%(((m&0x0f)<<4)+1));
-	return 1;
-}
-
-bool macroResonance(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->filter.res[0] = cv->filter.randres[0] =  m&0xf0;
-	cv->filter.res[1] = cv->filter.randres[1] = (m&0x0f)<<4;
-	return 1;
-}
-bool macroSmoothResonance(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	AA(res, 0); AA(res, 1); cv->filter.targetres_rand = 0;
-	if (m < 0) return 0;
-
-	cv->filter.targetres[0] =  m&0xf0;
-	cv->filter.targetres[1] = (m&0x0f)<<4;
-	return 1;
-}
-bool macroResonanceJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	short stereo = rand()%((m&0xf0)+1);
-	cv->filter.randres[0] = MAX(0, cv->filter.res[0] - stereo - rand()%(((m&0x0f)<<4)+1));
-	cv->filter.randres[1] = MAX(0, cv->filter.res[1] - stereo - rand()%(((m&0x0f)<<4)+1));
-	return 1;
-}
-bool macroSmoothResonanceJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->filter.targetres_rand = 1;
-	short stereo = rand()%((m&0xf0)+1);
-	cv->filter.targetres[0] = MAX(0, cv->filter.res[0] - stereo - rand()%(((m&0x0f)<<4)+1));
-	cv->filter.targetres[1] = MAX(0, cv->filter.res[1] - stereo - rand()%(((m&0x0f)<<4)+1));
-	return 1;
-}
-bool macroFilterMode(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->filter.mode[0] = (m&0x70)>>4; /* ignore the '8' bit */
-	cv->filter.mode[1] =  m&0x07;     /* ignore the '8' bit */
-	return 1;
-}
-bool macroSmoothFilterMode(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (cv->filter.targetmode[0] != -1) { cv->filter.mode[0] = cv->filter.targetmode[0]; cv->filter.targetmode[0] = -1; }
-	if (cv->filter.targetmode[1] != -1) { cv->filter.mode[1] = cv->filter.targetmode[1]; cv->filter.targetmode[1] = -1; }
-	if (m < 0) return 0;
-
-	cv->filter.targetmode[0] = (m&0x70)>>4; /* ignore the '8' bit */
-	cv->filter.targetmode[1] =  m&0x07;     /* ignore the '8' bit */
-	return 1;
+	/* second pass (24dB/oct) */
+	runSVFilter(&cv->filter.fl[1], *lf, cutoff_l, resonance_l);
+	runSVFilter(&cv->filter.fr[1], *rf, cutoff_r, resonance_r);
+	if (cv->filter.mode[0]&0b100) /* if the '4' bit is set */
+		switch (cv->filter.mode[0]&0x3)
+		{
+			case 0: /* low-pass  */ if (cutoff_l < 1.0f) *lf = cv->filter.fl[1].l; break;
+			case 1: /* high-pass */ if (cutoff_r > 0.0f) *lf = cv->filter.fl[1].h; break;
+			case 2: /* band-pass */ *lf = cv->filter.fl[1].b; break;
+			case 3: /* notch     */ *lf = cv->filter.fl[1].n; break;
+		}
+	if (cv->filter.targetmode[0] != -1 && cv->filter.targetmode[0]&0b100) /* if the '4' bit is set */
+		switch (cv->filter.targetmode[0]&0x3)
+		{
+			case 0: /* low-pass  */ if (cutoff_l < 1.0f) { *lf += (cv->filter.fl[1].l - *lf) * rp; } break;
+			case 1: /* high-pass */ if (cutoff_r > 0.0f) { *lf += (cv->filter.fl[1].h - *lf) * rp; } break;
+			case 2: /* band-pass */ *lf += (cv->filter.fl[1].b - *lf) * rp; break;
+			case 3: /* notch     */ *lf += (cv->filter.fl[1].n - *lf) * rp; break;
+		}
+	if (cv->filter.mode[1]&0b100) /* if the '4' bit is set */
+		switch (cv->filter.mode[1]&0x3)
+		{
+			case 0: /* low-pass  */ if (cutoff_r < 1.0f) *rf = cv->filter.fr[1].l; break;
+			case 1: /* high-pass */ if (cutoff_r > 0.0f) *rf = cv->filter.fr[1].h; break;
+			case 2: /* band-pass */ *rf = cv->filter.fr[1].b; break;
+			case 3: /* notch     */ *rf = cv->filter.fr[1].n; break;
+		}
+	if (cv->filter.targetmode[1] != -1 && cv->filter.targetmode[1]&0b100) /* if the '4' bit is set */
+		switch (cv->filter.targetmode[1]&0x3)
+		{
+			case 0: /* low-pass  */ if (cutoff_r < 1.0f) { *rf += (cv->filter.fr[1].l - *rf) * rp; } break;
+			case 1: /* high-pass */ if (cutoff_r > 0.0f) { *rf += (cv->filter.fr[1].h - *rf) * rp; } break;
+			case 2: /* band-pass */ *rf += (cv->filter.fr[1].b - *rf) * rp; break;
+			case 3: /* notch     */ *rf += (cv->filter.fr[1].n - *rf) * rp; break;
+		}
 }

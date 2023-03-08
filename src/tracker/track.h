@@ -1,13 +1,24 @@
 #define SONG_MAX 65535
 #define STATE_ROWS 4
 
-#define TRACK_MAX 32
-typedef struct {
+typedef struct MacroState
+{
+	short   base;             /* unsigned nibble per track                            */
+	short   rand;             /* .base override for jitter                            */
+	short   target;           /* smoothing target, committed to both .rand and .base  */
+	uint8_t lfospeed;         /* how many lfo cycles per row                          */
+	unsigned target_rand : 1; /* .target should be commited to .rand but NOT to .base */
+	unsigned lfo_stereo  : 1; /* .lfospeed should be stereo                           */
+} MacroState;
+
+typedef struct Track
+{
 	/* flags */
 	bool mute;
-	bool reverse;
-	bool release;
-	bool rtrig_rev;
+	unsigned reverse   : 1;
+	unsigned release   : 1;
+	unsigned rtrig_rev : 1;
+	unsigned file      : 1;
 
 	VariantChain *variant;
 	EffectChain *effect;
@@ -17,23 +28,11 @@ typedef struct {
 	uint32_t pitchedpointer; /* tuned clock */
 
 	/* gain */
-	struct {
-		uint8_t base;        /* unsigned nibble per track */
-		uint8_t rand;        /* base override for the altGxy macro */
-		short   target;      /* smoothing target, committed to both rand and base */
-		bool    target_rand; /* target should be commited to rand but NOT to base */
-	} gain;
-
-	struct {
-		uint8_t base;
-		uint8_t rand;
-		short   target;
-		bool    target_rand;
-	} send;
+	MacroState gain;
+	MacroState send;
 
 	Row      r;
-	bool     file;
-	float    finetune;    /* calculated fine tune */
+	float    finetune; /* calculated fine tune, TODO: remove */
 
 	float    portamentofinetune;       /* portamento fine tune */
 	float    targetportamentofinetune; /* cv->portamentofinetune destination */
@@ -51,7 +50,6 @@ typedef struct {
 	uint16_t cutsamples;                 /* samples into the row to cut, 0 for no cut */
 	uint16_t delaysamples;               /* samples into the row to delay, 0 for no delay */
 	uint8_t  delaynote;
-	uint8_t  delayinst;
 
 	/* vibrato */
 	uint8_t  vibrato;              /* vibrato depth, 0-f */
@@ -61,10 +59,10 @@ typedef struct {
 
 	short localenvelope;
 	short localsustain;
-	short localpitchshift, targetlocalpitchshift;
-	short localpitchwidth, targetlocalpitchwidth;
-	int   localcyclelength;
-	short localsamplerate, targetlocalsamplerate;
+	MacroState pitchshift;
+	MacroState pitchwidth;
+	MacroState samplerate;
+	int localcyclelength;
 
 	short   midiccindex;
 	uint8_t midicc;
@@ -72,19 +70,10 @@ typedef struct {
 	/* filter */
 	struct {
 		SVFilter fl[2], fr[2];
-		int8_t   mode[2], targetmode[2]; /* TODO: jitter variant? */
+		int8_t mode[2], targetmode[2]; /* TODO: should be a (MacroState) */
 
-		/* cutoff */
-		uint8_t  cut[2];
-		uint8_t  randcut[2];
-		short    targetcut[2];
-		bool     targetcut_rand;
-
-		/* resonance */
-		uint8_t  res[2];
-		uint8_t  randres[2];
-		short    targetres[2];
-		bool     targetres_rand;
+		MacroState cut;
+		MacroState res;
 	} filter;
 
 	/* ramping */
@@ -106,6 +95,7 @@ typedef struct {
 	uint32_t triggerflash;
 } Track; /* cv */
 
+#define TRACK_MAX 32
 typedef struct {
 	uint8_t c;   /* track count  */
 	Track   v[]; /* track values */

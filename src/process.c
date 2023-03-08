@@ -30,7 +30,7 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 				for (uint16_t i = 0; i < localrampmax; i++)
 				{
 					if (pitchedpointeroffset) pitchedpointeroffset--;
-					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, &l, &r);
+					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, cv->finetune, &l, &r);
 					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT * samplegain;
 					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT * samplegain;
 				}
@@ -38,7 +38,7 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 				for (uint16_t i = 0; i < rampmax; i++)
 				{
 					pitchedpointeroffset++;
-					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, &l, &r);
+					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, cv->finetune, &l, &r);
 					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT * samplegain;
 					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT * samplegain;
 				}
@@ -99,11 +99,11 @@ bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 	} return 0;
 }
 
+/* TODO: should maybe take oldnote and a row as args */
 void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	triggerMidi(fptr, cv, oldnote, note, inst);
 
-	/* TODO: note is NEVER set to NOTE_VOID in this file, pretty sure that's a bug */
 	switch (note)
 	{
 		case NOTE_VOID:
@@ -133,23 +133,8 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 			cv->pointer = cv->pitchedpointer = 0;
 			cv->reverse = 0;
 			cv->release = 0;
-			cv->portamentosamples = 0; cv->portamentosamplepointer = 1;
-			cv->startportamentofinetune = cv->targetportamentofinetune = cv->portamentofinetune = 0.0f;
-			cv->microtonalfinetune = 0.0f;
-			cv->vibrato = 0;
 
-			/* local controls */
-			cv->localenvelope = -1;
-			cv->localsustain = -1;
-			cv->localpitchshift = -1;
-			cv->localpitchwidth = -1;
-			cv->localcyclelength = -1;
-			cv->localsamplerate = -1;
-			
-			/* must stop retriggers cos pointers are no longer guaranteed to be valid */
-			cv->rtrigblocksize = 0;
-			cv->rtrig_rev = 0;
-			cv->rtrigsamples = 0;
+			macroCallbackTriggerNote(fptr, cv, oldnote, note, inst);
 
 			if (inst >= 0 && !cv->mute) /* if inst is not special and unmuted */
 			{
@@ -179,52 +164,15 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r
 	if      (r->note != NOTE_VOID && r->inst == INST_VOID) r->inst = cv->r.inst;
 	else if (r->note == NOTE_VOID && r->inst != INST_VOID) r->note = cv->r.note;
 
-	ifMacro(fptr, spr, cv, r, 'g');
-	ifMacro(fptr, spr, cv, r, 'j');
-	ifMacro(fptr, spr, cv, r, 's');
-	ifMacro(fptr, spr, cv, r, 'k');
+	macroCallbackPreTrig(fptr, spr, cv, r);
 
-	if (!ifMacro(fptr, spr, cv, r, 'V')) cv->vibratosamples = 0;
-
-	ifMacro(fptr, spr, cv, r, 'G');
-	ifMacro(fptr, spr, cv, r, 'S');
-	ifMacro(fptr, spr, cv, r, 'K');
-	ifMacro(fptr, spr, cv, r, 'P');
-	ifMacro(fptr, spr, cv, r, 'D');
-	ifMacro(fptr, spr, cv, r, 'C');
-
-	if (cv->rtrigsamples)
-	{
-		if (cv->rtrigblocksize > 0 || cv->rtrigblocksize == -1)
-			cv->rtrigblocksize--;
-		else
-		{
-			cv->rtrig_rev = 0;
-			cv->rtrigsamples = 0;
-		}
-	}
-
-	if (ifMacro(fptr, spr, cv, r, '%')) return;
 	if (r->note != NOTE_VOID)
 	{
 		triggerNote(fptr, cv, cv->r.note, r->note, r->inst);
 		triggerramp = 1;
 	}
 
-	handleMacroType(MT_LOCAL, fptr, spr, cv, r);
-
-	/* retrigger macros */
-	if (!ifMacro(fptr, spr, cv, r, 'q')
-			&& !ifMacro(fptr, spr, cv, r, 'Q')
-			&& !ifMacro(fptr, spr, cv, r, 'r'))
-		ifMacro(fptr, spr, cv, r, 'R');
-
-	if (cv->rtrigsamples && cv->rtrigblocksize == -2)
-	{ /* clean up if the last row had an altRxx and this row doesn't */
-		cv->rtrig_rev = 0;
-		cv->rtrigsamples = 0;
-	}
-
+	macroCallbackPostTrig(fptr, spr, cv, r);
 
 	if (cv->pointer && ifMacroRamp(cv, r))
 		triggerramp = 1;
@@ -235,98 +183,13 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r
 
 void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
 {
-	/* filter */
-	float cutoff_l = cv->filter.randcut[0]*DIV255;
-	float cutoff_r = cv->filter.randcut[1]*DIV255;
-	float resonance_l = cv->filter.randres[0]*DIV255;
-	float resonance_r = cv->filter.randres[1]*DIV255;
-	if (cv->filter.targetcut[0] != -1) cutoff_l += (cv->filter.targetcut[0] - (short)cv->filter.randcut[0])*DIV255 * rp;
-	if (cv->filter.targetcut[1] != -1) cutoff_r += (cv->filter.targetcut[1] - (short)cv->filter.randcut[1])*DIV255 * rp;
-	if (cv->filter.targetres[0] != -1) resonance_l += (cv->filter.targetres[0] - cv->filter.randres[0])*DIV255 * rp;
-	if (cv->filter.targetres[1] != -1) resonance_r += (cv->filter.targetres[1] - cv->filter.randres[1])*DIV255 * rp;
+	macroCallbackPostSampler(fptr, cv, rp, &lf, &rf);
 
-	/* first pass (12dB/oct) */
-	runSVFilter(&cv->filter.fl[0], lf, cutoff_l, resonance_l);
-	runSVFilter(&cv->filter.fr[0], rf, cutoff_r, resonance_r);
-	switch (cv->filter.mode[0]&0x3)
-	{
-		case 0: /* low-pass  */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0xff)) lf = cv->filter.fl[0].l; break;
-		case 1: /* high-pass */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0x00)) lf = cv->filter.fl[0].h; break;
-		case 2: /* band-pass */ lf = cv->filter.fl[0].b; break;
-		case 3: /* notch     */ lf = cv->filter.fl[0].n; break;
-	}
-	if (cv->filter.targetmode[0] != -1)
-		switch (cv->filter.targetmode[0]&0x3)
-		{
-			case 0: /* low-pass  */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0xff)) lf += (cv->filter.fl[0].l - lf) * rp; break;
-			case 1: /* high-pass */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0x00)) lf += (cv->filter.fl[0].h - lf) * rp; break;
-			case 2: /* band-pass */ lf += (cv->filter.fl[0].b - lf) * rp; break;
-			case 3: /* notch     */ lf += (cv->filter.fl[0].n - lf) * rp; break;
-		}
-	switch (cv->filter.mode[1]&0x3)
-	{
-		case 0: /* low-pass  */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0xff)) rf = cv->filter.fr[0].l; break;
-		case 1: /* high-pass */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0x00)) rf = cv->filter.fr[0].h; break;
-		case 2: /* band-pass */ rf = cv->filter.fr[0].b; break;
-		case 3: /* notch     */ rf = cv->filter.fr[0].n; break;
-	}
-	if (cv->filter.targetmode[1] != -1)
-		switch (cv->filter.targetmode[1]&0x3)
-		{
-			case 0: /* low-pass  */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0xff)) rf += (cv->filter.fr[0].l - rf) * rp; break;
-			case 1: /* high-pass */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0x00)) rf += (cv->filter.fr[0].h - rf) * rp; break;
-			case 2: /* band-pass */ rf += (cv->filter.fr[0].b - rf) * rp; break;
-			case 3: /* notch     */ rf += (cv->filter.fr[0].n - rf) * rp; break;
-		}
-
-	/* second pass (24dB/oct) */
-	runSVFilter(&cv->filter.fl[1], lf, cutoff_l, resonance_l);
-	runSVFilter(&cv->filter.fr[1], rf, cutoff_r, resonance_r);
-	if (cv->filter.mode[0]&0b100) /* if the '4' bit is set */
-		switch (cv->filter.mode[0]&0x3)
-		{
-			case 0: /* low-pass  */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0xff)) lf = cv->filter.fl[1].l; break;
-			case 1: /* high-pass */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0x00)) lf = cv->filter.fl[1].h; break;
-			case 2: /* band-pass */ lf = cv->filter.fl[1].b; break;
-			case 3: /* notch     */ lf = cv->filter.fl[1].n; break;
-		}
-	if (cv->filter.targetmode[0] != -1 && cv->filter.targetmode[0]&0b100) /* if the '4' bit is set */
-		switch (cv->filter.targetmode[0]&0x3)
-		{
-			case 0: /* low-pass  */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0xff)) { lf += (cv->filter.fl[1].l - lf) * rp; } break;
-			case 1: /* high-pass */ if (!(cv->filter.targetcut[0] == -1 && cv->filter.randcut[0] == 0x00)) { lf += (cv->filter.fl[1].h - lf) * rp; } break;
-			case 2: /* band-pass */ lf += (cv->filter.fl[1].b - lf) * rp; break;
-			case 3: /* notch     */ lf += (cv->filter.fl[1].n - lf) * rp; break;
-		}
-	if (cv->filter.mode[1]&0b100) /* if the '4' bit is set */
-		switch (cv->filter.mode[1]&0x3)
-		{
-			case 0: /* low-pass  */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0xff)) rf = cv->filter.fr[1].l; break;
-			case 1: /* high-pass */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0x00)) rf = cv->filter.fr[1].h; break;
-			case 2: /* band-pass */ rf = cv->filter.fr[1].b; break;
-			case 3: /* notch     */ rf = cv->filter.fr[1].n; break;
-		}
-	if (cv->filter.targetmode[1] != -1 && cv->filter.targetmode[1]&0b100) /* if the '4' bit is set */
-		switch (cv->filter.targetmode[1]&0x3)
-		{
-			case 0: /* low-pass  */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0xff)) { rf += (cv->filter.fr[1].l - rf) * rp; } break;
-			case 1: /* high-pass */ if (!(cv->filter.targetcut[1] == -1 && cv->filter.randcut[1] == 0x00)) { rf += (cv->filter.fr[1].h - rf) * rp; } break;
-			case 2: /* band-pass */ rf += (cv->filter.fr[1].b - rf) * rp; break;
-			case 3: /* notch     */ rf += (cv->filter.fr[1].n - rf) * rp; break;
-		}
 	lf = hardclip(lf);
 	rf = hardclip(rf);
 
 	/* gain multipliers */
-	if (cv->gain.target != -1)
-	{
-		cv->mainmult[0][fptr] = (cv->gain.rand>>4)*DIV16 + ((cv->gain.target>>4) - (cv->gain.rand>>4))*DIV16 * rp;
-		cv->mainmult[1][fptr] = (cv->gain.rand&15)*DIV16 + ((cv->gain.target&15) - (cv->gain.rand&15))*DIV16 * rp;
-	} else
-	{
-		cv->mainmult[0][fptr] = (cv->gain.rand>>4)*DIV16;
-		cv->mainmult[1][fptr] = (cv->gain.rand&15)*DIV16;
-	}
+	macroStateGetStereo(&cv->gain, rp, &cv->mainmult[0][fptr], &cv->mainmult[1][fptr]);
 
 	cv->output[0][fptr] = lf;
 	cv->output[1][fptr] = rf;
@@ -344,52 +207,15 @@ void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
 
 void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 {
-	uint16_t sprs = 0; /* spr start    */
-	uint16_t sprp;     /* spr progress */
-
-	if (cv->delaysamples > cv->cutsamples)
-	{ /* delay is set and takes priority over cut */
-		sprs = cv->delaysamples;
-
-		triggerNote(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
-		cv->delaysamples = 0;
-
-		handleMacroType(MT_LOCAL, fptr, spr, cv, &cv->r);
-		cv->envgain = cv->modenvgain = 0.0f; /* TODO: necessary? */ /* not perfect but a safe enough assumption */
-	} else if (cv->cutsamples)
-	{ /* cut is set and takes priority over delay */
-		triggerNote(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
-		cv->cutsamples = 0;
-		cv->envgain = cv->modenvgain = 0.0f; /* immediately cut the envelopes, not perfect but a safe enough assumption */
-		return;
-	}
-
-	for (sprp = sprs; sprp < *spr; sprp++)
+	uint8_t newnote = macroCallbackSampleRow(fptr, *spr, spr, 0, cv);
+	if (newnote != NOTE_VOID)
 	{
-		if (cv->portamentosamplepointer == cv->portamentosamples)
-		{
-			cv->portamentofinetune = cv->targetportamentofinetune;
-			cv->portamentosamplepointer++;
-		} else if (cv->portamentosamplepointer < cv->portamentosamples)
-		{
-			cv->portamentofinetune = cv->startportamentofinetune +
-				(cv->targetportamentofinetune - cv->startportamentofinetune) * (float)cv->portamentosamplepointer/(float)cv->portamentosamples;
-
-			if (cv->reverse)
-			{
-				if (cv->pitchedpointer > *spr - sprs) cv->pitchedpointer -= *spr - sprs;
-				else                                  cv->pitchedpointer = 0;
-				if (cv->pointer > *spr - sprs) cv->pointer -= *spr - sprs;
-				else                           cv->pointer = 0;
-			} else
-			{
-				cv->pitchedpointer += *spr - sprs;
-				cv->pointer        += *spr - sprs;
-			}
-
-			cv->portamentosamplepointer++;
-		}
+		triggerNote(fptr, cv, cv->r.note, newnote, cv->r.inst);
+		macroCallbackPostTrig(fptr, spr, cv, &cv->r);
+		cv->envgain = cv->modenvgain = 0.0f; /* TODO: necessary? */ /* immediately cut the envelopes, not perfect but a safe enough assumption */
 	}
+
+	macroCallbackPersistent(fptr, *spr, spr, 0, cv);
 
 	/* process the sampler */
 	if (instrumentSafe(p->s->instrument, cv->r.inst)
@@ -405,7 +231,7 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 		env.output = cv->envgain;
 		wtenv.output = cv->modenvgain;
 		env.release = wtenv.release = cv->release;
-		for (sprp = 0; sprp < *spr - sprs; sprp++)
+		for (uint16_t sprp = 0; sprp < *spr; sprp++)
 		{
 			envelope(&env);
 			envelope(&wtenv);
@@ -417,84 +243,43 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 		{ /* only walk pitchedpointer if not pitch sliding */
 			if (cv->reverse)
 			{
-				if (cv->pitchedpointer > *spr - sprs) cv->pitchedpointer -= *spr - sprs;
-				else                                  cv->pitchedpointer = 0;
-				if (cv->pointer > *spr - sprs) cv->pointer -= *spr - sprs;
-				else                           cv->pointer = 0;
-			} else
-			{
-				cv->pitchedpointer += *spr - sprs;
-				cv->pointer        += *spr - sprs;
-			}
+				if (cv->pitchedpointer > *spr) cv->pitchedpointer -= *spr;
+				else                           cv->pitchedpointer = 0;
+			} else cv->pitchedpointer += *spr;
 		}
+
+		if (cv->reverse)
+		{
+			if (cv->pointer > *spr) cv->pointer -= *spr;
+			else                    cv->pointer = 0;
+		} else cv->pointer += *spr;
 	}
 }
 void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *cv)
 {
-	short li = 0;
-	short ri = 0;
-
-	uint32_t delta;
-	float multiplier;
-
 	float rowprogress = (float)sprp / (float)(*spr);
 
-	if (cv->cutsamples && sprp > cv->cutsamples)
+	uint8_t newnote = macroCallbackSampleRow(fptr, 1, spr, sprp, cv);
+	if (newnote != NOTE_VOID)
 	{
 		if (instrumentSafe(p->s->instrument, cv->r.inst))
 			ramp(cv, rowprogress, p->s->instrument->i[cv->r.inst]);
-		triggerNote(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
-		cv->cutsamples = 0;
-	}
-	if (cv->delaysamples && sprp > cv->delaysamples)
-	{
-		if (instrumentSafe(p->s->instrument, cv->delayinst))
-			ramp(cv, rowprogress, p->s->instrument->i[cv->delayinst]);
-		triggerNote(fptr, cv, cv->r.note, cv->delaynote, cv->delayinst);
-		cv->delaysamples = 0;
+		triggerNote(fptr, cv, cv->r.note, newnote, cv->r.inst);
 
-		handleMacroType(MT_LOCAL, fptr, spr, cv, &cv->r);
+		macroCallbackPostTrig(fptr, spr, cv, &cv->r);
 	}
 
-	cv->finetune = cv->microtonalfinetune;
-	if (cv->portamentosamplepointer == cv->portamentosamples)
-	{
-		cv->portamentofinetune = cv->targetportamentofinetune;
-		cv->portamentosamplepointer++;
-		cv->r.note += cv->targetportamentofinetune;
-	} else if (cv->portamentosamplepointer < cv->portamentosamples)
-	{
-		cv->portamentofinetune = cv->startportamentofinetune +
-			(cv->targetportamentofinetune - cv->startportamentofinetune) * (float)cv->portamentosamplepointer/(float)cv->portamentosamples;
+	macroCallbackPersistent(fptr, 1, spr, sprp, cv);
 
-		multiplier = powf(M_12_ROOT_2, cv->portamentofinetune);
-		delta = (int)((cv->portamentosamplepointer+1)*multiplier) - (int)(cv->portamentosamplepointer*multiplier);
+	float finetune = 0.0f;
+	uint32_t pointer = cv->pointer;
+	uint32_t pitchedpointer = cv->pitchedpointer;
 
-		if (cv->reverse)
-		{
-			if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
-			else                            cv->pitchedpointer = 0;
-		} else cv->pitchedpointer += delta;
+	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointer, &pitchedpointer);
 
-		cv->portamentosamplepointer++;
-	}
+	short li = 0;    short ri = 0;
+	float lf = 0.0f; float rf = 0.0f;
 
-	if (cv->vibratosamples)
-	{
-		cv->finetune += triosc((float)cv->vibratosamplepointer / (float)cv->vibratosamples) * cv->vibrato*DIV16;
-
-		cv->vibratosamplepointer++;
-		/* re-read the macro once phase is about to overflow */
-		if (cv->vibratosamplepointer > cv->vibratosamples)
-		{
-			cv->vibratosamplepointer = 0;
-			if (!ifMacro(fptr, spr, cv, &cv->r, 'V'))
-				cv->vibratosamples = 0;
-		}
-	}
-
-	float lf = 0.0f;
-	float rf = 0.0f;
 	float samplegain;
 	if (cv->file)
 	{
@@ -516,36 +301,18 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 			/* process the sampler */
 			if (cv->r.inst != INST_VOID && cv->r.note != NOTE_VOID)
 			{
-				if (cv->rtrigsamples)
-				{
-					uint32_t rtrigoffset = (cv->pointer - cv->rtrigpointer) % cv->rtrigsamples;
-					if (!rtrigoffset)
-					{ /* first sample of any retrigger */
-						if (cv->pointer > cv->rtrigpointer) /* first sample of any retrigger but the first */
-						{
-							triggerMidi(fptr, cv, cv->r.note, cv->r.note, cv->r.inst);
-							cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
-							cv->rtrigcurrentpointer = cv->pointer;
-						}
-					}
-					if (cv->rtrig_rev)
-					{
-						uint32_t pointer, pitchedpointer;
-						if (cv->rtrigpointer > cv->pointer - cv->rtrigcurrentpointer)
-							pointer = cv->rtrigpointer - (cv->pointer - cv->rtrigcurrentpointer);
-						else pointer = 0;
-						if (cv->rtrigpitchedpointer > cv->pitchedpointer - cv->rtrigcurrentpitchedpointer)
-							pitchedpointer = cv->rtrigcurrentpitchedpointer - (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer);
-						else pitchedpointer = 0;
-						samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, &li, &ri);
-					} else samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, cv->rtrigpointer + (cv->pointer - cv->rtrigcurrentpointer), cv->rtrigpitchedpointer + (cv->pitchedpointer - cv->rtrigcurrentpitchedpointer), &li, &ri);
-				} else samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, cv->pointer, cv->pitchedpointer, &li, &ri);
+				samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, cv->finetune, &li, &ri);
 
+				/* only walk pitchedpointer if not pitch sliding, it's already done by portamento otherwise */
+				/* TODO: should be a callback i think?, idk */
 				if (cv->portamentosamplepointer >= cv->portamentosamples)
-				{ /* only walk pitchedpointer if not pitch sliding */
+				{
 					if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
 					else                                       cv->pitchedpointer++;
-				} cv->pointer++;
+				}
+
+				if (cv->reverse) cv->pointer--;
+				else             cv->pointer++;
 			}
 		}
 
@@ -702,8 +469,6 @@ void *dummyProcess(PlaybackInfo *p)
 
 int process(jack_nframes_t nfptr, PlaybackInfo *p)
 {
-	uint8_t i;
-
 	pb.in.l =    jack_port_get_buffer(p->in.l,    nfptr);
 	pb.in.r =    jack_port_get_buffer(p->in.r,    nfptr);
 	pb.out.l =   jack_port_get_buffer(p->out.l,   nfptr);
@@ -726,15 +491,17 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	/*                        MULTITHREADING                         */
 	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
 	/* honestly half this file probably isn't strictly realtime-safe */
-	bool preview_thread_failed[PREVIEW_TRACKS]; /* TODO: more descriptive name */
-	memset(preview_thread_failed, 1, PREVIEW_TRACKS); /* set high by default, gcc probably makes this static or smth */
 #ifndef NO_MULTITHREADING
-	jack_native_thread_t preview_thread_ids   [PREVIEW_TRACKS];
-	jack_native_thread_t thread_ids   [p->s->track->c-1]; /* index 0 is the preview track */
+	bool preview_thread_failed[PREVIEW_TRACKS];
+	memset(preview_thread_failed, 1, PREVIEW_TRACKS);
+	bool thread_failed[p->s->track->c-1];
+	memset(thread_failed, 1, p->s->track->c-1);
+	jack_native_thread_t preview_thread_ids[PREVIEW_TRACKS];
+	jack_native_thread_t thread_ids[p->s->track->c-1]; /* index 0 is the preview track */
 #endif
 
 	/* handle the preview tracks first */
-	for (i = 0; i < PREVIEW_TRACKS; i++)
+	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
 		if (p->w->previewtrack[i].r.note != NOTE_VOID
 				&& p->w->previewtrack[i].r.inst != INST_VOID)
@@ -746,27 +513,38 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 			if (RUNNING_ON_VALGRIND)
 				previewTrackThreadRoutine(&p->w->previewtrack[i]);
 			else
-				/* try spawning a thread, if it fails then try again */
-				while (jack_client_create_thread(client, &preview_thread_ids[i],
+				/* try spawning a realtime thread, if it fails then fallback to inheriting priority */
+				if (jack_client_create_thread(client, &preview_thread_ids[i],
 						jack_client_real_time_priority(client), jack_is_realtime(client),
-						previewTrackThreadRoutine, &p->w->previewtrack[i]));
+						previewTrackThreadRoutine, &p->w->previewtrack[i]))
+					if (pthread_create(&preview_thread_ids[i], NULL, previewTrackThreadRoutine, &p->w->previewtrack[i]))
+					{
+						preview_thread_failed[i] = 1;
+						previewTrackThreadRoutine(&p->w->previewtrack[i]);
+					}
 #endif
 		}
 	}
 
 	/* spawn threads for each track except for track 0 */
-	for (i = 1; i < p->s->track->c; i++)
+	for (uint8_t i = 1; i < p->s->track->c; i++)
 	{
 #ifdef NO_MULTITHREADING
 		trackThreadRoutine(&p->s->track->v[i]);
 #else
+		thread_failed[i-1] = 0;
 		if (RUNNING_ON_VALGRIND)
 			trackThreadRoutine(&p->s->track->v[i]);
 		else
-			/* try spawning a thread, if it fails then try again */
-			while (jack_client_create_thread(client, &thread_ids[i-1],
+			/* try spawning a realtime thread, if it fails then fallback to inheriting priority */
+			if (jack_client_create_thread(client, &thread_ids[i-1],
 					jack_client_real_time_priority(client), jack_is_realtime(client),
-					trackThreadRoutine, &p->s->track->v[i]));
+					trackThreadRoutine, &p->s->track->v[i]))
+				if (pthread_create(&thread_ids[i-1], NULL, trackThreadRoutine, &p->s->track->v[i]))
+				{
+					thread_failed[i-1] = 1;
+					trackThreadRoutine(&p->s->track->v[i]);
+				}
 #endif
 	}
 
@@ -781,10 +559,12 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	if (!RUNNING_ON_VALGRIND)
 	{
 		/* join with the track threads */
-		for (i = 1; i < p->s->track->c; i++)
-			pthread_join(thread_ids[i-1], NULL);
+		for (uint8_t i = 1; i < p->s->track->c; i++)
+			if (!thread_failed[i-1])
+				pthread_join(thread_ids[i-1], NULL);
+
 		/* join with the prevew threads */
-		for (i = 1; i < p->s->track->c; i++)
+		for (uint8_t i = 1; i < p->s->track->c; i++)
 			if (!preview_thread_failed[i])
 				pthread_join(preview_thread_ids[i], NULL);
 	}
@@ -818,7 +598,7 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 			}
 
 	/* send chain */
-	for (i = 0; i < p->s->send->c; i++)
+	for (uint8_t i = 0; i < p->s->send->c; i++)
 		runEffect(nfptr, p->s->send, &p->s->send->v[i]);
 	/* mix the send chain output into the master input */
 	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
@@ -827,18 +607,17 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 		p->s->masteroutput[1][fptr] += p->s->sendoutput[1][fptr];
 	}
 
-	for (i = 0; i < PREVIEW_TRACKS; i++)
+	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
-		if (!preview_thread_failed[i])
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-			{
-				p->s->masteroutput[0][fptr] += p->w->previewtrack[i].output[0][fptr] * p->w->previewtrack[i].mainmult[0][fptr];
-				p->s->masteroutput[1][fptr] += p->w->previewtrack[i].output[1][fptr] * p->w->previewtrack[i].mainmult[1][fptr];
-			}
+		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+		{
+			p->s->masteroutput[0][fptr] += p->w->previewtrack[i].output[0][fptr] * p->w->previewtrack[i].mainmult[0][fptr];
+			p->s->masteroutput[1][fptr] += p->w->previewtrack[i].output[1][fptr] * p->w->previewtrack[i].mainmult[1][fptr];
+		}
 	}
 
 	/* master chain */
-	for (i = 0; i < p->s->master->c; i++)
+	for (uint8_t i = 0; i < p->s->master->c; i++)
 		runEffect(nfptr, p->s->master, &p->s->master->v[i]);
 
 	/* output */

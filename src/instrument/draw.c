@@ -120,7 +120,7 @@ void initInstUIPitchSamplerBlock(InstUIBlock *block)
 
 InstUI *allocInstUI(uint8_t blocks)
 {
-	InstUI *iui = malloc(sizeof(InstUI) + sizeof(InstUIBlock)*blocks);
+	InstUI *iui = calloc(1, sizeof(InstUI) + sizeof(InstUIBlock)*blocks);
 	iui->blocks = blocks;
 	return iui;
 }

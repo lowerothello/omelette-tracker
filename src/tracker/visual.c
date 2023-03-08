@@ -357,8 +357,8 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
-					if (MACRO_LINKNIBBLES(r->macro[k].c)) r->macro[k].v += value*16;
-					else                                  r->macro[k].v += value;
+					if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
+					else                             r->macro[k].v += value;
 				}
 		}
 	} else
@@ -376,8 +376,8 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
 							if (x1 <= k+2)
 							{
-								if (MACRO_LINKNIBBLES(r->macro[k].c)) r->macro[k].v += value*16;
-								else                                  r->macro[k].v += value;
+								if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
+								else                             r->macro[k].v += value;
 							}
 					} else if (i == c2) /* last track */
 					{
@@ -388,8 +388,8 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
 							if (x2 >= k+2)
 							{
-								if (MACRO_LINKNIBBLES(r->macro[k].c)) r->macro[k].v += value*16;
-								else                                  r->macro[k].v += value;
+								if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
+								else                             r->macro[k].v += value;
 							}
 					} else /* middle track */
 					{
@@ -399,8 +399,8 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 						if (r->inst != INST_VOID) r->inst += value;
 						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
 						{
-							if (MACRO_LINKNIBBLES(r->macro[k].c)) r->macro[k].v += value*16;
-							else                                  r->macro[k].v += value;
+							if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
+							else                             r->macro[k].v += value;
 						}
 					}
 				}
@@ -987,12 +987,12 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	setBpm(&spr, s->songbpm);
 	for (row = 0; row < y1; row++)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacro(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B');
+			ifMacroCallback(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B', macroBpm);
 	buflen = 0;
 	for (row = y1; row <= y2; row++)
 	{
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacro(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B');
+			ifMacroCallback(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B', macroBpm);
 		buflen += spr;
 	}
 

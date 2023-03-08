@@ -1,4 +1,4 @@
-static bool _macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
@@ -9,27 +9,10 @@ static bool _macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, R
 				ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
 			cv->pitchedpointer = (m*DIV256) * iv->trimlength * (float)samplerate / (float)iv->sample->rate;
 		}
-	} return 0;
+	}
 }
-bool macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
-	if (m < 0) return 0;
-
-	cv->reverse = 0;
-	return _macroOffset(fptr, spr, m, cv, r);
-}
-bool macroReverseOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->reverse = 1;
-	if (m) return _macroOffset(fptr, spr, m, cv, r);
-	return 0;
-}
-bool macroOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
@@ -46,13 +29,24 @@ bool macroOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row
 				cv->pitchedpointer = (((min + rand()%(max - min +1))<<4)*DIV256) * iv->trimlength * (float)samplerate / (float)iv->sample->rate;
 			}
 		}
-	} return 0;
+	}
 }
-/* TODO: should never reverse in place, kinda important cos this case ramps wrongly */
-bool macroReverseOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
 
-	cv->reverse = !cv->reverse;
-	return macroOffsetJitter(fptr, spr, m, cv, r);
+
+
+#define MACRO_OFFSET                'O'
+#define MACRO_REVERSE_OFFSET        'o'
+#define MACRO_OFFSET_JITTER         'U'
+#define MACRO_REVERSE_OFFSET_JITTER 'u'
+
+void macroOffsetPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+{
+	FOR_ROW_MACROS(i, cv)
+		switch (r->macro[i].c)
+		{
+			case MACRO_OFFSET:                cv->reverse = 0;                    _macroOffset(fptr, spr, r->macro[i].v, cv, r); break;
+			case MACRO_REVERSE_OFFSET:        cv->reverse = 1; if (r->macro[i].v) _macroOffset(fptr, spr, r->macro[i].v, cv, r); break;
+			case MACRO_OFFSET_JITTER:         cv->reverse = 0;                    _macroOffsetJitter(fptr, spr, r->macro[i].v, cv, r); break;
+			case MACRO_REVERSE_OFFSET_JITTER: cv->reverse = 1; if (r->macro[i].v) _macroOffsetJitter(fptr, spr, r->macro[i].v, cv, r); break;
+		}
 }

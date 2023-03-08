@@ -10,17 +10,17 @@ enum { /* TODO: port to the event system */
 	INST_REC_LOCK_CANCEL,       /* cancelling recording has finished     */
 };
 
-enum _Page {
+enum Page {
 	PAGE_VARIANT,
 	PAGE_INSTRUMENT,
 	PAGE_PLUGINBROWSER,
 };
 
-enum PTRIG {
-	PTRIG_OK,     /* no queued preview            */
-	PTRIG_NORMAL, /* queued s->instrument preview */
-	PTRIG_FILE,   /* queued filebrowser preview   */
-};
+// enum Ptrig {
+// 	PTRIG_OK,     /* no queued preview            */
+// 	PTRIG_NORMAL, /* queued s->instrument preview */
+// 	PTRIG_FILE,   /* queued filebrowser preview   */
+// };
 
 #define MAX_OCTAVE 7 /* this +2 is accessible with the keyboard */
 #define MIN_OCTAVE 0
@@ -45,8 +45,8 @@ typedef struct _UI {
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
 	Command        command;
-	enum _Page     page, oldpage;
-	enum _Mode     mode, oldmode;
+	enum Page      page, oldpage;
+	enum Mode      mode, oldmode;
 	unsigned short centre;
 	uint8_t        pattern;    /* focused pattern */
 	uint8_t        track;      /* focused track */

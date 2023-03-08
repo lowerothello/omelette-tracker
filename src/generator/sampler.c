@@ -72,7 +72,7 @@ float semitoneShortToMultiplier(int16_t input)
 	else           return powf(M_12_ROOT_2, (input>>12)*12 + (input&0x0fff)*DIV256);
 }
 
-void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, short *l, short *r)
+void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
 	Instrument *iv = &p->s->instrument->v[realinst];
 	if (!iv->sample->length || iv->algorithm == INST_ALG_MIDI) return; /* TODO: optimize midi further in process.c */
@@ -90,7 +90,7 @@ void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uin
 	switch (iv->algorithm)
 	{
 		case INST_ALG_NULL: break;
-		case INST_ALG_SAMPLER: processCyclic(iv, cv, rp, pointer, pitchedpointer, l, r); break;
+		case INST_ALG_SAMPLER: processCyclic(iv, cv, rp, pointer, pitchedpointer, finetune, l, r); break;
 		case INST_ALG_MIDI: break;
 	}
 

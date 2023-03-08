@@ -2,10 +2,10 @@
 #define LFO_MIN_S 10.0f
 
 typedef struct {
-	enum WAVE_SHAPE shape;
-	int8_t          duty;
-	uint8_t         speed;
-	float           phase;
+	enum WaveShape shape;
+	int8_t         duty;
+	uint8_t        speed;
+	float          phase;
 } Lfo;
 
 /* returns the output */

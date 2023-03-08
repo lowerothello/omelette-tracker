@@ -3,7 +3,7 @@
 /* DEBUG_LOGS
  *   writes debugging files to the current directory.
  *   these files are appended to and never reset so grow forever. */
-// #define DEBUG_LOGS
+// #define DEBUG_LOGS 1
 
 #define DEBUG_DUMMY_SAMPLERATE 44100
 #define DEBUG_DUMMY_BUFFERSIZE 256
@@ -12,17 +12,17 @@
  *   running under gdb without stalling jackd.
  *
  *   pretty janky, but good enough for some debugging. */
-// #define DEBUG_DISABLE_AUDIO_OUTPUT
+// #define DEBUG_DISABLE_AUDIO_OUTPUT 1
 
 /* DISABLE_RAW_INPUT
  *   only parse stdin, don't try to aquire raw events
  *   $OML_STDIN can be set in the environment to force this */
-// #define DISABLE_RAW_INPUT
+// #define DISABLE_RAW_INPUT 1
 
 /* NO_MULTITHREADING
  *   executes all track processing in a single thread
  *   instead of spawning a thread for each track. */
-// #define NO_MULTITHREADING
+// #define NO_MULTITHREADING 1
 
 /* filebrowser starting dir */
 #define SAMPLES_DIR "/media/prod"
@@ -71,6 +71,6 @@
 /* DISABLE_BOX_OUTLINE
  *   skip outlining boxes
  */
-// #define DISABLE_BOX_OUTLINE
+// #define DISABLE_BOX_OUTLINE 1
 
 #define PREVIEW_TRACKS 6

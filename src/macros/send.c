@@ -1,44 +1,16 @@
-bool macroSend(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
+#define MACRO_SEND        'S'
+#define MACRO_SMOOTH_SEND 's'
 
-	cv->send.base = cv->send.rand = m;
-	return 1;
-}
-bool macroSmoothSend(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+void macroSendPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
-	if (cv->send.target != -1)
+	macroStateApply(&cv->send);
+
+	FOR_ROW_MACROS(i, cv)
 	{
-		if (cv->send.target_rand) /* only apply the new gain to rand, not to base */
+		switch (r->macro[i].c)
 		{
-			cv->send.rand = cv->send.target;
-			cv->send.target_rand = 0;
-		} else cv->send.base = cv->send.rand = cv->send.target;
-		cv->send.target = -1;
+			case MACRO_SEND:        macroStateSet   (&cv->send, r->macro[i]); break;
+			case MACRO_SMOOTH_SEND: macroStateSmooth(&cv->send, r->macro[i]); break;
+		}
 	}
-	if (m < 0) return 0;
-
-	cv->send.target = m;
-	return 1;
-}
-bool macroSendJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	signed char stereo = rand()%((m>>4)+1);
-	cv->send.rand =
-		 (MAX(0, (cv->send.base>>4)  - stereo - rand()%((m&0x0f)+1))<<4)
-		+ MAX(0, (cv->send.base&0xf) - stereo - rand()%((m&0x0f)+1));
-	return 1;
-}
-bool macroSmoothSendJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
-{
-	if (m < 0) return 0;
-
-	cv->send.target_rand = 1;
-	signed char stereo = rand()%((m>>4)+1);
-	cv->send.target =
-		 (MAX(0, (cv->send.base>>4)  - stereo - rand()%((m&0x0f)+1))<<4)
-		+ MAX(0, (cv->send.base&0xf) - stereo - rand()%((m&0x0f)+1));
-	return 1;
 }

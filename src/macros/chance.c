@@ -1,7 +1,11 @@
-bool macroRowChance(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r) /* returns true to NOT play */
-{
-	if (m < 0) return 0;
+#define MACRO_NOTE_CHANCE '%'
 
-	if (rand()%256 > m) return 1;
-	else                return 0;
+void macroChancePreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+{
+	FOR_ROW_MACROS(i, cv)
+		if (r->macro[i].c == MACRO_NOTE_CHANCE)
+		{
+			if (r->macro[i].v && rand()%256 > r->macro[i].v) r->note = NOTE_VOID;
+			return;
+		}
 }
