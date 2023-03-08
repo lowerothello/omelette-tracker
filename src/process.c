@@ -429,7 +429,7 @@ static void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that
 	uint16_t spr = p->s->spr;
 	uint16_t sprp = p->s->sprp;
 	uint16_t playfy = p->s->playfy;
-	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
+	// _trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
 	return NULL;
 }
 
