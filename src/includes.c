@@ -30,10 +30,10 @@ enum WaveShape {
 #include "modulation/envelope.c"
 #include "modulation/lfo.c"
 
-#include <omelette/effect.h>     /* audio effects (LADSPA, LV2) */
-#include "effect/draw.h"         /* audio effects (LADSPA, LV2) */
-#include "tracker/tracker.h"     /* tracker page */
-#include <omelette/instrument.h> /* instrument page */
+#include "effect/effect.h"         /* audio effects (LADSPA, LV2) */
+#include "effect/draw.h"           /* audio effects (LADSPA, LV2) */
+#include "tracker/tracker.h"       /* tracker page */
+#include "instrument/instrument.h" /* instrument page */
 #include "instrument/input.h"
 #include "instrument/waveform.h"
 #include "instrument/draw.h"
@@ -52,7 +52,7 @@ enum Mode {
 
 #include "command.h"
 
-#include <omelette/song.h>
+#include "song.h"
 #include "window.h"
 
 #include "file/file.h"

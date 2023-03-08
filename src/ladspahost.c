@@ -31,13 +31,13 @@ jack_nframes_t samplerate, buffersize;
 #include "draw_helpers.c"
 #include "button.h"
 #include "tooltip.h"
-#include <omelette/variant.h> /* for NOTE_MAX */
+#include "tracker/variant.h" /* for NOTE_MAX */
 #include "tooltip.c"
 #include "control.h"
 #define OMELETTE_EFFECT_NO_STRUCTS
 #include "effect/draw.h"
 #include "effect/draw.c"
-#include <omelette/ladspa.h>
+#include "effect/ladspa.h"
 #include "effect/ladspa.c"
 
 typedef struct {

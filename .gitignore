@@ -1,5 +1,5 @@
 # toolchain output
-# omelette
+omelette
 omuLADSPA
 omelette-ladspa-plugins.so
 valgrind.log

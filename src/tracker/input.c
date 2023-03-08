@@ -949,12 +949,12 @@ void initTrackerInput(void)
 			addTooltipBind("macro"                 , 0                   , XK_m         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordMacro             , NULL     );
 			addTooltipBind("row"                   , 0                   , XK_r         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL     );
 			addTooltipBind("loop"                  , 0                   , XK_semicolon , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL     );
-			addTooltipBind("put"                   , 0                   , XK_p         , 0              , (void(*)(void*))putPartPattern            , (void*)1 );
+			addTooltipBind("put"                   , 0                   , XK_p         , TT_DRAW        , (void(*)(void*))putPartPattern            , (void*)1 );
 			addTooltipBind("mix put"               , 0                   , XK_P         , 0              , (void(*)(void*))mixPutPartPattern         , (void*)0 );
-			addTooltipBind("toggle song follow"    , 0                   , XK_f         , 0              , (void(*)(void*))toggleSongFollow          , NULL     );
-			addTooltipBind("clear cell"            , 0                   , XK_x         , 0              , (void(*)(void*))clearCell                 , NULL     );
+			addTooltipBind("toggle song follow"    , 0                   , XK_f         , TT_DRAW        , (void(*)(void*))toggleSongFollow          , NULL     );
+			addTooltipBind("clear cell"            , 0                   , XK_x         , TT_DRAW        , (void(*)(void*))clearCell                 , NULL     );
 			addTooltipBind("clear cell"            , 0                   , XK_BackSpace , 0              , (void(*)(void*))clearCell                 , NULL     );
-			addTooltipBind("jump loop points"      , 0                   , XK_percent   , 0              , (void(*)(void*))swapLoopPoint             , NULL     );
+			addTooltipBind("jump loop points"      , 0                   , XK_percent   , TT_DRAW        , (void(*)(void*))swapLoopPoint             , NULL     );
 			addTooltipBind("increment cell"        , ControlMask         , XK_A         , TT_DRAW        , trackerInc                                , (void*)1 );
 			addTooltipBind("decrement cell"        , ControlMask         , XK_X         , TT_DRAW        , trackerDec                                , (void*)1 );
 			addTooltipBind("octave increment cell" , ControlMask|Mod1Mask, XK_A         , TT_DRAW        , trackerInc                                , (void*)12);

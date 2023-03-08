@@ -1,7 +1,7 @@
 #define TRACK_TRIG_PAD 3 /* space between the vtrigcol and the notecol */
 #define TRACK_LINENO_COLS (LINENO_COLS - 3)
 
-#include <omelette/variant.h>
+#include "variant.h"
 #include "track.h"
 
 uint8_t changeNoteOctave(uint8_t octave, uint8_t note);
