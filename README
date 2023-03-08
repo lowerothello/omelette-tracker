@@ -10,7 +10,7 @@ newer version! the serialization code is awful currently
 src/lib/libdrawille: <https://github.com/huulivoide/libdrawille>
 
 DEPENDS:
-- JACK2       - audio input/output
+- jack2       - audio input/output
 - libsndfile  - file loading
 - valgrind    - easier debugging
 - ladspa      - LADSPA plugin support
