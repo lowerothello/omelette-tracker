@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <sys/param.h> /* MIN/MAX (pulseaudio wants this) */
 #include <dlfcn.h>
 #include <dirent.h>
 #include <jack/jack.h>   /* audio i/o        */
@@ -25,7 +26,7 @@
 /* omelette libs */
 struct winsize ws;
 int DEBUG;
-jack_nframes_t samplerate, buffersize;
+uint32_t samplerate, buffersize;
 #include "util.c"
 #include "config.h"
 #include "draw_helpers.c"
@@ -178,7 +179,7 @@ void reload(void)
 void sigwinch(int signal) { lhs.resize = 1; }
 void sigusr1(int signal) { lhs.reload = 1; }
 
-int process(jack_nframes_t bufsize, void *arg)
+int process(uint32_t bufsize, void *arg)
 {
 	if (lhs.unsafe == 1)
 		lhs.unsafe++;

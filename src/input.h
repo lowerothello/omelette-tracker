@@ -1,7 +1,10 @@
 enum InputMode {
 	INPUTMODE_NONE,  /* just interpret stdin        */
 	INPUTMODE_RAW,   /* use the raw driver, console */
+
+#ifdef OML_X11
 	INPUTMODE_X,     /* use an x hack, xterm        */
+#endif
 };
 
 void addCountBinds(bool draw);

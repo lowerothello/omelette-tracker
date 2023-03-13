@@ -1,3 +1,8 @@
+#include <lilv/lilv.h>
+#include <lv2.h>
+#include <lv2/urid/urid.h>
+#include <lv2/units/units.h>
+
 typedef struct LV2DB
 {
 	LilvWorld *world;
@@ -63,8 +68,6 @@ void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output)
 uint32_t getLV2EffectControlCount(LV2State*);
 short getLV2EffectHeight(LV2State*);
 
-void drawLV2Effect(LV2State*,
-		short x, short w,
-		short y, short ymin, short ymax);
+void drawLV2Effect(LV2State*, short x, short w, short y, short ymin, short ymax);
 
 void runLV2Effect(uint32_t samplecount, LV2State*, float **input, float **output);

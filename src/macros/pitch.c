@@ -2,7 +2,7 @@
 #define MACRO_PITCH_OFFSET 'p'
 #define MACRO_VIBRATO      'V'
 
-void macroPitchPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroPitchPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	bool vibrato = 0;
 	FOR_ROW_MACROS(i, cv)
@@ -35,7 +35,7 @@ void macroPitchPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
 		cv->vibratosamples = 0;
 }
 
-void macroPitchTriggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void macroPitchTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	cv->portamentosamples = 0; cv->portamentosamplepointer = 1;
 	cv->startportamentofinetune = cv->targetportamentofinetune = cv->portamentofinetune = 0.0f;
@@ -45,7 +45,7 @@ void macroPitchTriggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint
 
 /* should affect cv->pointer, cv->pitchedpointer, and cv->finetune */
 /* TODO: should be passed as arguments, cv shouldn't be provided */
-void macroPitchPersistent(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+void macroPitchPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
 	sprp += count;
 	uint32_t delta;
@@ -75,7 +75,7 @@ void macroPitchPersistent(jack_nframes_t fptr, uint16_t count, uint16_t *spr, ui
 	}
 }
 
-void macroPitchVolatile(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
+void macroPitchVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
 {
 	sprp += count;
 

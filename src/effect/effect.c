@@ -1,5 +1,11 @@
+#ifdef OML_LADSPA
 #include "ladspa.c"
+#endif
+
+#ifdef OML_LV2
 #include "lv2.c"
+#endif
+
 
 /* IMPORTANT NOTE: effects should not register any more than 16 controls */
 /* TODO: fix this, controls should be dynamically allocated              */
@@ -10,9 +16,15 @@ void freeEffect(Effect *e)
 
 	switch (e->type)
 	{
-		case EFFECT_TYPE_DUMMY:  break;
+		case EFFECT_TYPE_DUMMY: break;
+
+#ifdef OML_LADSPA
 		case EFFECT_TYPE_LADSPA: freeLadspaEffect(&e->ladspa); break;
-		case EFFECT_TYPE_LV2:    freeLV2Effect   (&e->lv2);    break;
+#endif
+
+#ifdef OML_LV2
+		case EFFECT_TYPE_LV2: freeLV2Effect(&e->lv2); break;
+#endif
 	}
 }
 
@@ -45,9 +57,15 @@ uint8_t getEffectControlCount(Effect *e)
 	if (e)
 		switch (e->type)
 		{
-			case EFFECT_TYPE_DUMMY:  return 1;
+			case EFFECT_TYPE_DUMMY: return 1;
+
+#ifdef OML_LADSPA
 			case EFFECT_TYPE_LADSPA: return getLadspaEffectControlCount(&e->ladspa);
-			case EFFECT_TYPE_LV2:    return getLV2EffectControlCount   (&e->lv2);
+#endif
+
+#ifdef OML_LV2
+			case EFFECT_TYPE_LV2: return getLV2EffectControlCount(&e->lv2);
+#endif
 		}
 	return 0;
 }
@@ -180,9 +198,15 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 	freeEffect(dest);
 	switch (src->type)
 	{
-		case EFFECT_TYPE_DUMMY:  break;
+		case EFFECT_TYPE_DUMMY: break;
+
+#ifdef OML_LADSPA
 		case EFFECT_TYPE_LADSPA: copyLadspaEffect(&dest->ladspa, &src->ladspa, input, output); break;
-		case EFFECT_TYPE_LV2:    copyLV2Effect   (&dest->lv2, &src->lv2, input, output); break;
+#endif
+
+#ifdef OML_LV2
+		case EFFECT_TYPE_LV2: copyLV2Effect(&dest->lv2, &src->lv2, input, output); break;
+#endif
 	}
 }
 void copyEffectChain(EffectChain **dest, EffectChain *src)
@@ -205,8 +229,14 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	if (!e) return;
 	switch (e->type)
 	{
-		case EFFECT_TYPE_DUMMY:  break;
+		case EFFECT_TYPE_DUMMY: break;
+
+#ifdef OML_LADSPA
 		case EFFECT_TYPE_LADSPA: runLadspaEffect(samplecount, &e->ladspa, chain->input, chain->output); break;
-		case EFFECT_TYPE_LV2:    runLV2Effect   (samplecount, &e->lv2, chain->input, chain->output);    break;
+#endif
+
+#ifdef OML_LV2
+		case EFFECT_TYPE_LV2: runLV2Effect(samplecount, &e->lv2, chain->input, chain->output);    break;
+#endif
 	}
 }

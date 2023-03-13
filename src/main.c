@@ -15,18 +15,14 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <ctype.h>
-#include <jack/jack.h>         /* audio i/o                       */
-#include <jack/midiport.h>     /* midi i/o                        */
-#include <jack/thread.h>       /* threading helper                */
-#include <sndfile.h>           /* audio file read/write           */
+#include <pthread.h>
+#include <sys/param.h> /* MIN/MAX (pulseaudio wants this) */
 #include <dlfcn.h>
-#include <ladspa.h>            /* LADSPA audio plugins            */
-#include <lilv/lilv.h>         /* LV2 audio plugins               */
-#include <lv2.h>               /* LV2 audio plugins               */
-#include <lv2/urid/urid.h>     /* LV2 urids                       */
-#include <lv2/units/units.h>   /* LV2 units                       */
+#include <sndfile.h>           /* audio file read/write           */
+// #ifdef OML_X11
 #include <X11/Xlib.h>          /* X11 hack for key release events */
 #include <X11/keysym.h>
+// #endif
 #include <valgrind/valgrind.h> /* valgrind hooks                  */
 
 
@@ -48,8 +44,8 @@ const uint16_t version = 0x0001;
 
 int DEBUG;
 
-jack_nframes_t samplerate, buffersize;
-jack_nframes_t rampmax;
+uint32_t samplerate, buffersize;
+uint32_t rampmax;
 
 struct winsize ws;
 
@@ -230,7 +226,7 @@ int main(int argc, char *argv[])
 			handleStdin(); /* ensure that semaphores are handled between input and draw */
 		}
 
-		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
+		req.tv_sec = 0;
 		req.tv_nsec = UPDATE_DELAY;
 		while (nanosleep(&req, &req) < 0);
 	} cleanup(0);

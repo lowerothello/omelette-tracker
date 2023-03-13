@@ -30,7 +30,7 @@ enum Page {
 #define TRACKERFX_VISUAL_MIN 0
 #define DEF_OCTAVE 4
 #define DEF_STEP 0
-typedef struct _UI {
+typedef struct UI {
 	Variant *pbvariantv[TRACK_MAX];
 	Vtrig   *vbtrig    [TRACK_MAX];
 	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */

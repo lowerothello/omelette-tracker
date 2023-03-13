@@ -1,4 +1,4 @@
-static void _macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroOffset(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
@@ -11,7 +11,7 @@ static void _macroOffset(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, R
 		}
 	}
 }
-static void _macroOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroOffsetJitter(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
 	if (p->s->instrument->i[cv->r.inst] < p->s->instrument->c)
 	{
@@ -39,7 +39,7 @@ static void _macroOffsetJitter(jack_nframes_t fptr, uint16_t *spr, int m, Track 
 #define MACRO_OFFSET_JITTER         'U'
 #define MACRO_REVERSE_OFFSET_JITTER 'u'
 
-void macroOffsetPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroOffsetPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	FOR_ROW_MACROS(i, cv)
 		switch (r->macro[i].c)

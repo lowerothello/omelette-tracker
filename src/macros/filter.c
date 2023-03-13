@@ -5,7 +5,7 @@
 #define MACRO_FILTER_MODE        'M'
 #define MACRO_SMOOTH_FILTER_MODE 'm'
 
-void macroFilterPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroFilterPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	macroStateApply(&cv->filter.cut);
 	macroStateApply(&cv->filter.res);
@@ -30,7 +30,7 @@ void macroFilterPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
 		}
 }
 
-void macroFilterPostSampler(jack_nframes_t fptr, Track *cv, float rp, float *lf, float *rf)
+void macroFilterPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf)
 {
 	float cutoff_l = 0.0f, cutoff_r = 0.0f;
 	float resonance_l = 0.0f, resonance_r = 0.0f;

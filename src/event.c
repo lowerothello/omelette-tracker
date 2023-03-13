@@ -51,6 +51,7 @@ mainM_SEM_pop: /* allow for processing and popping off the stack in one go */
 					p->event[0].callback(&p->event[0]);
 				goto mainM_SEM_pop;
 
+#ifdef OML_X11
 			case M_SEM_INPUT: {
 					int keysymindex;
 					unsigned int state;
@@ -70,6 +71,8 @@ mainM_SEM_pop: /* allow for processing and popping off the stack in one go */
 
 					free(p->event[0].callbackarg);
 				} goto mainM_SEM_pop;
+#endif
+
 			default: break;
 		}
 	return 0;

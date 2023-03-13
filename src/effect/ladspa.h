@@ -1,3 +1,5 @@
+#include <ladspa.h>
+
 #define LADSPA_DEF_MAX 4.0f
 #define LADSPA_DEF_MIN 0.0f
 

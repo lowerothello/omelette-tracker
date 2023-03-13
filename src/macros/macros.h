@@ -1,7 +1,7 @@
 bool ifMacro(Track *cv, Row *r, char m);
 
 /* ifMacro(), but run .callback */
-void ifMacroCallback(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*callback)(jack_nframes_t, uint16_t*, int, Track*, Row*));
+void ifMacroCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*callback)(uint32_t, uint16_t*, int, Track*, Row*));
 
 /* access macros with (Row*)->macro[i] */
 #define FOR_ROW_MACROS(i, cv) for (int i = 0; i < cv->variant->macroc; i++)
@@ -43,13 +43,13 @@ void macroStateGetStereo(MacroState *s, float rp, float *l, float *r);
 
 typedef struct MacroCallbacks
 {
-	void        (*pretrig)(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r);
-	void       (*posttrig)(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r);
-	void    (*triggernote)(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst);
-	uint8_t   (*samplerow)(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
-	void (*persistenttune)(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
-	void   (*volatiletune)(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer);
-	void    (*postsampler)(jack_nframes_t fptr, Track *cv, float rp, float *lf, float *rf);
+	void        (*pretrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
+	void       (*posttrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
+	void    (*triggernote)(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst);
+	uint8_t   (*samplerow)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
+	void (*persistenttune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
+	void   (*volatiletune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer);
+	void    (*postsampler)(uint32_t fptr, Track *cv, float rp, float *lf, float *rf);
 } MacroCallbacks;
 
 #define MACRO_CALLBACK_MAX 128

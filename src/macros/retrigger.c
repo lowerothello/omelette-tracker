@@ -1,4 +1,4 @@
-static void _macroTickRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroTickRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
 	if (m > 0)
 	{
@@ -11,7 +11,7 @@ static void _macroTickRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *c
 		cv->rtrigsamples = *spr*DIV256 * m;
 	}
 }
-static void _macroBlockRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
 	cv->rtrigpointer = cv->rtrigcurrentpointer = cv->pointer;
 	cv->rtrigpitchedpointer = cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
@@ -27,7 +27,7 @@ static void _macroBlockRetrig(jack_nframes_t fptr, uint16_t *spr, int m, Track *
 #define MACRO_BLOCK_RETRIG         'R'
 #define MACRO_REVERSE_BLOCK_RETRIG 'r'
 
-void macroRetrigPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	if (cv->rtrigsamples)
 	{
@@ -59,7 +59,7 @@ macroRetrigEnd:
 	}
 }
 
-void macroRetrigTriggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void macroRetrigTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	/* must stop retriggers cos pointers are no longer guaranteed to be valid */
 	cv->rtrigblocksize = 0;
@@ -68,7 +68,7 @@ void macroRetrigTriggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uin
 }
 
 /* TODO: should the persistent pointer be the informant? */
-void macroRetrigVolatile(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
+void macroRetrigVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
 {
 	sprp += count;
 

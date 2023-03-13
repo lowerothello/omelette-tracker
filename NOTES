@@ -12,6 +12,4 @@ lookback
 - lv2 atom ports
 - lv2 scale points
 
-- i don't like how hardcoded the send is
-	- arbitrary buses?
-	- no other ideas lol
+X11 cannot be fully disabled currently because tooltip depends on x keysyms

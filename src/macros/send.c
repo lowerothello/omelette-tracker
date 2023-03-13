@@ -1,7 +1,7 @@
 #define MACRO_SEND        'S'
 #define MACRO_SMOOTH_SEND 's'
 
-void macroSendPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroSendPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	macroStateApply(&cv->send);
 

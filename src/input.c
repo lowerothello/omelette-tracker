@@ -92,13 +92,19 @@ static enum InputMode getRawInputMode(void)
 #ifdef DISABLE_RAW_INPUT
 	return INPUTMODE_NONE;
 #endif
+
 	if (getenv("OML_STDIN"))              return INPUTMODE_NONE;
 	if (!strcmp(getenv("TERM"), "LINUX")) return INPUTMODE_RAW;
+
+#ifdef OML_X11
 	if (getenv("DISPLAY"))                return INPUTMODE_X;
+#endif
+
 	return INPUTMODE_NONE; /* fallback */
 }
 
 
+#ifdef OML_X11
 Display *dpy;
 pthread_t xeventthread_id;
 Window wpy;
@@ -156,6 +162,10 @@ void setAutoRepeatOff(void)
 	if (input_mode == INPUTMODE_X)
 		XAutoRepeatOff(dpy);
 }
+#else
+void setAutoRepeatOn (void) { }
+void setAutoRepeatOff(void) { }
+#endif
 
 /* stdin is initialized by initTerminal() */
 /* returns true for failure */
@@ -163,18 +173,22 @@ int initRawInput(void)
 {
 	input_mode = getRawInputMode();
 
-	int revtoret;
 	switch (input_mode)
 	{
 		case INPUTMODE_RAW:
 			// ioctl(0, KDSKBMODE, K_RAW); /* TODO: */
 			break;
+
+#ifdef OML_X11
 		case INPUTMODE_X:
 			if (!(dpy = XOpenDisplay(NULL))) return 1;
+			int revtoret;
 			XGetInputFocus(dpy, &wpy, &revtoret);
 			XGrabKey(dpy, AnyKey, AnyModifier, wpy, 1, GrabModeAsync, GrabModeAsync);
 			pthread_create(&xeventthread_id, NULL, (void*(*)(void*))XEventThread, &p);
 			break;
+#endif
+
 		case INPUTMODE_NONE: break;
 	}
 	return 0;
@@ -188,6 +202,8 @@ void freeRawInput(void)
 		case INPUTMODE_RAW:
 			// ioctl(0, KDSKBMODE, K_XLATE);
 			break;
+
+#ifdef OML_X11
 		case INPUTMODE_X:
 			/* the xevent thread will die when this bit is set high after
 			 * the next event is recieved. it's usually killed by the
@@ -204,6 +220,8 @@ void freeRawInput(void)
 			setAutoRepeatOn();
 			XCloseDisplay(dpy);
 			break;
+#endif
+
 		case INPUTMODE_NONE: break;
 	}
 }

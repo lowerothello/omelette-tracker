@@ -22,7 +22,7 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 			short l, r;
 			if (cv->reverse)
 			{
-				jack_nframes_t localrampmax;
+				uint32_t localrampmax;
 				if (pointeroffset < rampmax)
 					localrampmax = rampmax - pointeroffset;
 				else localrampmax = rampmax;
@@ -48,43 +48,35 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 	} cv->rampindex = 0;
 }
 
-void midiNoteOff(jack_nframes_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
+void midiNoteOff(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
 {
-#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	if (note != NOTE_VOID)
 	{
-		jack_midi_data_t event[3] = {0b10000000 | miditrack, note, velocity};
-		jack_midi_event_write(pb.midiout, fptr, event, 3);
+		unsigned char event[3] = {0b10000000 | miditrack, note, velocity};
+		writeMidiEvent(fptr, event, 3);
 	}
-#endif
 }
-void midiNoteOn(jack_nframes_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
+void midiNoteOn(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
 {
-#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	if (note != NOTE_VOID)
 	{
-		jack_midi_data_t event[3] = {0b10010000 | miditrack, note, velocity};
-		jack_midi_event_write(pb.midiout, fptr, event, 3);
+		unsigned char event[3] = {0b10010000 | miditrack, note, velocity};
+		writeMidiEvent(fptr, event, 3);
 	}
-#endif
 }
 
-void midiPC(jack_nframes_t fptr, uint8_t miditrack, uint8_t program)
+void midiPC(uint32_t fptr, uint8_t miditrack, uint8_t program)
 {
-#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
-	jack_midi_data_t event[2] = {0b11000000 | miditrack, program};
-	jack_midi_event_write(pb.midiout, fptr, event, 2);
-#endif
+	unsigned char event[2] = {0b11000000 | miditrack, program};
+	writeMidiEvent(fptr, event, 2);
 }
-void midiCC(jack_nframes_t fptr, uint8_t miditrack, uint8_t controller, uint8_t value)
+void midiCC(uint32_t fptr, uint8_t miditrack, uint8_t controller, uint8_t value)
 {
-#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
-	jack_midi_data_t event[3] = {0b10110000 | miditrack, controller, value};
-	jack_midi_event_write(pb.midiout, fptr, event, 3);
-#endif
+	unsigned char event[3] = {0b10110000 | miditrack, controller, value};
+	writeMidiEvent(fptr, event, 3);
 }
 
-bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
+bool triggerMidi(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
 	if (note != NOTE_VOID && !cv->mute && instrumentSafe(p->s->instrument, inst))
 	{
@@ -100,7 +92,7 @@ bool triggerMidi(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 }
 
 /* TODO: should maybe take oldnote and a row as args */
-void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	triggerMidi(fptr, cv, oldnote, note, inst);
 
@@ -151,7 +143,7 @@ void triggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, 
 }
 
 
-void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
+void processRow(uint32_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 {
 	bool triggerramp = 0;
 	Track oldcv;
@@ -181,7 +173,7 @@ void processRow(jack_nframes_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r
 		ramp(&oldcv, 0.0f, p->s->instrument->i[cv->r.inst]);
 }
 
-void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
+void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
 {
 	macroCallbackPostSampler(fptr, cv, rp, &lf, &rf);
 
@@ -205,7 +197,7 @@ void postSampler(jack_nframes_t fptr, Track *cv, float rp, float lf, float rf)
 	}
 }
 
-void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
+void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
 {
 	uint8_t newnote = macroCallbackSampleRow(fptr, *spr, spr, 0, cv);
 	if (newnote != NOTE_VOID)
@@ -255,7 +247,7 @@ void playTrackLookback(jack_nframes_t fptr, uint16_t *spr, Track *cv)
 		} else cv->pointer += *spr;
 	}
 }
-void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *cv)
+void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 {
 	float rowprogress = (float)sprp / (float)(*spr);
 
@@ -277,8 +269,8 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 
 	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointer, &pitchedpointer);
 
-	short li = 0;    short ri = 0;
-	float lf = 0.0f; float rf = 0.0f;
+	short li = 0;
+	short ri = 0;
 
 	float samplegain;
 	if (cv->file)
@@ -316,8 +308,8 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 			}
 		}
 
-		lf = li*DIVSHRT;
-		rf = ri*DIVSHRT;
+		float lf = li*DIVSHRT;
+		float rf = ri*DIVSHRT;
 
 		if (cv->rampbuffer && cv->rampindex < rampmax)
 		{ // ramping
@@ -350,7 +342,7 @@ void playTrack(jack_nframes_t fptr, uint16_t *spr, jack_nframes_t sprp, Track *c
 	}
 }
 
-void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
+void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 {
 	clearTrackRuntime(cv);
 
@@ -371,7 +363,7 @@ void lookback(jack_nframes_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16_t *playfy, bool readrows)
 {
 	Row *r;
-	for (jack_nframes_t fptr = 0; fptr < buffersize; fptr++) /* TODO: probably shouldn't rely on buffersize here */
+	for (uint32_t fptr = 0; fptr < buffersize; fptr++) /* TODO: probably shouldn't rely on buffersize here */
 	{
 		playTrack(fptr, spr, *sprp, cv);
 
@@ -451,31 +443,9 @@ static void triggerFlash(PlaybackInfo *p)
 		}
 }
 
-void *dummyProcess(PlaybackInfo *p)
+void processOutput(uint32_t nfptr)
 {
-	struct timespec req;
-
-	while (1)
-	{
-		if (processM_SEM()) return 0;
-
-		triggerFlash(p);
-
-		req.tv_sec  = 0; /* nanosleep can set this higher sometimes, so set every cycle */
-		req.tv_nsec = UPDATE_DELAY;
-		while(nanosleep(&req, &req) < 0);
-	}
-}
-
-int process(jack_nframes_t nfptr, PlaybackInfo *p)
-{
-	pb.in.l =    jack_port_get_buffer(p->in.l,    nfptr);
-	pb.in.r =    jack_port_get_buffer(p->in.r,    nfptr);
-	pb.out.l =   jack_port_get_buffer(p->out.l,   nfptr);
-	pb.out.r =   jack_port_get_buffer(p->out.r,   nfptr);
-	pb.midiout = jack_port_get_buffer(p->midiout, nfptr); jack_midi_clear_buffer(pb.midiout);
-
-	if (processM_SEM()) return 0;
+	if (processM_SEM()) return;
 
 	/* TODO: should be events */
 	/* will no longer write to the record buffer */
@@ -496,8 +466,8 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	memset(preview_thread_failed, 1, PREVIEW_TRACKS);
 	bool thread_failed[p->s->track->c-1];
 	memset(thread_failed, 1, p->s->track->c-1);
-	jack_native_thread_t preview_thread_ids[PREVIEW_TRACKS];
-	jack_native_thread_t thread_ids[p->s->track->c-1]; /* index 0 is the preview track */
+	pthread_t preview_thread_ids[PREVIEW_TRACKS];
+	pthread_t thread_ids[p->s->track->c-1]; /* index 0 is the preview track */
 #endif
 
 	/* handle the preview tracks first */
@@ -513,15 +483,11 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 			if (RUNNING_ON_VALGRIND)
 				previewTrackThreadRoutine(&p->w->previewtrack[i]);
 			else
-				/* try spawning a realtime thread, if it fails then fallback to inheriting priority */
-				if (jack_client_create_thread(client, &preview_thread_ids[i],
-						jack_client_real_time_priority(client), jack_is_realtime(client),
-						previewTrackThreadRoutine, &p->w->previewtrack[i]))
-					if (pthread_create(&preview_thread_ids[i], NULL, previewTrackThreadRoutine, &p->w->previewtrack[i]))
-					{
-						preview_thread_failed[i] = 1;
-						previewTrackThreadRoutine(&p->w->previewtrack[i]);
-					}
+				if (createRealtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, &p->w->previewtrack[i]))
+				{
+					preview_thread_failed[i] = 1;
+					previewTrackThreadRoutine(&p->w->previewtrack[i]);
+				}
 #endif
 		}
 	}
@@ -536,15 +502,11 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 		if (RUNNING_ON_VALGRIND)
 			trackThreadRoutine(&p->s->track->v[i]);
 		else
-			/* try spawning a realtime thread, if it fails then fallback to inheriting priority */
-			if (jack_client_create_thread(client, &thread_ids[i-1],
-					jack_client_real_time_priority(client), jack_is_realtime(client),
-					trackThreadRoutine, &p->s->track->v[i]))
-				if (pthread_create(&thread_ids[i-1], NULL, trackThreadRoutine, &p->s->track->v[i]))
-				{
-					thread_failed[i-1] = 1;
-					trackThreadRoutine(&p->s->track->v[i]);
-				}
+			if (createRealtimeThread(&thread_ids[i-1], trackThreadRoutine, &p->s->track->v[i]))
+			{
+				thread_failed[i-1] = 1;
+				trackThreadRoutine(&p->s->track->v[i]);
+			}
 #endif
 	}
 
@@ -589,7 +551,7 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	/* sum the output from each track thread */
 	for (uint8_t c = 0; c < p->s->track->c; c++)
 		if (p->s->track->v[c].output[0] && p->s->track->v[c].output[1])
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
 				p->s->masteroutput[0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].mainmult[0][fptr];
 				p->s->masteroutput[1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].mainmult[1][fptr];
@@ -601,7 +563,7 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 	for (uint8_t i = 0; i < p->s->send->c; i++)
 		runEffect(nfptr, p->s->send, &p->s->send->v[i]);
 	/* mix the send chain output into the master input */
-	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 	{
 		p->s->masteroutput[0][fptr] += p->s->sendoutput[0][fptr];
 		p->s->masteroutput[1][fptr] += p->s->sendoutput[1][fptr];
@@ -609,7 +571,7 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
-		for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		{
 			p->s->masteroutput[0][fptr] += p->w->previewtrack[i].output[0][fptr] * p->w->previewtrack[i].mainmult[0][fptr];
 			p->s->masteroutput[1][fptr] += p->w->previewtrack[i].output[1][fptr] * p->w->previewtrack[i].mainmult[1][fptr];
@@ -621,40 +583,35 @@ int process(jack_nframes_t nfptr, PlaybackInfo *p)
 		runEffect(nfptr, p->s->master, &p->s->master->v[i]);
 
 	/* output */
-	for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
-	{
-		pb.out.l[fptr] = p->s->masteroutput[0][fptr];
-		pb.out.r[fptr] = p->s->masteroutput[1][fptr];
-	}
+	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
+		writeAudioSample(fptr,
+				p->s->masteroutput[0][fptr],
+				p->s->masteroutput[1][fptr]);
 
-	/* record */
+	triggerFlash(p);
+}
+
+void processInput(uint32_t nfptr)
+{
 	if (p->w->instrumentrecv == INST_REC_LOCK_CONT
 			|| p->w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
 	{
 		if (p->w->recptr + nfptr > RECORD_LENGTH * samplerate)
 		{
-			strcpy(p->w->command.error, "record buffer full");
 			p->w->instrumentrecv = INST_REC_LOCK_END;
+			strcpy(p->w->command.error, "record buffer full");
+			p->redraw = 1;
 		} else
 		{
-			int c;
-			for (jack_nframes_t fptr = 0; fptr < nfptr; fptr++)
+			float left, right;
+			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				if (p->w->recptr % samplerate == 0) p->redraw = 1;
-				c = (float)pb.in.l[fptr] * (float)SHRT_MAX;
-				if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MAX;
-				else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 0] = SHRT_MIN;
-				else                   p->w->recbuffer[p->w->recptr * 2 + 0] = c;
-				c = (float)pb.in.r[fptr] * (float)SHRT_MAX;
-				if      (c > SHRT_MAX) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MAX;
-				else if (c < SHRT_MIN) p->w->recbuffer[p->w->recptr * 2 + 1] = SHRT_MIN;
-				else                   p->w->recbuffer[p->w->recptr * 2 + 1] = c;
+				if (p->w->recptr % samplerate == 0) p->redraw = 1; /* redraw the record time seconds counter */
+				readAudioSample(fptr, &left, &right);
+				p->w->recbuffer[(p->w->recptr<<1) + 0] = hardclip(left) * SHRT_MAX;
+				p->w->recbuffer[(p->w->recptr<<1) + 1] = hardclip(right) * SHRT_MAX;
 				p->w->recptr++;
 			}
 		}
 	}
-
-	triggerFlash(p);
-
-	return 0;
 }

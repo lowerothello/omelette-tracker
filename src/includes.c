@@ -1,4 +1,6 @@
 #include "config.h"
+#include "audiobackend/audiobackend.h"
+
 #include "dsp/dsp.c"
 
 #include "button.h"
@@ -10,8 +12,8 @@
 #include "draw_helpers.c" /* helper functions for drawing to the screen */
 #include "event.h"        /* event library */
 
-struct _Song;
-struct _UI;
+struct Song;
+struct UI;
 
 #include "playbackinfo.h"
 
@@ -83,12 +85,6 @@ enum Mode {
 #include "filebrowser.c"
 #include "pluginbrowser.c"
 #include "command.c"
-
-typedef struct {
-	struct { jack_default_audio_sample_t *l, *r; } in, out;
-	void *midiout;
-} portbuffers;
-portbuffers pb;
 
 #include "macros/macros.c"
 #include "process.c"

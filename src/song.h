@@ -1,4 +1,4 @@
-typedef struct _Song
+typedef struct Song
 {
 	/* instruments */
 	InstrumentChain *instrument;

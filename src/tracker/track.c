@@ -248,7 +248,7 @@ Row *getTrackRow(Track *cv, uint16_t index)
 		return getVariantRow(cv->variant->main, index);
 }
 
-static void checkBpmCache(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void checkBpmCache(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 { /* use fptr as the songlen index, and *spr as a pointer to the new bpm cache */
 	((short *)spr)[fptr] = m;
 }

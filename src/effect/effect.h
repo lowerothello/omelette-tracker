@@ -1,5 +1,14 @@
+#ifdef OML_LADSPA
 #include "ladspa.h"
+#else
+typedef void LadspaState;
+#endif
+
+#ifdef OML_LV2
 #include "lv2.h"
+#else
+typedef void LV2State;
+#endif
 
 enum EFFECT_TYPE /* cast to a (uint8_t) */
 { /* strict about indices */
@@ -8,12 +17,12 @@ enum EFFECT_TYPE /* cast to a (uint8_t) */
 	EFFECT_TYPE_LV2    = 2,
 };
 
-/* TODO: effect should be a union */
 typedef union
 {
-	uint8_t     type;
+	uint8_t type;
+
 	LadspaState ladspa;
-	LV2State    lv2;
+	LV2State lv2;
 } Effect;
 
 #define EFFECT_CHAIN_LEN 16

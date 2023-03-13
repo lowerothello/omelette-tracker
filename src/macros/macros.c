@@ -7,7 +7,7 @@ bool ifMacro(Track *cv, Row *r, char m)
 }
 
 /* ifMacro(), but run .triggercallback */
-void ifMacroCallback(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*triggercallback)(jack_nframes_t, uint16_t*, int, Track*, Row*))
+void ifMacroCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*triggercallback)(uint32_t, uint16_t*, int, Track*, Row*))
 {
 	for (int i = 0; i <= cv->variant->macroc; i++)
 		if (r->macro[i].c == m && MACRO_SET(r->macro[i].c))
@@ -27,25 +27,25 @@ bool ifMacroRamp(Track *cv, Row *r)
 	return 0;
 }
 
-void macroCallbackPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].pretrig)
 			global_macro_callbacks[i].pretrig(fptr, spr, cv, r);
 }
-void macroCallbackPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].posttrig)
 			global_macro_callbacks[i].posttrig(fptr, spr, cv, r);
 }
-void macroCallbackTriggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void macroCallbackTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].triggernote)
 			global_macro_callbacks[i].triggernote(fptr, cv, oldnote, note, inst);
 }
-uint8_t macroCallbackSampleRow(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+uint8_t macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
 	uint8_t tryret;
 	uint8_t ret = NOTE_VOID;
@@ -58,19 +58,19 @@ uint8_t macroCallbackSampleRow(jack_nframes_t fptr, uint16_t count, uint16_t *sp
 		}
 	return ret;
 }
-void macroCallbackPersistent(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+void macroCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].persistenttune)
 			global_macro_callbacks[i].persistenttune(fptr, count, spr, sprp, cv);
 }
-void macroCallbackVolatile(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
+void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].volatiletune)
 			global_macro_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, finetune, pointer, pitchedpointer);
 }
-void macroCallbackPostSampler(jack_nframes_t fptr, Track *cv, float rp, float *lf, float *rf)
+void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].postsampler)
@@ -104,8 +104,8 @@ void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(
 }
 
 
-// bool midicctargetc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->midiccindex = m%128; return 1; }
-// bool midipcc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
+// bool midicctargetc(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->midiccindex = m%128; return 1; }
+// bool midipcc(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 // {
 // 	if (!cv->mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
 // 	{
@@ -113,7 +113,7 @@ void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(
 // 		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.channel, m%128);
 // 	} return 1;
 // }
-// bool midiccc(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row r)
+// bool midiccc(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row r)
 // {
 // 	cv->midicc = m%128;
 // 	if (cv->midiccindex != -1 && !cv->mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)

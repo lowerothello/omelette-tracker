@@ -1,4 +1,4 @@
-void macroBpm(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+void macroBpm(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 {
 	if (m < 0) return;
 	if (m == 0) setBpm(spr, p->s->songbpm);
@@ -9,7 +9,7 @@ void macroBpm(jack_nframes_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 
 #define MACRO_BPM 'B'
 
-void macroBpmPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroBpmPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	FOR_ROW_MACROS(i, cv)
 		if (r->macro[i].c == MACRO_BPM)

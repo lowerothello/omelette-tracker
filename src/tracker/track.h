@@ -102,7 +102,7 @@ typedef struct {
 } TrackChain;
 
 
-void regenGlobalRowc(struct _Song *cs);
+void regenGlobalRowc(struct Song *cs);
 
 /* clears the playback state of a track */
 void clearTrackRuntime(Track *cv);
@@ -111,17 +111,17 @@ void initTrackData(Track *cv, uint16_t songlen); /* TODO: should be atomic */
 void clearTrackData(Track *cv, uint16_t songlen);
 void addTrackRuntime(Track *cv);
 void addTrackData(Track *cv, uint16_t songlen);
-void debug_dumpTrackState(struct _Song *cs);
+void debug_dumpTrackState(struct Song *cs);
 
 /* copyfrom can be NULL */
-void addTrack(struct _Song *cs, uint8_t index, uint16_t count, Track *copyfrom);
+void addTrack(struct Song *cs, uint8_t index, uint16_t count, Track *copyfrom);
 
-void _delTrack(struct _Song *cs, Track *cv);
+void _delTrack(struct Song *cs, Track *cv);
 void delTrack(uint8_t index, uint16_t count);
 void copyTrack(Track *dest, Track *src); /* NOT atomic */
 Row *getTrackRow(Track *cv, uint16_t index);
-void regenBpmCache(struct _Song *cs);
-void regenGlobalRowc(struct _Song *cs);
+void regenBpmCache(struct Song *cs);
+void regenGlobalRowc(struct Song *cs);
 void cycleVariantUp(Variant *v, uint16_t bound);
 void cycleVariantDown(Variant *v, uint16_t bound);
 

@@ -9,7 +9,7 @@
 #define MACRO_ATT_DEC              'E'
 #define MACRO_SUS_REL              'e'
 
-void macroGranularPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroGranularPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	macroStateApply(&cv->pitchshift);
 	macroStateApply(&cv->pitchwidth);
@@ -49,7 +49,7 @@ void macroGranularPostTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r
 		}
 }
 
-void macroGranularTriggerNote(jack_nframes_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void macroGranularTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	/* local controls */
 	macroStateReset(&cv->pitchshift);

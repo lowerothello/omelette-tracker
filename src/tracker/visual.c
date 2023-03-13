@@ -969,7 +969,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 
 	uint16_t row;
 	uint8_t chnl;
-	jack_nframes_t buflen, bufptr, fptr;
+	uint32_t buflen, bufptr, fptr;
 	uint16_t spr, sprp;
 
 	/* allocate temp track state */

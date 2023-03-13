@@ -960,8 +960,8 @@ void initTrackerInput(void)
 			addTooltipBind("octave increment cell" , ControlMask|Mod1Mask, XK_A         , TT_DRAW        , trackerInc                                , (void*)12);
 			addTooltipBind("octave decrement cell" , ControlMask|Mod1Mask, XK_X         , TT_DRAW        , trackerDec                                , (void*)12);
 			addTooltipBind("add empty variant"     , 0                   , XK_a         , 0              , (void(*)(void*))addEmptyVariant           , NULL     );
-			addTooltipBind("toggle variant loop"   , 0                   , XK_period    , 0              , (void(*)(void*))toggleVariantLoop         , NULL     );
-			addTooltipBind("toggle cell case"      , 0                   , XK_asciitilde, 0              , toggleCellCase                            , (void*)1 );
+			addTooltipBind("toggle variant loop"   , 0                   , XK_period    , TT_DRAW        , (void(*)(void*))toggleVariantLoop         , NULL     );
+			addTooltipBind("toggle cell case"      , 0                   , XK_asciitilde, TT_DRAW        , toggleCellCase                            , (void*)1 );
 			break;
 		case MODE_INSERT:
 		case MODE_VISUALREPLACE:

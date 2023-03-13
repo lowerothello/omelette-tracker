@@ -1,7 +1,7 @@
 #define MACRO_ROW_CUT   'C'
 #define MACRO_ROW_DELAY 'D'
 
-void macroRowPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroRowPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	FOR_ROW_MACROS(i, cv)
 		switch (r->macro[i].c)
@@ -26,7 +26,7 @@ void macroRowPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
 }
 
 /* returns the new note, or NOTE_VOID for no change */
-uint8_t macroRowSampleRow(jack_nframes_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+uint8_t macroRowSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
 	sprp += count;
 	uint8_t ret = NOTE_VOID;

@@ -1,7 +1,7 @@
 #define MACRO_GAIN        'G'
 #define MACRO_SMOOTH_GAIN 'g'
 
-void macroGainPreTrig(jack_nframes_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroGainPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	macroStateApply(&cv->gain);
 

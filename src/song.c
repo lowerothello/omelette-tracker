@@ -38,6 +38,8 @@ Song *allocSong(void)
 		addTrackData(&ret->track->v[i], ret->songlen);
 	}
 
+	ret->playfy = STATE_ROWS;
+
 	return ret;
 }
 

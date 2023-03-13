@@ -1,6 +1,3 @@
-#define MIN(X, Y) ((X)<(Y)?(X):(Y))
-#define MAX(X, Y) ((X)>(Y)?(X):(Y))
-
 uint32_t pow32(uint32_t a, uint32_t b)
 {
 	if (!b) return 1;

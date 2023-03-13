@@ -28,16 +28,20 @@ static void writeSongEffect(EffectChain *chain, FILE *fp)
 		WRITE_POINTER_KEY(FKE_TYPE, sizeof(uint8_t), 1, &chain->v[i].type, fp);
 		switch (chain->v[i].type)
 		{
+#ifdef OML_LADSPA
 			case EFFECT_TYPE_LADSPA:
 				fputc(FKE_LADSPA_UID, fp); writeSize(sizeof(unsigned long) + strlen(chain->v[i].ladspa.desc->Label) + 1, fp);
 				fwrite(&chain->v[i].ladspa.desc->UniqueID, sizeof(unsigned long), 1, fp);
 				fwrite(chain->v[i].ladspa.desc->Label, 1, strlen(chain->v[i].ladspa.desc->Label) + 1, fp);
 				WRITE_POINTER_KEY(FKE_LADSPA_CONTROLV, sizeof(float), chain->v[i].ladspa.controlc, chain->v[i].ladspa.controlv, fp);
 				break;
+#endif
+#ifdef OML_LV2
 			case EFFECT_TYPE_LV2:
 				WRITE_POINTER_KEY_STRING(FKE_LV2_URI, lilv_node_as_string(lilv_plugin_get_uri(chain->v[i].lv2.plugin)), fp);
 				WRITE_POINTER_KEY(FKE_LV2_CONTROLV, sizeof(float), chain->v[i].lv2.controlc, chain->v[i].lv2.controlv, fp);
 				break;
+#endif
 		}
 	}
 	fputc(FKE_EOF, fp); writeSize(0, fp);
@@ -63,7 +67,7 @@ int writeSongNew(Song *cs, char *path)
 	FILE *fp = fopen(pathext, "w");
 
 	WRITE_POINTER_KEY(FKH_VERSION,      sizeof(uint16_t),       1, &version,          fp);
-	WRITE_POINTER_KEY(FKH_SAMPLERATE,   sizeof(jack_nframes_t), 1, &samplerate,       fp);
+	WRITE_POINTER_KEY(FKH_SAMPLERATE,   sizeof(uint32_t), 1, &samplerate,       fp);
 	WRITE_POINTER_KEY(FKH_BPM,          sizeof(uint8_t),        1, &cs->songbpm,      fp);
 	WRITE_POINTER_KEY(FKH_ROWHIGHLIGHT, sizeof(uint8_t),        1, &cs->rowhighlight, fp);
 	WRITE_POINTER_KEY(FKH_SONGLEN,      sizeof(uint16_t),       1, &cs->songlen,      fp);
@@ -136,6 +140,7 @@ static void readSongEffect(EffectChain **chain, FILE *fp, uint16_t version)
 				(*chain)->c = count;
 				continue;
 
+#ifdef OML_LADSPA
 			case FKE_LADSPA_UID:
 				{
 					unsigned long uniqueid;
@@ -154,6 +159,13 @@ FKE_LADSPA_UID_done:
 					free(label);
 				} continue;
 
+			case FKE_LADSPA_CONTROLV:
+				/* allocated by FKE_LADSPA_UID */
+				fread(&(*chain)->v[effect].ladspa.controlv, size, 1, fp);
+				continue;
+#endif
+
+#ifdef OML_LV2
 			case FKE_LV2_URI:
 				{
 					char *uri = malloc(size);
@@ -165,15 +177,11 @@ FKE_LADSPA_UID_done:
 					free(uri);
 				} continue;
 
-			case FKE_LADSPA_CONTROLV:
-				/* allocated by FKE_LADSPA_UID */
-				fread(&(*chain)->v[effect].ladspa.controlv, size, 1, fp);
-				continue;
-
 			case FKE_LV2_CONTROLV:
 				/* allocated by FKE_LV2_URI */
 				fread(&(*chain)->v[effect].lv2.controlv, size, 1, fp);
 				continue;
+#endif
 
 			case FKE_EFFECT: fread(&effect,                   size, 1, fp); continue;
 			case FKE_TYPE:   fread(&(*chain)->v[effect].type, size, 1, fp); continue;
@@ -302,7 +310,7 @@ Song *readSongNew(char *path)
 
 			case FKH_SAMPLERATE:
 				{
-					jack_nframes_t filesamplerate;
+					uint32_t filesamplerate;
 					fread(&filesamplerate, size, 1, fp);
 					ratemultiplier = (float)samplerate / (float)filesamplerate;
 				} continue;
