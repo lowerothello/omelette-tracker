@@ -1,74 +1,63 @@
-struct PluginBrowserData {
-	uint32_t           i;
-	LilvIter          *iter;
-	const LilvPlugins *lap;
-	bool               firstLine;
+struct PluginBrowserData
+{
+	uint32_t i;
 };
+
+static uint32_t getPluginDBc(void)
+{
+	uint32_t ret = 0;
+	for (EffectType i = 0; i < EFFECT_TYPE_COUNT; i++)
+		if (effect_api[i].db_count)
+			ret += effect_api[i].db_count();
+	return ret;
+}
+static EffectType getPluginIndexEffectType(uint32_t *index)
+{
+	uint32_t walk = 0, newwalk; /* walk must be initialized here, this cruft bug took me like an hour to find */
+	for (EffectType i = 0; i < EFFECT_TYPE_COUNT; i++)
+		if (effect_api[i].db_count)
+		{
+			newwalk = walk + effect_api[i].db_count();
+			if (newwalk > *index)
+			{
+				*index -= walk;
+				return i;
+			}
+			walk = newwalk;
+		}
+	return EFFECT_TYPE_DUMMY;
+}
 
 static char *pluginBrowserGetTitle(void *data)
 {
-	struct PluginBrowserData *pbd = data;
-	pbd->i = 0;
-	pbd->firstLine = 1;
-	pbd->lap = lilv_world_get_all_plugins(lv2_db.world);
-	pbd->iter = lilv_plugins_begin(pbd->lap);
+	((struct PluginBrowserData*)data)->i = (uint32_t)-1;
 	return strdup("plugins");
 }
 
-static uint32_t getPluginDBc(void)
-{ return ladspa_db.descc + lilv_plugins_size(lilv_world_get_all_plugins(lv2_db.world)); }
-static uint32_t pluginBrowserGetLineCount(void *data) { return getPluginDBc(); }
-
 static bool pluginBrowserGetNext(void *data)
 {
-	struct PluginBrowserData *pbd = data;
-
-	if (pbd->i >= ladspa_db.descc)
-		pbd->iter = lilv_plugins_next(pbd->lap, pbd->iter);
-
-	if (!pbd->firstLine) pbd->i++;
-	else pbd->firstLine = 0;
-
-	return (pbd->i < getPluginDBc());
+	return (bool)(++((struct PluginBrowserData*)data)->i < getPluginDBc());
 }
+
 static void pluginBrowserDrawLine(BrowserState *b, int y)
 {
-	struct PluginBrowserData *pbd = b->data;
+	uint32_t i = ((struct PluginBrowserData*)b->data)->i;
 
-	uint32_t ii = 0;
+	EffectType type = getPluginIndexEffectType(&i);
 
-	/* ladspa */
-	if (pbd->i < ladspa_db.descc)
+	if (effect_api[type].db_line)
 	{
-		printf("\033[%d;1H%.*s",  y, b->x + (b->w>>1) - 3, ladspa_db.descv[pbd->i - ii]->Name);
-		printCulling((char*)ladspa_db.descv[pbd->i - ii]->Name, b->x, y, b->x, b->x + (b->w>>1) - 2);
-		printCulling((char*)ladspa_db.descv[pbd->i - ii]->Maker, b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
-		printCulling("LADSPA", b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
-		return;
+		EffectBrowserLine line = effect_api[type].db_line(i);
+		printCulling(line.name, b->x, y, b->x, b->x + (b->w>>1) - 2);
+		printCulling(line.maker, b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
+		if (effect_api[type].name)
+			printCulling(effect_api[type].name, b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
+		free(line.name);
+		free(line.maker);
 	}
-	ii += ladspa_db.descc;
-
-	/* lv2 */
-	/* the last one, so no conditional needed */
-	const LilvPlugin *lp = lilv_plugins_get(pbd->lap, pbd->iter);
-	LilvNode *node;
-
-	if ((node = lilv_plugin_get_name(lp)))
-	{
-		printCulling((char*)lilv_node_as_string(node), b->x, y, b->x, b->x + (b->w>>1) - 2);
-		lilv_node_free(node);
-	}
-
-	if ((node = lilv_plugin_get_author_name(lp)))
-	{
-		printCulling((char*)lilv_node_as_string(node), b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
-		lilv_node_free(node);
-	}
-
-	printCulling("LV2", b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
 }
 
-static void cb_addEffectLadspaAfter(Event *e)
+static void cb_addEffectAfter(Event *e)
 {
 	cc.cursor = getCursorFromEffect(*w->pluginbrowserchain, (size_t)e->callbackarg);
 	cb_addEffect(e);
@@ -76,8 +65,13 @@ static void cb_addEffectLadspaAfter(Event *e)
 static void pluginBrowserCommit(BrowserState *b)
 {
 	w->page = w->oldpage;
-	if (w->pluginbrowserbefore) addEffect(w->pluginbrowserchain, b->cursor + 1,     getEffectFromCursor(*w->pluginbrowserchain, cc.cursor), cb_addEffect);
-	else                        addEffect(w->pluginbrowserchain, b->cursor + 1, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectLadspaAfter);
+	VALGRIND_PRINTF("%d\n", b->cursor);
+	uint32_t i = b->cursor;
+	VALGRIND_PRINTF("%d\n", i);
+	EffectType type = getPluginIndexEffectType(&i);
+	VALGRIND_PRINTF("%d\n", i);
+	if (w->pluginbrowserbefore) addEffect(w->pluginbrowserchain, type, i, getEffectFromCursor(*w->pluginbrowserchain, cc.cursor), cb_addEffect);
+	else                        addEffect(w->pluginbrowserchain, type, i, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectAfter);
 }
 
 static void pluginBrowserMouse(enum Button button, int x, int y)
@@ -124,7 +118,7 @@ BrowserState *initPluginBrowser(void)
 	ret->getTitle     = pluginBrowserGetTitle;
 	ret->getNext      = pluginBrowserGetNext;
 	ret->drawLine     = pluginBrowserDrawLine;
-	ret->getLineCount = pluginBrowserGetLineCount;
+	ret->getLineCount = (uint32_t(*)(void*))getPluginDBc;
 	ret->commit       = pluginBrowserCommit;
 
 	ret->data = calloc(1, sizeof(struct PluginBrowserData));

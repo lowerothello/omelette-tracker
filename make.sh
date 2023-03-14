@@ -24,11 +24,11 @@ pkg-config lilv-0 && lv2="$(pkg-config --libs --cflags lilv-0) -DOML_LV2"
 		$include \
 		-lm $warnings -g -pg \
 		src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
-	time gcc -o omuLADSPA -O0 \
-		$jack $ladspa \
-		$include \
-		-lm $warnings -g -pg \
-		src/ladspahost.c 2>&1
+	# time gcc -o omuLADSPA -O0 \
+	# 	$jack $ladspa \
+	# 	$include \
+	# 	-lm $warnings -g -pg \
+	# 	src/ladspahost.c 2>&1
 	time gcc -shared -o omelette-ladspa-plugins.so -O0 \
 		$include \
 		-lm $warnings -g -pg -fPIC \
@@ -43,11 +43,11 @@ pkg-config lilv-0 && lv2="$(pkg-config --libs --cflags lilv-0) -DOML_LV2"
 		$include \
 		-lm $warnings -g \
 		src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
-	time ${CC:-gcc} -o omuLADSPA -O$1 \
-		$jack $ladspa \
-		$include \
-		-lm $warnings -g \
-		src/ladspahost.c 2>&1
+	# time ${CC:-gcc} -o omuLADSPA -O$1 \
+	# 	$jack $ladspa \
+	# 	$include \
+	# 	-lm $warnings -g \
+	# 	src/ladspahost.c 2>&1
 	time ${CC:-gcc} -shared -o omelette-ladspa-plugins.so -O$1 \
 		$include \
 		-lm $warnings -g -fPIC \
@@ -61,11 +61,11 @@ time ${CC:-tcc} -o omelette -O0 \
 	$include \
 	-lm $warnings -g \
 	src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
-time ${CC:-tcc} -o omuLADSPA -O0 \
-	$jack $ladspa \
-	$include \
-	-lm $warnings -g \
-	src/ladspahost.c 2>&1
+# time ${CC:-tcc} -o omuLADSPA -O0 \
+# 	$jack $ladspa \
+# 	$include \
+# 	-lm $warnings -g \
+# 	src/ladspahost.c 2>&1
 time ${CC:-tcc} -shared -o omelette-ladspa-plugins.so -O0 \
 	$include \
 	-lm $warnings -g -fPIC \

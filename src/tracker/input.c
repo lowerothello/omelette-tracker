@@ -844,13 +844,13 @@ static void addEffectAbove(EffectChain **chain)
 static void pasteEffectBelow(EffectChain **chain)
 {
 	if (w->effectbuffer.type != EFFECT_TYPE_DUMMY)
-		addEffect(chain, 0, MIN(getEffectFromCursor(*chain, cc.cursor)+1, (*chain)->c), cb_addEffect);
+		addEffect(chain, EFFECT_TYPE_DUMMY, -1, MIN(getEffectFromCursor(*chain, cc.cursor)+1, (*chain)->c), cb_addEffect);
 	p->redraw = 1;
 }
 static void pasteEffectAbove(EffectChain **chain)
 {
 	if (w->effectbuffer.type != EFFECT_TYPE_DUMMY)
-		addEffect(chain, 0, getEffectFromCursor(*chain, cc.cursor), cb_addEffect);
+		addEffect(chain, EFFECT_TYPE_DUMMY, -1, getEffectFromCursor(*chain, cc.cursor), cb_addEffect);
 	p->redraw = 1;
 }
 static void delChainEffect(EffectChain **chain)

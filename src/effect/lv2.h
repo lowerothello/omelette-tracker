@@ -22,8 +22,10 @@ typedef struct LV2DB
 } LV2DB;
 LV2DB lv2_db;
 
-void initLV2DB(void);
-void freeLV2DB(void);
+static void initLV2DB(void);
+static void freeLV2DB(void);
+static uint32_t getLV2DBCount(void);
+static EffectBrowserLine getLV2DBLine(uint32_t index);
 
 
 #define LV2_SUPPORTED_FEATURE_COUNT 2
@@ -40,7 +42,6 @@ const char *lv2_unmap_uri(LV2_URID_Unmap_Handle, LV2_URID urid);
 
 typedef struct LV2State
 {
-	uint8_t             type;
 	const LilvPlugin   *plugin;
 	LilvInstance       *instance;
 	struct _UridMapping urid;
@@ -61,13 +62,25 @@ float getLV2PortMin(LV2State*, const LilvPort*, const LilvNode*);
 float getLV2PortMax(LV2State*, const LilvPort*, const LilvNode*);
 float getLV2PortDef(LV2State*, const LilvPort*, const LilvNode*);
 
-void freeLV2Effect(LV2State*);
-void initLV2Effect(LV2State*, float **input, float **output, const LilvPlugin *plugin);
-void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output);
+static uint32_t getLV2EffectControlCount(void*);
+static short getLV2EffectHeight(void*);
+static void *initLV2Effect(const void *data, float **input, float **output);
+static void freeLV2Effect(void*);
+static void copyLV2Effect(void *dest, void *src, float **input, float **output);
+static void drawLV2Effect(void*, short x, short w, short y, short ymin, short ymax);
+static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output);
 
-uint32_t getLV2EffectControlCount(LV2State*);
-short getLV2EffectHeight(LV2State*);
-
-void drawLV2Effect(LV2State*, short x, short w, short y, short ymin, short ymax);
-
-void runLV2Effect(uint32_t samplecount, LV2State*, float **input, float **output);
+const EffectAPI lv2_api = {
+	"LV2",
+	initLV2DB,
+	freeLV2DB,
+	getLV2DBCount,
+	getLV2DBLine,
+	initLV2Effect,
+	freeLV2Effect,
+	copyLV2Effect,
+	runLV2Effect,
+	getLV2EffectControlCount,
+	getLV2EffectHeight,
+	drawLV2Effect,
+};

@@ -19,33 +19,33 @@ void writeSize(uint32_t size, FILE *fp) { fwrite(&size, sizeof(uint32_t), 1, fp)
 #define WRITE_POINTER_KEY(key, size, count, pointer, fp) fputc(key, fp); writeSize(size*count, fp); fwrite(pointer, size, count, fp);
 #define WRITE_POINTER_KEY_STRING(key, string, fp) fputc(key, fp); writeSize(strlen(string)+1, fp); fwrite(string, 1, strlen(string)+1, fp);
 
-static void writeSongEffect(EffectChain *chain, FILE *fp)
-{
-	WRITE_POINTER_KEY(FKE_COUNT, sizeof(uint8_t), 1, &chain->c, fp);
-	for (uint8_t i = 0; i < chain->c; i++)
-	{
-		WRITE_POINTER_KEY(FKE_EFFECT, sizeof(uint8_t), 1, &i, fp);
-		WRITE_POINTER_KEY(FKE_TYPE, sizeof(uint8_t), 1, &chain->v[i].type, fp);
-		switch (chain->v[i].type)
-		{
-#ifdef OML_LADSPA
-			case EFFECT_TYPE_LADSPA:
-				fputc(FKE_LADSPA_UID, fp); writeSize(sizeof(unsigned long) + strlen(chain->v[i].ladspa.desc->Label) + 1, fp);
-				fwrite(&chain->v[i].ladspa.desc->UniqueID, sizeof(unsigned long), 1, fp);
-				fwrite(chain->v[i].ladspa.desc->Label, 1, strlen(chain->v[i].ladspa.desc->Label) + 1, fp);
-				WRITE_POINTER_KEY(FKE_LADSPA_CONTROLV, sizeof(float), chain->v[i].ladspa.controlc, chain->v[i].ladspa.controlv, fp);
-				break;
-#endif
-#ifdef OML_LV2
-			case EFFECT_TYPE_LV2:
-				WRITE_POINTER_KEY_STRING(FKE_LV2_URI, lilv_node_as_string(lilv_plugin_get_uri(chain->v[i].lv2.plugin)), fp);
-				WRITE_POINTER_KEY(FKE_LV2_CONTROLV, sizeof(float), chain->v[i].lv2.controlc, chain->v[i].lv2.controlv, fp);
-				break;
-#endif
-		}
-	}
-	fputc(FKE_EOF, fp); writeSize(0, fp);
-}
+// static void writeSongEffect(EffectChain *chain, FILE *fp)
+// {
+// 	WRITE_POINTER_KEY(FKE_COUNT, sizeof(uint8_t), 1, &chain->c, fp);
+// 	for (uint8_t i = 0; i < chain->c; i++)
+// 	{
+// 		WRITE_POINTER_KEY(FKE_EFFECT, sizeof(uint8_t), 1, &i, fp);
+// 		WRITE_POINTER_KEY(FKE_TYPE, sizeof(uint8_t), 1, &chain->v[i].type, fp);
+// 		switch (chain->v[i].type)
+// 		{
+// #ifdef OML_LADSPA
+// 			case EFFECT_TYPE_LADSPA:
+// 				fputc(FKE_LADSPA_UID, fp); writeSize(sizeof(unsigned long) + strlen(chain->v[i].ladspa.desc->Label) + 1, fp);
+// 				fwrite(&chain->v[i].ladspa.desc->UniqueID, sizeof(unsigned long), 1, fp);
+// 				fwrite(chain->v[i].ladspa.desc->Label, 1, strlen(chain->v[i].ladspa.desc->Label) + 1, fp);
+// 				WRITE_POINTER_KEY(FKE_LADSPA_CONTROLV, sizeof(float), chain->v[i].ladspa.controlc, chain->v[i].ladspa.controlv, fp);
+// 				break;
+// #endif
+// #ifdef OML_LV2
+// 			case EFFECT_TYPE_LV2:
+// 				WRITE_POINTER_KEY_STRING(FKE_LV2_URI, lilv_node_as_string(lilv_plugin_get_uri(chain->v[i].lv2.plugin)), fp);
+// 				WRITE_POINTER_KEY(FKE_LV2_CONTROLV, sizeof(float), chain->v[i].lv2.controlc, chain->v[i].lv2.controlv, fp);
+// 				break;
+// #endif
+// 		}
+// 	}
+// 	fputc(FKE_EOF, fp); writeSize(0, fp);
+// }
 
 int writeSongNew(Song *cs, char *path)
 {
@@ -94,8 +94,8 @@ int writeSongNew(Song *cs, char *path)
 			WRITE_POINTER_KEY(FKT_VARIANTV_ROWV, sizeof(Row),      cs->track->v[i].variant->v[j]->rowc, cs->track->v[i].variant->v[j]->rowv,  fp);
 		}
 
-		fputc(FKT_GOTO_EFFECT, fp); writeSize(0, fp);
-		writeSongEffect(cs->track->v[i].effect, fp);
+		// fputc(FKT_GOTO_EFFECT, fp); writeSize(0, fp);
+		// writeSongEffect(cs->track->v[i].effect, fp);
 	}
 
 	fputc(FKT_EOF, fp); writeSize(0, fp);
@@ -117,79 +117,79 @@ int writeSongNew(Song *cs, char *path)
 	p->redraw = 1; return 0;
 }
 
-static void readSongEffect(EffectChain **chain, FILE *fp, uint16_t version)
-{
-	uint8_t effect;
-
-	uint8_t count;
-
-	int key;
-	uint32_t size;
-	while (1)
-	{
-		key = fgetc(fp);
-		fread(&size, sizeof(uint32_t), 1, fp);
-		switch (key)
-		{
-			case -1: /* fall through */
-			case FKE_EOF: return;
-
-			case FKE_COUNT:
-				fread(&count, size, 1, fp);
-				*chain = realloc(*chain, sizeof(EffectChain) + count*sizeof(Effect));
-				(*chain)->c = count;
-				continue;
-
-#ifdef OML_LADSPA
-			case FKE_LADSPA_UID:
-				{
-					unsigned long uniqueid;
-					char *label = malloc(size - sizeof(unsigned long));
-					fread(&uniqueid, 1, sizeof(unsigned long), fp);
-					fread(label, 1, size - sizeof(unsigned long), fp);
-
-					for (unsigned long i = 0; i < ladspa_db.descc; i++)
-						if (ladspa_db.descv[i]->UniqueID == uniqueid && !strcmp(ladspa_db.descv[i]->Label, label))
-						{
-							initLadspaEffect(&(*chain)->v[effect].ladspa, (*chain)->input, (*chain)->output, ladspa_db.descv[i]);
-							goto FKE_LADSPA_UID_done;
-						}
-					/* TODO: handle the plugin not being found */
-FKE_LADSPA_UID_done:
-					free(label);
-				} continue;
-
-			case FKE_LADSPA_CONTROLV:
-				/* allocated by FKE_LADSPA_UID */
-				fread(&(*chain)->v[effect].ladspa.controlv, size, 1, fp);
-				continue;
-#endif
-
-#ifdef OML_LV2
-			case FKE_LV2_URI:
-				{
-					char *uri = malloc(size);
-					fread(uri, size, 1, fp);
-					LilvNode *node = lilv_new_uri(lv2_db.world, uri);
-					initLV2Effect(&(*chain)->v[effect].lv2, (*chain)->input, (*chain)->output,
-							lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), node));
-					lilv_node_free(node);
-					free(uri);
-				} continue;
-
-			case FKE_LV2_CONTROLV:
-				/* allocated by FKE_LV2_URI */
-				fread(&(*chain)->v[effect].lv2.controlv, size, 1, fp);
-				continue;
-#endif
-
-			case FKE_EFFECT: fread(&effect,                   size, 1, fp); continue;
-			case FKE_TYPE:   fread(&(*chain)->v[effect].type, size, 1, fp); continue;
-
-			default: fseek(fp, size, SEEK_CUR); continue;
-		}
-	}
-}
+// static void readSongEffect(EffectChain **chain, FILE *fp, uint16_t version)
+// {
+// 	uint8_t effect;
+//
+// 	uint8_t count;
+//
+// 	int key;
+// 	uint32_t size;
+// 	while (1)
+// 	{
+// 		key = fgetc(fp);
+// 		fread(&size, sizeof(uint32_t), 1, fp);
+// 		switch (key)
+// 		{
+// 			case -1: /* fall through */
+// 			case FKE_EOF: return;
+//
+// 			case FKE_COUNT:
+// 				fread(&count, size, 1, fp);
+// 				*chain = realloc(*chain, sizeof(EffectChain) + count*sizeof(Effect));
+// 				(*chain)->c = count;
+// 				continue;
+//
+// #ifdef OML_LADSPA
+// 			case FKE_LADSPA_UID:
+// 				{
+// 					unsigned long uniqueid;
+// 					char *label = malloc(size - sizeof(unsigned long));
+// 					fread(&uniqueid, 1, sizeof(unsigned long), fp);
+// 					fread(label, 1, size - sizeof(unsigned long), fp);
+//
+// 					for (unsigned long i = 0; i < ladspa_db.descc; i++)
+// 						if (ladspa_db.descv[i]->UniqueID == uniqueid && !strcmp(ladspa_db.descv[i]->Label, label))
+// 						{
+// 							initLadspaEffect(&(*chain)->v[effect].ladspa, (*chain)->input, (*chain)->output, ladspa_db.descv[i]);
+// 							goto FKE_LADSPA_UID_done;
+// 						}
+// 					/* TODO: handle the plugin not being found */
+// FKE_LADSPA_UID_done:
+// 					free(label);
+// 				} continue;
+//
+// 			case FKE_LADSPA_CONTROLV:
+// 				/* allocated by FKE_LADSPA_UID */
+// 				fread(&(*chain)->v[effect].ladspa.controlv, size, 1, fp);
+// 				continue;
+// #endif
+//
+// #ifdef OML_LV2
+// 			case FKE_LV2_URI:
+// 				{
+// 					char *uri = malloc(size);
+// 					fread(uri, size, 1, fp);
+// 					LilvNode *node = lilv_new_uri(lv2_db.world, uri);
+// 					initLV2Effect(&(*chain)->v[effect].lv2, (*chain)->input, (*chain)->output,
+// 							lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), node));
+// 					lilv_node_free(node);
+// 					free(uri);
+// 				} continue;
+//
+// 			case FKE_LV2_CONTROLV:
+// 				/* allocated by FKE_LV2_URI */
+// 				fread(&(*chain)->v[effect].lv2.controlv, size, 1, fp);
+// 				continue;
+// #endif
+//
+// 			case FKE_EFFECT: fread(&effect,                   size, 1, fp); continue;
+// 			case FKE_TYPE:   fread(&(*chain)->v[effect].type, size, 1, fp); continue;
+//
+// 			default: fseek(fp, size, SEEK_CUR); continue;
+// 		}
+// 	}
+// }
 
 static void readSongTrack(Song *ret, FILE *fp, uint16_t version)
 {
@@ -237,7 +237,7 @@ static void readSongTrack(Song *ret, FILE *fp, uint16_t version)
 			case FKT_VARIANTC:      fread(&ret->track->v[track].variant->c,                size, 1, fp); continue;
 			case FKT_VARIANTI:      fread( ret->track->v[track].variant->i,                1, size, fp); continue;
 
-			case FKT_GOTO_EFFECT: readSongEffect(&ret->track->v[track].effect, fp, version); continue;
+			// case FKT_GOTO_EFFECT: readSongEffect(&ret->track->v[track].effect, fp, version); continue;
 
 			default: fseek(fp, size, SEEK_CUR); continue;
 		}

@@ -10,8 +10,7 @@ static void common_cleanup(int ret)
 	if (fbstate) freeFileBrowser(fbstate);
 	if (pbstate) freePluginBrowser(pbstate);
 
-	freeLadspaDB();
-	freeLV2DB();
+	freeEffectDB();
 
 	cleanupTerminal();
 
@@ -53,8 +52,7 @@ void init(int argc, char *argv[])
 
 	initTerminal();
 	initRawInput();
-	initLadspaDB();
-	initLV2DB();
+	initEffectDB();
 
 	if (initAudio()) common_cleanup(1);
 

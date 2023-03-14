@@ -10,10 +10,9 @@ void *getSpecificLadspaDescriptor(const LADSPA_Descriptor **desc, const char *so
 	return dl;
 }
 
-void initLadspaDB(void)
+static void initLadspaDB(void)
 {
-	const char *dirpath = "/usr/lib/ladspa/";
-	/* TODO: should iterate over getenv(LADSPA_PATH) if it is set */
+	const char *dirpath = "/usr/lib/ladspa/"; /* TODO: should iterate over getenv(LADSPA_PATH) if it is set */
 	DIR *dir = opendir(dirpath);
 	if (!dir) return; /* TODO: error message */
 
@@ -72,13 +71,12 @@ void initLadspaDB(void)
 			}
 		}
 	}
-	/* TODO: this realloc is bad and ugly (and bad) */
-	ladspa_db.descv = realloc(ladspa_db.descv, ladspa_db.descc * sizeof(void *));
+	ladspa_db.descv = realloc(ladspa_db.descv, ladspa_db.descc * sizeof(void *)); /* TODO: this realloc is bad and ugly (and bad) */
 
 	closedir(dir);
 }
 
-void freeLadspaDB(void)
+static void freeLadspaDB(void)
 {
 	for (size_t i = 0; i < ladspa_db.symbolc; i++)
 		dlclose(ladspa_db.symbolv[i]);
@@ -87,23 +85,40 @@ void freeLadspaDB(void)
 	free(ladspa_db.descv);
 }
 
-uint32_t getLadspaEffectControlCount(LadspaState *s)
+static uint32_t getLadspaDBCount(void)
 {
-	return s->controlc;
+	return ladspa_db.descc;
 }
 
-short getLadspaEffectHeight(LadspaState *s)
+static EffectBrowserLine getLadspaDBLine(uint32_t index)
 {
-	return getLadspaEffectControlCount(s) + 3;
+	EffectBrowserLine ret;
+	ret.name =  strdup(ladspa_db.descv[index]->Name);
+	ret.maker = strdup(ladspa_db.descv[index]->Maker);
+	ret.data =  ladspa_db.descv[index];
+	return ret;
 }
 
-void freeLadspaEffect(LadspaState *s)
+static uint32_t getLadspaEffectControlCount(void *state)
 {
+	return ((LadspaState*)state)->controlc;
+}
+
+static short getLadspaEffectHeight(void *state)
+{
+	return getLadspaEffectControlCount(state) + 3;
+}
+
+static void freeLadspaEffect(void *state)
+{
+	LadspaState *s = state;
+
 	if (s->desc->deactivate)
 		s->desc->deactivate(s->instance);
 	s->desc->cleanup(s->instance);
 	if (s->controlv) free(s->controlv);
 	if (s->dummyport) free(s->dummyport);
+	free(s);
 }
 
 static LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
@@ -220,25 +235,31 @@ static void startLadspaEffect(LadspaState *s, float **input, float **output)
 		s->desc->activate(s->instance);
 }
 
-void initLadspaEffect(LadspaState *s, float **input, float **output, const LADSPA_Descriptor *desc)
+static void _initLadspaEffect(LadspaState *s, const LADSPA_Descriptor *desc, float **input, float **output)
 {
 	s->desc = desc;
 	s->dummyport = malloc(sizeof(LADSPA_Data) * samplerate);
-
 	startLadspaEffect(s, input, output);
 }
-
-void copyLadspaEffect(LadspaState *dest, LadspaState *src, float **input, float **output)
+static void *initLadspaEffect(const void *data, float **input, float **output)
 {
-	dest->type = src->type;
-	initLadspaEffect(dest, input, output, src->desc);
-	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(LADSPA_Data));
+	LadspaState *s = malloc(sizeof(LadspaState));
+	_initLadspaEffect(s, data, input, output);
+	return (void*)s;
+}
+static void copyLadspaEffect(void *dest, void *src, float **input, float **output)
+{
+	LadspaState *d = dest;
+	LadspaState *s = src;
+	_initLadspaEffect(d, s->desc, input, output);
+	memcpy(d->controlv, s->controlv, s->controlc * sizeof(LADSPA_Data));
 }
 
 /* the current text colour will apply to the header but not the contents */
-void drawLadspaEffect(LadspaState *s,
-		short x, short w, short y, short ymin, short ymax)
+static void drawLadspaEffect(void *state, short x, short w, short y, short ymin, short ymax)
 {
+	LadspaState *s = state;
+
 	if (ymin <= y-1 && ymax >= y-1)
 		printf("\033[%d;%dH\033[7mLADSPA\033[27m", y-1, x + 1);
 	printf("\033[37;40m");
@@ -268,8 +289,10 @@ void drawLadspaEffect(LadspaState *s,
 }
 
 /* only valid to call if input and output are not NULL */
-void runLadspaEffect(uint32_t samplecount, LadspaState *s, float **input, float **output)
+static void runLadspaEffect(void *state, uint32_t samplecount, float **input, float **output)
 {
+	LadspaState *s = state;
+
 	s->desc->run(s->instance, samplecount);
 
 	if (s->outputc == 1) /* handle mono output correctly */

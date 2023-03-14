@@ -1,19 +1,3 @@
-void drawDummyEffect(short x, short w, short y, short ymin, short ymax)
-{
-	if (ymin <= y-1 && ymax >= y-1)
-		printf("\033[%d;%dH\033[7mNULL\033[27m", y-1, x + 1);
-	printf("\033[37;40m");
-
-	if (ymin <= y && ymax >= y)
-	{
-		printf("\033[1m");
-		drawCentreText(x+2, y, w-4, DUMMY_EFFECT_TEXT);
-		printf("\033[22m");
-	}
-
-	addControlDummy(x + w - 3, y);
-}
-
 /* won't centre properly if multibyte chars are present */
 void drawCentreText(short x, short y, short w, const char *text)
 {
@@ -27,13 +11,11 @@ void drawCentreText(short x, short y, short w, const char *text)
 #ifndef OMELETTE_EFFECT_NO_STRUCTS
 short getEffectHeight(Effect *e)
 {
-	if (e)
-		switch (e->type)
-		{
-			case EFFECT_TYPE_DUMMY:  return NULL_EFFECT_HEIGHT;
-			case EFFECT_TYPE_LADSPA: return getLadspaEffectHeight(&e->ladspa);
-			case EFFECT_TYPE_LV2:    return getLV2EffectHeight   (&e->lv2);
-		}
+	if (!e) return 0;
+
+	if (effect_api[e->type].height)
+		effect_api[e->type].height(e->state);
+
 	return 0;
 }
 
@@ -46,12 +28,9 @@ static int _drawEffect(Effect *e, bool selected, short x, short width, short y, 
 	if (selected) printf("\033[1;31m");
 	drawBoundingBox(x, y-1, width, ret-1, 1, ws.ws_col, ymin, ymax);
 
-	switch (e->type)
-	{
-		case EFFECT_TYPE_DUMMY:  drawDummyEffect(x, width, y, ymin, ymax); break;
-		case EFFECT_TYPE_LADSPA: drawLadspaEffect(&e->ladspa, x, width, y, ymin, ymax); break;
-		case EFFECT_TYPE_LV2:    drawLV2Effect   (&e->lv2,    x, width, y, ymin, ymax); break;
-	}
+	if (effect_api[e->type].draw)
+		effect_api[e->type].draw(e->state, x, width, y, ymin, ymax);
+
 	printf("\033[22;37m");
 
 	return ret;

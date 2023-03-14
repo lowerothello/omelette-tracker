@@ -1,4 +1,4 @@
-void initLV2DB(void)
+static void initLV2DB(void)
 {
 	lv2_db.world = lilv_world_new();
 	lilv_world_load_all(lv2_db.world);
@@ -17,7 +17,7 @@ void initLV2DB(void)
 	lv2_db.units_render = lilv_new_uri(lv2_db.world, LV2_UNITS__render);
 }
 
-void freeLV2DB(void)
+static void freeLV2DB(void)
 {
 	lilv_node_free(lv2_db.audio_port);
 	lilv_node_free(lv2_db.control_port);
@@ -31,6 +31,44 @@ void freeLV2DB(void)
 	lilv_node_free(lv2_db.units_unit);
 	lilv_node_free(lv2_db.units_render);
 	lilv_world_free(lv2_db.world);
+}
+
+static uint32_t getLV2DBCount(void)
+{
+	return lilv_plugins_size(lilv_world_get_all_plugins(lv2_db.world));
+}
+
+static EffectBrowserLine getLV2DBLine(uint32_t index)
+{
+	EffectBrowserLine ret;
+	const LilvPlugins *lap = lilv_world_get_all_plugins(lv2_db.world);
+	const LilvPlugin *lp = NULL;
+	LilvNode *node;
+	uint32_t i = 0;
+	LILV_FOREACH(plugins, iter, lap)
+		if (i == index)
+		{
+			lp = lilv_plugins_get(lap, iter);
+			break;
+		} else i++;
+
+	if (lp)
+	{
+		if ((node = lilv_plugin_get_name(lp)))
+		{
+			ret.name = strdup(lilv_node_as_string(node));
+			lilv_node_free(node);
+		}
+
+		if ((node = lilv_plugin_get_author_name(lp)))
+		{
+			ret.maker = strdup(lilv_node_as_string(node));
+			lilv_node_free(node);
+		}
+
+		ret.data = lp;
+	}
+	return ret;
 }
 
 LV2_URID lv2_map_uri(LV2_URID_Map_Handle handle, const char *uri)
@@ -160,8 +198,10 @@ static void startLV2Effect(LV2State *s, float **input, float **output)
 	lilv_instance_activate(s->instance);
 }
 
-void freeLV2Effect(LV2State *s)
+static void freeLV2Effect(void *state)
 {
+	LV2State *s = state;
+
 	lilv_instance_deactivate(s->instance);
 	lilv_instance_free(s->instance);
 	free(s->features);
@@ -173,17 +213,18 @@ void freeLV2Effect(LV2State *s)
 	}
 	if (s->controlv) free(s->controlv);
 	if (s->dummyport) free(s->dummyport);
+	free(s);
 }
 
-void initLV2Effect(LV2State *s, float **input, float **output, const LilvPlugin *plugin)
+static void _initLV2Effect(LV2State *s, const LilvPlugin *plugin, float **input, float **output)
 {
 	s->plugin = plugin;
 
 	s->urid_map.handle = s->urid_unmap.handle = &s->urid;
 	s->urid_map.map = lv2_map_uri;
 	s->urid_unmap.unmap = lv2_unmap_uri;
-	s->urid_map_feature =   (LV2_Feature){ LV2_URID__map,   &s->urid_map   };
-	s->urid_unmap_feature = (LV2_Feature){ LV2_URID__unmap, &s->urid_unmap };
+	s->urid_map_feature = (LV2_Feature){LV2_URID__map, &s->urid_map };
+	s->urid_unmap_feature = (LV2_Feature){LV2_URID__unmap, &s->urid_unmap };
 
 	s->features = calloc(LV2_SUPPORTED_FEATURE_COUNT + 1, sizeof(LV2_Feature));
 	s->features[0] = &s->urid_map_feature;
@@ -194,22 +235,38 @@ void initLV2Effect(LV2State *s, float **input, float **output, const LilvPlugin 
 
 	startLV2Effect(s, input, output);
 }
-
-void copyLV2Effect(LV2State *dest, LV2State *src, float **input, float **output)
+// static void *initLV2Effect(void *data, float **input, float **output, const LilvPlugin *plugin)
+static void *initLV2Effect(const void *data, float **input, float **output)
 {
-	dest->type = src->type;
-	initLV2Effect(dest, input, output, src->plugin);
-	memcpy(dest->controlv, src->controlv, src->controlc * sizeof(float));
+	LV2State *s = malloc(sizeof(LV2State));
+	_initLV2Effect(s, data, input, output);
+	return (void*)s;
 }
 
-uint32_t getLV2EffectControlCount(LV2State *s) { return s->controlc; }
-short getLV2EffectHeight(LV2State *s) { return s->controlc + 3; }
+static void copyLV2Effect(void *dest, void *src, float **input, float **output)
+{
+	LV2State *d = dest;
+	LV2State *s = src;
+	_initLV2Effect(d, s->plugin, input, output);
+	memcpy(d->controlv, s->controlv, s->controlc * sizeof(float));
+}
+
+static uint32_t getLV2EffectControlCount(void *s)
+{
+	return ((LV2State*)s)->controlc;
+}
+static short getLV2EffectHeight(void *s)
+{
+	return getLV2EffectControlCount(s) + 3;
+}
 
 /* the current text colour will apply to the header but not the contents */
-void drawLV2Effect(LV2State *s,
+static void drawLV2Effect(void *state,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
+	LV2State *s = state;
+
 	if (ymin <= y-1 && ymax >= y-1)
 		printf("\033[%d;%dH\033[7mLV2\033[27m", y-1, x + 1);
 	printf("\033[37;40m");
@@ -306,8 +363,10 @@ void drawLV2Effect(LV2State *s,
 	}
 }
 
-void runLV2Effect(uint32_t samplecount, LV2State *s, float **input, float **output)
+static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output)
 {
+	LV2State *s = state;
+
 	lilv_instance_run(s->instance, samplecount);
 
 	if (s->outputc == 1) /* handle mono output correctly */

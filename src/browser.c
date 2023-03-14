@@ -8,9 +8,7 @@ void resizeBrowser(BrowserState *b, short x, short y, short w, short h)
 
 void drawBrowser(BrowserState *b)
 {
-	char *line;
-	line = b->getTitle(b->data);
-
+	char *line = b->getTitle(b->data);
 	if (line)
 	{
 		if (strlen(line) > b->w) printf("\033[%d;%dH%.*s", b->y, b->x, b->w, line + ((unsigned short)strlen(line) - b->w));
@@ -19,7 +17,7 @@ void drawBrowser(BrowserState *b)
 	}
 
 	int yo = b->y + (b->h>>1) - b->cursor; /* TODO: can overflow, yo should be unsigned */
-	while ((b->getNext(b->data)))
+	while (b->getNext(b->data))
 	{
 		if (yo > b->y && yo < b->y + b->h)
 			b->drawLine(b, yo);
