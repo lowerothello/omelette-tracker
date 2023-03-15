@@ -1,8 +1,5 @@
 #include <ladspa.h>
 
-#define LADSPA_DEF_MAX 4.0f
-#define LADSPA_DEF_MIN 0.0f
-
 typedef struct LadspaDB
 {
 	uint32_t descc;   const LADSPA_Descriptor **descv;   /* LADSPA plugin descriptions  */
@@ -38,7 +35,7 @@ static void copyLadspaEffect(void *dest, void *src, float **input, float **outpu
 static void drawLadspaEffect(void*, short x, short w, short y, short ymin, short ymax); /* the current text colour will apply to the header but not the contents */
 static void runLadspaEffect(void*, uint32_t samplecount, float **input, float **output); /* only valid to call if input and output are not NULL */
 
-const EffectAPI ladspa_api = {
+const EffectAPI ladspa_effect_api = {
 	"Ladspa",
 	initLadspaDB,
 	freeLadspaDB,

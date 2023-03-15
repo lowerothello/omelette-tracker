@@ -1,3 +1,6 @@
+#define EFFECT_CONTROL_DEF_MAX 4.0f
+#define EFFECT_CONTROL_DEF_MIN 0.0f
+
 typedef enum EffectType
 {
 	EFFECT_TYPE_DUMMY  = 0,
@@ -89,3 +92,5 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output);
 void copyEffectChain(EffectChain **dest, EffectChain *src);
 
 void runEffect(uint32_t samplecount, EffectChain*, Effect*);
+
+#include "draw.h"

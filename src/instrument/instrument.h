@@ -162,3 +162,7 @@ void loadSample(uint8_t index, char *path); /* TODO: atomicity */
 void sampleLoadCallback(char *path); /* TODO: atomicity */
 
 void instrumentControlCallback(void); /* TODO: should be part of the tracker */
+
+#include "input.h"
+#include "waveform.h"
+#include "draw.h"

@@ -13,14 +13,14 @@ EffectAPI *effectGetAPI(void)
 {
 	EffectAPI *ret = calloc(EFFECT_TYPE_COUNT, sizeof(EffectAPI));
 
-	ret[EFFECT_TYPE_DUMMY] = dummy_api;
+	ret[EFFECT_TYPE_DUMMY] = dummy_effect_api;
 
 #ifdef OML_LADSPA
-	ret[EFFECT_TYPE_LADSPA] = ladspa_api;
+	ret[EFFECT_TYPE_LADSPA] = ladspa_effect_api;
 #endif
 
 #ifdef OML_LV2
-	ret[EFFECT_TYPE_LV2] = lv2_api;
+	ret[EFFECT_TYPE_LV2] = lv2_effect_api;
 #endif
 
 	return ret;
@@ -237,3 +237,5 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	if (effect_api[e->type].run)
 		effect_api[e->type].run(e->state, samplecount, chain->input, chain->output);
 }
+
+#include "draw.c"

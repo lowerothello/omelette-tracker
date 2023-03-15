@@ -10,7 +10,7 @@
 #include "init.h"
 
 #include "draw_helpers.c" /* helper functions for drawing to the screen */
-#include "event.h"        /* event library */
+#include "event.h" /* event library */
 
 struct Song;
 struct UI;
@@ -28,17 +28,12 @@ enum WaveShape {
 
 #include "redraw.h" /* the redraw callback and ruler code */
 
-/* TODO: merge modulation with oscillators? */
 #include "modulation/envelope.c"
 #include "modulation/lfo.c"
 
-#include "effect/effect.h"         /* audio effects (LADSPA, LV2) */
-#include "effect/draw.h"           /* audio effects (LADSPA, LV2) */
-#include "tracker/tracker.h"       /* tracker page */
+#include "effect/effect.h" /* audio effects (LADSPA, LV2) */
+#include "tracker/tracker.h" /* tracker page */
 #include "instrument/instrument.h" /* instrument page */
-#include "instrument/input.h"
-#include "instrument/waveform.h"
-#include "instrument/draw.h"
 
 /* TODO: should be in a header */
 enum Mode {
@@ -77,10 +72,7 @@ enum Mode {
 
 #include "tracker/tracker.c"
 #include "effect/effect.c"
-#include "effect/draw.c"
 #include "instrument/instrument.c"
-#include "instrument/input.c"
-#include "instrument/draw.c"
 
 #include "filebrowser.c"
 #include "pluginbrowser.c"
@@ -92,4 +84,5 @@ enum Mode {
 #include "redraw.c"
 #include "playback.c"
 #include "tooltip.c"
+#include "audiobackend/audiobackend.c"
 #include "init.c"

@@ -48,12 +48,12 @@ static void pluginBrowserDrawLine(BrowserState *b, int y)
 	if (effect_api[type].db_line)
 	{
 		EffectBrowserLine line = effect_api[type].db_line(i);
-		printCulling(line.name, b->x, y, b->x, b->x + (b->w>>1) - 2);
-		printCulling(line.maker, b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
-		if (effect_api[type].name)
-			printCulling(effect_api[type].name, b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
-		free(line.name);
-		free(line.maker);
+		if (line.name) printCulling(line.name, b->x, y, b->x, b->x + (b->w>>1) - 2);
+		if (line.maker) printCulling(line.maker, b->x + (b->w>>1), y, b->x + (b->w>>1), b->x + b->w - 10);
+		if (effect_api[type].name) printCulling(effect_api[type].name, b->x + b->w - 8, y, b->x + b->w - 8, b->x + b->w);
+
+		if (line.name) free(line.name);
+		if (line.maker) free(line.maker);
 	}
 }
 
@@ -65,11 +65,8 @@ static void cb_addEffectAfter(Event *e)
 static void pluginBrowserCommit(BrowserState *b)
 {
 	w->page = w->oldpage;
-	VALGRIND_PRINTF("%d\n", b->cursor);
 	uint32_t i = b->cursor;
-	VALGRIND_PRINTF("%d\n", i);
 	EffectType type = getPluginIndexEffectType(&i);
-	VALGRIND_PRINTF("%d\n", i);
 	if (w->pluginbrowserbefore) addEffect(w->pluginbrowserchain, type, i, getEffectFromCursor(*w->pluginbrowserchain, cc.cursor), cb_addEffect);
 	else                        addEffect(w->pluginbrowserchain, type, i, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectAfter);
 }

@@ -70,7 +70,7 @@ static void copyLV2Effect(void *dest, void *src, float **input, float **output);
 static void drawLV2Effect(void*, short x, short w, short y, short ymin, short ymax);
 static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output);
 
-const EffectAPI lv2_api = {
+const EffectAPI lv2_effect_api = {
 	"LV2",
 	initLV2DB,
 	freeLV2DB,

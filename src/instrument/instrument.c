@@ -1,5 +1,3 @@
-#include "waveform.c"
-
 static void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 {
 	if (dest->sample)
@@ -498,3 +496,7 @@ void instrumentControlCallback(void)
 {
 	p->redraw = 1;
 }
+
+#include "input.c"
+#include "waveform.c"
+#include "draw.c"

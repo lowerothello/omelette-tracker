@@ -40,7 +40,7 @@ static uint32_t getLV2DBCount(void)
 
 static EffectBrowserLine getLV2DBLine(uint32_t index)
 {
-	EffectBrowserLine ret;
+	EffectBrowserLine ret = { 0 };
 	const LilvPlugins *lap = lilv_world_get_all_plugins(lv2_db.world);
 	const LilvPlugin *lp = NULL;
 	LilvNode *node;
@@ -99,7 +99,7 @@ float getLV2PortMin(LV2State *s, const LilvPort *lpo, const LilvNode *node)
 	if (!node)
 	{
 		if (lilv_port_has_property(s->plugin, lpo, lv2_db.toggled)) ret = 0.0f;
-		else                                                        ret = LADSPA_DEF_MIN;
+		else                                                        ret = EFFECT_CONTROL_DEF_MIN;
 	} else ret = lilv_node_as_float(node);
 
 	if (lilv_port_has_property(s->plugin, lpo, lv2_db.sampleRate)) ret *= samplerate;
@@ -113,7 +113,7 @@ float getLV2PortMax(LV2State *s, const LilvPort *lpo, const LilvNode *node)
 	if (!node)
 	{
 		if (lilv_port_has_property(s->plugin, lpo, lv2_db.toggled)) ret = 1.0f;
-		else                                                        ret = LADSPA_DEF_MAX;
+		else                                                        ret = EFFECT_CONTROL_DEF_MAX;
 	} else ret = lilv_node_as_float(node);
 
 	if (lilv_port_has_property(s->plugin, lpo, lv2_db.sampleRate)) ret *= samplerate;

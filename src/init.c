@@ -31,7 +31,9 @@ void cleanup(int ret)
 			nanosleep(&req, &req);
 		}
 	}
-	cleanAudio();
+
+	if (audio_api.clean)
+		audio_api.clean();
 
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 		_delTrack(s, &w->previewtrack[i]);
@@ -54,10 +56,8 @@ void init(int argc, char *argv[])
 	initRawInput();
 	initEffectDB();
 
-	if (initAudio()) common_cleanup(1);
+	if (audioInitAPI()) common_cleanup(1);
 
-	samplerate = getSampleRate();
-	buffersize = getBufferSize();
 	rampmax = samplerate / 1000 * RAMP_MS;
 
 	p = malloc(sizeof(PlaybackInfo));
@@ -75,7 +75,7 @@ void init(int argc, char *argv[])
 	fbstate = initFileBrowser(SAMPLES_DIR, sampleLoadCallback);
 	pbstate = initPluginBrowser();
 
-	startAudio();
+	audio_api.start();
 
 	if (argc > 1)
 	{
@@ -87,16 +87,12 @@ void init(int argc, char *argv[])
 	} else reapplyBpm(); /* implied by the other branch */
 
 	/* trap signals */
-	signal(SIGINT  , cleanup );
-	signal(SIGTERM , cleanup );
-	// signal(SIGSEGV , cleanup ); /* TODO: might be unsafe? */
-	// signal(SIGFPE  , cleanup ); /* TODO: might be unsafe? */
-	// signal(SIGABRT , cleanup ); /* TODO: might be unsafe? */
+	signal(SIGINT, cleanup);
+	signal(SIGTERM, cleanup);
 	signal(SIGWINCH, sigwinch);
 
 
 	resetInput();
 
 	p->resize = 1;
-puts("finished initializing");
 }

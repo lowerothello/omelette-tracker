@@ -146,6 +146,3 @@ int createRealtimeThread(pthread_t *thread, void *(*start_routine)(void*), void 
 {
 	return pthread_create(thread, NULL, start_routine, arg);
 }
-
-uint32_t getSampleRate(void) { return samplerate; }
-uint32_t getBufferSize(void) { return buffersize; }

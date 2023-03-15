@@ -5,7 +5,7 @@ uint32_t getDummyEffectControlCount(void *state);
 short getDummyEffectHeight(void *state);
 void drawDummyEffect(void *state, short x, short w, short y, short ymin, short ymax);
 
-const EffectAPI dummy_api = {
+const EffectAPI dummy_effect_api = {
 	"Dummy",
 	NULL, /* init_db */
 	NULL, /* free_db */

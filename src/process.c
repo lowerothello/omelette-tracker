@@ -53,7 +53,7 @@ void midiNoteOff(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocit
 	if (note != NOTE_VOID)
 	{
 		unsigned char event[3] = {0b10000000 | miditrack, note, velocity};
-		writeMidiEvent(fptr, event, 3);
+		audio_api.writeMidi(fptr, event, 3);
 	}
 }
 void midiNoteOn(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
@@ -61,19 +61,19 @@ void midiNoteOn(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity
 	if (note != NOTE_VOID)
 	{
 		unsigned char event[3] = {0b10010000 | miditrack, note, velocity};
-		writeMidiEvent(fptr, event, 3);
+		audio_api.writeMidi(fptr, event, 3);
 	}
 }
 
 void midiPC(uint32_t fptr, uint8_t miditrack, uint8_t program)
 {
 	unsigned char event[2] = {0b11000000 | miditrack, program};
-	writeMidiEvent(fptr, event, 2);
+	audio_api.writeMidi(fptr, event, 2);
 }
 void midiCC(uint32_t fptr, uint8_t miditrack, uint8_t controller, uint8_t value)
 {
 	unsigned char event[3] = {0b10110000 | miditrack, controller, value};
-	writeMidiEvent(fptr, event, 3);
+	audio_api.writeMidi(fptr, event, 3);
 }
 
 bool triggerMidi(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
@@ -483,7 +483,7 @@ void processOutput(uint32_t nfptr)
 			if (RUNNING_ON_VALGRIND)
 				previewTrackThreadRoutine(&p->w->previewtrack[i]);
 			else
-				if (createRealtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, &p->w->previewtrack[i]))
+				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, &p->w->previewtrack[i]))
 				{
 					preview_thread_failed[i] = 1;
 					previewTrackThreadRoutine(&p->w->previewtrack[i]);
@@ -502,7 +502,7 @@ void processOutput(uint32_t nfptr)
 		if (RUNNING_ON_VALGRIND)
 			trackThreadRoutine(&p->s->track->v[i]);
 		else
-			if (createRealtimeThread(&thread_ids[i-1], trackThreadRoutine, &p->s->track->v[i]))
+			if (audio_api.realtimeThread(&thread_ids[i-1], trackThreadRoutine, &p->s->track->v[i]))
 			{
 				thread_failed[i-1] = 1;
 				trackThreadRoutine(&p->s->track->v[i]);
@@ -584,7 +584,7 @@ void processOutput(uint32_t nfptr)
 
 	/* output */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
-		writeAudioSample(fptr,
+		audio_api.writeAudio(fptr,
 				p->s->masteroutput[0][fptr],
 				p->s->masteroutput[1][fptr]);
 
@@ -607,7 +607,7 @@ void processInput(uint32_t nfptr)
 			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
 				if (p->w->recptr % samplerate == 0) p->redraw = 1; /* redraw the record time seconds counter */
-				readAudioSample(fptr, &left, &right);
+				audio_api.readAudio(fptr, &left, &right);
 				p->w->recbuffer[(p->w->recptr<<1) + 0] = hardclip(left) * SHRT_MAX;
 				p->w->recbuffer[(p->w->recptr<<1) + 1] = hardclip(right) * SHRT_MAX;
 				p->w->recptr++;

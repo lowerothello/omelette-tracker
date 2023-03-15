@@ -123,7 +123,7 @@ static void freeLadspaEffect(void *state)
 
 static LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
 {
-	if (!LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor)) return LADSPA_DEF_MIN;
+	if (!LADSPA_IS_HINT_BOUNDED_BELOW(hint.HintDescriptor)) return EFFECT_CONTROL_DEF_MIN;
 
 	LADSPA_Data ret = hint.LowerBound;
 
@@ -134,7 +134,7 @@ static LADSPA_Data getLadspaPortMin(LADSPA_PortRangeHint hint)
 }
 static LADSPA_Data getLadspaPortMax(LADSPA_PortRangeHint hint)
 {
-	if (!LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor)) return LADSPA_DEF_MAX;
+	if (!LADSPA_IS_HINT_BOUNDED_ABOVE(hint.HintDescriptor)) return EFFECT_CONTROL_DEF_MAX;
 
 	LADSPA_Data ret = hint.UpperBound;
 
