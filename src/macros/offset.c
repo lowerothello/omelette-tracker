@@ -39,7 +39,7 @@ static void _macroOffsetJitter(uint32_t fptr, uint16_t *spr, int m, Track *cv, R
 #define MACRO_OFFSET_JITTER         'U'
 #define MACRO_REVERSE_OFFSET_JITTER 'u'
 
-void macroOffsetPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroOffsetPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
 {
 	FOR_ROW_MACROS(i, cv)
 		switch (r->macro[i].c)

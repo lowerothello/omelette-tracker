@@ -66,12 +66,12 @@ int writeSongNew(Song *cs, char *path)
 
 	FILE *fp = fopen(pathext, "w");
 
-	WRITE_POINTER_KEY(FKH_VERSION,      sizeof(uint16_t),       1, &version,          fp);
+	WRITE_POINTER_KEY(FKH_VERSION,      sizeof(uint16_t), 1, &version,          fp);
 	WRITE_POINTER_KEY(FKH_SAMPLERATE,   sizeof(uint32_t), 1, &samplerate,       fp);
-	WRITE_POINTER_KEY(FKH_BPM,          sizeof(uint8_t),        1, &cs->songbpm,      fp);
-	WRITE_POINTER_KEY(FKH_ROWHIGHLIGHT, sizeof(uint8_t),        1, &cs->rowhighlight, fp);
-	WRITE_POINTER_KEY(FKH_SONGLEN,      sizeof(uint16_t),       1, &cs->songlen,      fp);
-	WRITE_POINTER_KEY(FKH_LOOP,         sizeof(uint16_t),       2, cs->loop,          fp);
+	WRITE_POINTER_KEY(FKH_BPM,          sizeof(uint8_t),  1, &cs->songbpm,      fp);
+	WRITE_POINTER_KEY(FKH_ROWHIGHLIGHT, sizeof(uint8_t),  1, &cs->rowhighlight, fp);
+	WRITE_POINTER_KEY(FKH_SONGLEN,      sizeof(uint16_t), 1, &cs->songlen,      fp);
+	WRITE_POINTER_KEY(FKH_LOOP,         sizeof(uint16_t), 2, cs->loop,          fp);
 
 	fputc(FKH_GOTO_TRACK, fp); writeSize(0, fp);
 
@@ -81,21 +81,21 @@ int writeSongNew(Song *cs, char *path)
 	for (uint8_t i = 0; i < cs->track->c; i++)
 	{
 		WRITE_POINTER_KEY(FKT_TRACK,    sizeof(uint8_t), 1,           &i,                                  fp);
-		WRITE_POINTER_KEY(FKT_MUTE,     sizeof(bool),    1,           &cs->track->v[i].mute,               fp);
-		WRITE_POINTER_KEY(FKT_VTRIG,    sizeof(Vtrig),   cs->songlen, cs->track->v[i].variant->trig,       fp);
-		WRITE_POINTER_KEY(FKT_MAIN,     sizeof(Row),     cs->songlen, cs->track->v[i].variant->main->rowv, fp);
-		WRITE_POINTER_KEY(FKT_MACROC,   sizeof(uint8_t), 1,           &cs->track->v[i].variant->macroc,    fp);
-		WRITE_POINTER_KEY(FKT_VARIANTC, sizeof(uint8_t), 1,           &cs->track->v[i].variant->c,         fp);
-		WRITE_POINTER_KEY(FKT_VARIANTI, sizeof(uint8_t), VARIANT_MAX, cs->track->v[i].variant->i,          fp);
-		for (uint8_t j = 0; j < cs->track->v[i].variant->c; j++)
+		WRITE_POINTER_KEY(FKT_MUTE,     sizeof(bool),    1,           &cs->track->v[i]->mute,               fp);
+		WRITE_POINTER_KEY(FKT_VTRIG,    sizeof(Vtrig),   cs->songlen, cs->track->v[i]->variant->trig,       fp);
+		WRITE_POINTER_KEY(FKT_MAIN,     sizeof(Row),     cs->songlen, cs->track->v[i]->variant->main->rowv, fp);
+		WRITE_POINTER_KEY(FKT_MACROC,   sizeof(uint8_t), 1,           &cs->track->v[i]->variant->macroc,    fp);
+		WRITE_POINTER_KEY(FKT_VARIANTC, sizeof(uint8_t), 1,           &cs->track->v[i]->variant->c,         fp);
+		WRITE_POINTER_KEY(FKT_VARIANTI, sizeof(uint8_t), VARIANT_MAX, cs->track->v[i]->variant->i,          fp);
+		for (uint8_t j = 0; j < cs->track->v[i]->variant->c; j++)
 		{
 			WRITE_POINTER_KEY(FKT_VARIANT,       sizeof(uint8_t),  1,                                   &j,                                   fp);
-			WRITE_POINTER_KEY(FKT_VARIANTV_ROWC, sizeof(uint16_t), 1,                                   &cs->track->v[i].variant->v[j]->rowc, fp);
-			WRITE_POINTER_KEY(FKT_VARIANTV_ROWV, sizeof(Row),      cs->track->v[i].variant->v[j]->rowc, cs->track->v[i].variant->v[j]->rowv,  fp);
+			WRITE_POINTER_KEY(FKT_VARIANTV_ROWC, sizeof(uint16_t), 1,                                   &cs->track->v[i]->variant->v[j]->rowc, fp);
+			WRITE_POINTER_KEY(FKT_VARIANTV_ROWV, sizeof(Row),      cs->track->v[i]->variant->v[j]->rowc, cs->track->v[i]->variant->v[j]->rowv,  fp);
 		}
 
 		// fputc(FKT_GOTO_EFFECT, fp); writeSize(0, fp);
-		// writeSongEffect(cs->track->v[i].effect, fp);
+		// writeSongEffect(cs->track->v[i]->effect, fp);
 	}
 
 	fputc(FKT_EOF, fp); writeSize(0, fp);
@@ -218,26 +218,26 @@ static void readSongTrack(Song *ret, FILE *fp, uint16_t version)
 
 			case FKT_TRACK:
 				fread(&track, size, 1, fp);
-				addTrackRuntime(&ret->track->v[track]);
-				addTrackData(&ret->track->v[track], ret->songlen);
-				resizeVariantChain(ret->track->v[track].variant, ret->songlen);
+				addTrackRuntime(ret->track->v[track]);
+				addTrackData(ret->track->v[track], ret->songlen);
+				resizeVariantChain(ret->track->v[track]->variant, ret->songlen);
 				continue;
 
-			case FKT_VTRIG:         fread(ret->track->v[track].variant->trig,              vtrigsize, size/vtrigsize, fp); continue;
+			case FKT_VTRIG:         fread(ret->track->v[track]->variant->trig,              vtrigsize, size/vtrigsize, fp); continue;
 			case FKT_MAIN:
-				fread(&ret->track->v[track].variant->main->rowv, rowsize, size/rowsize, fp);
+				fread(&ret->track->v[track]->variant->main->rowv, rowsize, size/rowsize, fp);
 				continue;
-			case FKT_VARIANTV_ROWV: fread(&ret->track->v[track].variant->v[variant]->rowv, rowsize, size/rowsize, fp); continue;
-			case FKT_VARIANTV_ROWC: fread(&ret->track->v[track].variant->v[variant]->rowc, size, 1, fp); continue;
-			case FKT_VARIANT:       fread(&variant,                                        size, 1, fp); continue;
-			case FKT_ROWSIZE:       fread(&rowsize,                                        size, 1, fp); continue;
-			case FKT_VTRIGSIZE:     fread(&vtrigsize,                                      size, 1, fp); continue;
-			case FKT_MUTE:          fread(&ret->track->v[track].mute,                      size, 1, fp); continue;
-			case FKT_MACROC:        fread(&ret->track->v[track].variant->macroc,           size, 1, fp); continue;
-			case FKT_VARIANTC:      fread(&ret->track->v[track].variant->c,                size, 1, fp); continue;
-			case FKT_VARIANTI:      fread( ret->track->v[track].variant->i,                1, size, fp); continue;
+			case FKT_VARIANTV_ROWV: fread(&ret->track->v[track]->variant->v[variant]->rowv, rowsize, size/rowsize, fp); continue;
+			case FKT_VARIANTV_ROWC: fread(&ret->track->v[track]->variant->v[variant]->rowc, size, 1, fp); continue;
+			case FKT_VARIANT:       fread(&variant,                                         size, 1, fp); continue;
+			case FKT_ROWSIZE:       fread(&rowsize,                                         size, 1, fp); continue;
+			case FKT_VTRIGSIZE:     fread(&vtrigsize,                                       size, 1, fp); continue;
+			case FKT_MUTE:          fread(&ret->track->v[track]->mute,                      size, 1, fp); continue;
+			case FKT_MACROC:        fread(&ret->track->v[track]->variant->macroc,           size, 1, fp); continue;
+			case FKT_VARIANTC:      fread(&ret->track->v[track]->variant->c,                size, 1, fp); continue;
+			case FKT_VARIANTI:      fread( ret->track->v[track]->variant->i,                1, size, fp); continue;
 
-			// case FKT_GOTO_EFFECT: readSongEffect(&ret->track->v[track].effect, fp, version); continue;
+			// case FKT_GOTO_EFFECT: readSongEffect(&ret->track->v[track]->effect, fp, version); continue;
 
 			default: fseek(fp, size, SEEK_CUR); continue;
 		}
@@ -293,7 +293,7 @@ Song *readSongNew(char *path)
 		p->redraw = 1; return NULL;
 	}
 
-	Song *ret = _addSong();
+	Song *ret = addSong();
 	uint16_t version;
 	float ratemultiplier = 1.0f;
 

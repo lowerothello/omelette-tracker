@@ -35,9 +35,6 @@ void cleanup(int ret)
 	if (audio_api.clean)
 		audio_api.clean();
 
-	for (int i = 0; i < PREVIEW_TRACKS; i++)
-		_delTrack(s, &w->previewtrack[i]);
-
 	freeWaveform();
 
 	freeSong(s);
@@ -55,6 +52,7 @@ void init(int argc, char *argv[])
 	initTerminal();
 	initRawInput();
 	initEffectDB();
+	initMacroBlob();
 
 	if (audioInitAPI()) common_cleanup(1);
 
@@ -68,8 +66,9 @@ void init(int argc, char *argv[])
 	if (!w) { puts("out of memory"); common_cleanup(1); }
 	p->w = w;
 
-	s = allocSong();
+	s = addSong();
 	if (!s) { puts("out of memory"); common_cleanup(1); }
+	initSong(s);
 	p->s = s;
 
 	fbstate = initFileBrowser(SAMPLES_DIR, sampleLoadCallback);

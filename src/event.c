@@ -107,7 +107,7 @@ bool processM_SEM(void)
 					Instrument *iv;
 					for (uint8_t c = 0; c < p->s->track->c; c++)
 					{
-						cv = &p->s->track->v[c];
+						cv = p->s->track->v[c];
 						if (cv->mute && instrumentSafe(p->s->instrument, cv->r.inst))
 						{
 							iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
@@ -125,19 +125,19 @@ bool processM_SEM(void)
 				{
 					int voice = getPreviewVoice(p->event[0].arg1, 1);
 					if (voice != -1)
-						triggerNote(0, &p->w->previewtrack[voice], p->w->previewtrack[voice].r.note, NOTE_OFF, p->event[0].arg2);
+						triggerNote(0, p->w->previewtrack[voice], p->w->previewtrack[voice]->r.note, NOTE_OFF, p->event[0].arg2);
 				} else
 				{
 					if (p->event[0].arg1 == NOTE_OFF)
 					{
 						for (int i = 0; i < PREVIEW_TRACKS; i++)
-							if (p->w->previewtrack[i].r.note != NOTE_VOID)
-								triggerNote(0, &p->w->previewtrack[i], p->w->previewtrack[i].r.note, NOTE_OFF, p->event[0].arg2);
+							if (p->w->previewtrack[i]->r.note != NOTE_VOID)
+								triggerNote(0, p->w->previewtrack[i], p->w->previewtrack[i]->r.note, NOTE_OFF, p->event[0].arg2);
 					} else
 					{
 						int voice = getPreviewVoice(p->event[0].arg1, 0);
 						if (voice != -1)
-							triggerNote(0, &p->w->previewtrack[voice], p->w->previewtrack[voice].r.note, p->event[0].arg1, p->event[0].arg2);
+							triggerNote(0, p->w->previewtrack[voice], p->w->previewtrack[voice]->r.note, p->event[0].arg1, p->event[0].arg2);
 					}
 				}
 				p->event[0].sem = M_SEM_DONE;
@@ -150,8 +150,8 @@ bool processM_SEM(void)
 				/* stop preview */
 				for (i = 0; i < PREVIEW_TRACKS; i++)
 				{
-					p->w->previewtrack[i].r.note = NOTE_VOID;
-					p->w->previewtrack[i].r.inst = INST_VOID;
+					p->w->previewtrack[i]->r.note = NOTE_VOID;
+					p->w->previewtrack[i]->r.inst = INST_VOID;
 				}
 
 				/* TODO: also stop the sampler's follower note */
@@ -159,11 +159,11 @@ bool processM_SEM(void)
 				/* clear the tracks */
 				for (uint8_t c = 0; c < p->s->track->c; c++)
 				{
-					cv = &p->s->track->v[c];
+					cv = p->s->track->v[c];
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 					lookback(0, &p->s->spr, p->s->playfy, cv);
-					processRow(0, &p->s->spr, 1, &p->s->track->v[c], getTrackRow(&p->s->track->v[c], p->s->playfy));
+					processRow(0, &p->s->spr, 1, cv, getTrackRow(cv, p->s->playfy));
 				}
 
 
@@ -179,12 +179,11 @@ bool processM_SEM(void)
 				/* stop tracks */
 				for (uint8_t i = 0; i < p->s->track->c; i++)
 				{
-					cv = &p->s->track->v[i];
-					cv->delaysamples = 0;
-					cv->cutsamples = 0;
+					cv = p->s->track->v[i];
 					if (instrumentSafe(p->s->instrument, cv->r.inst))
 						ramp(cv, (float)p->s->sprp / (float)p->s->spr, p->s->instrument->i[cv->r.inst]);
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
+					clearTrackRuntime(cv); /* TODO: think this is unnecessary, cos it's implied by lookback */
 				}
 
 				if (p->s->loop[2])

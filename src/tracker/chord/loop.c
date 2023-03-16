@@ -20,9 +20,11 @@ void chordLoopBars(void *_)
 }
 void chordLoopVariant(void *_)
 {
+	Track *cv = s->track->v[w->track];
+
 	Variant *v;
 	uint16_t ltrackerfy = MAX(w->trackerfy, STATE_ROWS);
-	int gcvret = getTrackVariantNoLoop(&v, s->track->v[w->track].variant, ltrackerfy);
+	int gcvret = getTrackVariantNoLoop(&v, cv->variant, ltrackerfy);
 	if (gcvret != -1)
 	{
 		if (s->loop[0] == ltrackerfy - gcvret && s->loop[1] == ltrackerfy - gcvret + v->rowc)

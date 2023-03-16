@@ -78,7 +78,7 @@ typedef struct UI {
 	signed char step;
 	bool        follow;
 
-	Track   previewtrack[PREVIEW_TRACKS];
+	Track *previewtrack[PREVIEW_TRACKS];
 	Sample *previewsample; /* used by the filebrowser to soft load samples */
 
 	uint8_t  instrumentreci; /* NOT a realindex */

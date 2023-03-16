@@ -1,23 +1,35 @@
-static void _macroTickRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+typedef struct MacroRetrigState
 {
-	if (m > 0)
+	uint16_t rtrigsamples;               /* samples per retrigger */
+	uint32_t rtrigpointer;               /* clock reference */
+	uint32_t rtrigcurrentpointer;        /* pointer the current rtrig started at */
+	uint32_t rtrigpitchedpointer;        /* pitchedpointer to ratchet back to */
+	uint32_t rtrigcurrentpitchedpointer; /* pitchedpointer the current retrig started at */
+	int8_t   rtrigblocksize;             /* number of rows block extends to */
+
+	bool rtrig_rev;
+} MacroRetrigState;
+
+static void _macroTickRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r, MacroRetrigState *ms)
+{
+	if (m)
 	{
-		if (cv->rtrigblocksize >= 0)
+		if (ms->rtrigblocksize >= 0)
 		{ /* starting a new chain */
-			cv->rtrigpointer = cv->rtrigcurrentpointer = cv->pointer;
-			cv->rtrigpitchedpointer = cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
+			ms->rtrigpointer = ms->rtrigcurrentpointer = cv->pointer;
+			ms->rtrigpitchedpointer = ms->rtrigcurrentpitchedpointer = cv->pitchedpointer;
 		}
-		cv->rtrigblocksize = -1;
-		cv->rtrigsamples = *spr*DIV256 * m;
+		ms->rtrigblocksize = -1;
+		ms->rtrigsamples = *spr*DIV256 * m;
 	}
 }
-static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
+static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r, MacroRetrigState *ms)
 {
-	cv->rtrigpointer = cv->rtrigcurrentpointer = cv->pointer;
-	cv->rtrigpitchedpointer = cv->rtrigcurrentpitchedpointer = cv->pitchedpointer;
-	cv->rtrigblocksize = m>>4;
-	if (m&0xf) cv->rtrigsamples = *spr / (m&0xf);
-	else       cv->rtrigsamples = *spr * (cv->rtrigblocksize+1);
+	ms->rtrigpointer = ms->rtrigcurrentpointer = cv->pointer;
+	ms->rtrigpitchedpointer = ms->rtrigcurrentpitchedpointer = cv->pitchedpointer;
+	ms->rtrigblocksize = m>>4;
+	if (m&0xf) ms->rtrigsamples = *spr / (m&0xf);
+	else       ms->rtrigsamples = *spr * (ms->rtrigblocksize+1);
 }
 
 
@@ -27,16 +39,25 @@ static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Ro
 #define MACRO_BLOCK_RETRIG         'R'
 #define MACRO_REVERSE_BLOCK_RETRIG 'r'
 
-void macroRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroRetrigClear(Track *cv, void *state)
 {
-	if (cv->rtrigsamples)
+	MacroRetrigState *ms = state;
+	ms->rtrigsamples = 0;
+	ms->rtrig_rev = 0;
+}
+
+void macroRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
+{
+	MacroRetrigState *ms = state;
+
+	if (ms->rtrigsamples)
 	{
-		if (cv->rtrigblocksize > 0 || cv->rtrigblocksize == -1)
-			cv->rtrigblocksize--;
+		if (ms->rtrigblocksize > 0 || ms->rtrigblocksize == -1)
+			ms->rtrigblocksize--;
 		else
 		{
-			cv->rtrig_rev = 0;
-			cv->rtrigsamples = 0;
+			ms->rtrig_rev = 0;
+			ms->rtrigsamples = 0;
 		}
 	}
 
@@ -44,58 +65,61 @@ void macroRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 	{
 		switch (r->macro[i].c)
 		{
-			case MACRO_TICK_RETRIG:          cv->rtrig_rev = 0; _macroTickRetrig (fptr, spr, r->macro[i].v, cv, r); goto macroRetrigEnd;
-			case MACRO_REVERSE_TICK_RETRIG:  cv->rtrig_rev = 1; _macroTickRetrig (fptr, spr, r->macro[i].v, cv, r); goto macroRetrigEnd;
-			case MACRO_BLOCK_RETRIG:         cv->rtrig_rev = 0; _macroBlockRetrig(fptr, spr, r->macro[i].v, cv, r); goto macroRetrigEnd;
-			case MACRO_REVERSE_BLOCK_RETRIG: cv->rtrig_rev = 1; _macroBlockRetrig(fptr, spr, r->macro[i].v, cv, r); goto macroRetrigEnd;
+			case MACRO_TICK_RETRIG:          ms->rtrig_rev = 0; _macroTickRetrig (fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
+			case MACRO_REVERSE_TICK_RETRIG:  ms->rtrig_rev = 1; _macroTickRetrig (fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
+			case MACRO_BLOCK_RETRIG:         ms->rtrig_rev = 0; _macroBlockRetrig(fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
+			case MACRO_REVERSE_BLOCK_RETRIG: ms->rtrig_rev = 1; _macroBlockRetrig(fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
 		}
 	}
 
 macroRetrigEnd:
-	if (cv->rtrigsamples && cv->rtrigblocksize == -2)
+	if (ms->rtrigsamples && ms->rtrigblocksize == -2)
 	{ /* clean up if the last row had an altRxx and this row doesn't */
-		cv->rtrig_rev = 0;
-		cv->rtrigsamples = 0;
+		ms->rtrig_rev = 0;
+		ms->rtrigsamples = 0;
 	}
 }
 
-void macroRetrigTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void macroRetrigTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst, void *state)
 {
+	MacroRetrigState *ms = state;
+
 	/* must stop retriggers cos pointers are no longer guaranteed to be valid */
-	cv->rtrigblocksize = 0;
-	cv->rtrig_rev = 0;
-	cv->rtrigsamples = 0;
+	ms->rtrigblocksize = 0;
+	ms->rtrig_rev = 0;
+	ms->rtrigsamples = 0;
 }
 
 /* TODO: should the persistent pointer be the informant? */
-void macroRetrigVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
+void macroRetrigVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state)
 {
+	MacroRetrigState *ms = state;
+
 	sprp += count;
 
-	if (cv->rtrigsamples)
+	if (ms->rtrigsamples)
 	{
-		uint32_t rtrigoffset = (*pointer - cv->rtrigpointer) % cv->rtrigsamples;
-		if (!rtrigoffset)
+		if (!((*pointer - ms->rtrigpointer) % ms->rtrigsamples))
 		{ /* first sample of any retrigger */
-			if (*pointer > cv->rtrigpointer) /* first sample of any retrigger but the first */
+			if (*pointer > ms->rtrigpointer) /* first sample of any retrigger but the first */
 			{
 				triggerMidi(fptr, cv, cv->r.note, cv->r.note, cv->r.inst);
-				cv->rtrigcurrentpitchedpointer = *pitchedpointer;
-				cv->rtrigcurrentpointer = *pointer;
+				ms->rtrigcurrentpitchedpointer = *pitchedpointer;
+				ms->rtrigcurrentpointer = *pointer;
 			}
 		}
-		if (cv->rtrig_rev)
+		if (ms->rtrig_rev)
 		{
-			if (cv->rtrigpointer > *pointer - cv->rtrigcurrentpointer)
-				*pointer = cv->rtrigpointer - (*pointer - cv->rtrigcurrentpointer);
+			if (ms->rtrigpointer > *pointer - ms->rtrigcurrentpointer)
+				*pointer = ms->rtrigpointer - (*pointer - ms->rtrigcurrentpointer);
 			else *pointer = 0;
-			if (cv->rtrigpitchedpointer > *pitchedpointer - cv->rtrigcurrentpitchedpointer)
-				*pitchedpointer = cv->rtrigcurrentpitchedpointer - (*pitchedpointer - cv->rtrigcurrentpitchedpointer);
+			if (ms->rtrigpitchedpointer > *pitchedpointer - ms->rtrigcurrentpitchedpointer)
+				*pitchedpointer = ms->rtrigcurrentpitchedpointer - (*pitchedpointer - ms->rtrigcurrentpitchedpointer);
 			else *pitchedpointer = 0;
 		} else
 		{
-			*pointer = cv->rtrigpointer + (*pointer - cv->rtrigcurrentpointer);
-			*pitchedpointer = cv->rtrigpitchedpointer + (*pitchedpointer - cv->rtrigcurrentpitchedpointer);
+			*pointer = ms->rtrigpointer + (*pointer - ms->rtrigcurrentpointer);
+			*pitchedpointer = ms->rtrigpitchedpointer + (*pitchedpointer - ms->rtrigcurrentpitchedpointer);
 		}
 	}
 }

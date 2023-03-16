@@ -15,10 +15,9 @@ typedef struct Track
 {
 	/* flags */
 	bool mute;
-	unsigned reverse   : 1;
-	unsigned release   : 1;
-	unsigned rtrig_rev : 1;
-	unsigned file      : 1;
+	unsigned reverse : 1;
+	unsigned release : 1;
+	unsigned file    : 1;
 
 	VariantChain *variant;
 	EffectChain *effect;
@@ -34,29 +33,6 @@ typedef struct Track
 	Row      r;
 	float    finetune; /* calculated fine tune, TODO: remove */
 
-	float    portamentofinetune;       /* portamento fine tune */
-	float    targetportamentofinetune; /* cv->portamentofinetune destination */
-	float    startportamentofinetune;  /* cv->portamentofinetune start       */
-	uint32_t portamentosamples;        /* portamento length   */
-	uint32_t portamentosamplepointer;  /* portamento progress */
-
-	float    microtonalfinetune;         /* used by the local microtonal macro */
-	uint16_t rtrigsamples;               /* samples per retrigger */
-	uint32_t rtrigpointer;               /* clock reference */
-	uint32_t rtrigcurrentpointer;        /* pointer the current rtrig started at */
-	uint32_t rtrigpitchedpointer;        /* pitchedpointer to ratchet back to */
-	uint32_t rtrigcurrentpitchedpointer; /* pitchedpointer the current retrig started at */
-	int8_t   rtrigblocksize;             /* number of rows block extends to */
-	uint16_t cutsamples;                 /* samples into the row to cut, 0 for no cut */
-	uint16_t delaysamples;               /* samples into the row to delay, 0 for no delay */
-	uint8_t  delaynote;
-
-	/* vibrato */
-	uint8_t  vibrato;              /* vibrato depth, 0-f */
-	uint32_t vibratosamples;       /* samples per full phase walk */
-	uint32_t vibratosamplepointer; /* distance through cv->vibratosamples */
-
-
 	short localenvelope;
 	short localsustain;
 	MacroState pitchshift;
@@ -66,15 +42,6 @@ typedef struct Track
 
 	short   midiccindex;
 	uint8_t midicc;
-
-	/* filter */
-	struct {
-		SVFilter fl[2], fr[2];
-		int8_t mode[2], targetmode[2]; /* TODO: should be a (MacroState) */
-
-		MacroState cut;
-		MacroState res;
-	} filter;
 
 	/* ramping */
 	uint16_t rampindex;  /* progress through the ramp buffer, rampmax if not ramping */
@@ -97,8 +64,8 @@ typedef struct Track
 
 #define TRACK_MAX 32
 typedef struct {
-	uint8_t c;   /* track count  */
-	Track   v[]; /* track values */
+	uint8_t c; /* track count  */
+	Track **v; /* track values */
 } TrackChain;
 
 
@@ -114,9 +81,15 @@ void addTrackData(Track *cv, uint16_t songlen);
 void debug_dumpTrackState(struct Song *cs);
 
 /* copyfrom can be NULL */
+/* .cs can be NULL */
+Track *allocTrack(struct Song *cs, Track *copyfrom);
+
+/* copyfrom can be NULL */
 void addTrack(struct Song *cs, uint8_t index, uint16_t count, Track *copyfrom);
 
+/* .cs can be NULL */
 void _delTrack(struct Song *cs, Track *cv);
+
 void delTrack(uint8_t index, uint16_t count);
 void copyTrack(Track *dest, Track *src); /* NOT atomic */
 Row *getTrackRow(Track *cv, uint16_t index);

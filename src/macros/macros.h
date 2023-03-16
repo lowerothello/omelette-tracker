@@ -30,6 +30,30 @@ void macroStateApply(MacroState *s);
 float macroStateGetMono(MacroState *s, float rp);
 void macroStateGetStereo(MacroState *s, float rp, float *l, float *r);
 
+typedef struct MacroAPI
+{
+	void          (*clear)(Track *cv, void *state);
+	void        (*pretrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state);
+	void       (*posttrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state);
+	void    (*triggernote)(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst, void *state);
+	uint8_t   (*samplerow)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state);
+	void (*persistenttune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state);
+	void   (*volatiletune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state);
+	void    (*postsampler)(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state);
+	size_t statesize;
+	size_t stateoffset; /* private */
+} MacroAPI;
+// MacroAPI *macro_api;
+
+void macroCallbackClear(Track *cv);
+void macroCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
+void macroCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
+void macroCallbackTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst);
+uint8_t macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
+void macroCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
+void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer);
+void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf);
+
 #include "bpm.c"
 #include "row.c"
 #include "gain.c"
@@ -41,31 +65,23 @@ void macroStateGetStereo(MacroState *s, float rp, float *l, float *r);
 #include "filter.c"
 #include "granular.c"
 
-typedef struct MacroCallbacks
+#define MACRO_CALLBACK_MAX 10
+MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 {
-	void        (*pretrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
-	void       (*posttrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
-	void    (*triggernote)(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst);
-	uint8_t   (*samplerow)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
-	void (*persistenttune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
-	void   (*volatiletune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer);
-	void    (*postsampler)(uint32_t fptr, Track *cv, float rp, float *lf, float *rf);
-} MacroCallbacks;
-
-#define MACRO_CALLBACK_MAX 128
-const MacroCallbacks global_macro_callbacks[MACRO_CALLBACK_MAX] =
-{
-	{ macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL },
-	{ macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL },
-	{ macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL },
-	{ macroSendPreTrig, NULL, NULL, NULL, NULL, NULL, NULL },
-	{ macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL },
-	{ NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL },
-	{ macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL },
-	{ NULL, macroOffsetPostTrig, NULL, NULL, NULL, NULL, NULL },
-	{ NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler },
-	{ NULL, macroGranularPostTrig, macroGranularTriggerNote, NULL, NULL, NULL, NULL },
+	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
+	{ macroRowClear, macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL, sizeof(MacroRowState), 0 },
+	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
+	{ macroSendClear, macroSendPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
+	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState), 0 },
+	{ macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState), 0 },
+	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
+	{ NULL, NULL, macroOffsetPostTrig, NULL, NULL, NULL, NULL, NULL, 0, 0 },
+	{ macroFilterClear, NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler, sizeof(MacroFilterState), 0 },
+	{ NULL, NULL, macroGranularPostTrig, macroGranularTriggerNote, NULL, NULL, NULL, NULL, 0, 0 }, /* TODO: add granular state */
 };
+
+void initMacroBlob(void);
+size_t getMacroBlobSize(void);
 
 
 /* not an enum so they can be accessed within macros */

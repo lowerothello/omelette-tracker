@@ -59,7 +59,7 @@ short genSfx(short minx)
 
 	for (int i = 0; i < s->track->c; i++)
 	{
-		trackw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].variant->macroc+1);
+		trackw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
 		x += trackw;
 		if (i == w->track) ret = x - (trackw>>1); /* should only be set once */
 		/* keep iterating so x is the full width of all tracks */
@@ -204,7 +204,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 						{
 							if (vfxVmoRangeIncl(
 									w->visualtrack == track ? w->visualfx : tfxToVfx(w->trackerfx),
-									1 + s->track->v[track].variant->macroc,
+									1 + s->track->v[track]->variant->macroc,
 									fieldpointer))
 								return 1;
 						} else if (track == MAX(w->visualtrack, w->track)) /* last track */
@@ -258,7 +258,7 @@ static void drawStarColumn(short x, short minx, short maxx)
 #define TRACK_HEADER_LEN 8
 static void drawTrackHeader(uint8_t track, short x, short minx, short maxx)
 {
-	Track *cv = &s->track->v[track];
+	Track *cv = s->track->v[track];
 
 	char headerbuffer[9];
 	snprintf(headerbuffer, 9, "TRACK %02x", track);
@@ -266,7 +266,7 @@ static void drawTrackHeader(uint8_t track, short x, short minx, short maxx)
 	if (cv->mute) printf("\033[2m");
 	else          printf("\033[1m");
 
-	if (s->track->v[track].triggerflash) printf("\033[3%dm", track%6 + 1);
+	if (cv->triggerflash) printf("\033[3%dm", track%6 + 1);
 
 	if (track == w->track + w->trackoffset) printf("\033[7m");
 
@@ -283,7 +283,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 	char buffer[16];
 	memset(buffer, 0, 16);
 
-	Track *cv = &s->track->v[track];
+	Track *cv = s->track->v[track];
 
 	short x, y;
 	int lineno;
@@ -495,10 +495,10 @@ void drawTracker(void)
 	x = 1 + TRACK_LINENO_COLS + 2 + sfx;
 	for (uint8_t i = 0; i < s->track->c; i++)
 	{
-		drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i].variant->macroc+1) - TRACK_HEADER_LEN)>>1),
+		drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i]->variant->macroc+1) - TRACK_HEADER_LEN)>>1),
 				LINENO_COLS, ws.ws_col);
 
-		x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i].variant->macroc+1);
+		x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
 	}
 
 	if (w->mode == MODE_EFFECT)
@@ -509,7 +509,7 @@ void drawTracker(void)
 
 		short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		clearControls();
-		drawEffectChain(s->track->v[w->track+w->trackoffset].effect, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
+		drawEffectChain(s->track->v[w->track+w->trackoffset]->effect, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
 		drawControls();
 		return;
 	}
@@ -538,8 +538,8 @@ void drawTracker(void)
 		case  1: printf("\033[%d;%dH", y, sx+sfx + 8 + TRACK_TRIG_PAD - w->fieldpointer); break;
 		default: /* macro columns */
 			macro = (w->trackerfx - 2)>>1;
-			if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 10 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset].variant->macroc - macro)*4);
-			else                       printf("\033[%d;%dH", y, sx+sfx + 12 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset].variant->macroc - macro)*4 - w->fieldpointer);
+			if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 10 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset]->variant->macroc - macro)*4);
+			else                       printf("\033[%d;%dH", y, sx+sfx + 12 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset]->variant->macroc - macro)*4 - w->fieldpointer);
 			break;
 	}
 }

@@ -1,25 +1,31 @@
 void chordAddMacro(void *_)
 {
+	Track *cv = s->track->v[w->track];
+
 	for (int i = 0; i < MAX(1, w->count); i++)
-		if (s->track->v[w->track].variant->macroc < 7)
-			s->track->v[w->track].variant->macroc++;
+		if (cv->variant->macroc < 7)
+			cv->variant->macroc++;
 	regenGlobalRowc(s);
 }
 void chordDelMacro(void *_)
 {
+	Track *cv = s->track->v[w->track];
+
 	for (int i = 0; i < MAX(1, w->count); i++)
 	{
-		if (s->track->v[w->track].variant->macroc) s->track->v[w->track].variant->macroc--;
-		if (w->trackerfx > 3 + s->track->v[w->track].variant->macroc*2)
-			w->trackerfx = 3 + s->track->v[w->track].variant->macroc*2;
+		if (cv->variant->macroc) cv->variant->macroc--;
+		if (w->trackerfx > 3 + cv->variant->macroc*2)
+			w->trackerfx = 3 + cv->variant->macroc*2;
 	} regenGlobalRowc(s);
 }
 void chordSetMacro(void *_)
 {
-	if (w->count) s->track->v[w->track].variant->macroc = MIN(8, w->count) - 1;
-	else          s->track->v[w->track].variant->macroc = 1;
-	if (w->trackerfx > 3 + s->track->v[w->track].variant->macroc*2)
-		w->trackerfx = 3 + s->track->v[w->track].variant->macroc*2;
+	Track *cv = s->track->v[w->track];
+
+	if (w->count) cv->variant->macroc = MIN(8, w->count) - 1;
+	else          cv->variant->macroc = 1;
+	if (w->trackerfx > 3 + cv->variant->macroc*2)
+		w->trackerfx = 3 + cv->variant->macroc*2;
 	regenGlobalRowc(s);
 }
 

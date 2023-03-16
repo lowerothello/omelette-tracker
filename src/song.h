@@ -30,7 +30,7 @@ typedef struct Song
 } Song;
 Song *s;
 
-Song *_addSong(void); /* TODO: should be internal */
-Song *allocSong(void);
-void freeSong(Song *);
+Song *addSong(void);
+void initSong(Song*);
+void freeSong(Song*);
 void reapplyBpm(void);

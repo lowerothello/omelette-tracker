@@ -1,3 +1,17 @@
+size_t macro_blob_size;
+size_t getMacroBlobSize(void) { return macro_blob_size; }
+
+void initMacroBlob(void)
+{
+	size_t offset = 0;
+	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
+	{
+		global_macro_callbacks[i].stateoffset = offset;
+		offset += global_macro_callbacks[i].statesize;
+	}
+	macro_blob_size = offset;
+}
+
 bool ifMacro(Track *cv, Row *r, char m)
 {
 	for (int i = 0; i <= cv->variant->macroc; i++)
@@ -27,23 +41,30 @@ bool ifMacroRamp(Track *cv, Row *r)
 	return 0;
 }
 
+#define STATE_OFFSET (Track*)((size_t)cv + sizeof(Track) + global_macro_callbacks[i].stateoffset) /* pointer arithmetic can suck my dick */
+void macroCallbackClear(Track *cv)
+{
+	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
+		if (global_macro_callbacks[i].clear)
+			global_macro_callbacks[i].clear(cv, STATE_OFFSET);
+}
 void macroCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].pretrig)
-			global_macro_callbacks[i].pretrig(fptr, spr, cv, r);
+			global_macro_callbacks[i].pretrig(fptr, spr, cv, r, STATE_OFFSET);
 }
 void macroCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].posttrig)
-			global_macro_callbacks[i].posttrig(fptr, spr, cv, r);
+			global_macro_callbacks[i].posttrig(fptr, spr, cv, r, STATE_OFFSET);
 }
 void macroCallbackTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].triggernote)
-			global_macro_callbacks[i].triggernote(fptr, cv, oldnote, note, inst);
+			global_macro_callbacks[i].triggernote(fptr, cv, oldnote, note, inst, STATE_OFFSET);
 }
 uint8_t macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
@@ -52,7 +73,7 @@ uint8_t macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uin
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].samplerow)
 		{
-			tryret = global_macro_callbacks[i].samplerow(fptr, count, spr, sprp, cv);
+			tryret = global_macro_callbacks[i].samplerow(fptr, count, spr, sprp, cv, STATE_OFFSET);
 			if (tryret != NOTE_VOID)
 				ret = tryret;
 		}
@@ -62,19 +83,19 @@ void macroCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint1
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].persistenttune)
-			global_macro_callbacks[i].persistenttune(fptr, count, spr, sprp, cv);
+			global_macro_callbacks[i].persistenttune(fptr, count, spr, sprp, cv, STATE_OFFSET);
 }
 void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].volatiletune)
-			global_macro_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, finetune, pointer, pitchedpointer);
+			global_macro_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, finetune, pointer, pitchedpointer, STATE_OFFSET);
 }
 void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].postsampler)
-			global_macro_callbacks[i].postsampler(fptr, cv, rp, lf, rf);
+			global_macro_callbacks[i].postsampler(fptr, cv, rp, lf, rf, STATE_OFFSET);
 }
 
 static int swapCase(int x)

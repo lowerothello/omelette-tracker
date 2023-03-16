@@ -1,4 +1,4 @@
-Song *_addSong(void)
+Song *addSong(void)
 {
 	Song *cs = calloc(1, sizeof(Song));
 	if (!cs) return NULL;
@@ -22,25 +22,19 @@ Song *_addSong(void)
 }
 
 #define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
-Song *allocSong(void)
+void initSong(Song *cs)
 {
-	Song *ret = _addSong();
+	cs->instrument = calloc(1, sizeof(InstrumentChain));
+	memset(cs->instrument->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
 
-	ret->instrument = calloc(1, sizeof(InstrumentChain));
-	memset(ret->instrument->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
-
-	ret->track = calloc(1, sizeof(TrackChain) + STARTING_TRACKC*sizeof(Track));
-	regenGlobalRowc(ret);
-	ret->track->c = STARTING_TRACKC;
+	cs->track = calloc(1, sizeof(TrackChain));
+	cs->track->v = calloc(STARTING_TRACKC, sizeof(Track*));
+	regenGlobalRowc(cs);
+	cs->track->c = STARTING_TRACKC;
 	for (uint8_t i = 0; i < STARTING_TRACKC; i++)
-	{
-		addTrackRuntime(&ret->track->v[i]);
-		addTrackData(&ret->track->v[i], ret->songlen);
-	}
+		cs->track->v[i] = allocTrack(cs, NULL);
 
-	ret->playfy = STATE_ROWS;
-
-	return ret;
+	cs->playfy = STATE_ROWS;
 }
 
 void freeSong(Song *cs)
@@ -61,9 +55,10 @@ void freeSong(Song *cs)
 
 	for (int i = 0; i < cs->track->c; i++)
 	{
-		_delTrack(cs, &cs->track->v[i]);
-// 	VALGRIND_PRINTF("free'd track %d\n", i);
+		_delTrack(cs, cs->track->v[i]);
+		free(cs->track->v[i]);
 	}
+	free(cs->track->v);
 	free(cs->track);
 
 	for (int i = 0; i < cs->instrument->c; i++)

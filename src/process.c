@@ -231,14 +231,11 @@ void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
 		cv->envgain = env.output;
 		cv->modenvgain = wtenv.output;
 
-		if (cv->portamentosamplepointer >= cv->portamentosamples)
-		{ /* only walk pitchedpointer if not pitch sliding */
-			if (cv->reverse)
-			{
-				if (cv->pitchedpointer > *spr) cv->pitchedpointer -= *spr;
-				else                           cv->pitchedpointer = 0;
-			} else cv->pitchedpointer += *spr;
-		}
+		if (cv->reverse)
+		{
+			if (cv->pitchedpointer > *spr) cv->pitchedpointer -= *spr;
+			else                           cv->pitchedpointer = 0;
+		} else cv->pitchedpointer += *spr;
 
 		if (cv->reverse)
 		{
@@ -295,16 +292,11 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 			{
 				samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, cv->finetune, &li, &ri);
 
-				/* only walk pitchedpointer if not pitch sliding, it's already done by portamento otherwise */
-				/* TODO: should be a callback i think?, idk */
-				if (cv->portamentosamplepointer >= cv->portamentosamples)
-				{
-					if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
-					else                                       cv->pitchedpointer++;
-				}
+				if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
+				else                                       cv->pitchedpointer++;
 
-				if (cv->reverse) cv->pointer--;
-				else             cv->pointer++;
+				if (cv->reverse) { if (cv->pointer) cv->pointer--; }
+				else                                cv->pointer++;
 			}
 		}
 
@@ -421,7 +413,7 @@ static void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that
 	uint16_t spr = p->s->spr;
 	uint16_t sprp = p->s->sprp;
 	uint16_t playfy = p->s->playfy;
-	// _trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
+	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
 	return NULL;
 }
 
@@ -436,15 +428,17 @@ static void triggerFlash(PlaybackInfo *p)
 		}
 
 	for (int i = 0; i < p->s->track->c; i++)
-		if (p->s->track->v[i].triggerflash)
+		if (p->s->track->v[i]->triggerflash)
 		{
-			if (p->s->track->v[i].triggerflash == 1) p->redraw = 1;
-			p->s->track->v[i].triggerflash--;
+			if (p->s->track->v[i]->triggerflash == 1) p->redraw = 1;
+			p->s->track->v[i]->triggerflash--;
 		}
 }
 
 void processOutput(uint32_t nfptr)
 {
+	Track *cv;
+
 	if (processM_SEM()) return;
 
 	/* TODO: should be events */
@@ -473,20 +467,20 @@ void processOutput(uint32_t nfptr)
 	/* handle the preview tracks first */
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
-		if (p->w->previewtrack[i].r.note != NOTE_VOID
-				&& p->w->previewtrack[i].r.inst != INST_VOID)
+		if (p->w->previewtrack[i]->r.note != NOTE_VOID
+				&& p->w->previewtrack[i]->r.inst != INST_VOID)
 		{
 #ifdef NO_MULTITHREADING
-			previewTrackThreadRoutine(&p->w->previewtrack[i]);
+			previewTrackThreadRoutine(p->w->previewtrack[i]);
 #else
 			preview_thread_failed[i] = 0; /* set low if the thread needs to be joined with */
 			if (RUNNING_ON_VALGRIND)
-				previewTrackThreadRoutine(&p->w->previewtrack[i]);
+				previewTrackThreadRoutine(p->w->previewtrack[i]);
 			else
-				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, &p->w->previewtrack[i]))
+				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, p->w->previewtrack[i]))
 				{
 					preview_thread_failed[i] = 1;
-					previewTrackThreadRoutine(&p->w->previewtrack[i]);
+					previewTrackThreadRoutine(p->w->previewtrack[i]);
 				}
 #endif
 		}
@@ -495,17 +489,18 @@ void processOutput(uint32_t nfptr)
 	/* spawn threads for each track except for track 0 */
 	for (uint8_t i = 1; i < p->s->track->c; i++)
 	{
+		cv = p->s->track->v[i];
 #ifdef NO_MULTITHREADING
-		trackThreadRoutine(&p->s->track->v[i]);
+		trackThreadRoutine(cv);
 #else
 		thread_failed[i-1] = 0;
 		if (RUNNING_ON_VALGRIND)
-			trackThreadRoutine(&p->s->track->v[i]);
+			trackThreadRoutine(cv);
 		else
-			if (audio_api.realtimeThread(&thread_ids[i-1], trackThreadRoutine, &p->s->track->v[i]))
+			if (audio_api.realtimeThread(&thread_ids[i-1], trackThreadRoutine, cv))
 			{
 				thread_failed[i-1] = 1;
-				trackThreadRoutine(&p->s->track->v[i]);
+				trackThreadRoutine(cv);
 			}
 #endif
 	}
@@ -515,7 +510,7 @@ void processOutput(uint32_t nfptr)
 	uint16_t c0sprp = p->s->sprp;
 	uint16_t c0playfy = p->s->playfy;
 	if (p->s->track->c)
-		_trackThreadRoutine(&p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
+		_trackThreadRoutine(p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
 
 #ifndef NO_MULTITHREADING
 	if (!RUNNING_ON_VALGRIND)
@@ -549,15 +544,18 @@ void processOutput(uint32_t nfptr)
 	memset(p->s->sendoutput  [1], 0, nfptr * sizeof(float));
 
 	/* sum the output from each track thread */
-	for (uint8_t c = 0; c < p->s->track->c; c++)
-		if (p->s->track->v[c].output[0] && p->s->track->v[c].output[1])
+	for (uint8_t i = 0; i < p->s->track->c; i++)
+	{
+		cv = p->s->track->v[i];
+		if (cv->output[0] && cv->output[1])
 			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				p->s->masteroutput[0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].mainmult[0][fptr];
-				p->s->masteroutput[1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].mainmult[1][fptr];
-				p->s->sendoutput  [0][fptr] += p->s->track->v[c].output[0][fptr] * p->s->track->v[c].sendmult[0][fptr];
-				p->s->sendoutput  [1][fptr] += p->s->track->v[c].output[1][fptr] * p->s->track->v[c].sendmult[1][fptr];
+				p->s->masteroutput[0][fptr] += cv->output[0][fptr] * cv->mainmult[0][fptr];
+				p->s->masteroutput[1][fptr] += cv->output[1][fptr] * cv->mainmult[1][fptr];
+				p->s->sendoutput  [0][fptr] += cv->output[0][fptr] * cv->sendmult[0][fptr];
+				p->s->sendoutput  [1][fptr] += cv->output[1][fptr] * cv->sendmult[1][fptr];
 			}
+	}
 
 	/* send chain */
 	for (uint8_t i = 0; i < p->s->send->c; i++)
@@ -573,8 +571,8 @@ void processOutput(uint32_t nfptr)
 	{
 		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			p->s->masteroutput[0][fptr] += p->w->previewtrack[i].output[0][fptr] * p->w->previewtrack[i].mainmult[0][fptr];
-			p->s->masteroutput[1][fptr] += p->w->previewtrack[i].output[1][fptr] * p->w->previewtrack[i].mainmult[1][fptr];
+			p->s->masteroutput[0][fptr] += p->w->previewtrack[i]->output[0][fptr] * p->w->previewtrack[i]->mainmult[0][fptr];
+			p->s->masteroutput[1][fptr] += p->w->previewtrack[i]->output[1][fptr] * p->w->previewtrack[i]->mainmult[1][fptr];
 		}
 	}
 

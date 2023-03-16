@@ -9,12 +9,13 @@ void macroBpm(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 
 #define MACRO_BPM 'B'
 
-void macroBpmPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroBpmPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
 {
 	FOR_ROW_MACROS(i, cv)
-		if (r->macro[i].c == MACRO_BPM)
+		switch (r->macro[i].c)
 		{
-			macroBpm(fptr, spr, r->macro[i].v, cv, r);
-			return;
+			case MACRO_BPM:
+				macroBpm(fptr, spr, r->macro[i].v, cv, r);
+				break;
 		}
 }

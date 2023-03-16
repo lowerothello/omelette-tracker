@@ -1,7 +1,14 @@
 #define MACRO_GAIN        'G'
 #define MACRO_SMOOTH_GAIN 'g'
 
-void macroGainPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
+void macroGainClear(Track *cv, void *state)
+{
+	cv->gain.base = cv->gain.rand = 0x88;
+	cv->gain.target = -1;
+	cv->gain.target_rand = 0;
+}
+
+void macroGainPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
 {
 	macroStateApply(&cv->gain);
 

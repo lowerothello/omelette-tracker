@@ -70,7 +70,7 @@ void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	Track *cv;
 	for (uint8_t i = 0; i <= c2-c1; i++)
 	{
-		cv = &s->track->v[c1+i];
+		cv = s->track->v[c1+i];
 		w->pbvariantv[i] = dupVariant(NULL, y2-y1 + 1);
 		for (uint16_t j = 0; j <= y2-y1; j++)
 			w->pbvariantv[i]->rowv[j] = *getTrackRow(cv, y1+j);
@@ -91,7 +91,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 	if (!w->pbtrackc) return;
 	if (w->pbtrackc == 1) // only one track
 	{
-		cv = &s->track->v[w->track];
+		cv = s->track->v[w->track];
 		if (w->pbfx[0] > 1 && w->pbfx[1] > 1) /* just macro columns */
 		{
 			if (w->trackerfx < 2) targetmacro = 0;
@@ -133,7 +133,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 	{
 		for (i = 0; i < w->pbtrackc; i++)
 		{
-			cv = &s->track->v[w->track+i];
+			cv = s->track->v[w->track+i];
 			if (w->track+i < s->track->c)
 				for (j = 0; j < w->pbvariantv[i]->rowc; j++)
 				{
@@ -190,7 +190,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 	if (!w->pbtrackc) return;
 	if (w->pbtrackc == 1) // only one track
 	{
-		cv = &s->track->v[w->track];
+		cv = s->track->v[w->track];
 		if (w->pbfx[0] > 1 && w->pbfx[1] > 1) /* just macro columns */
 		{
 			if (w->trackerfx < 2) targetmacro = 0;
@@ -230,7 +230,7 @@ void mixPutPartPattern(bool step) /* TODO: count, regenglobalrowc makes it trick
 	{
 		for (i = 0; i < w->pbtrackc; i++)
 		{
-			cv = &s->track->v[w->track+i];
+			cv = s->track->v[w->track+i];
 			if (w->track+i < s->track->c)
 				for (j = 0; j < w->pbvariantv[i]->rowc; j++)
 				{
@@ -279,64 +279,74 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 	uint8_t i, j;
 	Row *r;
 	int k;
+	Track *cv;
 	if (c1 == c2) /* only one track */
+	{
+		cv = s->track->v[c1];
 		for (j = y1; j <= y2; j++)
 		{
-			if (x1 <= -1 && x2 >= -1) setVariantChainTrig(&s->track->v[c1].variant, j, VARIANT_VOID);
-			r = getTrackRow(&s->track->v[c1], j);
+			if (x1 <= -1 && x2 >= -1) setVariantChainTrig(&cv->variant, j, VARIANT_VOID);
+			r = getTrackRow(cv, j);
 			if (x1 <= 0 && x2 >= 0) r->note = NOTE_VOID;
 			if (x1 <= 1 && x2 >= 1) r->inst = INST_VOID;
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2) memset(&r->macro[k], 0, sizeof(Macro));
 		}
-	else for (i = c1; i <= c2; i++)
+	} else for (i = c1; i <= c2; i++)
 		if (i < s->track->c)
+		{
+			cv = s->track->v[i];
 			for (j = y1; j <= y2; j++)
 			{
 				if (i == c1) /* first track */
 				{
-					if (x1 <= -1) setVariantChainTrig(&s->track->v[i].variant, j, VARIANT_VOID);
-					r = getTrackRow(&s->track->v[i], j);
+					if (x1 <= -1) setVariantChainTrig(&cv->variant, j, VARIANT_VOID);
+					r = getTrackRow(cv, j);
 					if (x1 <= 0) r->note = NOTE_VOID;
 					if (x1 <= 1) r->inst = INST_VOID;
-					for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+					for (k = 0; k <= cv->variant->macroc; k++)
 						if (x1 <= k+2) memset(&r->macro[k], 0, sizeof(Macro));
 				} else if (i == c2) /* last track */
 				{
-					if (x1 >= -1) setVariantChainTrig(&s->track->v[i].variant, j, VARIANT_VOID);
-					r = getTrackRow(&s->track->v[i], j);
+					if (x1 >= -1) setVariantChainTrig(&cv->variant, j, VARIANT_VOID);
+					r = getTrackRow(cv, j);
 					if (x2 >= 0) r->note = NOTE_VOID;
 					if (x2 >= 1) r->inst = INST_VOID;
-					for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+					for (k = 0; k <= cv->variant->macroc; k++)
 						if (x2 >= k+2) memset(&r->macro[k], 0, sizeof(Macro));
 				} else /* middle track */
 				{
-					setVariantChainTrig(&s->track->v[i].variant, j, VARIANT_VOID);
-					r = getTrackRow(&s->track->v[i], j);
+					setVariantChainTrig(&cv->variant, j, VARIANT_VOID);
+					r = getTrackRow(cv, j);
 					memset(r, 0, sizeof(Row));
 					r->note = NOTE_VOID;
 					r->inst = INST_VOID;
 				}
 			}
-		else break;
+		} else break;
 	regenGlobalRowc(s);
 }
 void loopPartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 {
+	Track *cv;
 	if (c1 == c2) /* only one track */
+	{
+		cv = s->track->v[c1];
 		for (uint8_t j = y1; j <= y2; j++)
 		{
-			if (s->track->v[c1].variant->trig[j].index != VARIANT_VOID)
-				s->track->v[c1].variant->trig[j].flags ^= C_VTRIG_LOOP;
+			if (cv->variant->trig[j].index != VARIANT_VOID)
+				cv->variant->trig[j].flags ^= C_VTRIG_LOOP;
 		}
-	else for (uint8_t i = c1; i <= c2; i++)
+	} else for (uint8_t i = c1; i <= c2; i++)
 		if (i < s->track->c)
+		{
+			cv = s->track->v[i];
 			for (uint8_t j = y1; j <= y2; j++)
 			{
-				if (s->track->v[i].variant->trig[j].index != VARIANT_VOID)
-					s->track->v[i].variant->trig[j].flags ^= C_VTRIG_LOOP;
+				if (cv->variant->trig[j].index != VARIANT_VOID)
+					cv->variant->trig[j].flags ^= C_VTRIG_LOOP;
 			}
-		else break;
+		} else break;
 	regenGlobalRowc(s);
 }
 /* block inc/dec */
@@ -345,16 +355,18 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 	uint8_t i, j;
 	int k;
 	Row *r;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
+		cv = s->track->v[c1];
 		for (j = y1; j <= y2; j++)
 		{
-			r = getTrackRow(&s->track->v[c1], j);
+			r = getTrackRow(cv, j);
 			if (x1 <= 0 && x2 >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note = r->note + value;
 		if (noteonly) continue;
-			if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->track->v[c1].variant, j, s->track->v[c1].variant->trig[j].index + value);
+			if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&cv->variant, j, cv->variant->trig[j].index + value);
 			if (x1 <= 1 && x2 >= 1 && r->inst != INST_VOID) r->inst += value;
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
@@ -364,16 +376,18 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 	} else
 		for (i = c1; i <= c2; i++)
 			if (i < s->track->c)
+			{
+				cv = s->track->v[i];
 				for (j = y1; j <= y2; j++)
 				{
-					r = getTrackRow(&s->track->v[i], j);
+					r = getTrackRow(cv, j);
 					if (i == c1) /* first track */
 					{
 						if (x1 <= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note = r->note + value;
 					if (noteonly) continue;
-						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->track->v[i].variant, j, s->track->v[i].variant->trig[j].index + value);
+						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&cv->variant, j, cv->variant->trig[j].index + value);
 						if (x1 <= 1 && r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
@@ -383,9 +397,9 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 					{
 						if (x2 >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note = r->note + value;
 					if (noteonly) continue;
-						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&s->track->v[i].variant, j, s->track->v[i].variant->trig[j].index + value);
+						if (x1 <= -1 && x2 >= -1 && affectvtrig) setVariantChainTrig(&cv->variant, j, cv->variant->trig[j].index + value);
 						if (x2 >= 1 && r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
@@ -395,16 +409,16 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 					{
 						if (r->note != NOTE_VOID && r->note != NOTE_OFF) r->note = r->note + value;
 					if (noteonly) continue;
-						if (affectvtrig) setVariantChainTrig(&s->track->v[i].variant, j, s->track->v[i].variant->trig[j].index + value);
+						if (affectvtrig) setVariantChainTrig(&cv->variant, j, cv->variant->trig[j].index + value);
 						if (r->inst != INST_VOID) r->inst += value;
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 						{
 							if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
 							else                             r->macro[k].v += value;
 						}
 					}
 				}
-			else break;
+			} else break;
 }
 /* block toggle case */
 void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
@@ -412,11 +426,13 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 	uint8_t i, j;
 	int k;
 	Row *r;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
+		cv = s->track->v[c1];
 		for (j = y1; j <= y2; j++)
 		{
-			r = getTrackRow(&s->track->v[c1], j);
+			r = getTrackRow(cv, j);
 			if (x1 <= 0 && x2 >= 0)
 			{
 				if (r->note >= NOTE_MIN && r->note <= NOTE_MAX)
@@ -424,16 +440,18 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 				else if (r->note >= NOTE_MIN+NOTE_SMOOTH_OFFSET && r->note <= NOTE_MAX+NOTE_SMOOTH_OFFSET)
 					r->note -= NOTE_SMOOTH_OFFSET;
 			}
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && isalpha(r->macro[k].c))
 					changeMacro(r->macro[k].c, &r->macro[k].c);
 		}
 	} else
 		for (i = c1; i <= c2; i++)
 			if (i < s->track->c)
+			{
+				cv = s->track->v[i];
 				for (j = y1; j <= y2; j++)
 				{
-					r = getTrackRow(&s->track->v[i], j);
+					r = getTrackRow(cv, j);
 					if (i == c1) /* first track */
 					{
 						if (x1 <= 0)
@@ -443,7 +461,7 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 							else if (r->note >= NOTE_MIN+NOTE_SMOOTH_OFFSET && r->note <= NOTE_MAX+NOTE_SMOOTH_OFFSET)
 								r->note -= NOTE_SMOOTH_OFFSET;
 						}
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++) {
+						for (k = 0; k <= cv->variant->macroc; k++) {
 							if (x1 <= k+2 && isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c); }
 					} else if (i == c2) /* last track */
@@ -455,7 +473,7 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 							else if (r->note >= NOTE_MIN+NOTE_SMOOTH_OFFSET && r->note <= NOTE_MAX+NOTE_SMOOTH_OFFSET)
 								r->note -= NOTE_SMOOTH_OFFSET;
 						}
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++) {
+						for (k = 0; k <= cv->variant->macroc; k++) {
 							if (x2 >= k+2 && isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c); }
 					} else /* middle track */
@@ -464,12 +482,12 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 							r->note += NOTE_SMOOTH_OFFSET;
 						else if (r->note >= NOTE_MIN+NOTE_SMOOTH_OFFSET && r->note <= NOTE_MAX+NOTE_SMOOTH_OFFSET)
 							r->note -= NOTE_SMOOTH_OFFSET;
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (isalpha(r->macro[k].c))
 								changeMacro(r->macro[k].c, &r->macro[k].c);
 					}
 				}
-			else break;
+			} else break;
 	regenGlobalRowc(s);
 }
 /* block toggle alt */
@@ -478,35 +496,39 @@ void altTildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, u
 	uint8_t i, j;
 	int k;
 	Row *r;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
+		cv = s->track->v[c1];
 		for (j = y1; j <= y2; j++)
 		{
-			r = getTrackRow(&s->track->v[c1], j);
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			r = getTrackRow(cv, j);
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && isalpha(r->macro[k].c))
 					changeMacro('\0', &r->macro[k].c);
 		}
 	} else
 		for (i = c1; i <= c2; i++)
 			if (i < s->track->c)
+			{
+				cv = s->track->v[i];
 				for (j = y1; j <= y2; j++)
 				{
-					r = getTrackRow(&s->track->v[i], j);
+					r = getTrackRow(cv, j);
 					if (i == c1) /* first track */
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++) {
+						for (k = 0; k <= cv->variant->macroc; k++) {
 							if (x1 <= k+2 && isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c); }
 					else if (i == c2) /* last track */
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++) {
+						for (k = 0; k <= cv->variant->macroc; k++) {
 							if (x2 >= k+2 && isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c); }
 					else /* middle track */
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (isalpha(r->macro[k].c))
 								changeMacro('\0', &r->macro[k].c);
 				}
-			else break;
+			} else break;
 	regenGlobalRowc(s);
 }
 /* block interpolate */
@@ -515,13 +537,15 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 	uint8_t i, j;
 	int k;
 	Row *r, *r1, *r2;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
-		r1 = getTrackRow(&s->track->v[c1], y1);
-		r2 = getTrackRow(&s->track->v[c1], y2);
+		cv = s->track->v[c1];
+		r1 = getTrackRow(cv, y1);
+		r2 = getTrackRow(cv, y2);
 		for (j = y1; j <= y2; j++)
 		{
-			r = getTrackRow(&s->track->v[c1], j);
+			r = getTrackRow(cv, j);
 			if (x1 <= 0 && x2 >= 0)
 			{
 				if      (r1->note == NOTE_VOID) r->note = r2->note;
@@ -534,7 +558,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 				else if (r2->inst == INST_VOID) r->inst = r1->inst;
 				else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 			}
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -543,12 +567,14 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 		}
 	} else
 		for (i = c1; i <= c2; i++)
-			if (i < s->track->c) {
-				r1 = getTrackRow(&s->track->v[i], y1);
-				r2 = getTrackRow(&s->track->v[i], y2);
+			if (i < s->track->c)
+			{
+				cv = s->track->v[i];
+				r1 = getTrackRow(cv, y1);
+				r2 = getTrackRow(cv, y2);
 				for (j = y1; j <= y2; j++)
 				{
-					r = getTrackRow(&s->track->v[i], j);
+					r = getTrackRow(cv, j);
 					if (i == c1) /* first track */
 					{
 						if (x1 <= 0)
@@ -563,7 +589,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 							else if (r2->inst == INST_VOID) r->inst = r1->inst;
 							else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 						}
-						for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -584,7 +610,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 							else if (r2->inst == INST_VOID) r->inst = r1->inst;
 							else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 						}
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
@@ -601,7 +627,7 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 						else if (r2->inst == INST_VOID) r->inst = r1->inst;
 						else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 						{
 							r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
 							r->macro[k].v =  r1->macro[k].v + ((r2->macro[k].v - r1->macro[k].v) / (float)(y2-y1)) * (j-y1);
@@ -617,11 +643,13 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	uint8_t i, j, randinst;
 	int k;
 	Row *r;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
+		cv = s->track->v[c1];
 		for (j = y1; j <= y2; j++)
 		{
-			r = getTrackRow(&s->track->v[c1], j);
+			r = getTrackRow(cv, j);
 			if (x1 <= 0 && x2 >= 0) r->note = rand()%36 +MIN(w->octave, MAX_OCTAVE)*12;
 			if (x1 <= 1 && x2 >= 1 && r->note != NOTE_VOID)
 			{
@@ -630,7 +658,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 				for (k = 0; k < INSTRUMENT_MAX; k++)
 					if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 			}
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && r->macro[k].c)
 					r->macro[k].v = rand()%256;
 		}
@@ -638,9 +666,11 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	{
 		for (i = c1; i <= c2; i++)
 			if (i < s->track->c)
+			{
+				cv = s->track->v[i];
 				for (j = y1; j <= y2; j++)
 				{
-					r = getTrackRow(&s->track->v[i], j);
+					r = getTrackRow(cv, j);
 					if (i == c1) /* first track */
 					{
 						if (x1 <= 0) r->note = rand()%36 +MIN(w->octave, MAX_OCTAVE)*12;
@@ -651,7 +681,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x1 <= k+2 && r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					} else if (i == c2) /* last track */
@@ -665,7 +695,7 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 								if (s->instrument->i[k] == randinst)
 								{ r->inst = k; break; }
 						}
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x2 >= k+2 && r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					} else /* middle track */
@@ -678,12 +708,12 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 							for (k = 0; k < INSTRUMENT_MAX; k++)
 								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
 						}
-						for (k = 0; k <= s->track->v[i].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (r->macro[k].c)
 								r->macro[k].v = rand()%256;
 					}
 				}
-			else break;
+			} else break;
 	} regenGlobalRowc(s);
 }
 void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
@@ -691,18 +721,20 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 	uint8_t i;
 	int j, k, l;
 	Row hold, *r0, *r1, *r2;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
+		cv = s->track->v[c1];
 		for (l = 0; l < MAX(1, count); l++)
 		{
-			hold = *getTrackRow(&s->track->v[c1], y1);
-			r2 =    getTrackRow(&s->track->v[c1], y2);
+			hold = *getTrackRow(cv, y1);
+			r2 =    getTrackRow(cv, y2);
 			if (x1 <= 0 && x2 >= 0)
 			{
 				for (j = y1; j < y2; j++)
 				{
-					r0 = getTrackRow(&s->track->v[c1], j+0);
-					r1 = getTrackRow(&s->track->v[c1], j+1);
+					r0 = getTrackRow(cv, j+0);
+					r1 = getTrackRow(cv, j+1);
 					r0->note = r1->note;
 				}
 				r2->note = hold.note;
@@ -711,19 +743,19 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 			{
 				for (j = y1; j < y2; j++)
 				{
-					r0 = getTrackRow(&s->track->v[c1], j+0);
-					r1 = getTrackRow(&s->track->v[c1], j+1);
+					r0 = getTrackRow(cv, j+0);
+					r1 = getTrackRow(cv, j+1);
 					r0->inst = r1->inst;
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					for (j = y1; j < y2; j++)
 					{
-						r0 = getTrackRow(&s->track->v[c1], j+0);
-						r1 = getTrackRow(&s->track->v[c1], j+1);
+						r0 = getTrackRow(cv, j+0);
+						r1 = getTrackRow(cv, j+1);
 						memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
 					}
 					memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
@@ -734,8 +766,9 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 		for (i = c1; i <= c2; i++)
 			if (i < s->track->c)
 			{
-				hold = *getTrackRow(&s->track->v[i], y1);
-				r2 =    getTrackRow(&s->track->v[i], y2);
+				cv = s->track->v[i];
+				hold = *getTrackRow(cv, y1);
+				r2 =    getTrackRow(cv, y2);
 				if (i == c1) /* first track */
 					for (l = 0; l < MAX(1, count); l++)
 					{
@@ -743,8 +776,8 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+0);
-								r1 = getTrackRow(&s->track->v[i], j+1);
+								r0 = getTrackRow(cv, j+0);
+								r1 = getTrackRow(cv, j+1);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -753,19 +786,19 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+0);
-								r1 = getTrackRow(&s->track->v[i], j+1);
+								r0 = getTrackRow(cv, j+0);
+								r1 = getTrackRow(cv, j+1);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								for (j = y1; j < y2; j++)
 								{
-									r0 = getTrackRow(&s->track->v[i], j+0);
-									r1 = getTrackRow(&s->track->v[i], j+1);
+									r0 = getTrackRow(cv, j+0);
+									r1 = getTrackRow(cv, j+1);
 									memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
 								}
 								memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
@@ -778,8 +811,8 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+0);
-								r1 = getTrackRow(&s->track->v[i], j+1);
+								r0 = getTrackRow(cv, j+0);
+								r1 = getTrackRow(cv, j+1);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -788,19 +821,19 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 						{
 							for (j = y1; j < y2; j++)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+0);
-								r1 = getTrackRow(&s->track->v[i], j+1);
+								r0 = getTrackRow(cv, j+0);
+								r1 = getTrackRow(cv, j+1);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->track->v[c2].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								for (j = y1; j < y2; j++)
 								{
-									r0 = getTrackRow(&s->track->v[i], j+0);
-									r1 = getTrackRow(&s->track->v[i], j+1);
+									r0 = getTrackRow(cv, j+0);
+									r1 = getTrackRow(cv, j+1);
 									memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
 								}
 								memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
@@ -811,8 +844,8 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 					{
 						for (j = y1; j < y2; j++)
 						{
-							r0 = getTrackRow(&s->track->v[i], j+0);
-							r1 = getTrackRow(&s->track->v[i], j+1);
+							r0 = getTrackRow(cv, j+0);
+							r1 = getTrackRow(cv, j+1);
 							*r0 = *r1;
 						}
 						*r2 = hold;
@@ -825,19 +858,21 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 	uint8_t i;
 	int j, k, l;
 	Row hold, *r0, *r1, *r2;
+	Track *cv;
 	if (c1 == c2) /* only one track */
 	{
+		cv = s->track->v[c1];
 		for (l = 0; l < MAX(1, count); l++)
 		{
-			hold = *getTrackRow(&s->track->v[c1], y2);
-			r2 =    getTrackRow(&s->track->v[c1], y1);
+			hold = *getTrackRow(cv, y2);
+			r2 =    getTrackRow(cv, y1);
 
 			if (x1 <= 0 && x2 >= 0)
 			{
 				for (j = y2-1; j >= y1; j--)
 				{
-					r0 = getTrackRow(&s->track->v[c1], j+1);
-					r1 = getTrackRow(&s->track->v[c1], j+0);
+					r0 = getTrackRow(cv, j+1);
+					r1 = getTrackRow(cv, j+0);
 					r0->note = r1->note;
 				}
 				r2->note = hold.note;
@@ -846,19 +881,19 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 			{
 				for (j = y2-1; j >= y1; j--)
 				{
-					r0 = getTrackRow(&s->track->v[c1], j+1);
-					r1 = getTrackRow(&s->track->v[c1], j+0);
+					r0 = getTrackRow(cv, j+1);
+					r1 = getTrackRow(cv, j+0);
 					r0->inst = r1->inst;
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2)
 				{
 					for (j = y2-1; j >= y1; j--)
 					{
-						r0 = getTrackRow(&s->track->v[c1], j+1);
-						r1 = getTrackRow(&s->track->v[c1], j+0);
+						r0 = getTrackRow(cv, j+1);
+						r1 = getTrackRow(cv, j+0);
 						memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
 					}
 					memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
@@ -869,8 +904,9 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 		for (i = c1; i <= c2; i++)
 			if (i < s->track->c)
 			{
-				hold = *getTrackRow(&s->track->v[i], y2);
-				r2 =    getTrackRow(&s->track->v[i], y1);
+				cv = s->track->v[i];
+				hold = *getTrackRow(cv, y2);
+				r2 =    getTrackRow(cv, y1);
 
 				if (i == c1) /* first track */
 					for (l = 0; l < MAX(1, count); l++)
@@ -879,8 +915,8 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+1);
-								r1 = getTrackRow(&s->track->v[i], j+0);
+								r0 = getTrackRow(cv, j+1);
+								r1 = getTrackRow(cv, j+0);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -889,19 +925,19 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+1);
-								r1 = getTrackRow(&s->track->v[i], j+0);
+								r0 = getTrackRow(cv, j+1);
+								r1 = getTrackRow(cv, j+0);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->track->v[c1].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x1 <= k+2)
 							{
 								for (j = y2-1; j >= y1; j--)
 								{
-									r0 = getTrackRow(&s->track->v[i], j+1);
-									r1 = getTrackRow(&s->track->v[i], j+0);
+									r0 = getTrackRow(cv, j+1);
+									r1 = getTrackRow(cv, j+0);
 									memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
 								}
 								memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
@@ -914,8 +950,8 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+1);
-								r1 = getTrackRow(&s->track->v[i], j+0);
+								r0 = getTrackRow(cv, j+1);
+								r1 = getTrackRow(cv, j+0);
 								r0->note = r1->note;
 							}
 							r2->note = hold.note;
@@ -924,19 +960,19 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 						{
 							for (j = y2-1; j >= y1; j--)
 							{
-								r0 = getTrackRow(&s->track->v[i], j+1);
-								r1 = getTrackRow(&s->track->v[i], j+0);
+								r0 = getTrackRow(cv, j+1);
+								r1 = getTrackRow(cv, j+0);
 								r0->inst = r1->inst;
 							}
 							r2->inst = hold.inst;
 						}
-						for (k = 0; k <= s->track->v[c2].variant->macroc; k++)
+						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x2 >= k+2)
 							{
 								for (j = y2-1; j >= y1; j--)
 								{
-									r0 = getTrackRow(&s->track->v[i], j+1);
-									r1 = getTrackRow(&s->track->v[i], j+0);
+									r0 = getTrackRow(cv, j+1);
+									r1 = getTrackRow(cv, j+0);
 									memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
 								}
 								memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
@@ -947,8 +983,8 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 					{
 						for (j = y2-1; j >= y1; j--)
 						{
-							r0 = getTrackRow(&s->track->v[i], j+1);
-							r1 = getTrackRow(&s->track->v[i], j+0);
+							r0 = getTrackRow(cv, j+1);
+							r1 = getTrackRow(cv, j+0);
 							*r0 = *r1;
 						}
 						*r2 = hold;
@@ -973,26 +1009,22 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	uint16_t spr, sprp;
 
 	/* allocate temp track state */
-	TrackChain *chain = calloc(1, sizeof(TrackChain) + (c2-c1+1)*sizeof(Track));
-	memcpy(chain, &s->track, sizeof(TrackChain) + (c2-c1+1)*sizeof(Track));
+	TrackChain *chain = calloc(1, sizeof(TrackChain) + (c2-c1+1)*sizeof(Track*));
 
-	for (chnl = 0; chnl <= c2-c1; chnl++)
-	{
-		addTrackRuntime(&chain->v[chnl]);
-		initTrackData(&chain->v[chnl], s->songlen);
-		copyTrack(&chain->v[chnl], &s->track->v[c1+chnl]);
-	}
+	chain->c = s->track->c;
+	for (uint8_t i = 0; i < chain->c; i++)
+		chain->v[i] = allocTrack(s, s->track->v[i]);
 
 	/* calculate the buffer length needed */
 	setBpm(&spr, s->songbpm);
 	for (row = 0; row < y1; row++)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacroCallback(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B', macroBpm);
+			ifMacroCallback(0, &spr, chain->v[chnl], getTrackRow(chain->v[chnl], row), 'B', macroBpm);
 	buflen = 0;
 	for (row = y1; row <= y2; row++)
 	{
 		for (chnl = 0; chnl <= c2-c1; chnl++)
-			ifMacroCallback(0, &spr, &chain->v[chnl], getTrackRow(&chain->v[chnl], row), 'B', macroBpm);
+			ifMacroCallback(0, &spr, chain->v[chnl], getTrackRow(chain->v[chnl], row), 'B', macroBpm);
 		buflen += spr;
 	}
 
@@ -1005,7 +1037,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	/* lookback */
 	setBpm(&spr, s->songbpm);
 	for (chnl = 0; chnl <= c2-c1; chnl++)
-		lookback(0, &spr, y1, &chain->v[chnl]);
+		lookback(0, &spr, y1, chain->v[chnl]);
 
 	bufptr = 0;
 	Row *r;
@@ -1013,8 +1045,8 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	{
 		for (chnl = 0; chnl <= c2-c1; chnl++)
 		{
-			r = getTrackRow(&chain->v[chnl], row);
-			processRow(0, &spr, 0, &chain->v[chnl], r);
+			r = getTrackRow(chain->v[chnl], row);
+			processRow(0, &spr, 0, chain->v[chnl], r);
 		}
 		if (s->bpmcachelen > row && s->bpmcache[row] != -1) macroBpm(fptr, &spr, s->bpmcache[row], NULL, r);
 
@@ -1026,9 +1058,9 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 				if (sprp >= spr) break;
 				for (chnl = 0; chnl <= c2-c1; chnl++)
 				{
-					playTrack(fptr, &spr, fptr, &chain->v[chnl]); /* TODO: shouldn't trigger midi */
-					sample->data[((bufptr+sprp)<<1)+0] += chain->v[chnl].output[0][fptr]*chain->v[chnl].mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
-					sample->data[((bufptr+sprp)<<1)+1] += chain->v[chnl].output[1][fptr]*chain->v[chnl].mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
+					playTrack(fptr, &spr, fptr, chain->v[chnl]); /* TODO: shouldn't trigger midi */
+					sample->data[((bufptr+sprp)<<1)+0] += chain->v[chnl]->output[0][fptr]*chain->v[chnl]->mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
+					sample->data[((bufptr+sprp)<<1)+1] += chain->v[chnl]->output[1][fptr]*chain->v[chnl]->mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
 				} sprp++;
 			}
 		} bufptr += sprp;
@@ -1038,10 +1070,11 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	for (chnl = 0; chnl <= c2-c1; chnl++)
 	{
 		/* TODO: do this buffersize-wise, using buflen will overflow the plugin ports */
-		for (uint8_t i = 0; i < chain->v[chnl].effect->c; i++)
-			runEffect(buflen, chain->v[chnl].effect, &chain->v[chnl].effect->v[i]);
+		for (uint8_t i = 0; i < chain->v[chnl]->effect->c; i++)
+			runEffect(buflen, chain->v[chnl]->effect, &chain->v[chnl]->effect->v[i]);
 
-		_delTrack(s, &chain->v[chnl]);
+		_delTrack(s, chain->v[chnl]);
+		free(chain->v[chnl]);
 	} free(chain);
 
 	/* init the instrument */

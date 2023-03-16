@@ -4,27 +4,8 @@ void clearTrackRuntime(Track *cv)
 	cv->r.note = NOTE_VOID;
 	cv->r.inst = INST_VOID;
 	cv->file = 0;
-	cv->rtrigsamples = 0;
-	cv->rtrig_rev = 0;
 
-	cv->gain.base = cv->gain.rand = 0x88;
-	cv->gain.target = -1;
-	cv->gain.target_rand = 0;
-
-	cv->send.base = cv->send.rand = 0x00;
-	cv->send.target = -1;
-	cv->send.target_rand = 0;
-
-	cv->filter.mode[0] = cv->filter.mode[1] = 0;
-	cv->filter.targetmode[0] = cv->filter.targetmode[1] = -1;
-
-	cv->filter.cut.base = cv->filter.cut.rand = 0xff;
-	cv->filter.cut.target = -1;
-	cv->filter.cut.target_rand = 0;
-
-	cv->filter.res.base = cv->filter.res.rand = 0x00;
-	cv->filter.res.target = -1;
-	cv->filter.res.target_rand = 0;
+	macroCallbackClear(cv);
 
 	cv->midiccindex = -1; cv->midicc = 0;
 }
@@ -101,8 +82,22 @@ void debug_dumpTrackState(Song *cs)
 
 static void cb_addTrack(Event *e)
 {
-	free(e->src); e->src = NULL;
+	free(((TrackChain*)e->src)->v);
+	free(e->src);
+
 	regenGlobalRowc(s); /* sets p->redraw */
+}
+
+/* .cs can be NULL */
+Track *allocTrack(Song *cs, Track *copyfrom)
+{
+	Track *ret = calloc(1, sizeof(Track) + getMacroBlobSize());
+	addTrackRuntime(ret);
+
+	addTrackData(ret, cs ? cs->songlen : 0);
+
+	copyTrack(ret, copyfrom);
+	return ret;
 }
 
 /* copyfrom can be NULL */
@@ -111,26 +106,23 @@ void addTrack(Song *cs, uint8_t index, uint16_t count, Track *copyfrom)
 	/* scale down count if necessary */
 	count = MIN(count, TRACK_MAX - cs->track->c);
 
-	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (cs->track->c+count)*sizeof(Track));
+	TrackChain *newtrack = malloc(sizeof(TrackChain));
 	newtrack->c = cs->track->c;
+	newtrack->v = calloc(cs->track->c + count, sizeof(Track*));
 
 	if (index)
 		memcpy(&newtrack->v[0],
 				&cs->track->v[0],
-				index * sizeof(Track));
+				index * sizeof(Track*));
 
 	if (index < cs->track->c)
 		memcpy(&newtrack->v[index+count],
 				&cs->track->v[index],
-				(cs->track->c - index) * sizeof(Track));
+				(cs->track->c - index) * sizeof(Track*));
 
 	/* allocate new tracks */
 	for (uint16_t i = 0; i < count; i++)
-	{
-		addTrackRuntime(&newtrack->v[index+i]);
-		addTrackData(&newtrack->v[index+i], cs->songlen);
-		copyTrack(&newtrack->v[index+i], copyfrom);
-	}
+		newtrack->v[index+i] = allocTrack(cs, copyfrom);
 
 	newtrack->c += count;
 
@@ -144,15 +136,15 @@ void addTrack(Song *cs, uint8_t index, uint16_t count, Track *copyfrom)
 
 void swapTracks(uint8_t index1, uint8_t index2)
 { /* fully atomic */
-	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + s->track->c*sizeof(Track));
+	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + s->track->c*sizeof(Track*));
 	newtrack->c = s->track->c;
 
 	/* copy each track over individually, but swap the destinations for index{1,2} */
 	for (uint8_t i = 0; i < newtrack->c; i++)
 	{
-		if      (i == index1) memcpy(&newtrack->v[index2], &s->track->v[i], sizeof(Track));
-		else if (i == index2) memcpy(&newtrack->v[index1], &s->track->v[i], sizeof(Track));
-		else                  memcpy(&newtrack->v[i],      &s->track->v[i], sizeof(Track));
+		if      (i == index1) memcpy(&newtrack->v[index2], &s->track->v[i], sizeof(Track*));
+		else if (i == index2) memcpy(&newtrack->v[index1], &s->track->v[i], sizeof(Track*));
+		else                  memcpy(&newtrack->v[i],      &s->track->v[i], sizeof(Track*));
 	}
 
 	Event e;
@@ -165,7 +157,7 @@ void swapTracks(uint8_t index1, uint8_t index2)
 
 void _delTrack(Song *cs, Track *cv)
 { /* NOT atomic */
-	clearTrackData(cv, cs->songlen);
+	clearTrackData(cv, cs ? cs->songlen : 0);
 	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
 	if (cv->output      [0]) { free(cv->output      [0]); cv->output      [0] = NULL; }
 	if (cv->output      [1]) { free(cv->output      [1]); cv->output      [1] = NULL; }
@@ -179,11 +171,18 @@ void _delTrack(Song *cs, Track *cv)
 
 static void cb_delTrack(Event *e)
 {
-	uint16_t count = (size_t)e->callbackarg & 0xffff;
+	uint16_t count = (size_t)e->callbackarg & 0x00ffff;
 	uint8_t index = ((size_t)e->callbackarg & 0xff0000) >> 16;
+
 	for (uint16_t i = 0; i < count; i++)
-		_delTrack(s, &((TrackChain *)e->src)->v[index+i]);
-	free(e->src); e->src = NULL;
+	{
+		_delTrack(s, ((TrackChain*)e->src)->v[index+i]);
+		free(((TrackChain*)e->src)->v[index+i]);
+	}
+
+	free(((TrackChain*)e->src)->v);
+	free(e->src);
+
 	if (w->track > s->track->c-1)
 		w->track = s->track->c-1;
 
@@ -198,18 +197,19 @@ void delTrack(uint8_t index, uint16_t count)
 
 	/* TODO: if the last track would be deleted then call clearTrackData(&s->track->v[0], s->songlen) */
 
-	TrackChain *newtrack = calloc(1, sizeof(TrackChain) + (s->track->c - count) * sizeof(Track));
+	TrackChain *newtrack = malloc(sizeof(TrackChain));
 	newtrack->c = s->track->c - count;
+	newtrack->v = calloc(s->track->c - count, sizeof(Track*));
 
 	if (index)
 		memcpy(&newtrack->v[0],
 				&s->track->v[0],
-				index * sizeof(Track));
+				index * sizeof(Track*));
 
 	if (index < s->track->c)
 		memcpy(&newtrack->v[index],
 				&s->track->v[index+count],
-				(s->track->c - index - count) * sizeof(Track));
+				(s->track->c - index - count) * sizeof(Track*));
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
@@ -267,7 +267,7 @@ void regenBpmCache(Song *cs)
 
 	for (uint16_t i = 0; i < cs->songlen; i++)
 		for (uint8_t j = 0; j < cs->track->c; j++)
-			ifMacroCallback(i, (uint16_t *)newbpmcache, &cs->track->v[j], getTrackRow(&cs->track->v[j], i), 'B', checkBpmCache);
+			ifMacroCallback(i, (uint16_t *)newbpmcache, cs->track->v[j], getTrackRow(cs->track->v[j], i), 'B', checkBpmCache);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
@@ -282,7 +282,7 @@ void regenGlobalRowc(Song *cs)
 {
 	cs->songlen = STATE_ROWS;
 	for (uint8_t i = 0; i < cs->track->c; i++)
-		cs->songlen = MAX(cs->songlen, getSignificantRowc(cs->track->v[i].variant));
+		cs->songlen = MAX(cs->songlen, getSignificantRowc(cs->track->v[i]->variant));
 
 	/* both zeroed out if the loop range is unset              */
 	/* only check loop1 cos loop1 is always greater than loop0 */
@@ -292,7 +292,7 @@ void regenGlobalRowc(Song *cs)
 	cs->songlen += 4*cs->rowhighlight;
 
 	for (uint8_t i = 0; i < cs->track->c; i++)
-		resizeVariantChain(cs->track->v[i].variant, cs->songlen);
+		resizeVariantChain(cs->track->v[i]->variant, cs->songlen);
 
 	w->trackerfy = MIN(cs->songlen-1, w->trackerfy);
 
@@ -324,7 +324,7 @@ void applyTrackMutes(void)
 }
 void toggleTrackMute(uint8_t track)
 {
-	s->track->v[track].mute = !s->track->v[track].mute;
+	s->track->v[track]->mute = !s->track->v[track]->mute;
 	applyTrackMutes();
 }
 void toggleTrackSolo(uint8_t track)
@@ -332,26 +332,26 @@ void toggleTrackSolo(uint8_t track)
 	int i;
 	bool reset = 0;
 
-	if (!s->track->v[track].mute)
+	if (!s->track->v[track]->mute)
 	{
 		for (i = 0; i < s->track->c; i++)
-			if (s->track->v[i].mute)
+			if (s->track->v[i]->mute)
 				reset = 1;
 
 		for (i = 0; i < s->track->c; i++)
-			if (i != track && !s->track->v[i].mute)
+			if (i != track && !s->track->v[i]->mute)
 				reset = 0;
 	}
 
 	if (reset)
 	{
 		for (i = 0; i < s->track->c; i++)
-			s->track->v[i].mute = 0;
+			s->track->v[i]->mute = 0;
 	} else
 	{
 		for (i = 0; i < s->track->c; i++)
-			s->track->v[i].mute = 1;
-		s->track->v[track].mute = 0;
+			s->track->v[i]->mute = 1;
+		s->track->v[track]->mute = 0;
 	}
 	applyTrackMutes();
 }

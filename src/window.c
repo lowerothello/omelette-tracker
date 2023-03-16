@@ -45,7 +45,7 @@ UI *allocWindow(void)
 
 	__addInstrument(&ret->instrumentbuffer, INST_ALG_NULL);
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
-		addTrackRuntime(&ret->previewtrack[i]);
+		ret->previewtrack[i] = allocTrack(NULL, NULL);
 
 	ret->trackbuffer.effect = newEffectChain(NULL, NULL);
 	initTrackData(&ret->trackbuffer, 0);
@@ -56,6 +56,12 @@ UI *allocWindow(void)
 void freeWindow(UI *cw)
 {
 	if (!cw) return;
+
+	for (int i = 0; i < PREVIEW_TRACKS; i++)
+	{
+		_delTrack(NULL, cw->previewtrack[i]);
+		free(cw->previewtrack[i]);
+	}
 
 	clearTrackData(&cw->trackbuffer, 1);
 	delInstrumentForce(&cw->instrumentbuffer);

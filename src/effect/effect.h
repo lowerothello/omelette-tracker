@@ -31,6 +31,7 @@ typedef struct EffectAPI
 	short              (*height)(void *state); /* get the height in terminal rows .state wants */
 	void                 (*draw)(void *state, short x, short w, short y, short ymin, short ymax);
 } EffectAPI;
+EffectAPI *effect_api;
 
 
 #include "dummy.h"
@@ -42,8 +43,6 @@ typedef struct EffectAPI
 #ifdef OML_LV2
 #include "lv2.h"
 #endif
-
-EffectAPI *effect_api;
 
 EffectAPI *effectGetAPI(void);
 
