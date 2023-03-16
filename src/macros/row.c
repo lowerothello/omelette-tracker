@@ -27,7 +27,7 @@ void macroRowPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *stat
 			case MACRO_ROW_CUT:
 				if (!r->macro[i].v)
 				{ /* cut now */
-					ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]); /* TODO: proper rowprogress */
+					ramp(fptr, spr, 0, cv, 0.0f, p->s->instrument->i[cv->r.inst]); /* TODO: proper rowprogress */
 					triggerNote(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 					ms->cutsamples = 0;
 					r->note = NOTE_VOID;

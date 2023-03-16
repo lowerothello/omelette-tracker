@@ -2,7 +2,7 @@ void setBpm(uint16_t *spr, uint8_t newbpm)
 { *spr = samplerate * (60.f / newbpm) / p->s->rowhighlight; }
 
 /* freewheel to fill up the ramp buffer */
-void ramp(Track *cv, float rp, uint8_t realinstrument)
+void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv, float rp, uint8_t realinstrument)
 {
 	if (cv->rampbuffer)
 	{
@@ -12,8 +12,11 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 		/* save state */
 		float samplegain = powf(2, (float)p->s->instrument->v[realinstrument].gain*DIV16);
 
+		float finetune = 0.0f;
 		uint32_t pointeroffset = cv->pointer;
 		uint32_t pitchedpointeroffset = cv->pitchedpointer;
+		macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointeroffset, &pitchedpointeroffset);
+
 		if (realinstrument < p->s->instrument->c)
 		{
 			pitchedpointeroffset++;
@@ -30,7 +33,7 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 				for (uint16_t i = 0; i < localrampmax; i++)
 				{
 					if (pitchedpointeroffset) pitchedpointeroffset--;
-					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, cv->finetune, &l, &r);
+					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
 					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT * samplegain;
 					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT * samplegain;
 				}
@@ -38,7 +41,7 @@ void ramp(Track *cv, float rp, uint8_t realinstrument)
 				for (uint16_t i = 0; i < rampmax; i++)
 				{
 					pitchedpointeroffset++;
-					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, cv->finetune, &l, &r);
+					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
 					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT * samplegain;
 					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT * samplegain;
 				}
@@ -170,7 +173,7 @@ void processRow(uint32_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 		triggerramp = 1;
 
 	if (triggerramp && instrumentSafe(p->s->instrument, cv->r.inst))
-		ramp(&oldcv, 0.0f, p->s->instrument->i[cv->r.inst]);
+		ramp(fptr, spr, 0, &oldcv, 0.0f, p->s->instrument->i[cv->r.inst]);
 }
 
 void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
@@ -252,7 +255,7 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 	if (newnote != NOTE_VOID)
 	{
 		if (instrumentSafe(p->s->instrument, cv->r.inst))
-			ramp(cv, rowprogress, p->s->instrument->i[cv->r.inst]);
+			ramp(fptr, spr, sprp, cv, rowprogress, p->s->instrument->i[cv->r.inst]);
 		triggerNote(fptr, cv, cv->r.note, newnote, cv->r.inst);
 
 		macroCallbackPostTrig(fptr, spr, cv, &cv->r);
@@ -263,7 +266,6 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 	float finetune = 0.0f;
 	uint32_t pointer = cv->pointer;
 	uint32_t pitchedpointer = cv->pitchedpointer;
-
 	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointer, &pitchedpointer);
 
 	short li = 0;
@@ -290,7 +292,7 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 			/* process the sampler */
 			if (cv->r.inst != INST_VOID && cv->r.note != NOTE_VOID)
 			{
-				samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, cv->finetune, &li, &ri);
+				samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, finetune, &li, &ri);
 
 				if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
 				else                                       cv->pitchedpointer++;

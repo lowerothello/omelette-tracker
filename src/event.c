@@ -181,7 +181,7 @@ bool processM_SEM(void)
 				{
 					cv = p->s->track->v[i];
 					if (instrumentSafe(p->s->instrument, cv->r.inst))
-						ramp(cv, (float)p->s->sprp / (float)p->s->spr, p->s->instrument->i[cv->r.inst]);
+						ramp(0, &p->s->spr, p->s->sprp, cv, (float)p->s->sprp / (float)p->s->spr, p->s->instrument->i[cv->r.inst]);
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 					clearTrackRuntime(cv); /* TODO: think this is unnecessary, cos it's implied by lookback */
 				}

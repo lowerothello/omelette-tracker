@@ -1,7 +1,7 @@
 void setBpm(uint16_t *spr, uint8_t newbpm);
 
 /* freewheel to fill up the ramp buffer */
-void ramp(Track *cv, float rp, uint8_t realinstrument);
+void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv, float rp, uint8_t realinstrument);
 
 void midiNoteOn (uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity);
 void midiNoteOff(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity);

@@ -20,7 +20,7 @@ typedef struct Track
 	unsigned file    : 1;
 
 	VariantChain *variant;
-	EffectChain *effect;
+	EffectChain  *effect;
 
 	/* runtime state */
 	uint32_t pointer;        /* clock */
@@ -30,15 +30,7 @@ typedef struct Track
 	MacroState gain;
 	MacroState send;
 
-	Row      r;
-	float    finetune; /* calculated fine tune, TODO: remove */
-
-	short localenvelope;
-	short localsustain;
-	MacroState pitchshift;
-	MacroState pitchwidth;
-	MacroState samplerate;
-	int localcyclelength;
+	Row r;
 
 	short   midiccindex;
 	uint8_t midicc;
@@ -50,6 +42,13 @@ typedef struct Track
 	/* sampler */
 	float envgain;
 	float modenvgain; /* wavetable modulation envelope */
+
+	short localenvelope;
+	short localsustain;
+	MacroState pitchshift;
+	MacroState pitchwidth;
+	MacroState samplerate;
+	int localcyclelength;
 
 	uint16_t grainrampindex; /* progress through the grain ramp buffer, >=cv->grainrampmax if not ramping */
 	uint16_t grainrampmax;   /* actual grainrampmax used, to allow for tiny grain sizes */

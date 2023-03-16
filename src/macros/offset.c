@@ -6,7 +6,7 @@ static void _macroOffset(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 		if (cv->r.note != NOTE_VOID) /* if playing a note */
 		{
 			if (r->note == NOTE_VOID) /* if not changing note, explicit ramping needed */
-				ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
+				ramp(fptr, spr, 0, cv, 0.0f, p->s->instrument->i[cv->r.inst]);
 			cv->pitchedpointer = (m*DIV256) * iv->trimlength * (float)samplerate / (float)iv->sample->rate;
 		}
 	}
@@ -19,7 +19,7 @@ static void _macroOffsetJitter(uint32_t fptr, uint16_t *spr, int m, Track *cv, R
 		if (cv->r.note != NOTE_VOID) /* if playing a note */
 		{
 			if (r->note == NOTE_VOID) /* if not changing note, explicit ramping needed */
-				ramp(cv, 0.0f, p->s->instrument->i[cv->r.inst]);
+				ramp(fptr, spr, 0, cv, 0.0f, p->s->instrument->i[cv->r.inst]);
 			if (m>>4 == (m&0xf)) /* both nibbles are the same */
 				cv->pitchedpointer = (((m&0xf) + (rand()&0xf))*DIV256) * iv->trimlength * (float)samplerate / (float)iv->sample->rate;
 			else
