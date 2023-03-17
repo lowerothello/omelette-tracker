@@ -1,16 +1,21 @@
 static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_t index)
 {
+	Sample *sample = NULL;
+	if (w->sample < iv->samplecount)
+		sample = iv->sample[w->sample];
+
 	switch (index)
 	{
 		case 0:
+			if (!sample) break;
 			printf("\033[%d;%dHC5 rate: [        ]", y, x);
-			addControlInt(x+10, y, &iv->sample->rate, 8, 0x0, 0xffffffff, iv->sample->defrate, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &sample->rate, 8, 0x0, 0xffffffff, sample->defrate, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHquality: [ ][ ][  ]", y, x);
-			addControlInt(x+10, y, &iv->interpolate, 0, 0,   1,      0,    0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+13, y, &iv->bitdepth,    1, 0x0, 0xf,    0xf,  0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+16, y, &iv->samplerate,  2, 0x0, 0xff,   0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &iv->interpolate, 0,   0,    1,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+13, y, &iv->bitdepth,    1, 0x0,  0xf,  0xf, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+16, y, &iv->samplerate,  2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 		case 2:
 			printf("\033[%d;%dHgain env:    [    ]", y, x);
@@ -27,8 +32,8 @@ static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_
 			break;
 		case 4:
 			printf("\033[%d;%dHgain:      [ ][   ]", y, x);
-			addControlInt(x+12, y, &iv->invert, 0, 0,    1,   0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+15, y, &iv->gain,   3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			if (sample) addControlInt(x+12, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+15, y, &iv->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 	}
 }
@@ -40,16 +45,21 @@ void initInstUICommonSamplerBlock(InstUIBlock *block)
 
 static void samplerInstUIRangeCallback(short x, short y, Instrument *iv, uint8_t index)
 {
+	Sample *sample = NULL;
+	if (w->sample < iv->samplecount)
+		sample = iv->sample[w->sample];
+
 	switch (index)
 	{
-		case 0: printf("\033[%d;%dHoffset:  [        ]", y, x); addControlInt(x+10, y, &iv->trimstart,  8, 0, iv->sample->length-1, 0,                    0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 1: printf("\033[%d;%dHlength:  [        ]", y, x); addControlInt(x+10, y, &iv->trimlength, 8, 0, iv->sample->length-1, iv->sample->length-1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 2: printf("\033[%d;%dHloop:    [        ]", y, x); addControlInt(x+10, y, &iv->looplength, 8, 0, iv->trimlength,       0,                    0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 3: printf("\033[%d;%dHframe:         [  ]", y, x); addControlInt(x+10, y, &iv->frame,      2, 0,                  255, 0,                    0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 0: if (!sample) break; printf("\033[%d;%dHoffset:  [        ]", y, x); addControlInt(x+10, y,  &sample->trimstart, 8, 0,   sample->length-1,                0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 1: if (!sample) break; printf("\033[%d;%dHlength:  [        ]", y, x); addControlInt(x+10, y, &sample->trimlength, 8, 0,   sample->length-1, sample->length-1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 2: if (!sample) break; printf("\033[%d;%dHloop:    [        ]", y, x); addControlInt(x+10, y, &sample->looplength, 8, 0, sample->trimlength,                0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 3:                     printf("\033[%d;%dHframe:         [  ]", y, x); addControlInt(x+10, y,          &iv->frame, 2, 0,                255,                0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
 		case 4:
+			if (!sample) break;
 			printf("\033[%d;%dHpp/ramp:    [ ][  ]", y, x);
-			addControlInt(x+13, y, &iv->pingpong, 0, 0,   1,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+16, y, &iv->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+13, y, &sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+16, y, &sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 	}
 }
@@ -205,9 +215,15 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 				{
 					iv = &s->instrument->v[s->instrument->i[i]];
 					printf("\033[1m");
-					if (iv->algorithm == INST_ALG_MIDI) snprintf(buffer, 11, "-  MIDI  -");
-					else if (iv->sample)                snprintf(buffer, 11, "<%08x>", iv->sample->length);
-					else                                snprintf(buffer, 11, "<%08x>", 0);
+					if (iv->algorithm == INST_ALG_MIDI)
+						snprintf(buffer, 11, "-  MIDI  -");
+					else
+					{
+						uint32_t samplesize = 0;
+						for (uint8_t j = 0; j < iv->samplecount; j++)
+							samplesize += iv->sample[j]->length;
+						snprintf(buffer, 11, "<%08x>", samplesize);
+					}
 				} else snprintf(buffer, 11, " ........ ");
 				printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
 			}

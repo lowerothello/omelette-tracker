@@ -125,25 +125,6 @@ void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(
 }
 
 
-// bool midicctargetc(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row r) { cv->midiccindex = m%128; return 1; }
-// bool midipcc(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row r)
-// {
-// 	if (!cv->mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
-// 	{
-// 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
-// 		if (iv->algorithm == INST_ALG_MIDI) midiPC(fptr, iv->midi.channel, m%128);
-// 	} return 1;
-// }
-// bool midiccc(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row r)
-// {
-// 	cv->midicc = m%128;
-// 	if (cv->midiccindex != -1 && !cv->mute && p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst] < p->s->instrument->c)
-// 	{
-// 		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[(r.inst != INST_VOID) ? r.inst : cv->r.inst]];
-// 		if (iv->algorithm == INST_ALG_MIDI) midiCC(fptr, iv->midi.channel, cv->midiccindex, cv->midicc);
-// 	} return 1;
-// }
-
 void macroStateReset(MacroState *s)
 {
 	s->base = -1;

@@ -7,14 +7,15 @@ typedef struct Macro
 
 #define NOTE_SMOOTH_OFFSET 120 /* offset from any note value to get it's legato variant */
 #define NOTE_C_OFFSET 3 /* offset to work based off of C */
-enum NOTE_MASK {
-	NOTE_VOID       = 0x00,
-	NOTE_MIN        = 0x01, // 1
-	NOTE_C5         = 0x40, // 64
-	NOTE_MAX        = 0x78, // 120
-	NOTE_UNUSED     = 0xfd,
-	NOTE_CUT        = 0xfe,
-	NOTE_OFF        = 0xff,
+enum Note
+{
+	NOTE_VOID   = 0x00,
+	NOTE_MIN    = 0x01, // 1
+	NOTE_C5     = 0x40, // 64
+	NOTE_MAX    = 0x78, // 120
+	NOTE_UNUSED = 0xfd,
+	NOTE_CUT    = 0xfe,
+	NOTE_OFF    = 0xff,
 };
 #define INST_VOID 255
 /* TODO: MACRO_VOID */

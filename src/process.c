@@ -51,31 +51,31 @@ void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv, float rp, uint
 	} cv->rampindex = 0;
 }
 
-void midiNoteOff(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
+void midiNoteOff(uint32_t fptr, uint8_t midichannel, uint8_t note, uint8_t velocity)
 {
 	if (note != NOTE_VOID)
 	{
-		unsigned char event[3] = {0b10000000 | miditrack, note, velocity};
+		unsigned char event[3] = {0b10000000 | midichannel, note, velocity};
 		audio_api.writeMidi(fptr, event, 3);
 	}
 }
-void midiNoteOn(uint32_t fptr, uint8_t miditrack, uint8_t note, uint8_t velocity)
+void midiNoteOn(uint32_t fptr, uint8_t midichannel, uint8_t note, uint8_t velocity)
 {
 	if (note != NOTE_VOID)
 	{
-		unsigned char event[3] = {0b10010000 | miditrack, note, velocity};
+		unsigned char event[3] = {0b10010000 | midichannel, note, velocity};
 		audio_api.writeMidi(fptr, event, 3);
 	}
 }
 
-void midiPC(uint32_t fptr, uint8_t miditrack, uint8_t program)
+void midiPC(uint32_t fptr, uint8_t midichannel, uint8_t program)
 {
-	unsigned char event[2] = {0b11000000 | miditrack, program};
+	unsigned char event[2] = {0b11000000 | midichannel, program};
 	audio_api.writeMidi(fptr, event, 2);
 }
-void midiCC(uint32_t fptr, uint8_t miditrack, uint8_t controller, uint8_t value)
+void midiCC(uint32_t fptr, uint8_t midichannel, uint8_t controller, uint8_t value)
 {
-	unsigned char event[3] = {0b10110000 | miditrack, controller, value};
+	unsigned char event[3] = {0b10110000 | midichannel, controller, value};
 	audio_api.writeMidi(fptr, event, 3);
 }
 
@@ -97,6 +97,8 @@ bool triggerMidi(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_
 /* TODO: should maybe take oldnote and a row as args */
 void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
+	Instrument *iv;
+
 	triggerMidi(fptr, cv, oldnote, note, inst);
 
 	switch (note)
@@ -114,33 +116,29 @@ void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short 
 			cv->r.note = NOTE_VOID;
 			break;
 		default:
-			if (inst < 0)
-			{
-				cv->r.inst = INST_VOID;
-				cv->file = 1;
-			} else
-			{
-				cv->r.inst = inst;
-				cv->file = 0;
-			}
+			if (note < NOTE_MAX) /* legato */
+				cv->pointer = cv->pitchedpointer = 0;
 
-			cv->r.note = note;
-			cv->pointer = cv->pitchedpointer = 0;
+			cv->r.note = note%NOTE_MAX;
 			cv->reverse = 0;
 			cv->release = 0;
 
+			if (instrumentSafe(p->s->instrument, inst))
+			{
+				iv = &p->s->instrument->v[p->s->instrument->i[inst]];
+				cv->r.inst = inst;
+				cv->sampleslot = iv->samplemap[cv->r.note];
+				iv->triggerflash = cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S;
+				p->redraw = 1;
+				cv->file = 0;
+			} else if (inst < 0)
+			{
+				cv->r.inst = INST_VOID;
+				cv->file = 1;
+			}
+
 			macroCallbackTriggerNote(fptr, cv, oldnote, note, inst);
 
-			if (inst >= 0 && !cv->mute) /* if inst is not special and unmuted */
-			{
-				if (instrumentSafe(p->s->instrument, inst))
-				{
-					Instrument *iv = &p->s->instrument->v[p->s->instrument->i[inst]];
-					iv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* instrument trig flash */
-				}
-				cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S; /* track trig flash */
-				p->redraw = 1;
-			}
 			break;
 	}
 }
@@ -186,8 +184,8 @@ void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
 	/* gain multipliers */
 	macroStateGetStereo(&cv->gain, rp, &cv->mainmult[0][fptr], &cv->mainmult[1][fptr]);
 
-	cv->output[0][fptr] = lf;
-	cv->output[1][fptr] = rf;
+	cv->effect->input[0][fptr] = lf;
+	cv->effect->input[1][fptr] = rf;
 
 	if (cv->send.target != -1)
 	{
@@ -278,12 +276,12 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 		{
 			processMinimal(p->w->previewsample, cv->pointer, 0xff, 0xf, cv->r.note, &li, &ri);
 			cv->pointer++;
-			cv->output[0][fptr] = li*DIVSHRT;
-			cv->output[1][fptr] = ri*DIVSHRT;
+			cv->effect->input[0][fptr] = li*DIVSHRT;
+			cv->effect->input[1][fptr] = ri*DIVSHRT;
 		} else
 		{
-			cv->output[0][fptr] = 0.0f;
-			cv->output[1][fptr] = 0.0f;
+			cv->effect->input[0][fptr] = 0.0f;
+			cv->effect->input[1][fptr] = 0.0f;
 		}
 	} else
 	{
@@ -322,7 +320,7 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 				rf += cv->rampbuffer[cv->rampindex*2 + 1] * (1.0f - gain);
 
 				postSampler(fptr, cv, rowprogress, lf, rf);
-			} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
+			} else cv->effect->input[0][fptr] = cv->effect->input[1][fptr] = 0.0f;
 
 			cv->rampindex++;
 		} else if (!cv->mute && instrumentSafe(p->s->instrument, cv->r.inst))
@@ -332,7 +330,7 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 			rf *= samplegain;
 
 			postSampler(fptr, cv, rowprogress, lf, rf);
-		} else cv->output[0][fptr] = cv->output[1][fptr] = 0.0f;
+		} else cv->effect->input[0][fptr] = cv->effect->input[1][fptr] = 0.0f;
 	}
 }
 
@@ -540,22 +538,22 @@ void processOutput(uint32_t nfptr)
 	p->s->spr = c0spr;
 
 	/* clear the master and send chain ports */
-	memset(p->s->masteroutput[0], 0, nfptr * sizeof(float));
-	memset(p->s->masteroutput[1], 0, nfptr * sizeof(float));
-	memset(p->s->sendoutput  [0], 0, nfptr * sizeof(float));
-	memset(p->s->sendoutput  [1], 0, nfptr * sizeof(float));
+	memset(p->s->master->input[0], 0, nfptr * sizeof(float));
+	memset(p->s->master->input[1], 0, nfptr * sizeof(float));
+	memset(p->s->send->input[0], 0, nfptr * sizeof(float));
+	memset(p->s->send->input[1], 0, nfptr * sizeof(float));
 
 	/* sum the output from each track thread */
 	for (uint8_t i = 0; i < p->s->track->c; i++)
 	{
 		cv = p->s->track->v[i];
-		if (cv->output[0] && cv->output[1])
+		if (cv->effect->output[0] && cv->effect->output[1])
 			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				p->s->masteroutput[0][fptr] += cv->output[0][fptr] * cv->mainmult[0][fptr];
-				p->s->masteroutput[1][fptr] += cv->output[1][fptr] * cv->mainmult[1][fptr];
-				p->s->sendoutput  [0][fptr] += cv->output[0][fptr] * cv->sendmult[0][fptr];
-				p->s->sendoutput  [1][fptr] += cv->output[1][fptr] * cv->sendmult[1][fptr];
+				p->s->master->input[0][fptr] += cv->effect->output[0][fptr] * cv->mainmult[0][fptr];
+				p->s->master->input[1][fptr] += cv->effect->output[1][fptr] * cv->mainmult[1][fptr];
+				p->s->send->input[0][fptr] += cv->effect->output[0][fptr] * cv->sendmult[0][fptr];
+				p->s->send->input[1][fptr] += cv->effect->output[1][fptr] * cv->sendmult[1][fptr];
 			}
 	}
 
@@ -565,16 +563,16 @@ void processOutput(uint32_t nfptr)
 	/* mix the send chain output into the master input */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 	{
-		p->s->masteroutput[0][fptr] += p->s->sendoutput[0][fptr];
-		p->s->masteroutput[1][fptr] += p->s->sendoutput[1][fptr];
+		p->s->master->input[0][fptr] += p->s->send->output[0][fptr];
+		p->s->master->input[1][fptr] += p->s->send->output[1][fptr];
 	}
 
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
 		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			p->s->masteroutput[0][fptr] += p->w->previewtrack[i]->output[0][fptr] * p->w->previewtrack[i]->mainmult[0][fptr];
-			p->s->masteroutput[1][fptr] += p->w->previewtrack[i]->output[1][fptr] * p->w->previewtrack[i]->mainmult[1][fptr];
+			p->s->master->input[0][fptr] += p->w->previewtrack[i]->effect->output[0][fptr] * p->w->previewtrack[i]->mainmult[0][fptr];
+			p->s->master->input[1][fptr] += p->w->previewtrack[i]->effect->output[1][fptr] * p->w->previewtrack[i]->mainmult[1][fptr];
 		}
 	}
 
@@ -585,8 +583,8 @@ void processOutput(uint32_t nfptr)
 	/* output */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		audio_api.writeAudio(fptr,
-				p->s->masteroutput[0][fptr],
-				p->s->masteroutput[1][fptr]);
+				p->s->master->output[0][fptr],
+				p->s->master->output[1][fptr]);
 
 	triggerFlash(p);
 }

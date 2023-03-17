@@ -15,11 +15,7 @@ typedef struct Song
 
 	/* effect chains */
 	EffectChain *master;
-	float       *masteroutput[2];
-	float       *masterpluginoutput[2]; /* some external plugins need to read and write from separate buffers */
 	EffectChain *send;
-	float       *sendoutput[2];
-	float       *sendpluginoutput[2]; /* some external plugins need to read and write from separate buffers */
 
 	/* misc. state */
 	uint8_t  rowhighlight;

@@ -3,10 +3,10 @@
 
 typedef struct MacroState
 {
-	short   base;             /* unsigned nibble per track                            */
-	short   rand;             /* .base override for jitter                            */
-	short   target;           /* smoothing target, committed to both .rand and .base  */
-	uint8_t lfospeed;         /* how many lfo cycles per row                          */
+	short    base;            /* unsigned nibble per track                            */
+	short    rand;            /* .base override for jitter                            */
+	short    target;          /* smoothing target, committed to both .rand and .base  */
+	uint8_t  lfospeed;        /* how many lfo cycles per row                          */
 	unsigned target_rand : 1; /* .target should be commited to .rand but NOT to .base */
 	unsigned lfo_stereo  : 1; /* .lfospeed should be stereo                           */
 } MacroState;
@@ -31,9 +31,7 @@ typedef struct Track
 	MacroState send;
 
 	Row r;
-
-	short   midiccindex;
-	uint8_t midicc;
+	uint8_t sampleslot; /* TODO: don't like this */
 
 	/* ramping */
 	uint16_t rampindex;  /* progress through the ramp buffer, rampmax if not ramping */
@@ -53,8 +51,6 @@ typedef struct Track
 	uint16_t grainrampindex; /* progress through the grain ramp buffer, >=cv->grainrampmax if not ramping */
 	uint16_t grainrampmax;   /* actual grainrampmax used, to allow for tiny grain sizes */
 
-	float *output[2];
-	float *pluginoutput[2]; /* some external plugins need to read and write from separate buffers */
 	float *mainmult[2]; /* apply post-effects in parallel with sendmult */
 	float *sendmult[2]; /* apply post-effects in parallel with mainmult */
 
@@ -62,7 +58,8 @@ typedef struct Track
 } Track; /* cv */
 
 #define TRACK_MAX 32
-typedef struct {
+typedef struct TrackChain
+{
 	uint8_t c; /* track count  */
 	Track **v; /* track values */
 } TrackChain;

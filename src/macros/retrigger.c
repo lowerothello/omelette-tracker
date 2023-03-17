@@ -28,8 +28,8 @@ static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Ro
 	ms->rtrigpointer = ms->rtrigcurrentpointer = cv->pointer;
 	ms->rtrigpitchedpointer = ms->rtrigcurrentpitchedpointer = cv->pitchedpointer;
 	ms->rtrigblocksize = m>>4;
-	if (m&0xf) ms->rtrigsamples = *spr / (m&0xf);
-	else       ms->rtrigsamples = *spr * (ms->rtrigblocksize+1);
+	if (m&15) ms->rtrigsamples = *spr / (m&15);
+	else      ms->rtrigsamples = *spr * (ms->rtrigblocksize+1);
 }
 
 

@@ -55,23 +55,28 @@ void freeEffect(Effect *e)
 		effect_api[e->type].free(e->state);
 }
 
-EffectChain *newEffectChain(float *input[2], float *output[2])
+EffectChain *newEffectChain(void)
 {
 	EffectChain *ret = calloc(1, sizeof(EffectChain));
-
-	if (input) {
-		ret->input[0] = input[0];
-		ret->input[1] = input[1];
-	}
-
-	if (output) {
-		ret->output[0] = output[0];
-		ret->output[1] = output[1];
-	}
+	ret->input[0] = calloc(buffersize, sizeof(float));
+	ret->input[1] = calloc(buffersize, sizeof(float));
+	ret->output[0] = calloc(buffersize, sizeof(float));
+	ret->output[1] = calloc(buffersize, sizeof(float));
 
 	return ret;
 }
 
+void freeEffectChain(EffectChain *chain)
+{
+	clearEffectChain(chain);
+
+	if (chain->input[0]) { free(chain->input[0]); chain->input[0] = NULL; }
+	if (chain->input[1]) { free(chain->input[1]); chain->input[1] = NULL; }
+	if (chain->output[0]) { free(chain->output[0]); chain->output[0] = NULL; }
+	if (chain->output[1]) { free(chain->output[1]); chain->output[1] = NULL; }
+
+	free(chain);
+}
 void clearEffectChain(EffectChain *chain)
 { /* NOTE: NOT thread safe */
 	for (int i = 0; i < chain->c; i++)
@@ -224,8 +229,7 @@ void copyEffectChain(EffectChain **dest, EffectChain *src)
 	for (uint8_t i = 0; i < src->c; i++)
 		copyEffect(&ret->v[i], &src->v[i], NULL, NULL);
 
-	clearEffectChain(*dest);
-	free(*dest);
+	freeEffectChain(*dest);
 	*dest = ret;
 }
 

@@ -28,7 +28,7 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t dec
 {
 	if (loop)
 	{ /* if there is a loop range */
-		if (iv->pingpong)
+		if (iv->sample[cv->sampleslot]->pingpong)
 		{ /* ping-pong loop */
 			if (ptr > length)
 			{
@@ -37,31 +37,31 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t dec
 				else            /* walking backwards */ ptr = length - ptr;
 			}
 
-			if (iv->sample->channels == 1) getSample(ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereotrack, decimate, iv->bitdepth, iv->sample, output);
+			if (iv->sample[cv->sampleslot]->channels == 1) getSample(ptr+iv->sample[cv->sampleslot]->trimstart, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
+			else                                           getSample((ptr+iv->sample[cv->sampleslot]->trimstart)*iv->sample[cv->sampleslot]->channels + stereotrack, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
 		} else
 		{ /* crossfaded forwards loop */
-			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * iv->loopramp*DIV255;
+			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * iv->sample[cv->sampleslot]->loopramp*DIV255;
 			if (ptr > length) ptr = (length - loop) + looprampmax + fmod(ptr - length, loop - looprampmax);
 
 			if (ptr > length - looprampmax)
 			{
 				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
 				float ramppointer = (ptr - (loop - looprampmax));
-				if (iv->sample->channels == 1) getSampleLoopRamp( ptr+iv->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample, output);
-				else                           getSampleLoopRamp((ptr+iv->trimstart)*iv->sample->channels + stereotrack, ramppointer*iv->sample->channels + stereotrack, lerp, decimate, iv->bitdepth, iv->sample, output);
+				if (iv->sample[cv->sampleslot]->channels == 1) getSampleLoopRamp( ptr+iv->sample[cv->sampleslot]->trimstart, ramppointer, lerp, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
+				else                                           getSampleLoopRamp((ptr+iv->sample[cv->sampleslot]->trimstart)*iv->sample[cv->sampleslot]->channels + stereotrack, ramppointer*iv->sample[cv->sampleslot]->channels + stereotrack, lerp, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
 			} else
 			{
-				if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-				else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereotrack, decimate, iv->bitdepth, iv->sample, output);
+				if (iv->sample[cv->sampleslot]->channels == 1) getSample( ptr+iv->sample[cv->sampleslot]->trimstart, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
+				else                                           getSample((ptr+iv->sample[cv->sampleslot]->trimstart)*iv->sample[cv->sampleslot]->channels + stereotrack, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
 			}
 		}
 	} else
 	{
 		if (ptr < length)
 		{
-			if (iv->sample->channels == 1) getSample( ptr+iv->trimstart, decimate, iv->bitdepth, iv->sample, output);
-			else                           getSample((ptr+iv->trimstart)*iv->sample->channels + stereotrack, decimate, iv->bitdepth, iv->sample, output);
+			if (iv->sample[cv->sampleslot]->channels == 1) getSample( ptr+iv->sample[cv->sampleslot]->trimstart, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
+			else                                           getSample((ptr+iv->sample[cv->sampleslot]->trimstart)*iv->sample[cv->sampleslot]->channels + stereotrack, decimate, iv->bitdepth, iv->sample[cv->sampleslot], output);
 		}
 	}
 }
@@ -75,7 +75,7 @@ float semitoneShortToMultiplier(int16_t input)
 void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
 	Instrument *iv = &p->s->instrument->v[realinst];
-	if (!iv->sample->length || iv->algorithm == INST_ALG_MIDI) return; /* TODO: optimize midi further in process.c */
+	if (!iv->sample[cv->sampleslot]->length || iv->algorithm == INST_ALG_MIDI) return; /* TODO: optimize midi further in process.c */
 
 	Envelope env;
 	env.adsr = iv->envelope; if (cv->localenvelope != -1) env.adsr = cv->localenvelope;
@@ -104,7 +104,7 @@ void samplerProcess(uint8_t realinst, Track *cv, float rp, uint32_t pointer, uin
 		case SAMPLE_CHANNELS_SWAP:   hold = *l; *l = *r; *r = hold; break;
 	}
 
-	if (iv->invert) { *l *= -1; *r *= -1; }
+	if (iv->sample[cv->sampleslot]->invert) { *l *= -1; *r *= -1; }
 	*l *= cv->envgain;
 	*r *= cv->envgain;
 }

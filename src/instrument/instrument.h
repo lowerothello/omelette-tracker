@@ -1,3 +1,9 @@
+/* TODO: sample destructive operations:
+ *  gain
+ *  rate/bit redux
+ *  mp3 compression
+ *  etc.
+ */
 typedef struct Sample
 { /* alloc(sizeof(Sample) + sizeof(short) * .length * .channels) */
 	uint32_t length;
@@ -5,6 +11,13 @@ typedef struct Sample
 	uint32_t rate;    /* rate to play C5 at */
 	uint32_t defrate; /* rate to return to when the rate control is reset */
 	bool     invert; /* TODO: implement */
+
+	uint32_t trimstart;
+	uint32_t trimlength;
+	uint32_t looplength;
+	bool     pingpong;
+	uint8_t  loopramp;
+
 	short    data[];
 } Sample;
 
@@ -38,7 +51,9 @@ union InstrumentUnion
 
 typedef struct Instrument
 {
-	Sample *sample;
+	uint8_t  samplecount;
+	Sample **sample;
+	uint8_t  samplemap[NOTE_MAX];
 
 	int8_t channelmode;
 
@@ -47,15 +62,10 @@ typedef struct Instrument
 	int8_t   bitdepth;
 	bool     interpolate; /* lerp between samples */
 
-	uint32_t trimstart;
-	uint32_t trimlength;
-	uint32_t looplength;
 	uint8_t  frame;
 	uint16_t envelope;
 	int8_t   gain;
-	bool     invert; /* DEPRECATED */
-	bool     pingpong;
-	uint8_t  loopramp;
+	// bool     invert; /* DEPRECATED */
 
 	enum InstAlg algorithm;
 

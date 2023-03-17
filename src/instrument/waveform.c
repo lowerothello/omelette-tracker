@@ -78,9 +78,9 @@ void resetWaveform(void)
 
 	if (!waveformworkcanvas) return;
 
-	if (instrumentSafe(s->instrument, w->instrument) && s->instrument->v[s->instrument->i[w->instrument]].sample)
+	if (instrumentSafe(s->instrument, w->instrument) && w->sample < s->instrument->v[s->instrument->i[w->instrument]].samplecount)
 	{
-		Sample *instsample = s->instrument->v[s->instrument->i[w->instrument]].sample;
+		Sample *instsample = s->instrument->v[s->instrument->i[w->instrument]].sample[w->sample];
 		waveformsample = malloc(sizeof(Sample) + sizeof(short) * instsample->length * instsample->channels);
 		memcpy(waveformsample, instsample, sizeof(Sample) + sizeof(short) * instsample->length * instsample->channels);
 		pthread_create(&waveformthread, NULL, (void*(*)(void*))walkWaveformRoutine, NULL);
@@ -125,20 +125,23 @@ static void drawMarker(uint32_t marker, size_t offset, size_t width)
 }
 
 /* height in cells */
-void drawWaveform(Instrument *iv, short h)
+void drawWaveform(Instrument *iv, short height)
 {
-	short w = (ws.ws_col - INSTRUMENT_INDEX_COLS + 1);
-	if (waveformw != w<<1 || waveformh != h<<2) /* new size */
-		resizeWaveform(w, h);
+	short width = (ws.ws_col - INSTRUMENT_INDEX_COLS + 1);
+	if (waveformw != width<<1 || waveformh != height<<2) /* new size */
+		resizeWaveform(width, height);
 
 	if (!waveformworkcanvas) return;
 
 	// offset = 0;
-	// width = iv->sample->length;
+	// width = iv->sample[w->sample]->length;
+	if (!(w->sample < iv->samplecount)) return;
+
+	Sample *sample = iv->sample[w->sample];
 	memcpy(waveformdrawcanvas->canvas, waveformworkcanvas->canvas, waveformw * waveformh);
-	drawMarker(iv->trimstart,                                                                                  0, iv->sample->length);
-	drawMarker(MIN(iv->trimstart + iv->trimlength, iv->sample->length-1),                                      0, iv->sample->length);
-	drawMarker(MAX(iv->trimstart, MIN(iv->trimstart + iv->trimlength, iv->sample->length-1) - iv->looplength), 0, iv->sample->length);
+	drawMarker(sample->trimstart,                                                                                          0, sample->length);
+	drawMarker(MIN(sample->trimstart + sample->trimlength, sample->length-1),                                              0, sample->length);
+	drawMarker(MAX(sample->trimstart, MIN(sample->trimstart + sample->trimlength, sample->length-1) - sample->looplength), 0, sample->length);
 	draw(waveformdrawcanvas, waveformbuffer);
 	for (size_t i = 0; waveformbuffer[i] != NULL; i++)
 		printf("\033[%ld;%dH%s", TRACK_ROW+1 + i, INSTRUMENT_INDEX_COLS, waveformbuffer[i]);

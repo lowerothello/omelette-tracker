@@ -64,8 +64,9 @@ void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, flo
 #include "offset.c"
 #include "filter.c"
 #include "granular.c"
+#include "midi.c"
 
-#define MACRO_CALLBACK_MAX 10
+#define MACRO_CALLBACK_MAX 11
 MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 {
 	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
@@ -78,6 +79,7 @@ MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 	{ NULL, NULL, macroOffsetPostTrig, NULL, NULL, NULL, NULL, NULL, 0, 0 },
 	{ macroFilterClear, NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler, sizeof(MacroFilterState), 0 },
 	{ NULL, NULL, macroGranularPostTrig, macroGranularTriggerNote, NULL, NULL, NULL, NULL, 0, 0 }, /* TODO: add granular state */
+	{ NULL, NULL, macroMidiPostTrig, NULL, NULL, NULL, NULL, NULL, 0, 0 },
 };
 
 void initMacroBlob(void);

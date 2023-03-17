@@ -296,12 +296,5 @@ static void runLadspaEffect(void *state, uint32_t samplecount, float **input, fl
 	s->desc->run(s->instance, samplecount);
 
 	if (s->outputc == 1) /* handle mono output correctly */
-	{
-		memcpy(input[0], output[0], sizeof(float) * samplecount);
-		memcpy(input[1], output[0], sizeof(float) * samplecount);
-	} else if (s->outputc >= 2)
-	{
-		memcpy(input[0], output[0], sizeof(float) * samplecount);
-		memcpy(input[1], output[0], sizeof(float) * samplecount);
-	}
+		memcpy(output[1], output[0], sizeof(float)*samplecount);
 }

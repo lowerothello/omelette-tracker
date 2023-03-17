@@ -69,10 +69,11 @@ typedef struct EffectChain
 /* TODO: fix this, controls should be dynamically allocated              */
 
 void freeEffect(Effect*);
-EffectChain *newEffectChain(float *input[2], float *output[2]);
+EffectChain *newEffectChain(void);
 
 /* NOTE: NOT thread safe */
 void clearEffectChain(EffectChain*);
+void freeEffectChain(EffectChain*);
 uint32_t getEffectControlCount(Effect*);
 
 void cb_addEffect(Event*); /* intended to be passed to addEffect().cb */

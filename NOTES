@@ -1,5 +1,3 @@
-- Ixy isn't always smoothed properly over trigs, should be fixed by Gxx-like slew
-
 - yy should respect the vtrig column
 
 lookback

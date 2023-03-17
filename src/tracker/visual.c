@@ -109,7 +109,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 					if (targetmacro+k < 0) continue;
 					memcpy(&dest->macro[targetmacro+k], &src->macro[w->pbfx[0]-2+k], sizeof(Macro));
 				}
-			} w->trackerfx = vfxToTfx(targetmacro+(w->pbfx[1] - w->pbfx[0])+2);
+			}
 		} else
 		{
 			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
@@ -127,7 +127,7 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 				for (k = 0; k <= cv->variant->macroc; k++)
 					if (w->pbfx[0] <= k+2 && w->pbfx[1] >= k+2)
 						memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
-			} w->trackerfx = vfxToTfx(w->pbfx[0]);
+			}
 		}
 	} else
 	{
@@ -173,9 +173,13 @@ void putPartPattern(bool step) /* TODO: count, regenglobalrowc makes it tricky *
 					}
 				}
 			else break;
-		} w->trackerfx = vfxToTfx(w->pbfx[0]);
-	} regenGlobalRowc(s);
-	if (step) trackerDownArrow(w->pbvariantv[0]->rowc);
+		}
+	}
+	regenGlobalRowc(s);
+
+	if (step)
+		trackerDownArrow(w->pbvariantv[0]->rowc);
+
 	p->redraw = 1;
 }
 
@@ -1059,8 +1063,8 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 				for (chnl = 0; chnl <= c2-c1; chnl++)
 				{
 					playTrack(fptr, &spr, fptr, chain->v[chnl]); /* TODO: shouldn't trigger midi */
-					sample->data[((bufptr+sprp)<<1)+0] += chain->v[chnl]->output[0][fptr]*chain->v[chnl]->mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
-					sample->data[((bufptr+sprp)<<1)+1] += chain->v[chnl]->output[1][fptr]*chain->v[chnl]->mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
+					sample->data[((bufptr+sprp)<<1)+0] += chain->v[chnl]->effect->output[0][fptr]*chain->v[chnl]->mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
+					sample->data[((bufptr+sprp)<<1)+1] += chain->v[chnl]->effect->output[1][fptr]*chain->v[chnl]->mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
 				} sprp++;
 			}
 		} bufptr += sprp;

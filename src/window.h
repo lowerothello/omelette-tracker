@@ -51,6 +51,7 @@ typedef struct UI {
 	uint8_t        pattern;    /* focused pattern */
 	uint8_t        track;      /* focused track */
 	short          instrument; /* focused instrument, TODO: should be a uint8_t */
+	uint8_t        sample;     /* focused instrument sample slot */
 
 	uint16_t       trackerfy, visualfy;
 	int8_t         trackerfx, visualfx;

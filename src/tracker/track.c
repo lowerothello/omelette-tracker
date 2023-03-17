@@ -6,8 +6,6 @@ void clearTrackRuntime(Track *cv)
 	cv->file = 0;
 
 	macroCallbackClear(cv);
-
-	cv->midiccindex = -1; cv->midicc = 0;
 }
 
 /* clears the global variant and frees all local variants */
@@ -27,24 +25,24 @@ void initTrackData(Track *cv, uint16_t songlen) /* TODO: should be atomic */
 
 	cv->mute = 0;
 
-	if (cv->effect) clearEffectChain(cv->effect);
+	if (cv->effect)
+		clearEffectChain(cv->effect);
 }
 
 void clearTrackData(Track *cv, uint16_t songlen)
 { /* NOT atomic */
 	initTrackData(cv, songlen);
 	freeVariantChain(&cv->variant);
-	if (cv->effect) { free(cv->effect); cv->effect = NULL; }
 }
 
 void addTrackRuntime(Track *cv)
 {
 	cv->rampindex = rampmax;
 	cv->rampbuffer = malloc(sizeof(float) * rampmax * 2); /* *2 for stereo */
-	cv->output[0] = calloc(buffersize, sizeof(float));
-	cv->output[1] = calloc(buffersize, sizeof(float));
-	cv->pluginoutput[0] = calloc(buffersize, sizeof(float));
-	cv->pluginoutput[1] = calloc(buffersize, sizeof(float));
+	// cv->output[0] = calloc(buffersize, sizeof(float));
+	// cv->output[1] = calloc(buffersize, sizeof(float));
+	// cv->pluginoutput[0] = calloc(buffersize, sizeof(float));
+	// cv->pluginoutput[1] = calloc(buffersize, sizeof(float));
 	cv->mainmult[0] = calloc(buffersize, sizeof(float));
 	cv->mainmult[1] = calloc(buffersize, sizeof(float));
 	cv->sendmult[0] = calloc(buffersize, sizeof(float));
@@ -54,7 +52,7 @@ void addTrackRuntime(Track *cv)
 
 void addTrackData(Track *cv, uint16_t songlen)
 {
-	cv->effect = newEffectChain(cv->output, cv->pluginoutput);
+	cv->effect = newEffectChain();
 	initTrackData(cv, songlen);
 }
 
@@ -158,11 +156,8 @@ void swapTracks(uint8_t index1, uint8_t index2)
 void _delTrack(Song *cs, Track *cv)
 { /* NOT atomic */
 	clearTrackData(cv, cs ? cs->songlen : 0);
+	freeEffectChain(cv->effect);
 	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
-	if (cv->output      [0]) { free(cv->output      [0]); cv->output      [0] = NULL; }
-	if (cv->output      [1]) { free(cv->output      [1]); cv->output      [1] = NULL; }
-	if (cv->pluginoutput[0]) { free(cv->pluginoutput[0]); cv->pluginoutput[0] = NULL; }
-	if (cv->pluginoutput[1]) { free(cv->pluginoutput[1]); cv->pluginoutput[1] = NULL; }
 	if (cv->mainmult[0]) { free(cv->mainmult[0]); cv->mainmult[0] = NULL; }
 	if (cv->mainmult[1]) { free(cv->mainmult[1]); cv->mainmult[1] = NULL; }
 	if (cv->sendmult[0]) { free(cv->sendmult[0]); cv->sendmult[0] = NULL; }
