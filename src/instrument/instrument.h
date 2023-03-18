@@ -1,59 +1,17 @@
-/* TODO: sample destructive operations:
- *  gain
- *  rate/bit redux
- *  mp3 compression
- *  etc.
- */
-typedef struct Sample
-{ /* alloc(sizeof(Sample) + sizeof(short) * .length * .channels) */
-	uint32_t length;
-	uint8_t  channels;
-	uint32_t rate;    /* rate to play C5 at */
-	uint32_t defrate; /* rate to return to when the rate control is reset */
-	bool     invert; /* TODO: implement */
-
-	uint32_t trimstart;
-	uint32_t trimlength;
-	uint32_t looplength;
-	bool     pingpong;
-	uint8_t  loopramp;
-
-	short    data[];
-} Sample;
-
 #define INSTRUMENT_VOID 255
 #define INSTRUMENT_MAX 255
 
-enum InstAlg
+typedef enum InstAlg
 {
 	INST_ALG_NULL,
 	INST_ALG_SAMPLER,
 	INST_ALG_MIDI,
-};
-
-struct InstAlgSampler
-{
-	enum InstAlg alg;
-};
-
-struct InstAlgMidi
-{
-	enum InstAlg alg;
-	int8_t       channel;
-};
-
-union InstrumentUnion
-{
-	enum InstAlg          alg;
-	struct InstAlgSampler sampler;
-	struct InstAlgMidi    midi;
-};
+} InstAlg;
 
 typedef struct Instrument
 {
-	uint8_t  samplecount;
-	Sample **sample;
-	uint8_t  samplemap[NOTE_MAX];
+	SampleChain *sample;
+	uint8_t samplemap[NOTE_MAX];
 
 	int8_t channelmode;
 
@@ -67,7 +25,7 @@ typedef struct Instrument
 	int8_t   gain;
 	// bool     invert; /* DEPRECATED */
 
-	enum InstAlg algorithm;
+	InstAlg algorithm;
 
 	/* midi */
 	struct {
@@ -132,7 +90,8 @@ typedef struct Instrument
 	uint32_t triggerflash;
 } Instrument;
 
-typedef struct {
+typedef struct InstrumentChain
+{
 	uint8_t    c;                 /* instrument count   */
 	uint8_t    i[INSTRUMENT_MAX]; /* instrument backref */
 	Instrument v[];               /* instrument values  */
@@ -165,13 +124,7 @@ short emptyInstrument(uint8_t min);
 void yankInstrument(uint8_t index);
 void putInstrument(size_t index);
 
-Sample *_loadSample(char *path);
-void loadSample(uint8_t index, char *path); /* TODO: atomicity */
-
-/* TODO: sample could already be loaded into p->semarg, should reparent if so */
-void sampleLoadCallback(char *path); /* TODO: atomicity */
-
-void instrumentControlCallback(void); /* TODO: should be part of the tracker */
+void instrumentControlCallback(void);
 
 #include "input.h"
 #include "waveform.h"

@@ -1,7 +1,7 @@
 BrowserState *fbstate;
 
 void freePreviewSample(void);
-BrowserState *initFileBrowser(char *path, void (*callback)(char*));
+BrowserState *initFileBrowser(char *path);
 void freeFileBrowser(BrowserState *b);
 
 void fileBrowserBackspace(BrowserState *b);

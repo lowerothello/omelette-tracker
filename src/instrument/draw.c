@@ -1,8 +1,33 @@
+static void instUISampleCallback(short x, short y, Instrument *iv, uint8_t index)
+{
+	Sample *sample = (*iv->sample)[w->sample];
+	if (!sample) return;
+
+	switch (index)
+	{
+		case 0:
+			printf("\033[%d;%dHrate:  [        ]", y, x);
+			addControlInt(x+8, y, &sample->rate, 8, 0x0, 0xffffffff, sample->defrate, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			break;
+		case 1:
+			printf("\033[%d;%dHgain:    [ ][   ]", y, x);
+			addControlInt(x+10, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			// addControlInt(x+13, y, &iv->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			break;
+		case 2: printf("\033[%d;%dHstart: [        ]", y, x); addControlInt(x+8, y, &sample->trimstart,  8, 0, sample->length-1  , 0,                0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 3: printf("\033[%d;%dHdelta: [        ]", y, x); addControlInt(x+8, y, &sample->trimlength, 8, 0, sample->length-1  , sample->length-1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 4: printf("\033[%d;%dHloop:  [        ]", y, x); addControlInt(x+8, y, &sample->looplength, 8, 0, sample->trimlength, 0,                0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 5:
+			printf("\033[%d;%dHpp/ramp:  [ ][  ]", y, x);
+			addControlInt(x+11, y, &sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+14, y, &sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			break;
+	}
+}
+
 static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_t index)
 {
-	Sample *sample = NULL;
-	if (w->sample < iv->samplecount)
-		sample = iv->sample[w->sample];
+	Sample *sample = (*iv->sample)[w->sample];
 
 	switch (index)
 	{
@@ -45,9 +70,7 @@ void initInstUICommonSamplerBlock(InstUIBlock *block)
 
 static void samplerInstUIRangeCallback(short x, short y, Instrument *iv, uint8_t index)
 {
-	Sample *sample = NULL;
-	if (w->sample < iv->samplecount)
-		sample = iv->sample[w->sample];
+	Sample *sample = (*iv->sample)[w->sample];
 
 	switch (index)
 	{
@@ -140,6 +163,7 @@ static void emptyInstUICallback(short x, short y, Instrument *iv, uint8_t index)
 {
 	printf("\033[%d;%d%s", y, x, EMPTY_INST_UI_TEXT);
 }
+
 static InstUI *initInstrumentUI(Instrument *iv)
 {
 	InstUI *iui;
@@ -220,8 +244,8 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 					else
 					{
 						uint32_t samplesize = 0;
-						for (uint8_t j = 0; j < iv->samplecount; j++)
-							samplesize += iv->sample[j]->length;
+						FOR_SAMPLECHAIN(j, iv->sample)
+							samplesize += (*iv->sample)[j]->length;
 						snprintf(buffer, 11, "<%08x>", samplesize);
 					}
 				} else snprintf(buffer, 11, " ........ ");
@@ -234,13 +258,61 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 	return x - bx;
 }
 
+size_t getInstUIEntryc(InstUI *iui)
+{
+	size_t entryc = 0;
+	for (uint8_t i = 0; i < iui->blocks; i++)
+		entryc += iui->block[i].count;
+	return entryc;
+
+}
+short getInstUIRows(InstUI *iui, short cols)
+{
+	size_t entryc = getInstUIEntryc(iui);
+	short ret = entryc / cols;
+
+	/* round up instead of down */
+	if (entryc%cols)
+		ret++;
+
+	return ret;
+}
+short getInstUICols(InstUI *iui, short rows)
+{
+	size_t entryc = getInstUIEntryc(iui);
+	short ret = entryc / rows;
+
+	/* round up instead of down */
+	if (entryc%rows)
+		ret++;
+
+	return ret;
+}
+
+void drawInstUI(InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows)
+{
+	short cols = MIN(w / (iui->width + INSTUI_PADDING), getInstUICols(iui, rows));
+	x += (w - (cols*(iui->width + INSTUI_PADDING)) + INSTUI_PADDING)>>1;
+	size_t ei = 0;
+	short cx, cy;
+	for (uint8_t i = 0; i < iui->blocks; i++)
+		for (uint8_t j = 0; j < iui->block[i].count; j++)
+		{
+			cx = x + (ei/rows)*(iui->width + INSTUI_PADDING);
+			cy = y + ei%rows;
+			if (cy < ws.ws_row - 1 && cy > scrolloffset)
+				iui->block[i].callback(cx, cy - scrolloffset, iv, j);
+			ei++;
+		}
+}
+
 void drawInstrument(void)
 {
 	switch (w->mode)
 	{
 		case MODE_INSERT:
 			if (cc.mouseadjust || cc.keyadjust) printf("\033[%d;0H\033[1m-- INSERT ADJUST --\033[m\033[4 q", ws.ws_row);
-			else                                  printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",        ws.ws_row);
+			else                                printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",        ws.ws_row);
 			w->command.error[0] = '\0';
 			break;
 		default:
@@ -248,7 +320,9 @@ void drawInstrument(void)
 			break;
 	}
 
-	short x = drawInstrumentIndex(1, 1, ws.ws_col) + 2;
+	short minx = 1;
+	short maxx = ws.ws_col;
+	short x = drawInstrumentIndex(1, minx, maxx) + 2;
 	static short scrolloffset;
 
 	if (instrumentSafe(s->instrument, w->instrument))
@@ -262,33 +336,56 @@ void drawInstrument(void)
 
 			clearControls();
 
-			size_t iui_entryc = 0;
-			for (uint8_t i = 0; i < iui->blocks; i++)
-				iui_entryc += iui->block[i].count;
-			if (!iui_entryc)
-				goto drawInstrumentEnd;
-
 			short cols = (ws.ws_col - x) / (iui->width + INSTUI_PADDING);
 			if (!cols) goto drawInstrumentEnd;
 
-			short rows = iui_entryc / cols;
-			/* round up instead of down */
-			/* TODO: sometimes leaves empty columns */
-			if (iui_entryc%cols)
-				rows++;
-
-			if (!rows)
-				goto drawInstrumentEnd;
+			short rows = getInstUIRows(iui, cols);
+			if (!rows) goto drawInstrumentEnd;
 
 			short y = TRACK_ROW+1;
-			if (iui->flags&INSTUI_DRAWWAVEFORM)
+			short wh = MAX((ws.ws_row - 1 - y) - rows, INSTUI_WAVEFORM_MIN);
+
+			switch (iv->algorithm)
 			{
-				short wh = MAX((ws.ws_row - 1 - y) - rows, INSTUI_WAVEFORM_MIN);
-				drawWaveform(iv, wh);
-				y += wh;
+				case INST_ALG_NULL: break;
+				case INST_ALG_MIDI: break;
+				case INST_ALG_SAMPLER:
+					drawBoundingBox(x, y, ws.ws_col - x, wh - 1, minx, maxx, 1, ws.ws_row);
+
+					InstUI *sample_iui = allocInstUI(1);
+					sample_iui->width = 17;
+					sample_iui->block[0].count = 6;
+					sample_iui->block[0].callback = instUISampleCallback;
+					short sample_rows = getInstUIRows(sample_iui, (ws.ws_col - x - 2) / (sample_iui->width + INSTUI_PADDING));
+
+					short whh = wh - sample_rows;
+
+					/* multisample indices */
+					addControlDummy(x + 3, y + (whh>>1));
+					char buffer[5];
+					short siy;
+					for (uint8_t i = 0; i < SAMPLE_MAX; i++)
+					{
+						siy = y + (whh>>1) - w->sample + i;
+						if (siy > y && siy < y + (whh - 1))
+						{ /* vertical bounds limiting */
+							if (i == w->sample) printf("\033[1;7m");
+							if ((*iv->sample)[i]) snprintf(buffer, 5, " %01x", i);
+							else                  snprintf(buffer, 5, " .");
+							printCulling(buffer, x+1, siy, minx, maxx);
+							if (i == w->sample) printf("\033[22;27m");
+						}
+					}
+
+					drawWaveform(iv, x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, ws.ws_col - (x+INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
+
+					drawInstUI(sample_iui, iv, x+1, ws.ws_col - (x+1), y + whh - 1, scrolloffset, sample_rows);
+
+					free(sample_iui);
+					break;
 			}
 
-			short iui_x = x + ((ws.ws_col - x - (cols*(iui->width + INSTUI_PADDING) - INSTUI_PADDING))>>1);
+			y += wh;
 
 			short viewportheight = ws.ws_row - 1 - y;
 			if (viewportheight <= 0)
@@ -296,24 +393,13 @@ void drawInstrument(void)
 
 			/* ensure that scrolloffset is in range */
 			/* TODO: scrolloffset padding */
-			// scrolloffset = MIN(scrolloffset + viewportheight, rows           ); /* within range */
+			// scrolloffset = MIN(scrolloffset + viewportheight, rows          ); /* within range */
 			// scrolloffset = MIN(scrolloffset, cc.cursor%rows                 ); /* push up      */
 			// scrolloffset = MAX(scrolloffset, cc.cursor%rows - viewportheight); /* push down    */
 
-			size_t ei = 0;
-			short cx, cy;
-			for (uint8_t i = 0; i < iui->blocks; i++)
-				for (uint8_t j = 0; j < iui->block[i].count; j++)
-				{
-					cx = iui_x + (ei/rows)*(iui->width + INSTUI_PADDING);
-					cy = y + ei%rows;
-					if (cy < ws.ws_row - 1 && cy > scrolloffset)
-						iui->block[i].callback(cx, cy - scrolloffset, iv, j);
-					ei++;
-				}
+			drawInstUI(iui, iv, x, ws.ws_col - x, y, scrolloffset, rows);
 
 drawInstrumentEnd:
-			// drawInstrumentSampler(iv, x, ws.ws_col - x);
 			drawControls();
 			free(iui);
 		}

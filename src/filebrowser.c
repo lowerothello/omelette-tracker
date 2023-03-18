@@ -1,15 +1,16 @@
-struct FileBrowserData {
+typedef struct FileBrowserData
+{
 	struct dirent *dirent;
 	DIR           *dir;
 	char          *path;
 	uint32_t       lineptr;
 	uint32_t       size;
 	void         (*callback)(char *path);
-};
+} FileBrowserData;
 
 static char *fileBrowserGetTitle(void *data)
 {
-	struct FileBrowserData *fbd = data;
+	FileBrowserData *fbd = data;
 	fbd->lineptr = 0;
 	rewinddir(fbd->dir);
 	return strdup(fbd->path);
@@ -25,7 +26,7 @@ static bool showpath(char *path)
 }
 
 /* sets *newpath to the hovered file, returns 1 if newpath is a file and 2 if newpath is a directory */
-static int getSubdir(struct FileBrowserData *fbd, uint32_t cursor, char **newpath)
+static int getSubdir(FileBrowserData *fbd, uint32_t cursor, char **newpath)
 {
 	rewinddir(fbd->dir);
 	struct dirent *dirent = readdir(fbd->dir);
@@ -57,7 +58,7 @@ static int getSubdir(struct FileBrowserData *fbd, uint32_t cursor, char **newpat
 
 static bool fileBrowserGetNext(void *data)
 {
-	struct FileBrowserData *fbd = data;
+	FileBrowserData *fbd = data;
 
 	fbd->dirent = readdir(fbd->dir);
 
@@ -68,7 +69,7 @@ static bool fileBrowserGetNext(void *data)
 }
 static void fileBrowserDrawLine(BrowserState *b, int y)
 {
-	struct FileBrowserData *fbd = b->data;
+	FileBrowserData *fbd = b->data;
 
 	char *testdirpath = malloc(strlen(fbd->path) + strlen(fbd->dirent->d_name) + 2); /* 1 for '/', one for '\0' */
 	strcpy(testdirpath, fbd->path);
@@ -93,7 +94,7 @@ static void fileBrowserDrawLine(BrowserState *b, int y)
 	}
 }
 
-static uint32_t fileBrowserGetLineCount(void *data) { return ((struct FileBrowserData *)data)->size; }
+static uint32_t fileBrowserGetLineCount(void *data) { return ((FileBrowserData *)data)->size; }
 
 /* assume swap2 is a (Sample), free it if it is set */
 static void cb_freeSemargSample(Event *e)
@@ -120,7 +121,7 @@ void freePreviewSample(void)
 static void cb_fileBrowserCursor(void *data) { freePreviewSample(); }
 
 /* tries to load path into fbd */
-static void changeDirectory(struct FileBrowserData *fbd, char *path)
+static void changeDirectory(FileBrowserData *fbd, char *path)
 {
 	/* pop off any leading slashes */
 	while (path[1] == '/')
@@ -146,7 +147,7 @@ static void changeDirectory(struct FileBrowserData *fbd, char *path)
 
 static void fileBrowserCommit(BrowserState *b)
 {
-	struct FileBrowserData *fbd = b->data;
+	FileBrowserData *fbd = b->data;
 
 	char *newpath;
 	int ret = getSubdir(fbd, b->cursor, &newpath);
@@ -164,7 +165,27 @@ static void fileBrowserCommit(BrowserState *b)
 	if (newpath) free(newpath);
 }
 
-BrowserState *initFileBrowser(char *path, void (*callback)(char*))
+/* TODO: sample could already be loaded into p->semarg, reparent if so */
+static void sampleLoadCallback(char *path)
+{
+	if (path && instrumentSafe(s->instrument, w->instrument))
+	{
+		freeWaveform();
+		Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
+		Sample *newsample = loadSample(path);
+		if (newsample)
+			attachSample(&iv->sample, newsample, w->sample);
+		else
+			strcpy(w->command.error, "failed to load sample, out of memory");
+	}
+
+	w->page = PAGE_INSTRUMENT;
+	w->mode = MODE_NORMAL;
+	w->showfilebrowser = 0;
+	resetWaveform();
+}
+
+BrowserState *initFileBrowser(char *path)
 {
 	BrowserState *ret = calloc(1, sizeof(BrowserState));
 
@@ -175,8 +196,8 @@ BrowserState *initFileBrowser(char *path, void (*callback)(char*))
 	ret->cursorCB     = cb_fileBrowserCursor;
 	ret->commit       = fileBrowserCommit;
 
-	ret->data = calloc(1, sizeof(struct FileBrowserData));
-	((struct FileBrowserData *)ret->data)->callback = callback;
+	ret->data = calloc(1, sizeof(FileBrowserData));
+	((FileBrowserData *)ret->data)->callback = sampleLoadCallback;
 
 	changeDirectory(ret->data, path);
 
@@ -184,8 +205,8 @@ BrowserState *initFileBrowser(char *path, void (*callback)(char*))
 }
 void freeFileBrowser(BrowserState *b)
 {
-	closedir(((struct FileBrowserData *)b->data)->dir );
-	free    (((struct FileBrowserData *)b->data)->path);
+	closedir(((FileBrowserData *)b->data)->dir );
+	free    (((FileBrowserData *)b->data)->path);
 	free(b->data);
 	free(b);
 }
@@ -193,7 +214,7 @@ void freeFileBrowser(BrowserState *b)
 
 void fileBrowserBackspace(BrowserState *b)
 {
-	changeDirectory(b->data, dirname(((struct FileBrowserData *)b->data)->path));
+	changeDirectory(b->data, dirname(((FileBrowserData *)b->data)->path));
 	b->cursor = 0;
 	freePreviewSample();
 }
@@ -204,7 +225,7 @@ void fileBrowserPreview(BrowserState *b, size_t note, bool release)
 	{
 		if (!w->previewsample)
 		{
-			Sample *newpreviewsample = _loadSample(path);
+			Sample *newpreviewsample = loadSample(path);
 			if (newpreviewsample)
 			{
 				Event e;

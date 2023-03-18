@@ -1,7 +1,7 @@
 void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
-	uint32_t length = MIN(iv->sample[cv->sampleslot]->trimlength, iv->sample[cv->sampleslot]->length-1 - iv->sample[cv->sampleslot]->trimstart);
-	uint32_t loop   = MIN(iv->sample[cv->sampleslot]->looplength, length);
+	uint32_t length = MIN((*iv->sample)[cv->sampleslot]->trimlength, (*iv->sample)[cv->sampleslot]->length-1 - (*iv->sample)[cv->sampleslot]->trimstart);
+	uint32_t loop   = MIN((*iv->sample)[cv->sampleslot]->looplength, length);
 	uint16_t localcyclelength = iv->granular.cyclelength; if (cv->localcyclelength != -1) localcyclelength = cv->localcyclelength;
 
 	float f;
@@ -47,7 +47,7 @@ void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32
 	double calcshiftstereol = powf(2.0f, (float)(-localpitchwidth)*DIV1024);
 	double calcshiftstereor = powf(2.0f, (float)(+localpitchwidth)*DIV1024);
 	double calcshift = semitoneShortToMultiplier(localpitchshift) / semitoneShortToMultiplier(iv->granular.timestretch);
-	double calcrate = (float)iv->sample[cv->sampleslot]->rate / (float)samplerate * semitoneShortToMultiplier(iv->granular.timestretch);
+	double calcrate = (float)(*iv->sample)[cv->sampleslot]->rate / (float)samplerate * semitoneShortToMultiplier(iv->granular.timestretch);
 	double calcpitch = powf(M_12_ROOT_2, (short)cv->r.note - NOTE_C5 + finetune);
 	if (iv->granular.notestretch)
 	{ /* note stretch */

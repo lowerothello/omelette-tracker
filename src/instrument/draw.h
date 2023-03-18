@@ -16,13 +16,20 @@ typedef struct {
 	uint8_t     flags;  /* (enum InstUIFlags) values or'd together */
 	uint8_t     width;  /* width of each entry (common amongst blocks) */
 	uint8_t     blocks; /* how many blocks there are */
-	InstUIBlock block[];
+	InstUIBlock block[]; /* TODO: remove the concept of blocks */
 } InstUI;
 
 #define INSTUI_SAMPLER_WIDTH 19
 #define INSTUI_PADDING 2
 #define INSTUI_WAVEFORM_MIN 3
+#define INSTUI_MULTISAMPLE_WIDTH 4
+
 InstUI *allocInstUI(uint8_t blocks);
+size_t getInstUIEntryc(InstUI *iui);
+short getInstUIRows(InstUI *iui, short cols);
+short getInstUICols(InstUI *iui, short rows);
+void drawInstUI(InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows);
+
 void drawInstrument(void);
 
 void initInstUICommonSamplerBlock  (InstUIBlock *block);

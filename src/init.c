@@ -71,7 +71,7 @@ void init(int argc, char *argv[])
 	initSong(s);
 	p->s = s;
 
-	fbstate = initFileBrowser(SAMPLES_DIR, sampleLoadCallback);
+	fbstate = initFileBrowser(SAMPLES_DIR);
 	pbstate = initPluginBrowser();
 
 	audio_api.start();

@@ -7,7 +7,7 @@ static void _macroOffset(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r)
 		{
 			if (r->note == NOTE_VOID) /* if not changing note, explicit ramping needed */
 				ramp(fptr, spr, 0, cv, 0.0f, p->s->instrument->i[cv->r.inst]);
-			cv->pitchedpointer = (m*DIV256) * iv->sample[cv->sampleslot]->trimlength * (float)samplerate / (float)iv->sample[cv->sampleslot]->rate;
+			cv->pitchedpointer = (m*DIV256) * (*iv->sample)[cv->sampleslot]->trimlength * (float)samplerate / (float)(*iv->sample)[cv->sampleslot]->rate;
 		}
 	}
 }
@@ -21,12 +21,12 @@ static void _macroOffsetJitter(uint32_t fptr, uint16_t *spr, int m, Track *cv, R
 			if (r->note == NOTE_VOID) /* if not changing note, explicit ramping needed */
 				ramp(fptr, spr, 0, cv, 0.0f, p->s->instrument->i[cv->r.inst]);
 			if (m>>4 == (m&0xf)) /* both nibbles are the same */
-				cv->pitchedpointer = (((m&0xf) + (rand()&0xf))*DIV256) * iv->sample[cv->sampleslot]->trimlength * (float)samplerate / (float)iv->sample[cv->sampleslot]->rate;
+				cv->pitchedpointer = (((m&0xf) + (rand()&0xf))*DIV256) * (*iv->sample)[cv->sampleslot]->trimlength * (float)samplerate / (float)(*iv->sample)[cv->sampleslot]->rate;
 			else
 			{
 				int min = MIN(m>>4, m&0xf);
 				int max = MAX(m>>4, m&0xf);
-				cv->pitchedpointer = (((min + rand()%(max - min +1))<<4)*DIV256) * iv->sample[cv->sampleslot]->trimlength * (float)samplerate / (float)iv->sample[cv->sampleslot]->rate;
+			cv->pitchedpointer = (((min + rand()%(max - min +1))<<4)*DIV256) * (*iv->sample)[cv->sampleslot]->trimlength * (float)samplerate / (float)(*iv->sample)[cv->sampleslot]->rate;
 			}
 		}
 	}

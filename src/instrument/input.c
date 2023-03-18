@@ -10,8 +10,6 @@ static void instrumentEscape(void *arg)
 
 
 #include "chord/add.c"
-#include "chord/yank.c"
-#include "chord/delete.c"
 
 
 static void instrumentUpArrow(size_t count)
@@ -23,7 +21,7 @@ static void instrumentUpArrow(size_t count)
 		decControlCursor(count*MAX(1, w->count));
 	p->redraw = 1;
 }
-static void instrumentDownArrow(size_t count)
+static void instrumentDnArrow(size_t count)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
 	if (w->showfilebrowser)
@@ -35,15 +33,29 @@ static void instrumentDownArrow(size_t count)
 static void instrumentLeftArrow(void)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (!w->showfilebrowser)
+	if (w->showfilebrowser) return;
+
+	if (cc.cursor)
 		incControlFieldpointer();
+	else if (w->sample)
+	{
+		w->sample--;
+		resetWaveform();
+	}
 	p->redraw = 1;
 }
 static void instrumentRightArrow(void)
 {
 	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (!w->showfilebrowser)
+	if (w->showfilebrowser) return;
+
+	if (cc.cursor)
 		decControlFieldpointer();
+	else if (w->sample < SAMPLE_MAX-1)
+	{
+		w->sample++;
+		resetWaveform();
+	}
 	p->redraw = 1;
 }
 static void instrumentHome(void)
@@ -65,8 +77,8 @@ static void instrumentEnd(void)
 	p->redraw = 1;
 }
 
-static void instrumentPgUp(void *count) { instrumentUpArrow  ((ws.ws_row>>1) * (size_t)count); p->redraw = 1; }
-static void instrumentPgDn(void *count) { instrumentDownArrow((ws.ws_row>>1) * (size_t)count); p->redraw = 1; }
+static void instrumentPgUp(void *count) { instrumentUpArrow((ws.ws_row>>1) * (size_t)count); p->redraw = 1; }
+static void instrumentPgDn(void *count) { instrumentDnArrow((ws.ws_row>>1) * (size_t)count); p->redraw = 1; }
 
 static void instrumentCtrlUpArrow(void *count)
 {
@@ -208,12 +220,38 @@ static void emptyInstrumentIndex(void)
 	p->redraw = 1;
 }
 
+static void yankInstrumentInput(void)
+{
+	yankInstrument(w->instrument);
+	p->redraw = 1;
+}
+static void putInstrumentInput(void)
+{
+	putInstrument(w->instrument);
+	p->redraw = 1;
+}
+
+static void deleteInstrumentInput(void)
+{
+	if (!(w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci == w->instrument)
+			&& instrumentSafe(s->instrument, w->instrument))
+	{
+		if (cc.cursor)
+		{
+			yankInstrument(w->instrument);
+			delInstrument (w->instrument);
+		} else
+			attachSample(&s->instrument->v[s->instrument->i[w->instrument]].sample, NULL, w->sample);
+		p->redraw = 1;
+	}
+}
+
 void initInstrumentInput(void)
 {
 	setTooltipTitle("instrument");
 	setTooltipMouseCallback(instrumentMouse);
 	addTooltipBind("cursor up"        , 0          , XK_Up       , 0      , (void(*)(void*))instrumentUpArrow    , (void*)1);
-	addTooltipBind("cursor down"      , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDownArrow  , (void*)1);
+	addTooltipBind("cursor down"      , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDnArrow    , (void*)1);
 	addTooltipBind("cursor left"      , 0          , XK_Left     , 0      , (void(*)(void*))instrumentLeftArrow  , NULL    );
 	addTooltipBind("cursor right"     , 0          , XK_Right    , 0      , (void(*)(void*))instrumentRightArrow , NULL    );
 	addTooltipBind("cursor home"      , 0          , XK_Home     , 0      , (void(*)(void*))instrumentHome       , NULL    );
@@ -232,17 +270,17 @@ void initInstrumentInput(void)
 		case MODE_NORMAL:
 			addCountBinds(0);
 			addRulerBinds();
-			addTooltipBind("record"           , 0, XK_r, TT_DEAD|TT_DRAW, (void(*)(void*))setChordRecord          , NULL                        );
-			addTooltipBind("add"              , 0, XK_a, TT_DEAD|TT_DRAW, (void(*)(void*))setChordAddInst         , NULL                        );
-			addTooltipBind("empty index"      , 0, XK_e, TT_DRAW        , (void(*)(void*))emptyInstrumentIndex    , NULL                        );
-			addTooltipBind("yank"             , 0, XK_y, TT_DEAD|TT_DRAW, (void(*)(void*))setChordYankInstrument  , NULL                        );
-			addTooltipBind("put"              , 0, XK_p, TT_DRAW        , (void(*)(void*))putInstrument           , (void*)(size_t)w->instrument);
-			addTooltipBind("delete"           , 0, XK_d, TT_DEAD        , (void(*)(void*))setChordDeleteInstrument, NULL                        );
-			addTooltipBind("toggle browser"   , 0, XK_f, TT_DRAW        , toggleBrowser                           , NULL                        );
-			addTooltipBind("enter insert mode", 0, XK_i, TT_DRAW        , instrumentEnterInsertMode               , NULL                        );
+			addTooltipBind("record"           , 0, XK_r, TT_DEAD|TT_DRAW, (void(*)(void*))setChordRecord       , NULL);
+			addTooltipBind("add"              , 0, XK_a, TT_DEAD|TT_DRAW, (void(*)(void*))setChordAddInst      , NULL);
+			addTooltipBind("empty index"      , 0, XK_e, TT_DRAW        , (void(*)(void*))emptyInstrumentIndex , NULL);
+			addTooltipBind("yank"             , 0, XK_y, TT_DEAD|TT_DRAW, (void(*)(void*))yankInstrumentInput  , NULL);
+			addTooltipBind("put"              , 0, XK_p, TT_DRAW        , (void(*)(void*))putInstrumentInput   , NULL);
+			addTooltipBind("delete"           , 0, XK_d, TT_DEAD        , (void(*)(void*))deleteInstrumentInput, NULL);
+			addTooltipBind("toggle browser"   , 0, XK_f, TT_DRAW        , toggleBrowser                        , NULL);
+			addTooltipBind("enter insert mode", 0, XK_i, TT_DRAW        , instrumentEnterInsertMode            , NULL);
 			break;
 		case MODE_INSERT:
-			addDecimalBinds("set octave"  , 0, setInsertOctave);
+			addDecimalBinds("set octave", 0, setInsertOctave);
 			addNotePressBinds("preview note", 0, w->octave, (void(*)(void*))instrumentSamplePressPreview);
 			addNoteReleaseBinds("preview release", 0, w->octave, (void(*)(void*))instrumentSampleReleasePreview);
 			break;

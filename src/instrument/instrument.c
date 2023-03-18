@@ -1,20 +1,16 @@
 static void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 {
-	for (uint8_t i = 0; i < dest->samplecount; i++)
-		free(dest->sample[i]);
-	if (dest->sample) free(dest->sample);
+	FOR_SAMPLECHAIN(i, dest->sample)
+		free((*dest->sample)[i]);
+
+	SampleChain *dsamplechain = dest->sample;
 
 	memcpy(dest, src, sizeof(Instrument));
 
-	if (src->samplecount)
-	{
-		dest->sample = malloc(sizeof(Sample*) * src->samplecount);
-		for (uint8_t i = 0; i < src->samplecount; i++)
-		{
-			dest->sample[i] = malloc(sizeof(Sample) + sizeof(short)*src->sample[i]->length*src->sample[i]->channels);
-			memcpy(dest->sample[i], src->sample[i], sizeof(Sample) + sizeof(short)*src->sample[i]->length*src->sample[i]->channels);
-		}
-	}
+	/* avoid unnecessarily reallocing the sample chain */
+	dest->sample = dsamplechain;
+
+	copySampleChain(dest->sample, src->sample);
 }
 
 static InstrumentChain *_copyInstrument(uint8_t index, Instrument *src)
@@ -58,11 +54,9 @@ int copyInstrument(uint8_t index, Instrument *src)
 void delInstrumentForce(Instrument *iv)
 {
 	freeWaveform();
-	for (uint8_t i = 0; i < iv->samplecount; i++)
-		free(iv->sample[i]);
-
-	if (iv->sample) free(iv->sample);
-	iv->sample = NULL;
+	FOR_SAMPLECHAIN(i, iv->sample)
+		free((*iv->sample)[i]);
+	free(iv->sample);
 }
 
 /* is an instrument safe to use */
@@ -75,12 +69,16 @@ bool instrumentSafe(InstrumentChain *ic, short index)
 }
 
 /* take a Sample* and reparent it under instrument iv */
-void reparentSample(Instrument *iv, Sample *sample) /* TODO: atomicity? */
+void reparentSample(Instrument *iv, Sample *sample) /* TODO: remove */
 {
-	iv->samplecount++;
-	iv->sample = realloc(iv->sample, sizeof(Sample*) * iv->samplecount);
+	short index = getEmptySampleIndex(iv->sample);
+	if (index == -1)
+	{
+		free(sample);
+		return;
+	}
 
-	iv->sample[iv->samplecount - 1] = sample;
+	(*iv->sample)[index] = sample;
 }
 
 void toggleRecording(uint8_t inst, char cue)
@@ -106,13 +104,15 @@ void toggleRecording(uint8_t inst, char cue)
 	} p->redraw = 1;
 }
 
-static void cb_addInstrument         (Event *e) { free(e->src); e->src = NULL; w->mode = MODE_NORMAL; p->redraw = 1; }
-static void cb_addRecordInstrument   (Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
-static void cb_addRecordCueInstrument(Event *e) { free(e->src); e->src = NULL; toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
+static void cb_addInstrument         (Event *e) { free(e->src); w->mode = MODE_NORMAL; p->redraw = 1; }
+static void cb_addRecordInstrument   (Event *e) { free(e->src); toggleRecording((size_t)e->callbackarg, 0); p->redraw = 1; }
+static void cb_addRecordCueInstrument(Event *e) { free(e->src); toggleRecording((size_t)e->callbackarg, 1); p->redraw = 1; }
 
 /* __ layer of abstraction for initializing instrumentbuffer */
 void __addInstrument(Instrument *iv, int8_t algorithm)
 {
+	iv->sample = calloc(1, sizeof(SampleChain));
+
 	iv->algorithm = algorithm;
 	iv->samplerate = 0xff;
 	iv->bitdepth = 0xf;
@@ -199,7 +199,6 @@ void yankInstrument(uint8_t index)
 void putInstrument(size_t index)
 {
 	copyInstrument(index, &w->instrumentbuffer);
-	p->redraw = 1;
 }
 
 static void cb_delInstrument(Event *e)
@@ -246,78 +245,6 @@ int delInstrument(uint8_t index)
 	e.callbackarg = (void *)cutindex;
 	pushEvent(&e);
 	return 0;
-}
-
-Sample *_loadSample(char *path)
-{
-	fcntl(0, F_SETFL, 0); /* blocking */
-	SF_INFO sfinfo = { 0 };
-
-	Sample *ret = NULL;
-
-	SNDFILE *sndfile = sf_open(path, SFM_READ, &sfinfo);
-	if (!sndfile)
-	{ /* raw file */
-		struct stat buf;
-		if (stat(path, &buf) == -1) goto _loadSample_end;
-
-		ret = calloc(1, sizeof(Sample) + buf.st_size - buf.st_size % sizeof(short));
-		if (!ret) goto _loadSample_end;
-
-		/* read the whole file into memory */
-		FILE *fp = fopen(path, "r");
-		fread(&ret->data, sizeof(short), buf.st_size / sizeof(short), fp);
-		fclose(fp);
-
-		ret->channels = 1;
-		ret->length = buf.st_size / sizeof(short);
-		ret->rate = ret->defrate = 12000;
-	} else /* audio file */
-	{
-		ret = calloc(1, sizeof(Sample) + sizeof(short)*sfinfo.frames*sfinfo.channels);
-
-		if (!ret) goto _loadSample_end;
-
-		/* read the whole file into memory */
-		sf_readf_short(sndfile, ret->data, sfinfo.frames);
-		ret->length = sfinfo.frames;
-		ret->channels = sfinfo.channels;
-		ret->rate = ret->defrate = sfinfo.samplerate;
-	}
-
-	ret->trimstart = 0;
-	ret->trimlength = ret->length-1;
-	ret->looplength = 0;
-
-_loadSample_end:
-	if (sndfile) sf_close(sndfile);
-	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-	return ret;
-}
-void loadSample(uint8_t index, char *path) /* TODO: atomicity */
-{
-	if (!instrumentSafe(s->instrument, index)) return; /* instrument doesn't exist */
-	freeWaveform();
-	Instrument *iv = &s->instrument->v[s->instrument->i[index]];
-	Sample *newsample = _loadSample(path);
-	if (!newsample)
-	{
-		strcpy(w->command.error, "failed to load sample, out of memory");
-		return;
-	}
-
-	reparentSample(iv, newsample);
-}
-
-/* TODO: sample could already be loaded into p->semarg, reparent if so */
-void sampleLoadCallback(char *path) /* TODO: atomicity */
-{
-	if (path) loadSample(w->instrument, path);
-
-	w->page = PAGE_INSTRUMENT;
-	w->mode = MODE_NORMAL;
-	w->showfilebrowser = 0;
-	resetWaveform();
 }
 
 // int sampleExportCallback(char *command, unsigned char *mode) /* TODO: unmaintained */
