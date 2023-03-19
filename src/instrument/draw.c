@@ -1,5 +1,4 @@
-#define INSTUI_SAMPLE_CALLBACK_MAX 6
-static void instUISampleCallback(short x, short y, Instrument *iv, uint8_t index)
+void instUISampleCallback(short x, short y, Instrument *iv, uint8_t index)
 {
 	Sample *sample = (*iv->sample)[w->sample];
 	if (!sample) return;
@@ -97,31 +96,36 @@ void instUICyclicCallback(short x, short y, Instrument *iv, uint8_t index)
 	}
 }
 
-#define EMPTY_INST_UI_TEXT "PRESS 'aa' TO ADD A SAMPLE"
-static void emptyInstUICallback(short x, short y, Instrument *iv, uint8_t index)
+void instUIMidiCallback(short x, short y, Instrument *iv, uint8_t index)
+{
+	switch (index)
+	{
+		case 0:
+			printf("\033[%d;%dHMIDI channel:  [ ]", y, x);
+			addControlInt(x+16, y, &iv->midi.channel, 1, -1, 15, -1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			break;
+		case 1:
+			printf("\033[%d;%dHMIDI program: [  ]", y, x);
+			break;
+	}
+}
+
+void instUIEmptyCallback(short x, short y, Instrument *iv, uint8_t index)
 {
 	printf("\033[%d;%d%s", y, x, EMPTY_INST_UI_TEXT);
 }
 
-static InstUI *initInstrumentUI(Instrument *iv)
+static const InstUI *initInstrumentUI(Instrument *iv)
 {
-	InstUI *iui;
 	if (!iv)
-	{
-		iui = malloc(sizeof(InstUI));
-		iui->width = strlen(EMPTY_INST_UI_TEXT);
-		iui->count = 1;
-		iui->callback = emptyInstUICallback;
-		return iui;
-	}
+		return &emptyInstUI;
 
 	switch (iv->algorithm)
 	{
-		case INST_ALG_NULL: break;
-		case INST_ALG_MIDI: iui = initInstUIMidi(); break;
-		case INST_ALG_SAMPLER: iui = initInstUICyclic(); break;
+		case INST_ALG_MIDI: return &midiInstUI;
+		case INST_ALG_SAMPLER: return &cyclicInstUI;
+		default: return NULL;
 	}
-	return iui;
 }
 
 
@@ -197,7 +201,7 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 	return x - bx;
 }
 
-short getInstUIRows(InstUI *iui, short cols)
+short getInstUIRows(const InstUI *iui, short cols)
 {
 	size_t entryc = iui->count;
 	short ret = entryc / cols;
@@ -208,7 +212,7 @@ short getInstUIRows(InstUI *iui, short cols)
 
 	return ret;
 }
-short getInstUICols(InstUI *iui, short rows)
+short getInstUICols(const InstUI *iui, short rows)
 {
 	size_t entryc = iui->count;
 	short ret = entryc / rows;
@@ -220,7 +224,7 @@ short getInstUICols(InstUI *iui, short rows)
 	return ret;
 }
 
-void drawInstUI(InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows)
+void drawInstUI(const InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows)
 {
 	short cols = MIN(w / (iui->width + INSTUI_PADDING), getInstUICols(iui, rows));
 	x += (w - (cols*(iui->width + INSTUI_PADDING)) + INSTUI_PADDING)>>1;
@@ -260,7 +264,7 @@ void drawInstrument(void)
 		else
 		{
 			Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
-			InstUI *iui = initInstrumentUI(iv);
+			const InstUI *iui = initInstrumentUI(iv);
 
 			clearControls();
 
@@ -280,11 +284,7 @@ void drawInstrument(void)
 				case INST_ALG_SAMPLER:
 					drawBoundingBox(x, y, ws.ws_col - x, wh - 1, minx, maxx, 1, ws.ws_row);
 
-					InstUI *sample_iui = malloc(sizeof(InstUI));
-					sample_iui->width = 17;
-					sample_iui->count = INSTUI_SAMPLE_CALLBACK_MAX;
-					sample_iui->callback = instUISampleCallback;
-					short sample_rows = getInstUIRows(sample_iui, (ws.ws_col - x - 2) / (sample_iui->width + INSTUI_PADDING));
+					short sample_rows = getInstUIRows(&sampleInstUI, (ws.ws_col - x - 2) / (sampleInstUI.width + INSTUI_PADDING));
 
 					short whh = wh - sample_rows;
 
@@ -307,9 +307,7 @@ void drawInstrument(void)
 
 					drawWaveform(iv, x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, ws.ws_col - (x+INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
 
-					drawInstUI(sample_iui, iv, x+1, ws.ws_col - (x+1), y + whh - 1, scrolloffset, sample_rows);
-
-					free(sample_iui);
+					drawInstUI(&sampleInstUI, iv, x+1, ws.ws_col - (x+1), y + whh - 1, scrolloffset, sample_rows);
 					break;
 			}
 
@@ -329,7 +327,6 @@ void drawInstrument(void)
 
 drawInstrumentEnd:
 			drawControls();
-			free(iui);
 		}
 	} else
 	{

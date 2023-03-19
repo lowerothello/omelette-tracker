@@ -109,12 +109,3 @@ void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32
 		}
 	}
 }
-
-InstUI *initInstUICyclic(void)
-{
-	InstUI *iui = malloc(sizeof(InstUI));
-	iui->width = INSTUI_SAMPLER_WIDTH;
-	iui->count = INSTUI_CYCLIC_CALLBACK_MAX;
-	iui->callback = instUICyclicCallback;
-	return iui;
-}
