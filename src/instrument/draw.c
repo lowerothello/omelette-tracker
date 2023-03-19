@@ -1,3 +1,4 @@
+#define INSTUI_SAMPLE_CALLBACK_MAX 6
 static void instUISampleCallback(short x, short y, Instrument *iv, uint8_t index)
 {
 	Sample *sample = (*iv->sample)[w->sample];
@@ -25,28 +26,21 @@ static void instUISampleCallback(short x, short y, Instrument *iv, uint8_t index
 	}
 }
 
-static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_t index)
+void instUICyclicCallback(short x, short y, Instrument *iv, uint8_t index)
 {
-	Sample *sample = (*iv->sample)[w->sample];
-
 	switch (index)
 	{
 		case 0:
-			if (!sample) break;
-			printf("\033[%d;%dHC5 rate: [        ]", y, x);
-			addControlInt(x+10, y, &sample->rate, 8, 0x0, 0xffffffff, sample->defrate, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			break;
-		case 1:
 			printf("\033[%d;%dHquality: [ ][ ][  ]", y, x);
 			addControlInt(x+10, y, &iv->interpolate, 0,   0,    1,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			addControlInt(x+13, y, &iv->bitdepth,    1, 0x0,  0xf,  0xf, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			addControlInt(x+16, y, &iv->samplerate,  2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 2:
+		case 1:
 			printf("\033[%d;%dHgain env:    [    ]", y, x);
 			addControlInt(x+14, y, &iv->envelope, 4, 0x0, 0xffff, 0x00f0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 3:
+		case 2:
 			printf("\033[%d;%dHchannel:   [      ]", y, x);
 			addControlInt(x+12, y, &iv->channelmode, 1, 0, 4, 0, 6, 5, (void(*)(void*))instrumentControlCallback, NULL);
 				addScalePointInt("STEREO", SAMPLE_CHANNELS_STEREO);
@@ -55,107 +49,52 @@ static void samplerInstUICommonCallback(short x, short y, Instrument *iv, uint8_
 				addScalePointInt("   MIX", SAMPLE_CHANNELS_MIX   );
 				addScalePointInt("  SWAP", SAMPLE_CHANNELS_SWAP  );
 			break;
-		case 4:
-			printf("\033[%d;%dHgain:      [ ][   ]", y, x);
-			if (sample) addControlInt(x+12, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+		case 3:
+			printf("\033[%d;%dHgain:         [   ]", y, x);
+			// if (sample) addControlInt(x+12, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			addControlInt(x+15, y, &iv->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-	}
-}
-void initInstUICommonSamplerBlock(InstUIBlock *block)
-{
-	block->count = 5;
-	block->callback = samplerInstUICommonCallback;
-}
-
-static void samplerInstUIRangeCallback(short x, short y, Instrument *iv, uint8_t index)
-{
-	Sample *sample = (*iv->sample)[w->sample];
-
-	switch (index)
-	{
-		case 0: if (!sample) break; printf("\033[%d;%dHoffset:  [        ]", y, x); addControlInt(x+10, y,  &sample->trimstart, 8, 0,   sample->length-1,                0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 1: if (!sample) break; printf("\033[%d;%dHlength:  [        ]", y, x); addControlInt(x+10, y, &sample->trimlength, 8, 0,   sample->length-1, sample->length-1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 2: if (!sample) break; printf("\033[%d;%dHloop:    [        ]", y, x); addControlInt(x+10, y, &sample->looplength, 8, 0, sample->trimlength,                0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 3:                     printf("\033[%d;%dHframe:         [  ]", y, x); addControlInt(x+10, y,          &iv->frame, 2, 0,                255,                0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
 		case 4:
-			if (!sample) break;
-			printf("\033[%d;%dHpp/ramp:    [ ][  ]", y, x);
-			addControlInt(x+13, y, &sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+16, y, &sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			printf("\033[%d;%dHunison:   [ ][ ][ ]", y, x);
 			break;
-	}
-}
-void initInstUIRangeSamplerBlock(InstUIBlock *block)
-{
-	block->count = 5;
-	block->callback = samplerInstUIRangeCallback;
-}
-
-static void samplerInstUIGranularCallback(short x, short y, Instrument *iv, uint8_t index)
-{
-	switch (index)
-	{
-		case 0: printf("\033[%d;%dHunison:   [ ][ ][ ]", y, x); break;
-		case 1:
+		case 5:
 			printf("\033[%d;%dHrev/ramp:   [  ][ ]", y, x);
-			addControlInt(x+13, y, &iv->granular.reversegrains,     2, 0x0,    0xff,   0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+17, y, &iv->granular.rampgrains,        1, 0x0,    0xf,    8,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+13, y, &iv->granular.reversegrains, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+17, y, &iv->granular.rampgrains,    1, 0x0, 0xf,  8, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 2:
+		case 6:
 			printf("\033[%d;%dHcycle:   [    ][  ]", y, x);
-			addControlInt(x+10, y, &iv->granular.cyclelength,       4, 0x0,    0xffff, 0x3fff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+16, y, &iv->granular.cyclelengthjitter, 2, 0x0,    0xff,   0x0,    0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &iv->granular.cyclelength,       4, 0x0, 0xffff, 0x3fff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+16, y, &iv->granular.cyclelengthjitter, 2, 0x0, 0xff,   0x0,    0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 3:
+		case 7:
 			printf("\033[%d;%dHtime     [ ][     ]", y, x);
-			addControlInt(x+10, y, &iv->granular.notestretch,       0, 0,      1,      0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+13, y, &iv->granular.timestretch,       5, 0x8bff, 0x7bff, 0,      0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &iv->granular.notestretch, 0, 0,      1,      0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+13, y, &iv->granular.timestretch, 5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 4:
+		case 8:
 			printf("\033[%d;%dHpan jitter:    [  ]", y, x);
 			addControlInt(x+16, y, &iv->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 5:
+		case 9:
 			printf("\033[%d;%dHptr jitter:    [  ]", y, x);
 			addControlInt(x+16, y, &iv->granular.ptrjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-	}
-}
-void initInstUIGranularSamplerBlock(InstUIBlock *block)
-{
-	block->count = 6;
-	block->callback = samplerInstUIGranularCallback;
-}
-
-static void samplerInstUIPitchCallback(short x, short y, Instrument *iv, uint8_t index)
-{
-	switch (index)
-	{
-		case 0:
+		case 10:
+			printf("\033[%d;%dHframe:         [  ]", y, x); addControlInt(x+10, y, &iv->frame, 2, 0, 255, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			break;
+		case 11:
 			printf("\033[%d;%dHpitch: [   ][     ]", y, x);
-			addControlInt(x+8 , y, &iv->granular.pitchstereo,       3, -128,   127,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+13, y, &iv->granular.pitchshift,        5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+8 , y, &iv->granular.pitchstereo, 3, -128,   127,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+13, y, &iv->granular.pitchshift,  5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
-		case 1:
+		case 12:
 			printf("\033[%d;%dHjitter:  [  ][ ][ ]", y, x);
-			addControlInt(x+10, y, &iv->granular.pitchjitter,       2, 0x00,   0xff,   0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+14, y, &iv->granular.pitchoctaverange,  1, 0x0,    0xf,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+17, y, &iv->granular.pitchoctavechance, 1, 0x0,    0xf,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &iv->granular.pitchjitter,       2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+14, y, &iv->granular.pitchoctaverange,  1, 0x0,  0xf,  0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+17, y, &iv->granular.pitchoctavechance, 1, 0x0,  0xf,  0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
 			break;
 	}
-}
-void initInstUIPitchSamplerBlock(InstUIBlock *block)
-{
-	block->count = 2;
-	block->callback = samplerInstUIPitchCallback;
-}
-
-InstUI *allocInstUI(uint8_t blocks)
-{
-	InstUI *iui = calloc(1, sizeof(InstUI) + sizeof(InstUIBlock)*blocks);
-	iui->blocks = blocks;
-	return iui;
 }
 
 #define EMPTY_INST_UI_TEXT "PRESS 'aa' TO ADD A SAMPLE"
@@ -169,10 +108,10 @@ static InstUI *initInstrumentUI(Instrument *iv)
 	InstUI *iui;
 	if (!iv)
 	{
-		iui = allocInstUI(1);
+		iui = malloc(sizeof(InstUI));
 		iui->width = strlen(EMPTY_INST_UI_TEXT);
-		iui->block[0].count = 1;
-		iui->block[0].callback = emptyInstUICallback;
+		iui->count = 1;
+		iui->callback = emptyInstUICallback;
 		return iui;
 	}
 
@@ -258,17 +197,9 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 	return x - bx;
 }
 
-size_t getInstUIEntryc(InstUI *iui)
-{
-	size_t entryc = 0;
-	for (uint8_t i = 0; i < iui->blocks; i++)
-		entryc += iui->block[i].count;
-	return entryc;
-
-}
 short getInstUIRows(InstUI *iui, short cols)
 {
-	size_t entryc = getInstUIEntryc(iui);
+	size_t entryc = iui->count;
 	short ret = entryc / cols;
 
 	/* round up instead of down */
@@ -279,7 +210,7 @@ short getInstUIRows(InstUI *iui, short cols)
 }
 short getInstUICols(InstUI *iui, short rows)
 {
-	size_t entryc = getInstUIEntryc(iui);
+	size_t entryc = iui->count;
 	short ret = entryc / rows;
 
 	/* round up instead of down */
@@ -293,17 +224,14 @@ void drawInstUI(InstUI *iui, Instrument *iv, short x, short w, short y, short sc
 {
 	short cols = MIN(w / (iui->width + INSTUI_PADDING), getInstUICols(iui, rows));
 	x += (w - (cols*(iui->width + INSTUI_PADDING)) + INSTUI_PADDING)>>1;
-	size_t ei = 0;
 	short cx, cy;
-	for (uint8_t i = 0; i < iui->blocks; i++)
-		for (uint8_t j = 0; j < iui->block[i].count; j++)
-		{
-			cx = x + (ei/rows)*(iui->width + INSTUI_PADDING);
-			cy = y + ei%rows;
-			if (cy < ws.ws_row - 1 && cy > scrolloffset)
-				iui->block[i].callback(cx, cy - scrolloffset, iv, j);
-			ei++;
-		}
+	for (uint8_t i = 0; i < iui->count; i++)
+	{
+		cx = x + (i/rows)*(iui->width + INSTUI_PADDING);
+		cy = y + i%rows;
+		if (cy < ws.ws_row - 1 && cy > scrolloffset)
+			iui->callback(cx, cy - scrolloffset, iv, i);
+	}
 }
 
 void drawInstrument(void)
@@ -352,10 +280,10 @@ void drawInstrument(void)
 				case INST_ALG_SAMPLER:
 					drawBoundingBox(x, y, ws.ws_col - x, wh - 1, minx, maxx, 1, ws.ws_row);
 
-					InstUI *sample_iui = allocInstUI(1);
+					InstUI *sample_iui = malloc(sizeof(InstUI));
 					sample_iui->width = 17;
-					sample_iui->block[0].count = 6;
-					sample_iui->block[0].callback = instUISampleCallback;
+					sample_iui->count = INSTUI_SAMPLE_CALLBACK_MAX;
+					sample_iui->callback = instUISampleCallback;
 					short sample_rows = getInstUIRows(sample_iui, (ws.ws_col - x - 2) / (sample_iui->width + INSTUI_PADDING));
 
 					short whh = wh - sample_rows;

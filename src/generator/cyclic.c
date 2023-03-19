@@ -112,12 +112,9 @@ void processCyclic(Instrument *iv, Track *cv, float rp, uint32_t pointer, uint32
 
 InstUI *initInstUICyclic(void)
 {
-	InstUI *iui = allocInstUI(4);
+	InstUI *iui = malloc(sizeof(InstUI));
 	iui->width = INSTUI_SAMPLER_WIDTH;
-	initInstUICommonSamplerBlock(&iui->block[0]);
-	initInstUIGranularSamplerBlock(&iui->block[1]);
-	initInstUIRangeSamplerBlock(&iui->block[2]);
-	initInstUIPitchSamplerBlock(&iui->block[3]);
-	iui->flags |= INSTUI_DRAWWAVEFORM;
+	iui->count = INSTUI_CYCLIC_CALLBACK_MAX;
+	iui->callback = instUICyclicCallback;
 	return iui;
 }

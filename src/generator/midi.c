@@ -15,9 +15,9 @@ static void midiInstUICallback(short x, short y, Instrument *iv, uint8_t index)
 }
 InstUI *initInstUIMidi(void)
 {
-	InstUI *iui = allocInstUI(1);
+	InstUI *iui = malloc(sizeof(InstUI));
 	iui->width = INSTUI_MIDI_WIDTH;
-	iui->block[0].count = 2;
-	iui->block[0].callback = midiInstUICallback;
+	iui->count = 2;
+	iui->callback = midiInstUICallback;
 	return iui;
 }
