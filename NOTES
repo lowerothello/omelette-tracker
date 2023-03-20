@@ -1,5 +1,3 @@
-- yy should respect the vtrig column
-
 lookback
 - lookback resets the envelope, cutting long attacks immediately
 	- not sure the solution to this design-wise

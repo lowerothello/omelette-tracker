@@ -14,8 +14,7 @@ static void instrumentEscape(void *arg)
 
 static void instrumentUpArrow(size_t count)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		browserUpArrow(fbstate, count);
 	else
 		decControlCursor(count*MAX(1, w->count));
@@ -23,8 +22,7 @@ static void instrumentUpArrow(size_t count)
 }
 static void instrumentDnArrow(size_t count)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		browserDownArrow(fbstate, count);
 	else
 		incControlCursor(count*MAX(1, w->count));
@@ -32,36 +30,39 @@ static void instrumentDnArrow(size_t count)
 }
 static void instrumentLeftArrow(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser) return;
-
-	if (cc.cursor)
-		incControlFieldpointer();
-	else if (w->sample)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 	{
-		w->sample--;
-		resetWaveform();
+	} else
+	{
+		if (cc.cursor)
+			incControlFieldpointer();
+		else if (w->sample)
+		{
+			w->sample--;
+			resetWaveform();
+		}
 	}
 	p->redraw = 1;
 }
 static void instrumentRightArrow(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser) return;
-
-	if (cc.cursor)
-		decControlFieldpointer();
-	else if (w->sample < SAMPLE_MAX-1)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 	{
-		w->sample++;
-		resetWaveform();
+	} else
+	{
+		if (cc.cursor)
+			decControlFieldpointer();
+		else if (w->sample < SAMPLE_MAX-1)
+		{
+			w->sample++;
+			resetWaveform();
+		}
 	}
 	p->redraw = 1;
 }
 static void instrumentHome(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		browserHome(fbstate);
 	else
 		setControlCursor(0);
@@ -69,8 +70,7 @@ static void instrumentHome(void)
 }
 static void instrumentEnd(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		browserEnd(fbstate);
 	else
 		setControlCursor(cc.controlc-1);
@@ -99,8 +99,7 @@ static void instrumentCtrlDownArrow(void *count)
 
 static void instrumentSampleReturn(void *arg)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		fbstate->commit(fbstate);
 	else
 		toggleKeyControl();
@@ -108,8 +107,7 @@ static void instrumentSampleReturn(void *arg)
 }
 static void instrumentSampleBackspace(void *arg)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		fileBrowserBackspace(fbstate);
 	else
 		revertKeyControl();
@@ -117,8 +115,7 @@ static void instrumentSampleBackspace(void *arg)
 }
 static void instrumentSamplePressPreview(size_t note)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		fileBrowserPreview(fbstate, note, 0);
 	else
 		previewNote(note, w->instrument, 0);
@@ -126,8 +123,7 @@ static void instrumentSamplePressPreview(size_t note)
 }
 static void instrumentSampleReleasePreview(size_t note)
 {
-	if (!instrumentSafe(s->instrument, w->instrument)) return;
-	if (w->showfilebrowser)
+	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
 		fileBrowserPreview(fbstate, note, 1);
 	else
 		previewNote(note, w->instrument, 1);
@@ -143,11 +139,13 @@ static void instrumentMouse(enum Button button, int x, int y)
 		case BUTTON2_HOLD: case BUTTON2_HOLD_CTRL:
 			break;
 		default:
-			if (instrumentSafe(s->instrument, w->instrument) && w->showfilebrowser
-					&& y > TRACK_ROW-2 && x >= INSTRUMENT_INDEX_COLS)
+			if ((!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+					&& y > TRACK_ROW-2
+					&& x >= INSTRUMENT_INDEX_COLS)
 				browserMouse(fbstate, button, x, y);
-			else if (cc.mouseadjust || (instrumentSafe(s->instrument, w->instrument)
-						&& y > TRACK_ROW-2 && x >= INSTRUMENT_INDEX_COLS))
+			else if (cc.mouseadjust
+					|| (y > TRACK_ROW-2
+					&&  x >= INSTRUMENT_INDEX_COLS))
 				mouseControls(button, x, y);
 			else
 			{
@@ -196,11 +194,6 @@ static void instrumentMouse(enum Button button, int x, int y)
 	}
 }
 
-static void toggleBrowser(void *arg)
-{
-	w->showfilebrowser = !w->showfilebrowser;
-	p->redraw = 1;
-}
 static void instrumentEnterInsertMode(void *arg)
 {
 	setAutoRepeatOff();
@@ -241,7 +234,10 @@ static void deleteInstrumentInput(void)
 			yankInstrument(w->instrument);
 			delInstrument (w->instrument);
 		} else
+		{
+			freeWaveform();
 			attachSample(&s->instrument->v[s->instrument->i[w->instrument]].sample, NULL, w->sample);
+		}
 		p->redraw = 1;
 	}
 }
@@ -276,7 +272,6 @@ void initInstrumentInput(void)
 			addTooltipBind("yank"             , 0, XK_y, TT_DEAD|TT_DRAW, (void(*)(void*))yankInstrumentInput  , NULL);
 			addTooltipBind("put"              , 0, XK_p, TT_DRAW        , (void(*)(void*))putInstrumentInput   , NULL);
 			addTooltipBind("delete"           , 0, XK_d, TT_DEAD        , (void(*)(void*))deleteInstrumentInput, NULL);
-			addTooltipBind("toggle browser"   , 0, XK_f, TT_DRAW        , toggleBrowser                        , NULL);
 			addTooltipBind("enter insert mode", 0, XK_i, TT_DRAW        , instrumentEnterInsertMode            , NULL);
 			break;
 		case MODE_INSERT:

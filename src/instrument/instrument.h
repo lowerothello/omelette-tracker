@@ -18,12 +18,11 @@ typedef struct Instrument
 	/* quality */
 	uint8_t  samplerate;  /* percent of c5rate to actually use */
 	int8_t   bitdepth;
-	bool     interpolate; /* lerp between samples */
+	bool     interpolate; /* lerp between samples, TODO: implement */
 
 	uint8_t  frame;
 	uint16_t envelope;
 	int8_t   gain;
-	// bool     invert; /* DEPRECATED */
 
 	InstAlg algorithm;
 
@@ -100,6 +99,7 @@ typedef struct InstrumentChain
 int copyInstrument(uint8_t index, Instrument *src);
 
 /* frees the contents of an instrument */
+void popInstrumentIndexPointer(InstrumentChain *chain, uint8_t index);
 void delInstrumentForce(Instrument*);
 int delInstrument(uint8_t index);
 
@@ -114,7 +114,7 @@ void toggleRecording(uint8_t inst, char cue);
 /* __ layer of abstraction for initializing instrumentbuffer */
 void __addInstrument(Instrument*, int8_t algorithm);
 InstrumentChain *_addInstrument(uint8_t index, int8_t algorithm);
-int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event*));
+int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event*), void *cbarg);
 
 int addReparentInstrument(uint8_t index, int8_t algorithm, Sample *buffer);
 

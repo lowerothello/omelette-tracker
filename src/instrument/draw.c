@@ -132,7 +132,7 @@ static const InstUI *initInstrumentUI(Instrument *iv)
 static short drawInstrumentIndex(short bx, short minx, short maxx)
 {
 	Instrument *iv;
-	char buffer[11];
+	char buffer[9];
 	short x = 0;
 	for (int i = 0; i < INSTRUMENT_MAX; i++)
 		if (w->centre - w->instrument + i > TRACK_ROW && w->centre - w->instrument + i < ws.ws_row)
@@ -144,57 +144,35 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 				iv = &s->instrument->v[s->instrument->i[i]];
 				if (iv->triggerflash) printf("\033[3%dm", i%6+1);
 			}
-			if (w->instrument + w->fyoffset == i)
+
+			if (w->instrument + w->fyoffset == i) /* TODO: fyoffset can get stuck set sometimes */
+				printf("\033[1;7m");
+
+			if (x <= ws.ws_col)
 			{
-				printf("\033[7m");
-
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", i);
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-				} x += 3;
-
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", s->instrument->i[i]);
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-				} x += 3;
-			} else
-			{
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", i);
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-				} x += 3;
-
-				if (x <= ws.ws_col)
-				{
-					snprintf(buffer, 4, "%02x ", s->instrument->i[i]);
-					printf("\033[2m");
-					printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
-					printf("\033[22m");
-				} x += 3;
-			}
+				snprintf(buffer, 4, "%02x ", i);
+				printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
+			} x += 3;
 
 			if (x <= ws.ws_col)
 			{
 				if (instrumentSafe(s->instrument, i))
 				{
 					iv = &s->instrument->v[s->instrument->i[i]];
-					printf("\033[1m");
 					if (iv->algorithm == INST_ALG_MIDI)
-						snprintf(buffer, 11, "-  MIDI  -");
+						snprintf(buffer, 9, "- MIDI -");
 					else
 					{
 						uint32_t samplesize = 0;
 						FOR_SAMPLECHAIN(j, iv->sample)
-							samplesize += (*iv->sample)[j]->length;
-						snprintf(buffer, 11, "<%08x>", samplesize);
+							samplesize += (*iv->sample)[j]->length * (*iv->sample)[j]->channels;
+						humanReadableSize(samplesize, buffer);
+						printCulling("        ", x, w->centre - w->instrument + i, minx, maxx); /* flush */
 					}
-				} else snprintf(buffer, 11, " ........ ");
-				printCulling(buffer, x, w->centre - w->instrument + i, minx, maxx);
+				} else snprintf(buffer, 9, "........");
+				printCulling(buffer, x + 8 - strlen(buffer), w->centre - w->instrument + i, minx, maxx);
 			}
-			x += 10;
+			x += 9;
 
 			printf("\033[40;37;22;27m");
 		}
@@ -223,15 +201,19 @@ short getInstUICols(const InstUI *iui, short rows)
 
 	return ret;
 }
+short getMaxInstUICols(const InstUI *iui, short width)
+{
+	return (width + (iui->padding<<1)) / (iui->width + iui->padding);
+}
 
 void drawInstUI(const InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows)
 {
-	short cols = MIN(w / (iui->width + INSTUI_PADDING), getInstUICols(iui, rows));
-	x += (w - (cols*(iui->width + INSTUI_PADDING)) + INSTUI_PADDING)>>1;
+	short cols = MIN(getMaxInstUICols(iui, w), getInstUICols(iui, rows));
+	x += (w - (cols*(iui->width + iui->padding)) + iui->padding)>>1;
 	short cx, cy;
 	for (uint8_t i = 0; i < iui->count; i++)
 	{
-		cx = x + (i/rows)*(iui->width + INSTUI_PADDING);
+		cx = x + (i/rows)*(iui->width + iui->padding);
 		cy = y + i%rows;
 		if (cy < ws.ws_row - 1 && cy > scrolloffset)
 			iui->callback(cx, cy - scrolloffset, iv, i);
@@ -259,76 +241,72 @@ void drawInstrument(void)
 
 	if (instrumentSafe(s->instrument, w->instrument))
 	{
-		if (w->showfilebrowser)
-			drawBrowser(fbstate);
-		else
+		Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
+		const InstUI *iui = initInstrumentUI(iv);
+
+		clearControls();
+
+		short cols = getMaxInstUICols(iui, ws.ws_col - x);
+		if (!cols) goto drawInstrumentEnd;
+
+		short rows = getInstUIRows(iui, cols);
+		if (!rows) goto drawInstrumentEnd;
+
+		short y = TRACK_ROW+1;
+		short wh = MAX((ws.ws_row - 1 - y) - rows, INSTUI_WAVEFORM_MIN);
+
+		switch (iv->algorithm)
 		{
-			Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
-			const InstUI *iui = initInstrumentUI(iv);
+			case INST_ALG_NULL: break;
+			case INST_ALG_MIDI: break;
+			case INST_ALG_SAMPLER:
+				drawBoundingBox(x, y, ws.ws_col - x, wh - 1, minx, maxx, 1, ws.ws_row);
 
-			clearControls();
+				short sample_rows = getInstUIRows(&sampleInstUI, getMaxInstUICols(&sampleInstUI, ws.ws_col - x - 5));
 
-			short cols = (ws.ws_col - x) / (iui->width + INSTUI_PADDING);
-			if (!cols) goto drawInstrumentEnd;
+				short whh = wh - sample_rows;
 
-			short rows = getInstUIRows(iui, cols);
-			if (!rows) goto drawInstrumentEnd;
-
-			short y = TRACK_ROW+1;
-			short wh = MAX((ws.ws_row - 1 - y) - rows, INSTUI_WAVEFORM_MIN);
-
-			switch (iv->algorithm)
-			{
-				case INST_ALG_NULL: break;
-				case INST_ALG_MIDI: break;
-				case INST_ALG_SAMPLER:
-					drawBoundingBox(x, y, ws.ws_col - x, wh - 1, minx, maxx, 1, ws.ws_row);
-
-					short sample_rows = getInstUIRows(&sampleInstUI, (ws.ws_col - x - 2) / (sampleInstUI.width + INSTUI_PADDING));
-
-					short whh = wh - sample_rows;
-
-					/* multisample indices */
-					addControlDummy(x + 3, y + (whh>>1));
-					char buffer[5];
-					short siy;
-					for (uint8_t i = 0; i < SAMPLE_MAX; i++)
-					{
-						siy = y + (whh>>1) - w->sample + i;
-						if (siy > y && siy < y + (whh - 1))
-						{ /* vertical bounds limiting */
-							if (i == w->sample) printf("\033[1;7m");
-							if ((*iv->sample)[i]) snprintf(buffer, 5, " %01x", i);
-							else                  snprintf(buffer, 5, " .");
-							printCulling(buffer, x+1, siy, minx, maxx);
-							if (i == w->sample) printf("\033[22;27m");
-						}
+				/* multisample indices */
+				addControlDummy(x + 3, y + (whh>>1));
+				char buffer[5];
+				short siy;
+				for (uint8_t i = 0; i < SAMPLE_MAX; i++)
+				{
+					siy = y + (whh>>1) - w->sample + i;
+					if (siy > y && siy < y + (whh - 1))
+					{ /* vertical bounds limiting */
+						if (i == w->sample) printf("\033[1;7m");
+						if ((*iv->sample)[i]) snprintf(buffer, 5, " %01x", i);
+						else                  snprintf(buffer, 5, " .");
+						printCulling(buffer, x+1, siy, minx, maxx);
+						if (i == w->sample) printf("\033[22;27m");
 					}
+				}
 
-					drawWaveform(iv, x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, ws.ws_col - (x+INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
+				drawWaveform(iv, x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, ws.ws_col - (x+INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
 
-					drawInstUI(&sampleInstUI, iv, x+1, ws.ws_col - (x+1), y + whh - 1, scrolloffset, sample_rows);
-					break;
-			}
+				drawInstUI(&sampleInstUI, iv, x+1, ws.ws_col - (x+1), y + whh - 1, scrolloffset, sample_rows);
+				break;
+		}
 
-			y += wh;
+		y += wh;
 
-			short viewportheight = ws.ws_row - 1 - y;
-			if (viewportheight <= 0)
-				goto drawInstrumentEnd;
+		short viewportheight = ws.ws_row - 1 - y;
+		if (viewportheight <= 0)
+			goto drawInstrumentEnd;
 
-			/* ensure that scrolloffset is in range */
-			/* TODO: scrolloffset padding */
-			// scrolloffset = MIN(scrolloffset + viewportheight, rows          ); /* within range */
-			// scrolloffset = MIN(scrolloffset, cc.cursor%rows                 ); /* push up      */
-			// scrolloffset = MAX(scrolloffset, cc.cursor%rows - viewportheight); /* push down    */
+		/* ensure that scrolloffset is in range */
+		/* TODO: scrolloffset padding */
+		// scrolloffset = MIN(scrolloffset + viewportheight, rows          ); /* within range */
+		// scrolloffset = MIN(scrolloffset, cc.cursor%rows                 ); /* push up      */
+		// scrolloffset = MAX(scrolloffset, cc.cursor%rows - viewportheight); /* push down    */
 
-			drawInstUI(iui, iv, x, ws.ws_col - x, y, scrolloffset, rows);
+		drawInstUI(iui, iv, x, ws.ws_col - x, y, scrolloffset, rows);
 
 drawInstrumentEnd:
-			drawControls();
-		}
+		drawControls();
 	} else
 	{
+		drawBrowser(fbstate);
 	}
 }

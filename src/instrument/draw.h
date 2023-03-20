@@ -11,12 +11,12 @@ typedef struct {
 	void  (*callback)(short x, short y, Instrument *iv, uint8_t index);
 } InstUI;
 
-#define INSTUI_PADDING 2
 #define INSTUI_WAVEFORM_MIN 3
 #define INSTUI_MULTISAMPLE_WIDTH 4
 
 short getInstUIRows(const InstUI *iui, short cols);
 short getInstUICols(const InstUI *iui, short rows);
+short getMaxInstUICols(const InstUI *iui, short width);
 void drawInstUI(const InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows);
 
 void drawInstrument(void);

@@ -67,6 +67,23 @@ static bool fileBrowserGetNext(void *data)
 
 	return (fbd->dirent);
 }
+
+/* buffer should be at least 8 bytes big */
+char *humanReadableSize(double bytes, char *buffer)
+{
+	const char units[] = { '\0', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y' };
+
+	int i = 0;
+	while (bytes > 1024)
+	{
+		bytes /= 1024;
+		i++;
+	}
+
+	sprintf(buffer, "%.1f%c", bytes, units[i]);
+	return buffer;
+}
+
 static void fileBrowserDrawLine(BrowserState *b, int y)
 {
 	FileBrowserData *fbd = b->data;
@@ -77,21 +94,30 @@ static void fileBrowserDrawLine(BrowserState *b, int y)
 	strcat(testdirpath, fbd->dirent->d_name);
 
 	DIR *testdir = opendir(testdirpath);
-	free(testdirpath);
+	struct stat filestat;
 
 	if (testdir)
 	{ /* directory */
 		closedir(testdir);
 
-		char *dirname = malloc(strlen(fbd->dirent->d_name) + 2);
+		char dirname[strlen(fbd->dirent->d_name) + 2];
 		strcpy(dirname, fbd->dirent->d_name);
 		strcat(dirname, "/");
-		printCulling(dirname, b->x, y, b->x, b->x + b->w - 3);
-		free(dirname);
-	} else
-	{ /* file */
-		printCulling(fbd->dirent->d_name, b->x, y, b->x, b->x + b->w - 3);
+		printCulling(dirname, b->x, y, b->x, b->x + (b->w-3) - 34);
+	} else /* file */
+		printCulling(fbd->dirent->d_name, b->x, y, b->x, b->x + (b->w-3) - 35);
+
+	if (stat(testdirpath, &filestat) == -1)
+		printCulling(strerror(errno), b->x + (b->w-3) - strlen(strerror(errno)), y, b->x, b->x + (b->w-3));
+	else
+	{
+		char buffer[8];
+		humanReadableSize(filestat.st_size, buffer);
+		printCulling(buffer, b->x + (b->w-3) - 26 - strlen(buffer), y, b->x, b->x + (b->w-3));
+		printCulling(ctime(&filestat.st_mtim.tv_sec), b->x + (b->w-3) - 24, y, b->x, b->x + (b->w-3));
 	}
+
+	free(testdirpath);
 }
 
 static uint32_t fileBrowserGetLineCount(void *data) { return ((FileBrowserData *)data)->size; }
@@ -165,24 +191,38 @@ static void fileBrowserCommit(BrowserState *b)
 	if (newpath) free(newpath);
 }
 
-/* TODO: sample could already be loaded into p->semarg, reparent if so */
-static void sampleLoadCallback(char *path)
+static void sampleLoadCallbackOverload(char *path)
 {
-	if (path && instrumentSafe(s->instrument, w->instrument))
-	{
-		freeWaveform();
-		Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
-		Sample *newsample = loadSample(path);
-		if (newsample)
-			attachSample(&iv->sample, newsample, w->sample);
-		else
-			strcpy(w->command.error, "failed to load sample, out of memory");
-	}
+	Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
+	Sample *newsample = loadSample(path);
+	if (newsample)
+		attachSample(&iv->sample, newsample, w->sample);
+	else
+		strcpy(w->command.error, "failed to load sample, out of memory");
 
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
 	w->showfilebrowser = 0;
 	resetWaveform();
+	free(path);
+}
+
+static void sampleLoadCallbackAddCallback(Event *e)
+{
+	cb_addInstrument(e);
+	sampleLoadCallbackOverload(e->callbackarg);
+}
+
+/* TODO: sample could already be loaded into p->semarg, reparent if so */
+static void sampleLoadCallback(char *path)
+{
+	if (!path) return;
+
+	freeWaveform();
+	if (!instrumentSafe(s->instrument, w->instrument))
+		addInstrument(w->instrument, INST_ALG_SAMPLER, sampleLoadCallbackAddCallback, strdup(path));
+	else
+		sampleLoadCallbackOverload(strdup(path));
 }
 
 BrowserState *initFileBrowser(char *path)

@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <sys/param.h> /* MIN/MAX (pulseaudio wants this) */
 #include <dlfcn.h>
+#include <errno.h>
 #include <sndfile.h>           /* audio file read/write           */
 // #ifdef OML_X11
 #include <X11/Xlib.h>          /* X11 hack for key release events */
@@ -37,8 +38,6 @@ const uint16_t version = 0x0001;
 #define LINENO_COLS 7
 
 #define TRACK_ROW 3 /* rows above the track headers */
-
-#define INSTRUMENT_INDEX_COLS 18
 
 #define RECORD_LENGTH 600 /* max record length, in seconds */
 

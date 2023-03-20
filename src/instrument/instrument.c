@@ -1,7 +1,10 @@
 static void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 {
 	FOR_SAMPLECHAIN(i, dest->sample)
+	{
 		free((*dest->sample)[i]);
+		(*dest->sample)[i] = NULL;
+	}
 
 	SampleChain *dsamplechain = dest->sample;
 
@@ -13,15 +16,28 @@ static void __copyInstrument(Instrument *dest, Instrument *src) /* NOT atomic */
 	copySampleChain(dest->sample, src->sample);
 }
 
+
 static InstrumentChain *_copyInstrument(uint8_t index, Instrument *src)
 {
-	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + (s->instrument->c+1) * sizeof(Instrument));
+	uint8_t newcount = s->instrument->c;
+	if (!instrumentSafe(s->instrument, index))
+		newcount++;
+
+	InstrumentChain *newinstrument = calloc(1, sizeof(InstrumentChain) + newcount * sizeof(Instrument));
 	memcpy(newinstrument, s->instrument, sizeof(InstrumentChain) + s->instrument->c * sizeof(Instrument));
+	newinstrument->c = newcount;
 
-	__copyInstrument(&newinstrument->v[newinstrument->c], src);
+	uint8_t affectindex = newcount - 1;
+	if (instrumentSafe(newinstrument, index))
+	{
+		affectindex = newinstrument->i[index];
+		memset(&newinstrument->v[affectindex], 0, sizeof(Instrument));
+	}
 
-	newinstrument->i[index] = newinstrument->c;
-	newinstrument->c++;
+	__addInstrument (&newinstrument->v[affectindex], 0);
+	__copyInstrument(&newinstrument->v[affectindex], src);
+
+	newinstrument->i[index] = affectindex;
 
 	return newinstrument;
 }
@@ -29,17 +45,18 @@ static InstrumentChain *_copyInstrument(uint8_t index, Instrument *src)
 
 static void cb_copyInstrument(Event *e)
 {
-	if (instrumentSafe(e->src, (size_t)e->callbackarg))
-		delInstrumentForce(&((InstrumentChain*)e->src)->v[(size_t)e->callbackarg]);
+	InstrumentChain *ivc = e->src;
+	if (instrumentSafe(ivc, (size_t)e->callbackarg))
+		delInstrumentForce(&ivc->v[ivc->i[(size_t)e->callbackarg]]);
 
 	free(e->src); e->src = NULL;
 
 	w->mode = MODE_NORMAL;
 	p->redraw = 1;
 }
-int copyInstrument(uint8_t index, Instrument *src)
+
+int copyInstrument(uint8_t index, Instrument *src) /* TODO: overwrite paste */
 { /* fully atomic */
-	if (instrumentSafe(s->instrument, index)) return 1; /* index occupied */
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void **)&s->instrument;
@@ -57,6 +74,7 @@ void delInstrumentForce(Instrument *iv)
 	FOR_SAMPLECHAIN(i, iv->sample)
 		free((*iv->sample)[i]);
 	free(iv->sample);
+	iv->sample = NULL;
 }
 
 /* is an instrument safe to use */
@@ -137,16 +155,17 @@ InstrumentChain *_addInstrument(uint8_t index, int8_t algorithm)
 
 	return newinstrument;
 }
-int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event *))
+int addInstrument(uint8_t index, int8_t algorithm, void (*cb)(Event *), void *cbarg)
 { /* fully atomic */
 	if (instrumentSafe(s->instrument, index)) return 1; /* index occupied */
 	freeWaveform();
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void **)&s->instrument;
+	e.dest = (void**)&s->instrument;
 	e.src = _addInstrument(index, algorithm);
 	e.callback = cb;
-	e.callbackarg = (void *)(size_t)index;
+	// e.callbackarg = (void*)(size_t)index;
+	e.callbackarg = cbarg;
 	pushEvent(&e);
 	return 0;
 }
