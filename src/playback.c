@@ -31,8 +31,8 @@ void stopPlayback(void)
 	leaveSpecialModes();
 	if (s->playing)
 	{
-		if (w->instrumentrecv == INST_REC_LOCK_CONT || w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
-			w->instrumentrecv = INST_REC_LOCK_PREP_END;
+		if (w->instrecv == INST_REC_LOCK_CONT || w->instrecv == INST_REC_LOCK_CUE_CONT)
+			w->instrecv = INST_REC_LOCK_PREP_END;
 		Event ev;
 		ev.sem = M_SEM_PLAYING_STOP;
 		pushEvent(&ev);

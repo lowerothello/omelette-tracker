@@ -43,7 +43,7 @@ UI *allocWindow(void)
 	ret->defvariantlength = 0x7;
 	ret->trackerfy = STATE_ROWS;
 
-	__addInstrument(&ret->instrumentbuffer, INST_ALG_NULL);
+	// __addInstrument(&ret->instbuffer, INST_TYPE_NULL);
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 		ret->previewtrack[i] = allocTrack(NULL, NULL);
 
@@ -65,7 +65,8 @@ void freeWindow(UI *cw)
 
 	// clearTrackData(&cw->trackbuffer, 1);
 	_delTrack(NULL, &cw->trackbuffer);
-	delInstrumentForce(&cw->instrumentbuffer);
+	const InstAPI *api;
+	if ((api = instGetAPI(cw->instbuffer.type))) api->free(&cw->instbuffer);
 	freeEffect(&cw->effectbuffer);
 
 	if (cw->recbuffer) free(cw->recbuffer);

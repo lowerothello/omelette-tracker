@@ -345,7 +345,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 								printf("\033[22m");
 								if (s->playing && s->playfy == i) printf("\033[1m");
 							}
-							if (instrumentSafe(s->instrument, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
+							if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");
 							printCulling(buffer, x, y, minx, maxx);
 							printf("\033[37m");
@@ -375,7 +375,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 								printf("\033[22m");
 								setRowIntensity(cv->mute, i);
 							}
-							if (instrumentSafe(s->instrument, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
+							if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");
 							printCulling(buffer, x, y, minx, maxx);
 							printf("\033[22;37m");

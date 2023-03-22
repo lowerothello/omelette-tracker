@@ -101,9 +101,9 @@ int writeSongNew(Song *cs, char *path)
 	fputc(FKT_EOF, fp); writeSize(0, fp);
 
 	fputc(FKH_GOTO_INST, fp); writeSize(0, fp);
-	WRITE_POINTER_KEY(FKI_COUNT, sizeof(uint8_t), 1,              &cs->instrument->c, fp);
-	WRITE_POINTER_KEY(FKI_INDEX, sizeof(uint8_t), INSTRUMENT_MAX, cs->instrument->i,  fp);
-	for (uint8_t i = 0; i < cs->instrument->c; i++)
+	WRITE_POINTER_KEY(FKI_COUNT, sizeof(uint8_t), 1,              &cs->inst->c, fp);
+	WRITE_POINTER_KEY(FKI_INDEX, sizeof(uint8_t), INSTRUMENT_MAX, cs->inst->i,  fp);
+	for (uint8_t i = 0; i < cs->inst->c; i++)
 	{
 		WRITE_POINTER_KEY(FKI_INST, sizeof(uint8_t), 1, &i, fp);
 		/* TODO: finish instruments */
@@ -264,12 +264,12 @@ static void readSongInst(Song *ret, FILE *fp, uint16_t version, float ratemultip
 
 			case FKI_COUNT:
 				fread(&count, size, 1, fp);
-				ret->instrument = calloc(1, sizeof(InstrumentChain) + count*sizeof(Instrument));
-				ret->instrument->c = count;
+				ret->inst = calloc(1, sizeof(InstChain) + count*sizeof(Inst));
+				ret->inst->c = count;
 				continue;
 
-			case FKI_INST:  fread(&inst,              size, 1, fp); continue;
-			case FKI_INDEX: fread(ret->instrument->i, 1, size, fp); continue;
+			case FKI_INST:  fread(&inst,        size, 1, fp); continue;
+			case FKI_INDEX: fread(ret->inst->i, 1, size, fp); continue;
 
 			default: fseek(fp, size, SEEK_CUR); continue;
 		}

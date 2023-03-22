@@ -104,18 +104,14 @@ bool processM_SEM(void)
 				break;
 			case M_SEM_TRACK_MUTE: {
 					Track *cv;
-					Instrument *iv;
+					Inst *iv;
 					for (uint8_t c = 0; c < p->s->track->c; c++)
 					{
 						cv = p->s->track->v[c];
-						if (cv->mute && instrumentSafe(p->s->instrument, cv->r.inst))
+						if (cv->mute && instSafe(p->s->inst, cv->r.inst))
 						{
-							iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
-							if (iv->midi.channel != -1)
-							{
-								midiNoteOff(0, iv->midi.channel, cv->r.note, (cv->gain.rand>>4)<<3);
-								cv->r.note = NOTE_VOID;
-							}
+							iv = &p->s->inst->v[p->s->inst->i[cv->r.inst]];
+							midiMute(iv, cv);
 						}
 					}
 					p->event[0].sem = M_SEM_DONE;
@@ -168,8 +164,8 @@ bool processM_SEM(void)
 
 
 				/* start recording if cueing */
-				if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START)
-					p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT;
+				if (p->w->instrecv == INST_REC_LOCK_CUE_START)
+					p->w->instrecv = INST_REC_LOCK_CUE_CONT;
 
 				p->s->playing = 1;
 				p->redraw = 1;
@@ -180,8 +176,8 @@ bool processM_SEM(void)
 				for (uint8_t i = 0; i < p->s->track->c; i++)
 				{
 					cv = p->s->track->v[i];
-					if (instrumentSafe(p->s->instrument, cv->r.inst))
-						ramp(0, &p->s->spr, p->s->sprp, cv, (float)p->s->sprp / (float)p->s->spr, p->s->instrument->i[cv->r.inst]);
+					if (instSafe(p->s->inst, cv->r.inst))
+						ramp(0, &p->s->spr, p->s->sprp, cv, (float)p->s->sprp / (float)p->s->spr, p->s->inst->i[cv->r.inst]);
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 					clearTrackRuntime(cv); /* TODO: think this is unnecessary, cos it's implied by lookback */
 				}

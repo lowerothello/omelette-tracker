@@ -28,11 +28,9 @@ typedef struct EffectAPI
 	void                 (*copy)(void *state, void *src, float **i, float **o); /* copies from .src to .state */
 	void                  (*run)(void *state, uint32_t bufsize, float **i, float **o); /* process .bufsize samples from .i to .o */
 	uint32_t         (*controlc)(void *state); /* get how many controls .state has */
-	short              (*height)(void *state); /* get the height in terminal rows .state wants */
+	short              (*height)(void *state); /* get the height in rows .state wants */
 	void                 (*draw)(void *state, short x, short w, short y, short ymin, short ymax);
 } EffectAPI;
-EffectAPI *effect_api;
-
 
 #include "dummy.h"
 

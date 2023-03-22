@@ -15,8 +15,8 @@ Song *addSong(void)
 #define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
 void initSong(Song *cs)
 {
-	cs->instrument = calloc(1, sizeof(InstrumentChain));
-	memset(cs->instrument->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
+	cs->inst = calloc(1, sizeof(InstChain));
+	memset(cs->inst->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
 
 	cs->track = calloc(1, sizeof(TrackChain));
 	cs->track->v = calloc(STARTING_TRACKC, sizeof(Track*));
@@ -43,9 +43,10 @@ void freeSong(Song *cs)
 	free(cs->track->v);
 	free(cs->track);
 
-	for (int i = 0; i < cs->instrument->c; i++)
-		delInstrumentForce(&cs->instrument->v[i]);
-	free(cs->instrument);
+	const InstAPI *api;
+	for (int i = 0; i < cs->inst->c; i++)
+		if ((api = instGetAPI(cs->inst->v[i].type))) api->free(&cs->inst->v[i]);
+	free(cs->inst);
 
 	if (cs->bpmcache) free(cs->bpmcache);
 

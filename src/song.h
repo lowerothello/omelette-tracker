@@ -1,7 +1,7 @@
 typedef struct Song
 {
 	/* instruments */
-	InstrumentChain *instrument;
+	InstChain *inst;
 
 	/* tracks */
 	TrackChain *track;

@@ -563,7 +563,7 @@ static void pushInst(void *arg)
 			break;
 	}
 
-	if (r && w->instrumentrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
+	if (r && w->instrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
 	regenGlobalRowc(s); p->redraw = 1;
 }
 

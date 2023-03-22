@@ -14,66 +14,26 @@ static void instrumentEscape(void *arg)
 
 static void instrumentUpArrow(size_t count)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		browserUpArrow(fbstate, count);
-	else
-		decControlCursor(count*MAX(1, w->count));
 	p->redraw = 1;
 }
 static void instrumentDnArrow(size_t count)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		browserDownArrow(fbstate, count);
-	else
-		incControlCursor(count*MAX(1, w->count));
-	p->redraw = 1;
-}
-static void instrumentLeftArrow(void)
-{
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
-	{
-	} else
-	{
-		if (cc.cursor)
-			incControlFieldpointer();
-		else if (w->sample)
-		{
-			w->sample--;
-			resetWaveform();
-		}
-	}
-	p->redraw = 1;
-}
-static void instrumentRightArrow(void)
-{
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
-	{
-	} else
-	{
-		if (cc.cursor)
-			decControlFieldpointer();
-		else if (w->sample < SAMPLE_MAX-1)
-		{
-			w->sample++;
-			resetWaveform();
-		}
-	}
 	p->redraw = 1;
 }
 static void instrumentHome(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		browserHome(fbstate);
-	else
-		setControlCursor(0);
 	p->redraw = 1;
 }
 static void instrumentEnd(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		browserEnd(fbstate);
-	else
-		setControlCursor(cc.controlc-1);
 	p->redraw = 1;
 }
 
@@ -84,38 +44,34 @@ static void instrumentCtrlUpArrow(void *count)
 {
 	w->showfilebrowser = 0;
 	w->instrument -= (size_t)count * MAX(1, w->count);
-	if (w->instrument < 0) w->instrument = 0;
-	resetWaveform();
+	if (w->instrument < 0)
+		w->instrument = 0;
 	p->redraw = 1;
 }
 static void instrumentCtrlDownArrow(void *count)
 {
 	w->showfilebrowser = 0;
 	w->instrument += (size_t)count * MAX(1, w->count);
-	if (w->instrument > 254) w->instrument = 254;
-	resetWaveform();
+	if (w->instrument > 254)
+		w->instrument = 254;
 	p->redraw = 1;
 }
 
-static void instrumentSampleReturn(void *arg)
+static void instrumentSampleReturn(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		fbstate->commit(fbstate);
-	else
-		toggleKeyControl();
 	p->redraw = 1;
 }
-static void instrumentSampleBackspace(void *arg)
+static void instrumentSampleBackspace(void)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		fileBrowserBackspace(fbstate);
-	else
-		revertKeyControl();
 	p->redraw = 1;
 }
 static void instrumentSamplePressPreview(size_t note)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		fileBrowserPreview(fbstate, note, 0);
 	else
 		previewNote(note, w->instrument, 0);
@@ -123,7 +79,7 @@ static void instrumentSamplePressPreview(size_t note)
 }
 static void instrumentSampleReleasePreview(size_t note)
 {
-	if (!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 		fileBrowserPreview(fbstate, note, 1);
 	else
 		previewNote(note, w->instrument, 1);
@@ -139,27 +95,31 @@ static void instrumentMouse(enum Button button, int x, int y)
 		case BUTTON2_HOLD: case BUTTON2_HOLD_CTRL:
 			break;
 		default:
-			if ((!instrumentSafe(s->instrument, w->instrument) || w->showfilebrowser)
+			if ((!instSafe(s->inst, w->instrument) || w->showfilebrowser)
 					&& y > TRACK_ROW-2
 					&& x >= INSTRUMENT_INDEX_COLS)
 				browserMouse(fbstate, button, x, y);
 			else if (cc.mouseadjust
 					|| (y > TRACK_ROW-2
 					&&  x >= INSTRUMENT_INDEX_COLS))
-				mouseControls(button, x, y);
-			else
+			{
+				if (instSafe(s->inst, w->instrument))
+				{
+					Inst *iv = &s->inst->v[s->inst->i[w->instrument]];
+					const InstAPI *api;
+					if ((api = instGetAPI(iv->type))) api->mouse(iv, button, x, y);
+				}
+			} else
 			{
 				switch (button)
 				{
 					case WHEEL_UP: case WHEEL_UP_CTRL:
 						if (w->instrument > WHEEL_SPEED) w->instrument -= WHEEL_SPEED;
 						else                             w->instrument = 0;
-						resetWaveform();
 						break;
 					case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 						if (w->instrument < 254 - WHEEL_SPEED) w->instrument += WHEEL_SPEED;
 						else                                   w->instrument = 254;
-						resetWaveform();
 						break;
 					case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 						if (w->fyoffset)
@@ -167,7 +127,6 @@ static void instrumentMouse(enum Button button, int x, int y)
 							if ((short)w->instrument + w->fyoffset < 0)        w->instrument = 0;
 							else if ((short)w->instrument + w->fyoffset > 254) w->instrument = 254;
 							else                                               w->instrument += w->fyoffset;
-							resetWaveform();
 							w->fyoffset = 0;
 						} break;
 					case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL: break; /* ignore */
@@ -175,11 +134,10 @@ static void instrumentMouse(enum Button button, int x, int y)
 						switch (button)
 						{
 							case BUTTON2: case BUTTON2_CTRL:
-								if (!(w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci == w->instrument + y - w->centre))
+								if (!(w->instrecv != INST_REC_LOCK_OK && w->instreci == w->instrument + y - w->centre))
 								{
-									yankInstrument(w->instrument + y - w->centre);
-									delInstrument (w->instrument + y - w->centre);
-									resetWaveform();
+									yankInst(w->instrument + y - w->centre);
+									delInst (w->instrument + y - w->centre);
 								}
 							case BUTTON1: case BUTTON1_CTRL:
 								w->fyoffset = y - w->centre;
@@ -209,35 +167,28 @@ static void setInsertOctave(void *octave)
 
 static void emptyInstrumentIndex(void)
 {
-	w->instrument = emptyInstrument(0);
+	w->instrument = emptyInst(0);
 	p->redraw = 1;
 }
 
 static void yankInstrumentInput(void)
 {
-	yankInstrument(w->instrument);
+	yankInst(w->instrument);
 	p->redraw = 1;
 }
 static void putInstrumentInput(void)
 {
-	putInstrument(w->instrument);
+	putInst(w->instrument);
 	p->redraw = 1;
 }
 
 static void deleteInstrumentInput(void)
 {
-	if (!(w->instrumentrecv != INST_REC_LOCK_OK && w->instrumentreci == w->instrument)
-			&& instrumentSafe(s->instrument, w->instrument))
+	if (!(w->instrecv != INST_REC_LOCK_OK && w->instreci == w->instrument)
+			&& instSafe(s->inst, w->instrument))
 	{
-		if (cc.cursor)
-		{
-			yankInstrument(w->instrument);
-			delInstrument (w->instrument);
-		} else
-		{
-			freeWaveform();
-			attachSample(&s->instrument->v[s->instrument->i[w->instrument]].sample, NULL, w->sample);
-		}
+		yankInst(w->instrument);
+		delInst (w->instrument);
 		p->redraw = 1;
 	}
 }
@@ -245,33 +196,39 @@ static void deleteInstrumentInput(void)
 void initInstrumentInput(void)
 {
 	setTooltipTitle("instrument");
+
+
+	if (instSafe(s->inst, w->instrument))
+	{
+		Inst *iv = &s->inst->v[s->inst->i[w->instrument]];
+		const InstAPI *api;
+		if ((api = instGetAPI(iv->type))) api->input(iv);
+	}
+
 	setTooltipMouseCallback(instrumentMouse);
-	addTooltipBind("cursor up"        , 0          , XK_Up       , 0      , (void(*)(void*))instrumentUpArrow    , (void*)1);
-	addTooltipBind("cursor down"      , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDnArrow    , (void*)1);
-	addTooltipBind("cursor left"      , 0          , XK_Left     , 0      , (void(*)(void*))instrumentLeftArrow  , NULL    );
-	addTooltipBind("cursor right"     , 0          , XK_Right    , 0      , (void(*)(void*))instrumentRightArrow , NULL    );
-	addTooltipBind("cursor home"      , 0          , XK_Home     , 0      , (void(*)(void*))instrumentHome       , NULL    );
-	addTooltipBind("cursor end"       , 0          , XK_End      , 0      , (void(*)(void*))instrumentEnd        , NULL    );
-	addTooltipBind("cursor pgup"      , 0          , XK_Page_Up  , 0      , instrumentPgUp                       , (void*)1);
-	addTooltipBind("cursor pgdn"      , 0          , XK_Page_Down, 0      , instrumentPgDn                       , (void*)1);
-	addTooltipBind("previous index"   , ControlMask, XK_Up       , TT_DRAW, instrumentCtrlUpArrow                , (void*)1);
-	addTooltipBind("next index"       , ControlMask, XK_Down     , TT_DRAW, instrumentCtrlDownArrow              , (void*)1);
-	addTooltipBind("return"           , 0          , XK_Escape   , 0      , instrumentEscape                     , NULL    );
-	addTooltipBind("increment cell"   , ControlMask, XK_A        , TT_DRAW, (void(*)(void*))incControlValueRedraw, NULL    );
-	addTooltipBind("decrement cell"   , ControlMask, XK_X        , TT_DRAW, (void(*)(void*))decControlValueRedraw, NULL    );
-	addTooltipBind("toggle"           , 0          , XK_Return   , TT_DRAW, instrumentSampleReturn               , NULL    );
-	addTooltipBind("revert to default", 0          , XK_BackSpace, TT_DRAW, instrumentSampleBackspace            , NULL    );
+	addTooltipBind("cursor up"     , 0          , XK_Up       , 0      , (void(*)(void*))instrumentUpArrow        , (void*)1);
+	addTooltipBind("cursor down"   , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDnArrow        , (void*)1);
+	// addTooltipBind("cursor left"   , 0          , XK_Left     , 0      , (void(*)(void*))instrumentLeftArrow      , NULL    );
+	// addTooltipBind("cursor right"  , 0          , XK_Right    , 0      , (void(*)(void*))instrumentRightArrow     , NULL    );
+	addTooltipBind("cursor home"   , 0          , XK_Home     , 0      , (void(*)(void*))instrumentHome           , NULL    );
+	addTooltipBind("cursor end"    , 0          , XK_End      , 0      , (void(*)(void*))instrumentEnd            , NULL    );
+	addTooltipBind("cursor pgup"   , 0          , XK_Page_Up  , 0      , instrumentPgUp                           , (void*)1);
+	addTooltipBind("cursor pgdn"   , 0          , XK_Page_Down, 0      , instrumentPgDn                           , (void*)1);
+	addTooltipBind("previous index", ControlMask, XK_Up       , TT_DRAW, instrumentCtrlUpArrow                    , (void*)1);
+	addTooltipBind("next index"    , ControlMask, XK_Down     , TT_DRAW, instrumentCtrlDownArrow                  , (void*)1);
+	addTooltipBind("return"        , 0          , XK_Escape   , 0      , instrumentEscape                         , NULL    );
+	addTooltipBind("commit"        , 0          , XK_Return   , TT_DRAW, (void(*)(void*))instrumentSampleReturn   , NULL    );
+	addTooltipBind("revert"        , 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))instrumentSampleBackspace, NULL    );
 	switch (w->mode)
 	{
 		case MODE_NORMAL:
 			addCountBinds(0);
 			addRulerBinds();
 			addTooltipBind("record"           , 0, XK_r, TT_DEAD|TT_DRAW, (void(*)(void*))setChordRecord       , NULL);
-			addTooltipBind("add"              , 0, XK_a, TT_DEAD|TT_DRAW, (void(*)(void*))setChordAddInst      , NULL);
 			addTooltipBind("empty index"      , 0, XK_e, TT_DRAW        , (void(*)(void*))emptyInstrumentIndex , NULL);
 			addTooltipBind("yank"             , 0, XK_y, TT_DEAD|TT_DRAW, (void(*)(void*))yankInstrumentInput  , NULL);
 			addTooltipBind("put"              , 0, XK_p, TT_DRAW        , (void(*)(void*))putInstrumentInput   , NULL);
-			addTooltipBind("delete"           , 0, XK_d, TT_DEAD        , (void(*)(void*))deleteInstrumentInput, NULL);
+			addTooltipBind("delete"           , 0, XK_d, 0              , (void(*)(void*))deleteInstrumentInput, NULL);
 			addTooltipBind("enter insert mode", 0, XK_i, TT_DRAW        , instrumentEnterInsertMode            , NULL);
 			break;
 		case MODE_INSERT:

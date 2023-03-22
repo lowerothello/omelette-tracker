@@ -67,22 +67,20 @@ static void stopWaveformThread(void)
 	{
 		pthread_cancel(waveformthread);
 		pthread_join(waveformthread, NULL);
-		if (waveformsample) { free(waveformsample); waveformsample = NULL; }
+		waveformsample = NULL;
 		waveformthreadreap = 0;
 	}
 }
 
-void resetWaveform(void)
+static void resetWaveform(Sample *sample)
 {
 	stopWaveformThread();
 
 	if (!waveformworkcanvas) return;
 
-	if (instrumentSafe(s->instrument, w->instrument) && (*s->instrument->v[s->instrument->i[w->instrument]].sample)[w->sample])
+	if (sample)
 	{
-		Sample *instsample = (*s->instrument->v[s->instrument->i[w->instrument]].sample)[w->sample];
-		waveformsample = malloc(sizeof(Sample) + sizeof(short) * instsample->length * instsample->channels);
-		memcpy(waveformsample, instsample, sizeof(Sample) + sizeof(short) * instsample->length * instsample->channels);
+		waveformsample = sample; /* TODO: will probably lead to memory errors */
 		pthread_create(&waveformthread, NULL, (void*(*)(void*))walkWaveformRoutine, NULL);
 	}
 	p->redraw = 1;
@@ -98,7 +96,7 @@ void freeWaveform(void)
 	if (waveformbuffer) { free_buffer(waveformbuffer); waveformbuffer = NULL; }
 }
 
-static void resizeWaveform(short w, short h)
+static void resizeWaveform(Sample *sample, short w, short h)
 {
 	freeWaveform();
 
@@ -111,7 +109,7 @@ static void resizeWaveform(short w, short h)
 	waveformdrawcanvas = new_canvas(waveformw, waveformh);
 	waveformbuffer = new_buffer(waveformdrawcanvas);
 
-	resetWaveform();
+	resetWaveform(sample);
 }
 
 static void drawMarker(uint32_t marker, size_t offset, size_t width)
@@ -125,18 +123,19 @@ static void drawMarker(uint32_t marker, size_t offset, size_t width)
 }
 
 /* height in cells */
-void drawWaveform(Instrument *iv, short x, short y, short width, short height)
+void drawWaveform(Sample *sample, short x, short y, short width, short height)
 {
 	if (waveformw != width<<1 || waveformh != height<<2) /* new size */
-		resizeWaveform(width, height);
+		resizeWaveform(sample, width, height);
+	else if (sample != waveformsample)
+		resetWaveform(sample);
 
 	if (!waveformworkcanvas) return;
 
 	// offset = 0;
-	// width = iv->sample[w->sample]->length;
-	if (!(*iv->sample)[w->sample]) return;
+	// width = sample->length;
+	if (!sample) return;
 
-	Sample *sample = (*iv->sample)[w->sample];
 	memcpy(waveformdrawcanvas->canvas, waveformworkcanvas->canvas, waveformw * waveformh);
 	drawMarker(sample->trimstart,                                                                                          0, sample->length);
 	drawMarker(MIN(sample->trimstart + sample->trimlength, sample->length-1),                                              0, sample->length);

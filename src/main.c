@@ -200,12 +200,12 @@ int main(int argc, char *argv[])
 			if (p->redraw) { p->redraw = 0; redraw();  }
 
 			/* finish freeing the record buffer */
-			if (w->instrumentrecv == INST_REC_LOCK_CANCEL)
+			if (w->instrecv == INST_REC_LOCK_CANCEL)
 			{
 				free(w->recbuffer); w->recbuffer = NULL;
-				w->instrumentrecv = INST_REC_LOCK_OK;
+				w->instrecv = INST_REC_LOCK_OK;
 				p->redraw = 1;
-			} else if (w->instrumentrecv == INST_REC_LOCK_END)
+			} else if (w->instrecv == INST_REC_LOCK_END)
 			{
 				if (w->recptr > 0)
 				{
@@ -215,11 +215,11 @@ int main(int argc, char *argv[])
 					sample->rate = sample->defrate = samplerate;
 					memcpy(&sample->data, w->recbuffer, (w->recptr<<1)*sizeof(short));
 					free(w->recbuffer); w->recbuffer = NULL;
-					reparentSample(&s->instrument->v[s->instrument->i[w->instrumentreci]], sample);
-					w->recptr = 0; resetWaveform();
+					reparentSample(&s->inst->v[s->inst->i[w->instreci]], sample);
+					w->recptr = 0;
 				} else { free(w->recbuffer); w->recbuffer = NULL; }
 
-				w->instrumentrecv = INST_REC_LOCK_OK;
+				w->instrecv = INST_REC_LOCK_OK;
 				p->redraw = 1;
 			}
 			handleStdin(); /* ensure that semaphores are handled between input and draw */

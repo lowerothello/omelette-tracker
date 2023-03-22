@@ -9,20 +9,19 @@ void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv, float rp, uint
 		/* clear the rampbuffer properly so cruft isn't played in edge cases */
 		memset(cv->rampbuffer, 0, sizeof(float) * rampmax * 2);
 
-		/* save state */
-		float samplegain = powf(2, (float)p->s->instrument->v[realinstrument].gain*DIV16);
-
 		float finetune = 0.0f;
 		uint32_t pointeroffset = cv->pointer;
 		uint32_t pitchedpointeroffset = cv->pitchedpointer;
 		macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointeroffset, &pitchedpointeroffset);
 
-		if (realinstrument < p->s->instrument->c)
+		if (realinstrument < p->s->inst->c) /* TODO: should use instSafe */
 		{
 			pitchedpointeroffset++;
 			float oldenvgain = cv->envgain;
 			float oldmodenvgain = cv->modenvgain;
 			short l, r;
+			Inst *iv = &p->s->inst->v[realinstrument];
+			const InstAPI *api;
 			if (cv->reverse)
 			{
 				uint32_t localrampmax;
@@ -33,17 +32,19 @@ void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv, float rp, uint
 				for (uint16_t i = 0; i < localrampmax; i++)
 				{
 					if (pitchedpointeroffset) pitchedpointeroffset--;
-					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
-					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT * samplegain;
-					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT * samplegain;
+					if ((api = instGetAPI(iv->type)))
+						api->process(iv, cv, rp, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
+					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT;
+					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT;
 				}
 			} else
 				for (uint16_t i = 0; i < rampmax; i++)
 				{
 					pitchedpointeroffset++;
-					samplerProcess(realinstrument, cv, rp, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
-					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT * samplegain;
-					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT * samplegain;
+					if ((api = instGetAPI(iv->type)))
+						api->process(iv, cv, rp, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
+					cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT;
+					cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT;
 				}
 			cv->envgain = oldenvgain;
 			cv->modenvgain = oldmodenvgain;
@@ -79,17 +80,32 @@ void midiCC(uint32_t fptr, uint8_t midichannel, uint8_t controller, uint8_t valu
 	audio_api.writeMidi(fptr, event, 3);
 }
 
+void midiMute(Inst *iv, Track *cv)
+{
+	if (iv->type == INST_TYPE_MIDI) /* TODO: should be in "instrument/midi.c" */
+	{
+		if (((InstMidiState*)iv->state)->channel != -1)
+		{
+			midiNoteOff(0, ((InstMidiState*)iv->state)->channel, cv->r.note, (cv->gain.rand>>4)<<3);
+			cv->r.note = NOTE_VOID;
+		}
+	}
+}
+
 bool triggerMidi(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
 {
-	if (note != NOTE_VOID && !cv->mute && instrumentSafe(p->s->instrument, inst))
+	if (note != NOTE_VOID && !cv->mute && instSafe(p->s->inst, inst))
 	{
-		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[inst]];
-		if (iv->algorithm == INST_ALG_MIDI)
+		Inst *iv = &p->s->inst->v[p->s->inst->i[inst]];
+		if (iv->type == INST_TYPE_MIDI)
 		{
-			/* always stop the prev. note */
-			midiNoteOff(fptr, iv->midi.channel, oldnote, (cv->gain.rand>>4)<<3);
-			midiNoteOn (fptr, iv->midi.channel, note,    (cv->gain.rand>>4)<<3);
-			return 1;
+			if (((InstMidiState*)iv->state)->channel != -1)
+			{
+				/* always stop the prev. note */
+				midiNoteOff(fptr, ((InstMidiState*)iv->state)->channel, oldnote, (cv->gain.rand>>4)<<3);
+				midiNoteOn (fptr, ((InstMidiState*)iv->state)->channel, note,    (cv->gain.rand>>4)<<3);
+				return 1;
+			}
 		}
 	} return 0;
 }
@@ -97,7 +113,8 @@ bool triggerMidi(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, uint8_
 /* TODO: should maybe take oldnote and a row as args */
 void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
 {
-	Instrument *iv;
+	Inst *iv;
+	const InstAPI *api;
 
 	triggerMidi(fptr, cv, oldnote, note, inst);
 
@@ -123,11 +140,11 @@ void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short 
 			cv->reverse = 0;
 			cv->release = 0;
 
-			if (instrumentSafe(p->s->instrument, inst))
+			if (instSafe(p->s->inst, inst))
 			{
-				iv = &p->s->instrument->v[p->s->instrument->i[inst]];
 				cv->r.inst = inst;
-				cv->sampleslot = iv->samplemap[cv->r.note];
+				iv = &p->s->inst->v[p->s->inst->i[inst]];
+				if ((api = instGetAPI(iv->type))) api->triggernote(iv, cv);
 				iv->triggerflash = cv->triggerflash = samplerate / buffersize * INSTRUMENT_TRIGGER_FLASH_S;
 				p->redraw = 1;
 				cv->file = 0;
@@ -170,8 +187,8 @@ void processRow(uint32_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 	if (cv->pointer && ifMacroRamp(cv, r))
 		triggerramp = 1;
 
-	if (triggerramp && instrumentSafe(p->s->instrument, cv->r.inst))
-		ramp(fptr, spr, 0, &oldcv, 0.0f, p->s->instrument->i[cv->r.inst]);
+	if (triggerramp && instSafe(p->s->inst, cv->r.inst))
+		ramp(fptr, spr, 0, &oldcv, 0.0f, p->s->inst->i[cv->r.inst]);
 }
 
 void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
@@ -211,26 +228,13 @@ void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
 	macroCallbackPersistent(fptr, *spr, spr, 0, cv);
 
 	/* process the sampler */
-	if (instrumentSafe(p->s->instrument, cv->r.inst)
+	if (instSafe(p->s->inst, cv->r.inst)
 			&& cv->r.note != NOTE_VOID && cv->r.inst != INST_VOID)
 	{
-		Instrument *iv = &p->s->instrument->v[p->s->instrument->i[cv->r.inst]];
-		Envelope env, wtenv;
-		env.adsr = iv->envelope; if (cv->localenvelope != -1) env.adsr = cv->localenvelope;
-		applyEnvelopeControlChanges(&env);
-		wtenv.adsr = iv->wavetable.envelope;
-		applyEnvelopeControlChanges(&wtenv);
-		env.pointer = wtenv.pointer = cv->pointer;
-		env.output = cv->envgain;
-		wtenv.output = cv->modenvgain;
-		env.release = wtenv.release = cv->release;
-		for (uint16_t sprp = 0; sprp < *spr; sprp++)
-		{
-			envelope(&env);
-			envelope(&wtenv);
-		}
-		cv->envgain = env.output;
-		cv->modenvgain = wtenv.output;
+		Inst *iv = &p->s->inst->v[p->s->inst->i[cv->r.inst]];
+		const InstAPI *api;
+		if ((api = instGetAPI(iv->type)))
+			api->lookback(iv, cv, spr);
 
 		if (cv->reverse)
 		{
@@ -252,8 +256,8 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 	uint8_t newnote = macroCallbackSampleRow(fptr, 1, spr, sprp, cv);
 	if (newnote != NOTE_VOID)
 	{
-		if (instrumentSafe(p->s->instrument, cv->r.inst))
-			ramp(fptr, spr, sprp, cv, rowprogress, p->s->instrument->i[cv->r.inst]);
+		if (instSafe(p->s->inst, cv->r.inst))
+			ramp(fptr, spr, sprp, cv, rowprogress, p->s->inst->i[cv->r.inst]);
 		triggerNote(fptr, cv, cv->r.note, newnote, cv->r.inst);
 
 		macroCallbackPostTrig(fptr, spr, cv, &cv->r);
@@ -269,7 +273,6 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 	short li = 0;
 	short ri = 0;
 
-	float samplegain;
 	if (cv->file)
 	{
 		if (!cv->mute && p->w->previewsample && cv->r.note != NOTE_VOID)
@@ -285,12 +288,15 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 		}
 	} else
 	{
-		if (instrumentSafe(p->s->instrument, cv->r.inst))
+		if (instSafe(p->s->inst, cv->r.inst))
 		{
 			/* process the sampler */
 			if (cv->r.inst != INST_VOID && cv->r.note != NOTE_VOID)
 			{
-				samplerProcess(p->s->instrument->i[cv->r.inst], cv, rowprogress, pointer, pitchedpointer, finetune, &li, &ri);
+				Inst *iv = &p->s->inst->v[p->s->inst->i[cv->r.inst]];
+				const InstAPI *api;
+				if ((api = instGetAPI(iv->type)))
+					api->process(iv, cv, rowprogress, pointer, pitchedpointer, finetune, &li, &ri);
 
 				if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
 				else                                       cv->pitchedpointer++;
@@ -309,11 +315,10 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 			{
 				float gain = (float)cv->rampindex / (float)rampmax;
 
-				if (instrumentSafe(p->s->instrument, cv->r.inst))
+				if (instSafe(p->s->inst, cv->r.inst))
 				{
-					samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->r.inst]].gain*DIV16);
-					lf *= samplegain * gain;
-					rf *= samplegain * gain;
+					lf *= gain;
+					rf *= gain;
 				}
 
 				lf += cv->rampbuffer[cv->rampindex*2 + 0] * (1.0f - gain);
@@ -323,12 +328,8 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 			} else cv->effect->input[0][fptr] = cv->effect->input[1][fptr] = 0.0f;
 
 			cv->rampindex++;
-		} else if (!cv->mute && instrumentSafe(p->s->instrument, cv->r.inst))
+		} else if (!cv->mute && instSafe(p->s->inst, cv->r.inst))
 		{
-			samplegain = powf(2, (float)p->s->instrument->v[p->s->instrument->i[cv->r.inst]].gain*DIV16);
-			lf *= samplegain;
-			rf *= samplegain;
-
 			postSampler(fptr, cv, rowprogress, lf, rf);
 		} else cv->effect->input[0][fptr] = cv->effect->input[1][fptr] = 0.0f;
 	}
@@ -376,14 +377,14 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 						p->s->loop[2] = 0;
 					}
 					lookback(fptr, spr, *playfy, cv);
-					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_CONT) p->w->instrumentrecv = INST_REC_LOCK_END;
-					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START) p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT;
+					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
+					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
 				} else if (!p->s->loop[1] && *playfy >= p->s->songlen)
 				{
 					*playfy = STATE_ROWS;
 					lookback(fptr, spr, *playfy, cv);
-					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_CONT) p->w->instrumentrecv = INST_REC_LOCK_END;
-					if (p->w->instrumentrecv == INST_REC_LOCK_CUE_START) p->w->instrumentrecv = INST_REC_LOCK_CUE_CONT;
+					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
+					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
 				}
 
 				/* preprocess track */
@@ -420,11 +421,11 @@ static void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that
 static void triggerFlash(PlaybackInfo *p)
 {
 	/* triggerflash animations */
-	for (int i = 0; i < p->s->instrument->c; i++)
-		if (p->s->instrument->v[i].triggerflash)
+	for (int i = 0; i < p->s->inst->c; i++)
+		if (p->s->inst->v[i].triggerflash)
 		{
-			if (p->s->instrument->v[i].triggerflash == 1) p->redraw = 1;
-			p->s->instrument->v[i].triggerflash--;
+			if (p->s->inst->v[i].triggerflash == 1) p->redraw = 1;
+			p->s->inst->v[i].triggerflash--;
 		}
 
 	for (int i = 0; i < p->s->track->c; i++)
@@ -443,12 +444,12 @@ void processOutput(uint32_t nfptr)
 
 	/* TODO: should be events */
 	/* will no longer write to the record buffer */
-	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_END)    p->w->instrumentrecv = INST_REC_LOCK_END;
-	if (p->w->instrumentrecv == INST_REC_LOCK_PREP_CANCEL) p->w->instrumentrecv = INST_REC_LOCK_CANCEL;
+	if (p->w->instrecv == INST_REC_LOCK_PREP_END)    p->w->instrecv = INST_REC_LOCK_END;
+	if (p->w->instrecv == INST_REC_LOCK_PREP_CANCEL) p->w->instrecv = INST_REC_LOCK_CANCEL;
 	/* start recording immediately if not cueing */
-	if (p->w->instrumentrecv == INST_REC_LOCK_START)
+	if (p->w->instrecv == INST_REC_LOCK_START)
 	{
-		p->w->instrumentrecv = INST_REC_LOCK_CONT;
+		p->w->instrecv = INST_REC_LOCK_CONT;
 		p->redraw = 1;
 	}
 
@@ -591,12 +592,12 @@ void processOutput(uint32_t nfptr)
 
 void processInput(uint32_t nfptr)
 {
-	if (p->w->instrumentrecv == INST_REC_LOCK_CONT
-			|| p->w->instrumentrecv == INST_REC_LOCK_CUE_CONT)
+	if (p->w->instrecv == INST_REC_LOCK_CONT
+			|| p->w->instrecv == INST_REC_LOCK_CUE_CONT)
 	{
 		if (p->w->recptr + nfptr > RECORD_LENGTH * samplerate)
 		{
-			p->w->instrumentrecv = INST_REC_LOCK_END;
+			p->w->instrecv = INST_REC_LOCK_END;
 			strcpy(p->w->command.error, "record buffer full");
 			p->redraw = 1;
 		} else

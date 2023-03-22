@@ -37,9 +37,9 @@ typedef struct UI {
 	int8_t   pbfx[2];  /* patternbuffer horizontal clipping region */
 	uint8_t  defvariantlength;
 
-	Instrument instrumentbuffer; /* instrument paste buffer */
-	Track      trackbuffer;      /* track paste buffer */
-	Effect     effectbuffer;     /* effect paste buffer */
+	Inst   instbuffer;   /* instrument paste buffer */
+	Track  trackbuffer;  /* track paste buffer      */
+	Effect effectbuffer; /* effect paste buffer     */
 
 	char filepath[COMMAND_LENGTH];
 
@@ -82,9 +82,9 @@ typedef struct UI {
 	Track *previewtrack[PREVIEW_TRACKS];
 	Sample *previewsample; /* used by the filebrowser to soft load samples */
 
-	uint8_t  instrumentreci; /* NOT a realindex */
-	uint8_t  instrumentrecv; /* value, set to an INST_REC_LOCK constant */
-	short   *recbuffer;      /* disallow removing an instrument while recording to it */
+	uint8_t  instreci;  /* NOT a realindex */
+	uint8_t  instrecv;  /* value, set to an INST_REC_LOCK constant */
+	short   *recbuffer; /* disallow removing an instrument while recording to it */
 	uint32_t recptr;
 } UI;
 UI *w;

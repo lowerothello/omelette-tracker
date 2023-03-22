@@ -37,7 +37,7 @@ typedef struct Track
 	uint16_t rampindex;  /* progress through the ramp buffer, rampmax if not ramping */
 	float   *rampbuffer; /* samples to ramp out */
 
-	/* sampler */
+	/* sampler, TODO: unify */
 	float envgain;
 	float modenvgain; /* wavetable modulation envelope */
 

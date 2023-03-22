@@ -1,47 +1,49 @@
-void instUISampleCallback(short x, short y, Instrument *iv, uint8_t index)
+void instUISampleCallback(short x, short y, Inst *iv, uint8_t index)
 {
-	Sample *sample = (*iv->sample)[w->sample];
+	InstSamplerState *s = iv->state;
+	Sample *sample = (*s->sample)[w->sample];
 	if (!sample) return;
 
 	switch (index)
 	{
 		case 0:
 			printf("\033[%d;%dHrate:  [        ]", y, x);
-			addControlInt(x+8, y, &sample->rate, 8, 0x0, 0xffffffff, sample->defrate, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+8, y, &sample->rate, 8, 0x0, 0xffffffff, sample->defrate, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHgain:    [ ][   ]", y, x);
-			addControlInt(x+10, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			// addControlInt(x+13, y, &iv->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			// addControlInt(x+13, y, &s->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
-		case 2: printf("\033[%d;%dHstart: [        ]", y, x); addControlInt(x+8, y, &sample->trimstart,  8, 0, sample->length-1  , 0,                0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 3: printf("\033[%d;%dHdelta: [        ]", y, x); addControlInt(x+8, y, &sample->trimlength, 8, 0, sample->length-1  , sample->length-1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
-		case 4: printf("\033[%d;%dHloop:  [        ]", y, x); addControlInt(x+8, y, &sample->looplength, 8, 0, sample->trimlength, 0,                0, 0, (void(*)(void*))instrumentControlCallback, NULL); break;
+		case 2: printf("\033[%d;%dHstart: [        ]", y, x); addControlInt(x+8, y, &sample->trimstart,  8, 0, sample->length-1  , 0,                0, 0, (void(*)(void*))instControlCallback, NULL); break;
+		case 3: printf("\033[%d;%dHdelta: [        ]", y, x); addControlInt(x+8, y, &sample->trimlength, 8, 0, sample->length-1  , sample->length-1, 0, 0, (void(*)(void*))instControlCallback, NULL); break;
+		case 4: printf("\033[%d;%dHloop:  [        ]", y, x); addControlInt(x+8, y, &sample->looplength, 8, 0, sample->trimlength, 0,                0, 0, (void(*)(void*))instControlCallback, NULL); break;
 		case 5:
 			printf("\033[%d;%dHpp/ramp:  [ ][  ]", y, x);
-			addControlInt(x+11, y, &sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+14, y, &sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+11, y, &sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+14, y, &sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 	}
 }
 
-void instUICyclicCallback(short x, short y, Instrument *iv, uint8_t index)
+void instUICyclicCallback(short x, short y, Inst *iv, uint8_t index)
 {
+	InstSamplerState *s = iv->state;
 	switch (index)
 	{
 		case 0:
 			printf("\033[%d;%dHquality: [ ][ ][  ]", y, x);
-			addControlInt(x+10, y, &iv->interpolate, 0,   0,    1,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+13, y, &iv->bitdepth,    1, 0x0,  0xf,  0xf, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+16, y, &iv->samplerate,  2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &s->interpolate, 0,   0,    1,    0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+13, y, &s->bitdepth,    1, 0x0,  0xf,  0xf, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+16, y, &s->samplerate,  2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHgain env:    [    ]", y, x);
-			addControlInt(x+14, y, &iv->envelope, 4, 0x0, 0xffff, 0x00f0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+14, y, &s->envelope, 4, 0x0, 0xffff, 0x00f0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 2:
 			printf("\033[%d;%dHchannel:   [      ]", y, x);
-			addControlInt(x+12, y, &iv->channelmode, 1, 0, 4, 0, 6, 5, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+12, y, &s->channelmode, 1, 0, 4, 0, 6, 5, (void(*)(void*))instControlCallback, NULL);
 				addScalePointInt("STEREO", SAMPLE_CHANNELS_STEREO);
 				addScalePointInt("  LEFT", SAMPLE_CHANNELS_LEFT  );
 				addScalePointInt(" RIGHT", SAMPLE_CHANNELS_RIGHT );
@@ -50,59 +52,59 @@ void instUICyclicCallback(short x, short y, Instrument *iv, uint8_t index)
 			break;
 		case 3:
 			printf("\033[%d;%dHgain:         [   ]", y, x);
-			// if (sample) addControlInt(x+12, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+15, y, &iv->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			// if (sample) addControlInt(x+12, y, &sample->invert, 0,    0,   1, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+15, y, &s->gain,       3, -128, 127, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 4:
 			printf("\033[%d;%dHunison:   [ ][ ][ ]", y, x);
 			break;
 		case 5:
 			printf("\033[%d;%dHrev/ramp:   [  ][ ]", y, x);
-			addControlInt(x+13, y, &iv->granular.reversegrains, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+17, y, &iv->granular.rampgrains,    1, 0x0, 0xf,  8, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+13, y, &s->granular.reversegrains, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+17, y, &s->granular.rampgrains,    1, 0x0, 0xf,  8, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 6:
 			printf("\033[%d;%dHcycle:   [    ][  ]", y, x);
-			addControlInt(x+10, y, &iv->granular.cyclelength,       4, 0x0, 0xffff, 0x3fff, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+16, y, &iv->granular.cyclelengthjitter, 2, 0x0, 0xff,   0x0,    0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &s->granular.cyclelength,       4, 0x0, 0xffff, 0x3fff, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+16, y, &s->granular.cyclelengthjitter, 2, 0x0, 0xff,   0x0,    0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 7:
 			printf("\033[%d;%dHtime     [ ][     ]", y, x);
-			addControlInt(x+10, y, &iv->granular.notestretch, 0, 0,      1,      0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+13, y, &iv->granular.timestretch, 5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &s->granular.notestretch, 0, 0,      1,      0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+13, y, &s->granular.timestretch, 5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 8:
 			printf("\033[%d;%dHpan jitter:    [  ]", y, x);
-			addControlInt(x+16, y, &iv->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+16, y, &s->granular.panjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 9:
 			printf("\033[%d;%dHptr jitter:    [  ]", y, x);
-			addControlInt(x+16, y, &iv->granular.ptrjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+16, y, &s->granular.ptrjitter, 2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 10:
-			printf("\033[%d;%dHframe:         [  ]", y, x); addControlInt(x+10, y, &iv->frame, 2, 0, 255, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			printf("\033[%d;%dHframe:         [  ]", y, x); addControlInt(x+10, y, &s->frame, 2, 0, 255, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 11:
 			printf("\033[%d;%dHpitch: [   ][     ]", y, x);
-			addControlInt(x+8 , y, &iv->granular.pitchstereo, 3, -128,   127,    0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+13, y, &iv->granular.pitchshift,  5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+8 , y, &s->granular.pitchstereo, 3, -128,   127,    0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+13, y, &s->granular.pitchshift,  5, 0x8bff, 0x7bff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 12:
 			printf("\033[%d;%dHjitter:  [  ][ ][ ]", y, x);
-			addControlInt(x+10, y, &iv->granular.pitchjitter,       2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+14, y, &iv->granular.pitchoctaverange,  1, 0x0,  0xf,  0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
-			addControlInt(x+17, y, &iv->granular.pitchoctavechance, 1, 0x0,  0xf,  0, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+10, y, &s->granular.pitchjitter,       2, 0x00, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+14, y, &s->granular.pitchoctaverange,  1, 0x0,  0xf,  0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+17, y, &s->granular.pitchoctavechance, 1, 0x0,  0xf,  0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 	}
 }
 
-void instUIMidiCallback(short x, short y, Instrument *iv, uint8_t index)
+void instUIMidiCallback(short x, short y, Inst *iv, uint8_t index)
 {
 	switch (index)
 	{
 		case 0:
 			printf("\033[%d;%dHMIDI channel:  [ ]", y, x);
-			addControlInt(x+16, y, &iv->midi.channel, 1, -1, 15, -1, 0, 0, (void(*)(void*))instrumentControlCallback, NULL);
+			addControlInt(x+16, y, &((InstMidiState*)iv->state)->channel, 1, -1, 15, -1, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHMIDI program: [  ]", y, x);
@@ -110,28 +112,15 @@ void instUIMidiCallback(short x, short y, Instrument *iv, uint8_t index)
 	}
 }
 
-void instUIEmptyCallback(short x, short y, Instrument *iv, uint8_t index)
+void instUIEmptyCallback(short x, short y, Inst *iv, uint8_t index)
 {
 	printf("\033[%d;%d%s", y, x, EMPTY_INST_UI_TEXT);
 }
 
-static const InstUI *initInstrumentUI(Instrument *iv)
+static short drawInstIndex(short bx, short minx, short maxx)
 {
-	if (!iv)
-		return &emptyInstUI;
-
-	switch (iv->algorithm)
-	{
-		case INST_ALG_MIDI: return &midiInstUI;
-		case INST_ALG_SAMPLER: return &cyclicInstUI;
-		default: return NULL;
-	}
-}
-
-
-static short drawInstrumentIndex(short bx, short minx, short maxx)
-{
-	Instrument *iv;
+	Inst *iv;
+	const InstAPI *api;
 	char buffer[9];
 	short x = 0;
 	for (int i = 0; i < INSTRUMENT_MAX; i++)
@@ -139,11 +128,9 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 		{
 			x = bx;
 
-			if (instrumentSafe(s->instrument, i))
-			{
-				iv = &s->instrument->v[s->instrument->i[i]];
-				if (iv->triggerflash) printf("\033[3%dm", i%6+1);
-			}
+			if (instSafe(s->inst, i))
+				if (s->inst->v[s->inst->i[i]].triggerflash)
+					printf("\033[3%dm", i%6+1);
 
 			if (w->instrument + w->fyoffset == i) /* TODO: fyoffset can get stuck set sometimes */
 				printf("\033[1;7m");
@@ -156,23 +143,15 @@ static short drawInstrumentIndex(short bx, short minx, short maxx)
 
 			if (x <= ws.ws_col)
 			{
-				if (instrumentSafe(s->instrument, i))
+				if (instSafe(s->inst, i))
 				{
-					iv = &s->instrument->v[s->instrument->i[i]];
-					if (iv->algorithm == INST_ALG_MIDI)
-						snprintf(buffer, 9, "- MIDI -");
-					else
-					{
-						uint32_t samplesize = 0;
-						FOR_SAMPLECHAIN(j, iv->sample)
-							samplesize += (*iv->sample)[j]->length * (*iv->sample)[j]->channels;
-						humanReadableSize(samplesize, buffer);
-						printCulling("        ", x, w->centre - w->instrument + i, minx, maxx); /* flush */
-					}
+					iv = &s->inst->v[s->inst->i[i]];
+					if ((api = instGetAPI(iv->type)))
+						api->getindexinfo(iv, buffer);
 				} else snprintf(buffer, 9, "........");
+				printCulling("        ", x, w->centre - w->instrument + i, minx, maxx); /* flush with attribute, TODO: is there an escape code to do this in a better way? */
 				printCulling(buffer, x + 8 - strlen(buffer), w->centre - w->instrument + i, minx, maxx);
-			}
-			x += 9;
+			} x += 9;
 
 			printf("\033[40;37;22;27m");
 		}
@@ -206,7 +185,7 @@ short getMaxInstUICols(const InstUI *iui, short width)
 	return (width + (iui->padding<<1)) / (iui->width + iui->padding);
 }
 
-void drawInstUI(const InstUI *iui, Instrument *iv, short x, short w, short y, short scrolloffset, short rows)
+void drawInstUI(const InstUI *iui, void *callbackarg, short x, short w, short y, short scrolloffset, short rows)
 {
 	short cols = MIN(getMaxInstUICols(iui, w), getInstUICols(iui, rows));
 	x += (w - (cols*(iui->width + iui->padding)) + iui->padding)>>1;
@@ -216,7 +195,7 @@ void drawInstUI(const InstUI *iui, Instrument *iv, short x, short w, short y, sh
 		cx = x + (i/rows)*(iui->width + iui->padding);
 		cy = y + i%rows;
 		if (cy < ws.ws_row - 1 && cy > scrolloffset)
-			iui->callback(cx, cy - scrolloffset, iv, i);
+			iui->callback(cx, cy - scrolloffset, callbackarg, i);
 	}
 }
 
@@ -236,77 +215,18 @@ void drawInstrument(void)
 
 	short minx = 1;
 	short maxx = ws.ws_col;
-	short x = drawInstrumentIndex(1, minx, maxx) + 2;
-	static short scrolloffset;
+	short x = drawInstIndex(1, minx, maxx) + 2;
 
-	if (instrumentSafe(s->instrument, w->instrument))
+	if (instSafe(s->inst, w->instrument))
 	{
-		Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
-		const InstUI *iui = initInstrumentUI(iv);
-
 		clearControls();
 
-		short cols = getMaxInstUICols(iui, ws.ws_col - x);
-		if (!cols) goto drawInstrumentEnd;
+		Inst *iv = &s->inst->v[s->inst->i[w->instrument]];
+		const InstAPI *api;
+		if ((api = instGetAPI(iv->type)))
+			api->draw(iv, x, TRACK_ROW+1, ws.ws_col - x, ws.ws_row - 1 - (TRACK_ROW+1), minx, maxx);
 
-		short rows = getInstUIRows(iui, cols);
-		if (!rows) goto drawInstrumentEnd;
-
-		short y = TRACK_ROW+1;
-		short wh = MAX((ws.ws_row - 1 - y) - rows, INSTUI_WAVEFORM_MIN);
-
-		switch (iv->algorithm)
-		{
-			case INST_ALG_NULL: break;
-			case INST_ALG_MIDI: break;
-			case INST_ALG_SAMPLER:
-				drawBoundingBox(x, y, ws.ws_col - x, wh - 1, minx, maxx, 1, ws.ws_row);
-
-				short sample_rows = getInstUIRows(&sampleInstUI, getMaxInstUICols(&sampleInstUI, ws.ws_col - x - 5));
-
-				short whh = wh - sample_rows;
-
-				/* multisample indices */
-				addControlDummy(x + 3, y + (whh>>1));
-				char buffer[5];
-				short siy;
-				for (uint8_t i = 0; i < SAMPLE_MAX; i++)
-				{
-					siy = y + (whh>>1) - w->sample + i;
-					if (siy > y && siy < y + (whh - 1))
-					{ /* vertical bounds limiting */
-						if (i == w->sample) printf("\033[1;7m");
-						if ((*iv->sample)[i]) snprintf(buffer, 5, " %01x", i);
-						else                  snprintf(buffer, 5, " .");
-						printCulling(buffer, x+1, siy, minx, maxx);
-						if (i == w->sample) printf("\033[22;27m");
-					}
-				}
-
-				drawWaveform(iv, x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, ws.ws_col - (x+INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
-
-				drawInstUI(&sampleInstUI, iv, x+1, ws.ws_col - (x+1), y + whh - 1, scrolloffset, sample_rows);
-				break;
-		}
-
-		y += wh;
-
-		short viewportheight = ws.ws_row - 1 - y;
-		if (viewportheight <= 0)
-			goto drawInstrumentEnd;
-
-		/* ensure that scrolloffset is in range */
-		/* TODO: scrolloffset padding */
-		// scrolloffset = MIN(scrolloffset + viewportheight, rows          ); /* within range */
-		// scrolloffset = MIN(scrolloffset, cc.cursor%rows                 ); /* push up      */
-		// scrolloffset = MAX(scrolloffset, cc.cursor%rows - viewportheight); /* push down    */
-
-		drawInstUI(iui, iv, x, ws.ws_col - x, y, scrolloffset, rows);
-
-drawInstrumentEnd:
 		drawControls();
 	} else
-	{
 		drawBrowser(fbstate);
-	}
 }

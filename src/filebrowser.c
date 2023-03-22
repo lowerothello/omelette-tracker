@@ -193,23 +193,22 @@ static void fileBrowserCommit(BrowserState *b)
 
 static void sampleLoadCallbackOverload(char *path)
 {
-	Instrument *iv = &s->instrument->v[s->instrument->i[w->instrument]];
+	Inst *iv = &s->inst->v[s->inst->i[w->instrument]];
 	Sample *newsample = loadSample(path);
 	if (newsample)
-		attachSample(&iv->sample, newsample, w->sample);
+		attachSample(&((InstSamplerState*)iv->state)->sample, newsample, w->sample);
 	else
 		strcpy(w->command.error, "failed to load sample, out of memory");
 
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
 	w->showfilebrowser = 0;
-	resetWaveform();
 	free(path);
 }
 
 static void sampleLoadCallbackAddCallback(Event *e)
 {
-	cb_addInstrument(e);
+	cb_addInst(e);
 	sampleLoadCallbackOverload(e->callbackarg);
 }
 
@@ -219,8 +218,8 @@ static void sampleLoadCallback(char *path)
 	if (!path) return;
 
 	freeWaveform();
-	if (!instrumentSafe(s->instrument, w->instrument))
-		addInstrument(w->instrument, INST_ALG_SAMPLER, sampleLoadCallbackAddCallback, strdup(path));
+	if (!instSafe(s->inst, w->instrument))
+		addInst(w->instrument, INST_TYPE_SAMPLER, sampleLoadCallbackAddCallback, strdup(path));
 	else
 		sampleLoadCallbackOverload(strdup(path));
 }

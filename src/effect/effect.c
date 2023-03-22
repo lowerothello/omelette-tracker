@@ -26,6 +26,7 @@ EffectAPI *effectGetAPI(void)
 	return ret;
 }
 
+EffectAPI *effect_api;
 void initEffectDB(void)
 {
 	effect_api = effectGetAPI();

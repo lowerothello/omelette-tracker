@@ -658,9 +658,9 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 			if (x1 <= 1 && x2 >= 1 && r->note != NOTE_VOID)
 			{
 				r->inst = NOTE_VOID;
-				randinst = rand()%(s->instrument->c-1) + 1;
+				randinst = rand()%(s->inst->c-1) + 1;
 				for (k = 0; k < INSTRUMENT_MAX; k++)
-					if (s->instrument->i[k] == randinst) { r->inst = k; break; }
+					if (s->inst->i[k] == randinst) { r->inst = k; break; }
 			}
 			for (k = 0; k <= cv->variant->macroc; k++)
 				if (x1 <= k+2 && x2 >= k+2 && r->macro[k].c)
@@ -681,9 +681,9 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 						if (x1 <= 1 && r->note != NOTE_VOID)
 						{
 							r->inst = NOTE_VOID;
-							randinst = rand()%(s->instrument->c-1) + 1;
+							randinst = rand()%(s->inst->c-1) + 1;
 							for (k = 0; k < INSTRUMENT_MAX; k++)
-								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
+								if (s->inst->i[k] == randinst) { r->inst = k; break; }
 						}
 						for (k = 0; k <= cv->variant->macroc; k++)
 							if (x1 <= k+2 && r->macro[k].c)
@@ -694,9 +694,9 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 						if (x2 >= 1 && r->note != NOTE_VOID)
 						{
 							r->inst = NOTE_VOID;
-							randinst = rand()%(s->instrument->c-1) + 1;
+							randinst = rand()%(s->inst->c-1) + 1;
 							for (k = 0; k < INSTRUMENT_MAX; k++)
-								if (s->instrument->i[k] == randinst)
+								if (s->inst->i[k] == randinst)
 								{ r->inst = k; break; }
 						}
 						for (k = 0; k <= cv->variant->macroc; k++)
@@ -708,9 +708,9 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 						if (r->note != NOTE_VOID)
 						{
 							r->inst = NOTE_VOID;
-							randinst = rand()%(s->instrument->c-1) + 1;
+							randinst = rand()%(s->inst->c-1) + 1;
 							for (k = 0; k < INSTRUMENT_MAX; k++)
-								if (s->instrument->i[k] == randinst) { r->inst = k; break; }
+								if (s->inst->i[k] == randinst) { r->inst = k; break; }
 						}
 						for (k = 0; k <= cv->variant->macroc; k++)
 							if (r->macro[k].c)
@@ -1000,10 +1000,10 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 /* TODO: pretty sure this function is like completely broken */
 void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	short inst = emptyInstrument(0);
+	short inst = emptyInst(0);
 	if (inst == -1)
 	{
-		strcpy(w->command.error, "visual render failed, no empty instrument slot");
+		strcpy(w->command.error, "visual render failed, no empty inst slot");
 		return;
 	}
 
@@ -1081,8 +1081,8 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		free(chain->v[chnl]);
 	} free(chain);
 
-	/* init the instrument */
-	addReparentInstrument(inst, 0, sample);
+	/* init the inst */
+	addReparentInst(inst, INST_TYPE_SAMPLER, sample);
 
 	w->instrument = inst;
 }

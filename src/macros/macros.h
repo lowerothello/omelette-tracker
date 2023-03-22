@@ -61,9 +61,7 @@ void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, flo
 #include "pitch.c"
 #include "retrigger.c"
 #include "chance.c"
-#include "offset.c"
 #include "filter.c"
-#include "granular.c"
 #include "midi.c"
 
 #define MACRO_CALLBACK_MAX 11
@@ -76,9 +74,8 @@ MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState), 0 },
 	{ macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState), 0 },
 	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
-	{ NULL, NULL, macroOffsetPostTrig, NULL, NULL, NULL, NULL, NULL, 0, 0 },
 	{ macroFilterClear, NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler, sizeof(MacroFilterState), 0 },
-	{ NULL, NULL, macroGranularPostTrig, macroGranularTriggerNote, NULL, NULL, NULL, NULL, 0, 0 }, /* TODO: add granular state */
+	{ NULL, NULL, macroInstSamplerPostTrig, macroInstSamplerTriggerNote, NULL, NULL, NULL, NULL, 0, 0 },
 	{ NULL, NULL, macroMidiPostTrig, NULL, NULL, NULL, NULL, NULL, 0, 0 },
 };
 
