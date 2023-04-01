@@ -6,6 +6,7 @@ void clearTrackRuntime(Track *cv)
 	cv->file = 0;
 
 	macroCallbackClear(cv);
+	memset(cv->inststate, 0, instGetPlaybackStateSize());
 }
 
 /* clears the global variant and frees all local variants */
@@ -38,22 +39,17 @@ void clearTrackData(Track *cv, uint16_t songlen)
 void addTrackRuntime(Track *cv)
 {
 	cv->rampindex = rampmax;
-	cv->rampbuffer = malloc(sizeof(float) * rampmax * 2); /* *2 for stereo */
-	// cv->output[0] = calloc(buffersize, sizeof(float));
-	// cv->output[1] = calloc(buffersize, sizeof(float));
-	// cv->pluginoutput[0] = calloc(buffersize, sizeof(float));
-	// cv->pluginoutput[1] = calloc(buffersize, sizeof(float));
+	cv->rampbuffer = calloc(rampmax * 2, sizeof(float)); /* *2 for stereo */
 	cv->mainmult[0] = calloc(buffersize, sizeof(float));
 	cv->mainmult[1] = calloc(buffersize, sizeof(float));
 	cv->sendmult[0] = calloc(buffersize, sizeof(float));
 	cv->sendmult[1] = calloc(buffersize, sizeof(float));
+	cv->inststate = malloc(instGetPlaybackStateSize());
+	cv->macrostate = calloc(sizeof(void*), MACRO_CALLBACK_MAX);
+	for (int i = 0; i < MACRO_CALLBACK_MAX; i++)
+		if (global_macro_callbacks[i].statesize) /* calloc is ambiguous as to whether it will return a null pointer or an illegal pointer if either arg is 0, so explicitly check */
+			cv->macrostate[i] = calloc(1, global_macro_callbacks[i].statesize);
 	clearTrackRuntime(cv);
-}
-
-void addTrackData(Track *cv, uint16_t songlen)
-{
-	cv->effect = newEffectChain();
-	initTrackData(cv, songlen);
 }
 
 void debug_dumpTrackState(Song *cs)
@@ -89,10 +85,11 @@ static void cb_addTrack(Event *e)
 /* .cs can be NULL */
 Track *allocTrack(Song *cs, Track *copyfrom)
 {
-	Track *ret = calloc(1, sizeof(Track) + getMacroBlobSize());
-	addTrackRuntime(ret);
+	Track *ret = calloc(1, sizeof(Track));
 
-	addTrackData(ret, cs ? cs->songlen : 0);
+	addTrackRuntime(ret);
+	ret->effect = newEffectChain();
+	initTrackData(ret, cs ? cs->songlen : 0);
 
 	copyTrack(ret, copyfrom);
 	return ret;
@@ -157,11 +154,19 @@ void _delTrack(Song *cs, Track *cv)
 { /* NOT atomic */
 	clearTrackData(cv, cs ? cs->songlen : 0);
 	freeEffectChain(cv->effect);
-	if (cv->rampbuffer) { free(cv->rampbuffer); cv->rampbuffer = NULL; }
-	if (cv->mainmult[0]) { free(cv->mainmult[0]); cv->mainmult[0] = NULL; }
-	if (cv->mainmult[1]) { free(cv->mainmult[1]); cv->mainmult[1] = NULL; }
-	if (cv->sendmult[0]) { free(cv->sendmult[0]); cv->sendmult[0] = NULL; }
-	if (cv->sendmult[1]) { free(cv->sendmult[1]); cv->sendmult[1] = NULL; }
+	if (cv->rampbuffer) free(cv->rampbuffer);
+	if (cv->mainmult[0]) free(cv->mainmult[0]);
+	if (cv->mainmult[1]) free(cv->mainmult[1]);
+	if (cv->sendmult[0]) free(cv->sendmult[0]);
+	if (cv->sendmult[1]) free(cv->sendmult[1]);
+	if (cv->inststate) free(cv->inststate);
+	if (cv->macrostate)
+	{
+		for (int i = 0; i < MACRO_CALLBACK_MAX; i++)
+			if (cv->macrostate[i])
+				free(cv->macrostate[i]);
+		free(cv->macrostate);
+	}
 }
 
 static void cb_delTrack(Event *e)

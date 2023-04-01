@@ -35,7 +35,10 @@ void setTooltipTitle(char *prettytitle);
 void setTooltipMouseCallback(void (*callback)(enum Button, int, int));
 void addTooltipPrettyPrint(const char *prettyname, unsigned int state, const char *prettykeysym);
 void addTooltipBind(const char *prettyname, unsigned int state, KeySym keysym, uint8_t flags, void (*callback)(void *), void *arg);
+
+/* procs the first relevant bind */
 void inputTooltip(unsigned int state, KeySym input, bool release);
+
 void drawTooltip(void);
 
 /* the callback's arg is the note offset cast to (void*) */

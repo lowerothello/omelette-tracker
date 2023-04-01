@@ -52,7 +52,6 @@ void init(int argc, char *argv[])
 	initTerminal();
 	initRawInput();
 	initEffectDB();
-	initMacroBlob();
 
 	if (audioInitAPI()) common_cleanup(1);
 

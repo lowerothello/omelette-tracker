@@ -13,7 +13,6 @@ typedef struct MacroState
 
 typedef struct Track
 {
-	/* flags */
 	bool mute;
 	unsigned reverse : 1;
 	unsigned release : 1;
@@ -22,37 +21,22 @@ typedef struct Track
 	VariantChain *variant;
 	EffectChain  *effect;
 
-	/* runtime state */
+	void **macrostate;
+	void *inststate;
+
 	uint32_t pointer;        /* clock */
 	uint32_t pitchedpointer; /* tuned clock */
 
-	/* gain */
 	MacroState gain;
 	MacroState send;
 
 	Row r;
-	uint8_t sampleslot; /* TODO: don't like this */
 
-	/* ramping */
 	uint16_t rampindex;  /* progress through the ramp buffer, rampmax if not ramping */
 	float   *rampbuffer; /* samples to ramp out */
 
-	/* sampler, TODO: unify */
-	float envgain;
-	float modenvgain; /* wavetable modulation envelope */
-
-	short localenvelope;
-	short localsustain;
-	MacroState pitchshift;
-	MacroState pitchwidth;
-	MacroState samplerate;
-	int localcyclelength;
-
-	uint16_t grainrampindex; /* progress through the grain ramp buffer, >=cv->grainrampmax if not ramping */
-	uint16_t grainrampmax;   /* actual grainrampmax used, to allow for tiny grain sizes */
-
-	float *mainmult[2]; /* apply post-effects in parallel with sendmult */
-	float *sendmult[2]; /* apply post-effects in parallel with mainmult */
+	float *mainmult[2]; /* stereo gain multiplier */
+	float *sendmult[2]; /* stereo gain multiplier */
 
 	uint32_t triggerflash;
 } Track; /* cv */
@@ -73,7 +57,6 @@ void clearTrackRuntime(Track *cv);
 void initTrackData(Track *cv, uint16_t songlen); /* TODO: should be atomic */
 void clearTrackData(Track *cv, uint16_t songlen);
 void addTrackRuntime(Track *cv);
-void addTrackData(Track *cv, uint16_t songlen);
 void debug_dumpTrackState(struct Song *cs);
 
 /* copyfrom can be NULL */

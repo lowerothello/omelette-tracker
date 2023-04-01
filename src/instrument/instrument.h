@@ -33,14 +33,16 @@ typedef struct InstAPI
 	void         (*draw)(Inst*, short x, short y, short width, short height, short minx, short maxx);
 	void        (*input)(Inst*);
 	void        (*mouse)(Inst*, enum Button button, int x, int y);
-	void  (*triggernote)(Inst*, Track*);
+	void  (*triggernote)(uint32_t fptr, Inst*, Track*, uint8_t oldnote, uint8_t note, short inst);
 	void      (*process)(Inst*, Track*, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r);
 	void     (*lookback)(Inst*, Track*, uint16_t *spr);
 	/* playback state (can't use the heap) */
+	size_t statesize;
 	/* inst-specific macros */
 } InstAPI;
 
 const InstAPI *instGetAPI(InstType type);
+size_t instGetPlaybackStateSize(void);
 
 /* checks to see if an inst is allocated and safe to use */
 bool instSafe(InstChain*, short index);
@@ -75,3 +77,4 @@ void instControlCallback(void);
 #include "draw.h"
 
 #include "sampler/sampler.h"
+#include "midi/midi.h"

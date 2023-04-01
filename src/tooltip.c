@@ -71,6 +71,7 @@ void addTooltipBind(const char *prettyname, unsigned int state, KeySym keysym, u
 	tt.entryc++;
 }
 
+/* procs the first relevant bind */
 void inputTooltip(unsigned int state, KeySym input, bool release)
 {
 	/* don't try to process lower-case control keys */
@@ -86,6 +87,7 @@ void inputTooltip(unsigned int state, KeySym input, bool release)
 			dead = tt.entryv[i].flags&TT_DEAD; /* save flags in case the callback fucks with tt */
 			if (tt.entryv[i].callback)
 				tt.entryv[i].callback(tt.entryv[i].arg);
+			p->redraw = 1;
 
 			/* if the bind is dead then don't reset the tooltip based on the current mode/page */
 			if (!dead)

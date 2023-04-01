@@ -1,13 +1,21 @@
 #include "sampler/sampler.c"
-#include "midi.c"
+#include "midi/midi.c"
 
+/* TODO: should just be an array lookup */
 const InstAPI *instGetAPI(InstType type)
 {
 	switch (type)
 	{
 		case INST_TYPE_SAMPLER: return &samplerAPI;
+		case INST_TYPE_MIDI: return &midiAPI;
 		default: return NULL;
 	}
+}
+
+/* this implementation must be realtime safe */
+size_t instGetPlaybackStateSize(void)
+{
+	return MAX(samplerAPI.statesize, midiAPI.statesize);
 }
 
 static InstChain *_copyInst(uint8_t index, Inst *src)

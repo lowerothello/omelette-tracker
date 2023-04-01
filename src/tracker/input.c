@@ -904,17 +904,17 @@ void initTrackerInput(void)
 			addTrackerNavBinds();
 			addRulerBinds();
 			addTrackerGraphicBinds();
-			addTooltipBind("return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape         , NULL);
-			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControlRedraw, NULL);
-			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControlRedraw, NULL);
-			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow        , &s->track->v[w->track]->effect);
-			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove        , &s->track->v[w->track]->effect);
-			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow      , &s->track->v[w->track]->effect);
-			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove      , &s->track->v[w->track]->effect);
-			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect        , &s->track->v[w->track]->effect);
-			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect       , &s->track->v[w->track]->effect);
-			addTooltipBind("increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValueRedraw , NULL);
-			addTooltipBind("decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValueRedraw , NULL);
+			addTooltipBind("return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape   , NULL);
+			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControl, NULL);
+			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControl, NULL);
+			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow  , &s->track->v[w->track]->effect);
+			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove  , &s->track->v[w->track]->effect);
+			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow, &s->track->v[w->track]->effect);
+			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove, &s->track->v[w->track]->effect);
+			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect  , &s->track->v[w->track]->effect);
+			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect , &s->track->v[w->track]->effect);
+			addTooltipBind("increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValue , NULL);
+			addTooltipBind("decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValue , NULL);
 			break;
 		case MODE_NORMAL:
 			addCountBinds(0);

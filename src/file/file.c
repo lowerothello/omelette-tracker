@@ -219,7 +219,8 @@ static void readSongTrack(Song *ret, FILE *fp, uint16_t version)
 			case FKT_TRACK:
 				fread(&track, size, 1, fp);
 				addTrackRuntime(ret->track->v[track]);
-				addTrackData(ret->track->v[track], ret->songlen);
+				ret->track->v[track]->effect = newEffectChain();
+				initTrackData(ret->track->v[track], ret->songlen);
 				resizeVariantChain(ret->track->v[track]->variant, ret->songlen);
 				continue;
 

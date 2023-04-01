@@ -228,5 +228,5 @@ int main(int argc, char *argv[])
 		req.tv_sec = 0;
 		req.tv_nsec = UPDATE_DELAY;
 		while (nanosleep(&req, &req) < 0);
-	} cleanup(0);
+	}
 }

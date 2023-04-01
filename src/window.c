@@ -49,7 +49,6 @@ UI *allocWindow(void)
 
 	ret->trackbuffer.effect = newEffectChain();
 	initTrackData(&ret->trackbuffer, 0);
-	
 
 	return ret;
 }

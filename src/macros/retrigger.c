@@ -94,19 +94,23 @@ void macroRetrigTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t n
 void macroRetrigVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state)
 {
 	MacroRetrigState *ms = state;
+	Inst *iv;
+	const InstAPI *api;
 
 	sprp += count;
 
 	if (ms->rtrigsamples)
 	{
-		if (!((*pointer - ms->rtrigpointer) % ms->rtrigsamples))
-		{ /* first sample of any retrigger */
-			if (*pointer > ms->rtrigpointer) /* first sample of any retrigger but the first */
+		if (!((*pointer - ms->rtrigpointer) % ms->rtrigsamples) && *pointer > ms->rtrigpointer)
+		{ /* first sample of any retrigger but the first */
+			if (instSafe(p->s->inst, cv->r.inst))
 			{
-				triggerMidi(fptr, cv, cv->r.note, cv->r.note, cv->r.inst);
-				ms->rtrigcurrentpitchedpointer = *pitchedpointer;
-				ms->rtrigcurrentpointer = *pointer;
+				iv = &p->s->inst->v[p->s->inst->i[cv->r.inst]];
+				if ((api = instGetAPI(iv->type)))
+					api->triggernote(fptr, iv, cv, cv->r.note, cv->r.note, cv->r.inst);
 			}
+			ms->rtrigcurrentpitchedpointer = *pitchedpointer;
+			ms->rtrigcurrentpointer = *pointer;
 		}
 		if (ms->rtrig_rev)
 		{

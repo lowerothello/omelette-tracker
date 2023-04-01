@@ -80,7 +80,9 @@ char *humanReadableSize(double bytes, char *buffer)
 		i++;
 	}
 
-	sprintf(buffer, "%.1f%c", bytes, units[i]);
+	if (i) sprintf(buffer, "%.1f%c", bytes, units[i]);
+	else   sprintf(buffer, "%ld", (size_t)bytes);
+
 	return buffer;
 }
 

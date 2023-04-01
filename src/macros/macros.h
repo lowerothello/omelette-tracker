@@ -41,7 +41,6 @@ typedef struct MacroAPI
 	void   (*volatiletune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state);
 	void    (*postsampler)(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state);
 	size_t statesize;
-	size_t stateoffset; /* private */
 } MacroAPI;
 // MacroAPI *macro_api;
 
@@ -67,21 +66,17 @@ void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, flo
 #define MACRO_CALLBACK_MAX 11
 MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 {
-	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
-	{ macroRowClear, macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL, sizeof(MacroRowState), 0 },
-	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
-	{ macroSendClear, macroSendPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
-	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState), 0 },
-	{ macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState), 0 },
-	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0 },
-	{ macroFilterClear, NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler, sizeof(MacroFilterState), 0 },
-	{ NULL, NULL, macroInstSamplerPostTrig, macroInstSamplerTriggerNote, NULL, NULL, NULL, NULL, 0, 0 },
-	{ NULL, NULL, macroMidiPostTrig, NULL, NULL, NULL, NULL, NULL, 0, 0 },
+	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
+	{ macroRowClear, macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL, sizeof(MacroRowState) },
+	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
+	{ macroSendClear, macroSendPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
+	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState) },
+	{ macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState) },
+	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
+	{ macroFilterClear, NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler, sizeof(MacroFilterState) },
+	{ NULL, NULL, macroInstSamplerPostTrig, macroInstSamplerTriggerNote, NULL, NULL, NULL, NULL, 0 },
+	{ NULL, NULL, macroMidiPostTrig, NULL, NULL, NULL, NULL, NULL, 0 },
 };
-
-void initMacroBlob(void);
-size_t getMacroBlobSize(void);
-
 
 /* not an enum so they can be accessed within macros */
 #define MF_STEREO      (1<<0) /* treat both nibbles as equally significant               */

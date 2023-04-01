@@ -79,6 +79,20 @@ typedef struct InstSamplerState
 	} wavetable;
 } InstSamplerState;
 
+typedef struct InstSamplerPlaybackState
+{
+	float envgain;
+	float modenvgain; /* wavetable modulation envelope */
+	short localenvelope;
+	short localsustain;
+	MacroState pitchshift;
+	MacroState pitchwidth;
+	MacroState samplerate;
+	int localcyclelength;
+	uint16_t grainrampindex; /* progress through the grain ramp buffer */
+	uint8_t sampleslot;
+} InstSamplerPlaybackState;
+
 
 void samplerInit(Inst *iv);
 void samplerFree(Inst *iv);
@@ -87,7 +101,7 @@ void samplerGetIndexInfo(Inst *iv, char *buffer);
 void samplerDraw(Inst *iv, short x, short y, short width, short height, short minx, short maxx);
 void samplerInput(Inst *iv);
 void samplerMouse(Inst *iv, enum Button button, int x, int y);
-void samplerTriggerNote(Inst *iv, Track *cv);
+void samplerTriggerNote(uint32_t fptr, Inst *iv, Track *cv, uint8_t oldnote, uint8_t note, short inst);
 void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r);
 void samplerLookback(Inst *iv, Track *cv, uint16_t *spr);
 
@@ -103,6 +117,7 @@ const InstAPI samplerAPI =
 	samplerTriggerNote,
 	samplerProcess,
 	samplerLookback,
+	sizeof(InstSamplerPlaybackState),
 };
 
 #include "macros.h"

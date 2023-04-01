@@ -25,12 +25,3 @@ void drawInstrument(void);
 void instUIEmptyCallback(short x, short y, Inst *iv, uint8_t index);
 const InstUI emptyInstUI = { 26/*strlen(EMPTY_INST_UI_TEXT)*/, 1, 0, instUIEmptyCallback, };
 
-void instUICyclicCallback(short x, short y, Inst *iv, uint8_t index);
-const InstUI cyclicInstUI = { 19, 13, 2, instUICyclicCallback, };
-
-static void instUIMidiCallback(short x, short y, Inst *iv, uint8_t index);
-const InstUI midiInstUI = { 18, 2, 2, instUIMidiCallback, };
-
-void instUISampleCallback(short x, short y, Inst *iv, uint8_t index);
-const InstUI sampleInstUI = { 17, 6, 3, instUISampleCallback, };
-
