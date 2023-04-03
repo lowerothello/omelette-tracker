@@ -6,8 +6,8 @@
 enum M_SEM {
 	M_SEM_OK,             /* allow processing                                            */
 	M_SEM_DONE,           /* pop the event                                               */
-	M_SEM_RELOAD_REQ,     /* trigger downtime for a file reload                          */
-	M_SEM_SWAP_REQ,       /* swap e->swap1 and e->swap2 in the process thread            */
+	M_SEM_RELOAD_REQ,     /* trigger downtime for a file reload on the main thread       */
+	M_SEM_SWAP_REQ,       /* swap e->swap1 and e->swap2 in the proc thread               */
 	M_SEM_CALLBACK,       /* call p->semcallback() in the main thread                    */
 	M_SEM_BLOCK_CALLBACK, /* call p->semcallback() and block the main thread             */
 	M_SEM_BPM,            /* reapply the song bpm                                        */

@@ -304,6 +304,7 @@ Inst deserializeInst(struct json_object *jso, void *data, double ratemultiplier)
 	if ((api = instGetAPI(ret.type)))
 		ret.state = api->deserialize(json_object_object_get(jso, "state"), data, ratemultiplier);
 
+	ret.triggerflash = 0;
 	return ret;
 }
 
