@@ -16,7 +16,7 @@ void macroGainPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *sta
 	{
 		switch (r->macro[i].c)
 		{
-			case MACRO_GAIN:        macroStateSet   (&cv->gain, r->macro[i]); break;
+			case MACRO_GAIN: macroStateSet(&cv->gain, r->macro[i]); break;
 			case MACRO_SMOOTH_GAIN: macroStateSmooth(&cv->gain, r->macro[i]); break;
 		}
 	}

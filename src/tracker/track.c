@@ -12,7 +12,6 @@ void clearTrackRuntime(Track *cv)
 /* clears the global variant and frees all local variants */
 void initTrackData(Track *cv, uint16_t songlen) /* TODO: should be atomic */
 {
-
 	freeVariantChain(&cv->variant);
 	cv->variant = calloc(1, sizeof(VariantChain));
 
@@ -256,7 +255,7 @@ static void cb_regenBpmCache(Event *e)
 { /* using cb_addTrack for this causes a loop */
 	free(e->src); e->src = NULL;
 
-	s->bpmcachelen = (uint16_t)(size_t)e->callbackarg;
+	w->bpmcachelen = (uint16_t)(size_t)e->callbackarg;
 
 	p->redraw = 1;
 }
@@ -271,7 +270,7 @@ void regenBpmCache(Song *cs)
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void **)&cs->bpmcache;
+	e.dest = (void **)&w->bpmcache;
 	e.src = newbpmcache;
 	e.callback = cb_regenBpmCache;
 	e.callbackarg = (void *)(size_t)cs->songlen;
@@ -354,4 +353,48 @@ void toggleTrackSolo(uint8_t track)
 		s->track->v[track]->mute = 0;
 	}
 	applyTrackMutes();
+}
+
+struct json_object *serializeTrack(Track *track)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "mute", json_object_new_boolean(track->mute));
+	json_object_object_add(ret, "variant", serializeVariantChain(track->variant));
+	json_object_object_add(ret, "effect", serializeEffectChain(track->effect));
+
+	return ret;
+}
+
+Track *deserializeTrack(struct json_object *jso)
+{
+	Track *ret = calloc(1, sizeof(Track));
+	addTrackRuntime(ret);
+
+	ret->mute = json_object_get_boolean(json_object_object_get(jso, "mute"));
+	ret->variant = deserializeVariantChain(json_object_object_get(jso, "variant"));
+	ret->effect = deserializeEffectChain(json_object_object_get(jso, "effect"));
+
+	return ret;
+}
+
+struct json_object *serializeTrackChain(TrackChain *chain)
+{
+	struct json_object *ret = json_object_new_array_ext(chain->c);
+
+	for (int i = 0; i < chain->c; i++)
+		json_object_array_add(ret, serializeTrack(chain->v[i]));
+
+	return ret;
+}
+
+TrackChain *deserializeTrackChain(struct json_object *jso)
+{
+	TrackChain *ret = malloc(sizeof(TrackChain));
+	ret->c = json_object_array_length(jso);
+
+	ret->v = malloc(ret->c * sizeof(Track*));
+	for (int i = 0; i < ret->c; i++)
+		ret->v[i] = deserializeTrack(json_object_array_get_idx(jso, i));
+
+	return ret;
 }

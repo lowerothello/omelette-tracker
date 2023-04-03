@@ -25,6 +25,7 @@
 #include <X11/keysym.h>
 // #endif
 #include <valgrind/valgrind.h> /* valgrind hooks                  */
+#include <json.h>
 
 
 /* libdrawille */
@@ -77,11 +78,11 @@ static bool commandCallback(char *command, enum Mode *mode)
 	wordSplit(buffer, command, 0);
 	if      (!strcmp(buffer, "q"))   { free(buffer); buffer = NULL; return 1; }
 	else if (!strcmp(buffer, "q!"))  { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSongNew(s, buffer); }
+	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSongJson(s, buffer); }
 	else if (!strcmp(buffer, "wq"))
 	{
 		wordSplit(buffer, command, 1);
-		if (!writeSongNew(s, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
+		if (!writeSongJson(s, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
 	} else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);

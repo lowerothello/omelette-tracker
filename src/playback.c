@@ -15,11 +15,11 @@ static void leaveSpecialModes(void)
 void startPlayback(void)
 {
 	leaveSpecialModes();
-	if (s->loop[1]) s->playfy = s->loop[0];
-	else            s->playfy = STATE_ROWS;
-	s->sprp = 0;
+	if (s->loop[1]) w->playfy = s->loop[0];
+	else            w->playfy = STATE_ROWS;
+	w->sprp = 0;
 	if (w->follow)
-		w->trackerfy = s->playfy;
+		w->trackerfy = w->playfy;
 	Event ev;
 	ev.sem = M_SEM_PLAYING_START;
 	pushEvent(&ev);
@@ -29,7 +29,7 @@ void startPlayback(void)
 void stopPlayback(void)
 {
 	leaveSpecialModes();
-	if (s->playing)
+	if (w->playing)
 	{
 		if (w->instrecv == INST_REC_LOCK_CONT || w->instrecv == INST_REC_LOCK_CUE_CONT)
 			w->instrecv = INST_REC_LOCK_PREP_END;

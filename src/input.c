@@ -24,7 +24,7 @@ void addCountBinds(bool draw)
 
 void previewNote(uint8_t note, uint8_t inst, bool release)
 {
-	if (p->w->page == PAGE_VARIANT && p->s->playing) return;
+	if (p->w->page == PAGE_VARIANT && p->w->playing) return;
 	Event ev;
 	ev.sem = M_SEM_PREVIEW;
 	ev.arg1 = note;
@@ -93,13 +93,16 @@ static enum InputMode getRawInputMode(void)
 	return INPUTMODE_NONE;
 #endif
 
-	if (getenv("OML_STDIN"))              return INPUTMODE_NONE;
-	if (!strcmp(getenv("TERM"), "LINUX")) return INPUTMODE_RAW;
+	if (getenv("OML_STDIN"))
+		return INPUTMODE_NONE;
+
+	if (!strcmp(getenv("TERM"), "LINUX"))
+		return INPUTMODE_RAW;
 
 #ifdef OML_X11
-	if (getenv("DISPLAY"))                return INPUTMODE_X;
+	if (getenv("DISPLAY"))
+		return INPUTMODE_X;
 #endif
-
 	return INPUTMODE_NONE; /* fallback */
 }
 

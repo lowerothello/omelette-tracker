@@ -14,15 +14,16 @@ typedef struct MacroState
 typedef struct Track
 {
 	bool mute;
+	VariantChain *variant;
+	EffectChain  *effect;
+
+	/* runtime */
 	unsigned reverse : 1;
 	unsigned release : 1;
 	unsigned file    : 1;
 
-	VariantChain *variant;
-	EffectChain  *effect;
-
 	void **macrostate;
-	void *inststate;
+	void  *inststate;
 
 	uint32_t pointer;        /* clock */
 	uint32_t pitchedpointer; /* tuned clock */
@@ -80,3 +81,6 @@ void cycleVariantDown(Variant *v, uint16_t bound);
 void applyTrackMutes(void);
 void toggleTrackMute(uint8_t track);
 void toggleTrackSolo(uint8_t track);
+
+struct json_object *serializeTrackChain(TrackChain*);
+TrackChain *deserializeTrackChain(struct json_object*);

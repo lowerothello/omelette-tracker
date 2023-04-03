@@ -27,13 +27,6 @@ typedef struct Row
 	Macro   macro[8];
 } Row;
 
-#define C_VTRIG_LOOP (1<<0) /* variant should loop indefinitely */
-typedef struct Vtrig
-{
-	uint8_t index;
-	uint8_t flags;
-} Vtrig;
-
 #define VARIANT_VOID 255
 #define VARIANT_OFF 254
 #define VARIANT_ROWMAX 255
@@ -43,16 +36,23 @@ typedef struct Variant
 	Row      rowv[];
 } Variant;
 
+#define C_VTRIG_LOOP (1<<0) /* variant should loop indefinitely */
+typedef struct Vtrig
+{
+	uint8_t index;
+	uint8_t flags;
+} Vtrig;
+
 #define VARIANT_MAX 254
 typedef struct VariantChain
 {
 	uint16_t songlen;        /* main variant length        */
+	uint8_t  macroc;         /* macro column count         */
 	Vtrig   *trig;           /* variant triggers           */
 	Variant *main;           /* main fallback variant      */
-	uint8_t  macroc;         /* macro column count         */
 	uint8_t  c;              /* variant contents length    */
-	uint8_t  i[VARIANT_MAX]; /* variant index/backref      */
-	Variant *v[];            /* variant contents           */
+	uint8_t  i[VARIANT_MAX]; /* variant index/backref      */ /* json: index */
+	Variant *v[];            /* variant contents           */ /* json: data  */
 } VariantChain; /* enough pattern data for a full track    */
 
 
@@ -101,3 +101,8 @@ void setVariantChainTrig  (VariantChain **vc, uint16_t index, uint8_t value);
 int getVariantChainVariant(Variant **output, VariantChain *vc, uint16_t index);
 /* like above, but ignore variant looping */
 int getVariantChainVariantNoLoop(Variant **output, VariantChain *vc, uint16_t index);
+
+struct json_object *serializeVariant(Variant*);
+Variant *deserializeVariant(struct json_object*);
+struct json_object *serializeVariantChain(VariantChain*);
+VariantChain *deserializeVariantChain(struct json_object*);

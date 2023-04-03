@@ -12,6 +12,7 @@ src/lib/libdrawille: <https://github.com/huulivoide/libdrawille>
 DEPENDS:
 - jack2       - audio input/output
 - libsndfile  - file loading
+- json-c      - serialization
 - valgrind    - easier debugging
 - ladspa      - LADSPA plugin support
 - lv2    }

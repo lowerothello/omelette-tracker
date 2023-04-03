@@ -1,28 +1,19 @@
 typedef struct Song
 {
-	/* instruments */
-	InstChain *inst;
-
-	/* tracks */
+	InstChain  *inst;
 	TrackChain *track;
-	short      *bpmcache;    /* bpm change caching so multithreading isn't hell */
-	uint16_t    bpmcachelen; /* how far into bpmcache it's safe to index */
-
-	/* song pointers */
-	uint16_t playfy;  /* analogous to window->trackerfy */
-	uint16_t songlen; /* how long the global variant is */
-	uint16_t loop[3]; /* loop range pointers, [2] is the staging loop end */
 
 	/* effect chains */
 	EffectChain *master;
 	EffectChain *send;
 
+	/* song pointers */
+	uint16_t songlen; /* how long the global variant is */
+	uint16_t loop[3]; /* loop range pointers, [2] is the staging loop end */
+
 	/* misc. state */
-	uint8_t  rowhighlight;
-	uint8_t  songbpm;
-	uint16_t spr;     /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
-	uint16_t sprp;    /* samples per row progress */
-	bool     playing; /* true if the sequencer is running */
+	uint8_t rowhighlight;
+	uint8_t songbpm;
 } Song;
 Song *s;
 
@@ -30,3 +21,6 @@ Song *addSong(void);
 void initSong(Song*);
 void freeSong(Song*);
 void reapplyBpm(void);
+
+void serializeSong(FILE*, Song*);
+Song *deserializeSong(FILE*);

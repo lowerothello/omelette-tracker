@@ -14,32 +14,36 @@ typedef struct Inst
 	InstType type;
 	void *state;
 
+	/* runtime */
 	uint32_t triggerflash;
 } Inst;
 
 typedef struct InstChain
 {
 	uint8_t c;                 /* instrument count   */
-	uint8_t i[INSTRUMENT_MAX]; /* instrument backref */
-	Inst    v[];               /* instrument values  */
+	uint8_t i[INSTRUMENT_MAX]; /* instrument backref */ /* json: index */
+	Inst    v[];               /* instrument values  */ /* json: data  */
 } InstChain;
 
 typedef struct InstAPI
 {
-	void         (*init)(Inst*);
-	void         (*free)(Inst*);
-	void         (*copy)(Inst *dest, Inst *src); /* dest has already been free'd */
-	void (*getindexinfo)(Inst*, char *buffer); /* buffer is at least 9 bytes long */
-	void         (*draw)(Inst*, short x, short y, short width, short height, short minx, short maxx);
-	void        (*input)(Inst*);
-	void        (*mouse)(Inst*, enum Button button, int x, int y);
-	void  (*triggernote)(uint32_t fptr, Inst*, Track*, uint8_t oldnote, uint8_t note, short inst);
-	void      (*process)(Inst*, Track*, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r);
-	void     (*lookback)(Inst*, Track*, uint16_t *spr);
-	/* playback state (can't use the heap) */
+	void*                    (*init)(void);
+	void                     (*free)(Inst*);
+	void                     (*copy)(Inst *dest, Inst *src); /* dest has already been free'd */
+	void             (*getindexinfo)(Inst*, char *buffer); /* buffer is at least 9 bytes long */
+	void                     (*draw)(Inst*, short x, short y, short width, short height, short minx, short maxx);
+	void                    (*input)(Inst*);
+	void                    (*mouse)(Inst*, enum Button button, int x, int y);
+	void              (*triggernote)(uint32_t fptr, Inst*, Track*, uint8_t oldnote, uint8_t note, short inst);
+	void                  (*process)(Inst*, Track*, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r);
+	void                 (*lookback)(Inst*, Track*, uint16_t *spr);
+	struct json_object* (*serialize)(void*, size_t *dataoffset);
+	void            (*serializedata)(FILE *fp, void*, size_t *dataoffset);
+	void*             (*deserialize)(struct json_object *jso, void *data, double ratemultiplier);
 	size_t statesize;
-	/* inst-specific macros */
 } InstAPI;
+
+
 
 const InstAPI *instGetAPI(InstType type);
 size_t instGetPlaybackStateSize(void);
@@ -71,6 +75,13 @@ void yankInst(uint8_t index);
 void putInst(size_t index);
 
 void instControlCallback(void);
+
+struct json_object *serializeInst(Inst *inst, size_t *dataoffset);
+void serializeInstData(FILE *fp, Inst *inst, size_t *dataoffset);
+Inst deserializeInst(struct json_object *jso, void *data, double ratemultiplier);
+struct json_object *serializeInstChain(InstChain *chain);
+void serializeInstChainData(FILE *fp, InstChain *chain);
+InstChain *deserializeInstChain(struct json_object *jso, void *data, double ratemultiplier);
 
 #include "input.h"
 #include "waveform.h"

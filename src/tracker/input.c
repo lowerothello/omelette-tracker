@@ -71,8 +71,8 @@ static void trackerEnterEffectMode(void)
 void toggleSongFollow(void)
 {
 	w->follow = !w->follow;
-	if (s->playing)
-		w->trackerfy = s->playfy;
+	if (w->playing)
+		w->trackerfy = w->playfy;
 	p->redraw = 1;
 }
 
@@ -629,7 +629,7 @@ static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 	switch (w->trackerfx)
 	{
 		case -1:
-			if (!s->playing)
+			if (!w->playing)
 			{
 				if (w->fieldpointer) setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index+16);
 				else                 setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index+1);
@@ -655,7 +655,7 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 	switch (w->trackerfx)
 	{
 		case -1:
-			if (!s->playing)
+			if (!w->playing)
 			{
 				if (w->fieldpointer) setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index-16);
 				else                 setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index-1);

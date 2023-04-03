@@ -99,7 +99,7 @@ bool processM_SEM(void)
 					p->event[0].sem = M_SEM_CALLBACK;
 				} break;
 			case M_SEM_BPM:
-				setBpm(&p->s->spr, p->s->songbpm);
+				setBpm(&p->w->spr, p->s->songbpm);
 				p->event[0].sem = M_SEM_DONE;
 				break;
 			case M_SEM_TRACK_MUTE: {
@@ -140,8 +140,8 @@ bool processM_SEM(void)
 				p->redraw = 1;
 				break;
 			case M_SEM_PLAYING_START:
-				setBpm(&p->s->spr, p->s->songbpm);
-				p->s->sprp = 0;
+				setBpm(&p->w->spr, p->s->songbpm);
+				p->w->sprp = 0;
 
 				/* stop preview */
 				for (i = 0; i < PREVIEW_TRACKS; i++)
@@ -158,8 +158,8 @@ bool processM_SEM(void)
 					cv = p->s->track->v[c];
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
-					lookback(0, &p->s->spr, p->s->playfy, cv);
-					processRow(0, &p->s->spr, 1, cv, getTrackRow(cv, p->s->playfy));
+					lookback(0, &p->w->spr, p->w->playfy, cv);
+					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv, p->w->playfy));
 				}
 
 
@@ -167,7 +167,7 @@ bool processM_SEM(void)
 				if (p->w->instrecv == INST_REC_LOCK_CUE_START)
 					p->w->instrecv = INST_REC_LOCK_CUE_CONT;
 
-				p->s->playing = 1;
+				p->w->playing = 1;
 				p->redraw = 1;
 				p->event[0].sem = M_SEM_DONE;
 				break;
@@ -177,7 +177,7 @@ bool processM_SEM(void)
 				{
 					cv = p->s->track->v[i];
 					if (instSafe(p->s->inst, cv->r.inst))
-						ramp(0, &p->s->spr, p->s->sprp, (float)p->s->sprp / (float)p->s->spr, cv, p->s->inst->i[cv->r.inst]);
+						ramp(0, &p->w->spr, p->w->sprp, (float)p->w->sprp / (float)p->w->spr, cv, p->s->inst->i[cv->r.inst]);
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 					clearTrackRuntime(cv); /* TODO: think this is unnecessary, cos it's implied by lookback */
 				}
@@ -188,7 +188,7 @@ bool processM_SEM(void)
 					p->s->loop[2] = 0;
 				}
 
-				p->s->playing = 0;
+				p->w->playing = 0;
 				p->redraw = 1;
 				p->event[0].sem = M_SEM_DONE;
 				break;
@@ -200,7 +200,7 @@ bool processM_SEM(void)
 
 void cb_reloadFile(Event *e)
 {
-	Song *cs = readSongNew(w->filepath);
+	Song *cs = readSongJson(w->filepath);
 	if (cs) { freeSong(s); s = cs; }
 	p->s = s;
 	if (s->loop[1]) w->trackerfy = s->loop[0];

@@ -298,3 +298,39 @@ static void runLadspaEffect(void *state, uint32_t samplecount, float **input, fl
 	if (s->outputc == 1) /* handle mono output correctly */
 		memcpy(output[1], output[0], sizeof(float)*samplecount);
 }
+
+static struct json_object *serializeLadspaEffect(void *state)
+{
+	LadspaState *s = state;
+	struct json_object *obj = json_object_new_object();
+	json_object_object_add(obj, "UniqueID", json_object_new_int(s->desc->UniqueID));
+	json_object_object_add(obj, "Label", json_object_new_string(s->desc->Label));
+
+	struct json_object *array = json_object_new_array_ext(s->controlc);
+	for (uint32_t i = 0; i < s->controlc; i++)
+		json_object_array_add(array, json_object_new_double(s->controlv[i]));
+	json_object_object_add(obj, "control", array);
+
+	return obj;
+}
+
+static void *deserializeLadspaEffect(struct json_object *jso, float **input, float **output)
+{
+	unsigned long UniqueID = json_object_get_int(json_object_object_get(jso, "UniqueID"));
+	const char *Label = json_object_get_string(json_object_object_get(jso, "Label"));
+
+	for (unsigned long i = 0; i < ladspa_db.descc; i++)
+		if (ladspa_db.descv[i]->UniqueID == UniqueID && !strcmp(ladspa_db.descv[i]->Label, Label))
+		{
+			LadspaState *ret = initLadspaEffect(ladspa_db.descv[i], input, output);
+
+			struct json_object *array = json_object_object_get(jso, "control");
+			for (uint32_t i = 0; i < json_object_array_length(array); i++)
+				ret->controlv[i] = json_object_get_double(json_object_array_get_idx(array, i));
+
+			return ret;
+		}
+
+	/* TODO: handle the plugin not being found */
+	return NULL;
+}

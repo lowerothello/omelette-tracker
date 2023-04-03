@@ -92,7 +92,7 @@ void drawAutogenPluginLine(short x, short y, short w,
 			addControlFloat(x + controloffset, y,
 					value, CONTROL_NIBBLES_TOGGLED,
 					min, max, def, scalepointlen, scalepointcount, NULL, NULL);
-		} else if (min != NAN && max != NAN && min < 0.0f)
+		} else if (!isnan(min) && !isnan(max) && min < 0.0f)
 		{ /* signed */
 			if (integer) /* signed int */
 			{

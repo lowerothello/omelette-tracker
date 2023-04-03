@@ -48,7 +48,7 @@ static void drawRuler(void)
 		if (w->follow) printf(">");
 		else           printf(" ");
 
-		if (s->playing) printf("PLAY");
+		if (w->playing) printf("PLAY");
 		else            printf("STOP");
 
 		if (w->follow) printf(">");

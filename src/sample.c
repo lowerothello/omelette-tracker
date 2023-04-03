@@ -85,3 +85,55 @@ void copySampleChain(SampleChain *dest, SampleChain *src)
 		memcpy((*dest)[i], (*src)[i], size);
 	}
 }
+
+struct json_object *serializeSample(Sample *s, size_t *dataoffset)
+{
+	if (!s) return NULL;
+
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "length", json_object_new_uint64(s->length));
+	json_object_object_add(ret, "channels", json_object_new_int(s->channels));
+	json_object_object_add(ret, "rate", json_object_new_uint64(s->rate));
+	json_object_object_add(ret, "defrate", json_object_new_uint64(s->defrate));
+	json_object_object_add(ret, "invert", json_object_new_boolean(s->invert));
+	json_object_object_add(ret, "trimstart", json_object_new_uint64(s->trimstart));
+	json_object_object_add(ret, "trimlength", json_object_new_uint64(s->trimlength));
+	json_object_object_add(ret, "looplength", json_object_new_uint64(s->looplength));
+	json_object_object_add(ret, "pingpong", json_object_new_boolean(s->pingpong));
+	json_object_object_add(ret, "loopramp", json_object_new_int(s->loopramp));
+	json_object_object_add(ret, "dataoffset", json_object_new_uint64(*dataoffset));
+	*dataoffset += sizeof(short) * s->length * s->channels;
+
+	return ret;
+}
+
+void serializeSampleData(FILE *fp, Sample *s, size_t *dataoffset)
+{
+	if (!s) return;
+
+	fwrite(s->data, sizeof(short), s->length * s->channels, fp);
+	*dataoffset += sizeof(short) * s->length * s->channels;
+}
+
+Sample *deserializeSample(struct json_object *jso, void *data, double ratemultiplier)
+{
+	Sample *ret = calloc(1, sizeof(Sample) + sizeof(short)
+			* json_object_get_uint64(json_object_object_get(jso, "length"))
+			* json_object_get_int(json_object_object_get(jso, "channels")));
+
+	ret->length = json_object_get_uint64(json_object_object_get(jso, "length"));
+	ret->channels = json_object_get_int(json_object_object_get(jso, "channels"));
+	ret->rate = json_object_get_uint64(json_object_object_get(jso, "rate")) * ratemultiplier;
+	ret->defrate = json_object_get_uint64(json_object_object_get(jso, "defrate")) * ratemultiplier;
+	ret->invert = json_object_get_boolean(json_object_object_get(jso, "invert"));
+	ret->trimstart = json_object_get_uint64(json_object_object_get(jso, "trimstart"));
+	ret->trimlength = json_object_get_uint64(json_object_object_get(jso, "trimlength"));
+	ret->looplength = json_object_get_uint64(json_object_object_get(jso, "looplength"));
+	ret->pingpong = json_object_get_boolean(json_object_object_get(jso, "pingpong"));
+	ret->loopramp = json_object_get_int(json_object_object_get(jso, "loopramp"));
+	
+	size_t dataoffset = json_object_get_uint64(json_object_object_get(jso, "dataoffset"));
+	memcpy(ret->data, (void*)((size_t)data + dataoffset), sizeof(short) * ret->length * ret->channels);
+
+	return ret;
+}

@@ -1,5 +1,5 @@
 /* clamps within range and loop, returns output samples */
-void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t decimate, InstSamplerState *s, uint8_t stereotrack, short *output)
+static void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t decimate, InstSamplerState *s, uint8_t stereotrack, short *output)
 {
 	InstSamplerPlaybackState *ps = cv->inststate;
 	if (loop)
@@ -13,8 +13,8 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t dec
 				else            /* walking backwards */ ptr = length - ptr;
 			}
 
-			if ((*s->sample)[ps->sampleslot]->channels == 1) getSample(ptr+(*s->sample)[ps->sampleslot]->trimstart, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
-			else                                             getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
+			if ((*s->sample)[ps->sampleslot]->channels == 1) getSample(ptr+(*s->sample)[ps->sampleslot]->trimstart, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+			else                                             getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
 		} else
 		{ /* crossfaded forwards loop */
 			uint32_t looprampmax = MIN(samplerate*DIV1000 * LOOP_RAMP_MS, (loop>>1)) * (*s->sample)[ps->sampleslot]->loopramp*DIV255;
@@ -24,25 +24,25 @@ void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t dec
 			{
 				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
 				float ramppointer = (ptr - (loop - looprampmax));
-				if ((*s->sample)[ps->sampleslot]->channels == 1) getSampleLoopRamp( ptr+(*s->sample)[ps->sampleslot]->trimstart, ramppointer, lerp, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
-				else                                              getSampleLoopRamp((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, ramppointer*(*s->sample)[ps->sampleslot]->channels + stereotrack, lerp, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
+				if ((*s->sample)[ps->sampleslot]->channels == 1) getSampleLoopRamp( ptr+(*s->sample)[ps->sampleslot]->trimstart, ramppointer, lerp, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+				else                                             getSampleLoopRamp((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, ramppointer*(*s->sample)[ps->sampleslot]->channels + stereotrack, lerp, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
 			} else
 			{
-				if ((*s->sample)[ps->sampleslot]->channels == 1) getSample( ptr+(*s->sample)[ps->sampleslot]->trimstart, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
-				else                                              getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
+				if ((*s->sample)[ps->sampleslot]->channels == 1) getSample( ptr+(*s->sample)[ps->sampleslot]->trimstart, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+				else                                             getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
 			}
 		}
 	} else
 	{
 		if (ptr < length)
 		{
-			if ((*s->sample)[ps->sampleslot]->channels == 1) getSample( ptr+(*s->sample)[ps->sampleslot]->trimstart, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
-			else                                              getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, decimate, s->bitdepth, (*s->sample)[ps->sampleslot], output);
+			if ((*s->sample)[ps->sampleslot]->channels == 1) getSample( ptr+(*s->sample)[ps->sampleslot]->trimstart, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+			else                                             getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
 		}
 	}
 }
 
-void processCyclic(InstSamplerState *s, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
+static void processCyclic(InstSamplerState *s, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
 	InstSamplerPlaybackState *ps = cv->inststate;
 	uint32_t length = MIN((*s->sample)[ps->sampleslot]->trimlength, (*s->sample)[ps->sampleslot]->length-1 - (*s->sample)[ps->sampleslot]->trimstart);
@@ -52,24 +52,22 @@ void processCyclic(InstSamplerState *s, Track *cv, float rp, uint32_t pointer, u
 	float f;
 	uint16_t localpitchshift;
 	f = macroStateGetMono(&ps->pitchshift, rp);
-	if (f != NAN)
+	if (!isnan(f))
 		localpitchshift = (f - 0.5f) * (127<<9);
 	else
 		localpitchshift = s->granular.pitchshift;
 
 	uint16_t localpitchwidth;
 	f = macroStateGetMono(&ps->pitchwidth, rp);
-	if (f != NAN)
+	if (!isnan(f))
 		localpitchwidth = (f - 0.5f) * (127<<1);
 	else
 		localpitchwidth = s->granular.pitchstereo;
 
-	uint8_t localsamplerate;
-	f = macroStateGetMono(&ps->samplerate, rp);
-	if (f != NAN)
-		localsamplerate = f*256;
-	else
-		localsamplerate = s->samplerate;
+	uint8_t localrateredux;
+	f = macroStateGetMono(&ps->rateredux, rp);
+	if (!isnan(f)) localrateredux = f*256;
+	else           localrateredux = s->rateredux;
 
 	uint16_t cyclelength = MAX(1, samplerate*DIV1000 * TIMESTRETCH_CYCLE_UNIT_MS * MAX(1, localcyclelength));
 	uint32_t pointersnap = pointer % cyclelength;
@@ -98,24 +96,24 @@ void processCyclic(InstSamplerState *s, Track *cv, float rp, uint32_t pointer, u
 	{ /* note stretch */
 		if (s->granular.reversegrains)
 		{
-			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, s, 0, l);
-			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, s, 1, r);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localrateredux, s, 0, l);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localrateredux, s, 1, r);
 		} else
 		{
-			trimloop((pitchedpointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, s, 0, l);
-			trimloop((pitchedpointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, s, 1, r);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localrateredux, s, 0, l);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localrateredux, s, 1, r);
 		}
 
 		if (ps->grainrampindex < grainrampmax)
 		{
 			if (s->granular.reversegrains)
 			{
-				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, s, 0, &rl);
-				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, s, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localrateredux, s, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localrateredux, s, 1, &rr);
 			} else
 			{
-				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localsamplerate, s, 0, &rl);
-				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localsamplerate, s, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereol)) * calcrate, length, loop, cv, localrateredux, s, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcpitch*calcshift*calcshiftstereor)) * calcrate, length, loop, cv, localrateredux, s, 1, &rr);
 			}
 
 			gain = (float)ps->grainrampindex / (float)grainrampmax;
@@ -127,24 +125,24 @@ void processCyclic(InstSamplerState *s, Track *cv, float rp, uint32_t pointer, u
 	{ /* no note stretch */
 		if (s->granular.reversegrains)
 		{
-			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 0, l);
-			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 1, r);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 0, l);
+			trimloop((pitchedpointer+cyclelength - pointersnap - (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 1, r);
 		} else
 		{
-			trimloop((pitchedpointer - pointersnap + (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 0, l);
-			trimloop((pitchedpointer - pointersnap + (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 1, r);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 0, l);
+			trimloop((pitchedpointer - pointersnap + (pointersnap * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 1, r);
 		}
 
 		if (ps->grainrampindex < grainrampmax)
 		{
 			if (s->granular.reversegrains)
 			{
-				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 0, &rl);
-				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 1, &rr);
 			} else
 			{
-				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 0, &rl);
-				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localsamplerate, s, 1, &rr);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereol)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 0, &rl);
+				trimloop((pitchedpointer - pointersnap - cyclelength + ((cyclelength + ps->grainrampindex) * calcshift*calcshiftstereor)) * calcpitch*calcrate, length, loop, cv, localrateredux, s, 1, &rr);
 			}
 
 			gain = (float)ps->grainrampindex / (float)grainrampmax;
@@ -155,12 +153,12 @@ void processCyclic(InstSamplerState *s, Track *cv, float rp, uint32_t pointer, u
 	}
 }
 
-void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
+static void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
 {
 	InstSamplerState *s = iv->state;
 	InstSamplerPlaybackState *ps = cv->inststate;
 
-	if (!(*s->sample)[ps->sampleslot]->length) return;
+	if (!(*s->sample)[ps->sampleslot] || !(*s->sample)[ps->sampleslot]->length) return;
 
 	Envelope env;
 	env.adsr = s->envelope; if (ps->localenvelope != -1) env.adsr = ps->localenvelope;
@@ -182,6 +180,7 @@ void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, uint32_t pi
 		case SAMPLE_CHANNELS_RIGHT:  *l = *r; break;
 		case SAMPLE_CHANNELS_MIX:    *l = *r = ((*l>>1) + (*r>>1)); break;
 		case SAMPLE_CHANNELS_SWAP:   hold = *l; *l = *r; *r = hold; break;
+		default: break;
 	}
 
 	if ((*s->sample)[ps->sampleslot]->invert)
@@ -198,7 +197,7 @@ void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, uint32_t pi
 	*r *= fgain;
 }
 
-void samplerLookback(Inst *iv, Track *cv, uint16_t *spr)
+static void samplerLookback(Inst *iv, Track *cv, uint16_t *spr)
 {
 	InstSamplerState *s = iv->state;
 	InstSamplerPlaybackState *ps = cv->inststate;

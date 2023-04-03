@@ -1,9 +1,9 @@
 void setLoopRange(uint16_t start, uint16_t end)
 {
 	s->loop[0] = start;
-	if (s->playing)
+	if (w->playing)
 	{
-		if (s->playfy < end) s->loop[1] = end;
+		if (w->playfy < end) s->loop[1] = end;
 		else                 s->loop[2] = end;
 	} else s->loop[1] = end;
 	p->redraw = 1;

@@ -63,7 +63,6 @@ void macroPitchTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t no
 }
 
 /* should affect cv->pointer, cv->pitchedpointer, and cv->finetune */
-/* TODO: should be passed as arguments, cv shouldn't be provided */
 void macroPitchPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state)
 {
 	MacroPitchState *ms = state;

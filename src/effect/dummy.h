@@ -1,9 +1,11 @@
 #define DUMMY_EFFECT_HEIGHT 3
 #define DUMMY_EFFECT_TEXT "DUMMY EFFECT"
 
-uint32_t getDummyEffectControlCount(void *state);
-short getDummyEffectHeight(void *state);
-void drawDummyEffect(void *state, short x, short w, short y, short ymin, short ymax);
+static uint32_t getDummyEffectControlCount(void *state);
+static short getDummyEffectHeight(void *state);
+static void drawDummyEffect(void *state, short x, short w, short y, short ymin, short ymax);
+static struct json_object *serializeDummyEffect(void *state);
+static void *deserializeDummyEffect(struct json_object *jso, float **input, float **output);
 
 const EffectAPI dummy_effect_api = {
 	"Dummy",
@@ -18,4 +20,6 @@ const EffectAPI dummy_effect_api = {
 	getDummyEffectControlCount,
 	getDummyEffectHeight,
 	drawDummyEffect,
+	serializeDummyEffect,
+	deserializeDummyEffect,
 };

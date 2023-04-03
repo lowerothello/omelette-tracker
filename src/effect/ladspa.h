@@ -34,6 +34,8 @@ static void freeLadspaEffect(void*);
 static void copyLadspaEffect(void *dest, void *src, float **input, float **output);
 static void drawLadspaEffect(void*, short x, short w, short y, short ymin, short ymax); /* the current text colour will apply to the header but not the contents */
 static void runLadspaEffect(void*, uint32_t samplecount, float **input, float **output); /* only valid to call if input and output are not NULL */
+static struct json_object *serializeLadspaEffect(void *state);
+static void *deserializeLadspaEffect(struct json_object *jso, float **input, float **output);
 
 const EffectAPI ladspa_effect_api = {
 	"Ladspa",
@@ -48,4 +50,6 @@ const EffectAPI ladspa_effect_api = {
 	getLadspaEffectControlCount,
 	getLadspaEffectHeight,
 	drawLadspaEffect,
+	serializeLadspaEffect,
+	deserializeLadspaEffect,
 };

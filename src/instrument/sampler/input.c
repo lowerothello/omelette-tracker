@@ -24,7 +24,7 @@ static void samplerInputDelete(void)
 	}
 }
 
-void samplerInput(Inst *iv)
+static void samplerInput(Inst *iv)
 {
 	addTooltipBind("cursor up"        , 0          , XK_Up       , 0      , (void(*)(void*))samplerInputUp   , (void*)1);
 	addTooltipBind("cursor down"      , 0          , XK_Down     , 0      , (void(*)(void*))samplerInputDn   , (void*)1);
@@ -45,7 +45,7 @@ void samplerInput(Inst *iv)
 	}
 }
 
-void samplerMouse(Inst *iv, enum Button button, int x, int y)
+static void samplerMouse(Inst *iv, enum Button button, int x, int y)
 {
 	mouseControls(button, x, y);
 }

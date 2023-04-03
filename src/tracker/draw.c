@@ -104,11 +104,11 @@ static void drawGlobalLineNumbers(short x, short minx, short maxx)
 		y = w->centre - w->trackerfy + i;
 		if (y > TRACK_ROW && y < ws.ws_row)
 		{
-			if (s->playing && s->playfy == i)                                              printf("\033[1m");
+			if (w->playing && w->playfy == i)                                              printf("\033[1m");
 			else if (i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
 
 			/* print as special if the row has a bpm change, or if the row hasn't been fully allocated yet (rows allocate pretty slowly sometimes) */
-			if (s->bpmcachelen <= i || s->bpmcache[i] != -1) printf("\033[33m");
+			if (w->bpmcachelen <= i || w->bpmcache[i] != -1) printf("\033[33m");
 
 			if (i < STATE_ROWS) snprintf(buffer, 5, "  -%x", STATE_ROWS - i);
 			else                snprintf(buffer, 5, "%04x",  i - STATE_ROWS);
@@ -237,7 +237,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 static void setRowIntensity(bool mute, int i)
 {
 	if (mute || i < STATE_ROWS || (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))) printf("\033[2m");
-	else if (s->playing && s->playfy == i)                                            printf("\033[1m");
+	else if (w->playing && w->playfy == i)                                            printf("\033[1m");
 }
 
 static void drawStarColumn(short x, short minx, short maxx)
@@ -247,7 +247,7 @@ static void drawStarColumn(short x, short minx, short maxx)
 		if (w->centre - w->trackerfy + i > TRACK_ROW && w->centre - w->trackerfy + i < ws.ws_row)
 		{
 			if (i < STATE_ROWS)                                              strcpy(buffer, " ");
-			else if (s->playing && s->playfy == i)                           strcpy(buffer, "-");
+			else if (w->playing && w->playfy == i)                           strcpy(buffer, "-");
 			else if (s->rowhighlight && !((i-STATE_ROWS) % s->rowhighlight)) strcpy(buffer, "*");
 			else                                                             strcpy(buffer, " ");
 			printCulling(buffer, x, w->centre - w->trackerfy + i, minx, maxx);
@@ -343,7 +343,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							if (ifVisual(track, i, 0))
 							{
 								printf("\033[22m");
-								if (s->playing && s->playfy == i) printf("\033[1m");
+								if (w->playing && w->playfy == i) printf("\033[1m");
 							}
 							if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 							else                            printf("\033[37m");

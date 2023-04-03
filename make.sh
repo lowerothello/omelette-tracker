@@ -13,6 +13,8 @@ pkg-config sndfile && sndfile="$(pkg-config --libs --cflags sndfile) -DOML_SNDFI
 # X11 hack for key release events :3
 pkg-config x11 && x11="$(pkg-config --libs --cflags x11) -DOML_X11"
 
+pkg-config json-c && json="$(pkg-config --libs --cflags json-c) -DOML_JSON"
+
 # plugin backends
 [ -f "/usr/include/ladspa.h" ] && ladspa="-DOML_LADSPA" # jank
 pkg-config lilv-0 && lv2="$(pkg-config --libs --cflags lilv-0) -DOML_LV2"
@@ -20,7 +22,7 @@ pkg-config lilv-0 && lv2="$(pkg-config --libs --cflags lilv-0) -DOML_LV2"
 
 [ "$1" = "pg" ] && {
 	time gcc -o omelette -O0 \
-		$jack $pulse $sndfile $lv2 $ladspa $x11 \
+		$jack $pulse $sndfile $lv2 $ladspa $x11 $json \
 		$include \
 		-lm $warnings -g -pg \
 		src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
@@ -39,7 +41,7 @@ pkg-config lilv-0 && lv2="$(pkg-config --libs --cflags lilv-0) -DOML_LV2"
 
 [ "$1" ] && {
 	time ${CC:-gcc} -o omelette -O$1 \
-		$jack $pulse $sndfile $lv2 $ladspa $x11 \
+		$jack $pulse $sndfile $lv2 $ladspa $x11 $json \
 		$include \
 		-lm $warnings -g \
 		src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
@@ -57,7 +59,7 @@ pkg-config lilv-0 && lv2="$(pkg-config --libs --cflags lilv-0) -DOML_LV2"
 }
 
 time ${CC:-tcc} -o omelette -O0 \
-	$jack $pulse $sndfile $lv2 $ladspa $x11 \
+	$jack $pulse $sndfile $lv2 $ladspa $x11 $json \
 	$include \
 	-lm $warnings -g \
 	src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1

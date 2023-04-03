@@ -1,4 +1,4 @@
-void instUISampleCallback(short x, short y, Inst *iv, uint8_t index)
+static void instUISampleCallback(short x, short y, Inst *iv, uint8_t index)
 {
 	InstSamplerState *s = iv->state;
 	Sample *sample = (*s->sample)[w->sample];
@@ -27,7 +27,7 @@ void instUISampleCallback(short x, short y, Inst *iv, uint8_t index)
 }
 const InstUI sampleInstUI = { 17, 6, 3, instUISampleCallback, };
 
-void instUICyclicCallback(short x, short y, Inst *iv, uint8_t index)
+static void instUICyclicCallback(short x, short y, Inst *iv, uint8_t index)
 {
 	InstSamplerState *s = iv->state;
 	switch (index)
@@ -35,8 +35,8 @@ void instUICyclicCallback(short x, short y, Inst *iv, uint8_t index)
 		case 0:
 			printf("\033[%d;%dHquality: [ ][ ][  ]", y, x);
 			addControlInt(x+10, y, &s->interpolate, 0,   0,    1,    0, 0, 0, (void(*)(void*))instControlCallback, NULL);
-			addControlInt(x+13, y, &s->bitdepth,    1, 0x0,  0xf,  0xf, 0, 0, (void(*)(void*))instControlCallback, NULL);
-			addControlInt(x+16, y, &s->samplerate,  2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+13, y, &s->bitredux,    1, 0x0,  0xf,  0xf, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+16, y, &s->rateredux,   2, 0x0, 0xff, 0xff, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHgain env:    [    ]", y, x);
@@ -100,7 +100,7 @@ void instUICyclicCallback(short x, short y, Inst *iv, uint8_t index)
 }
 const InstUI cyclicInstUI = { 19, 13, 2, instUICyclicCallback, };
 
-void samplerDraw(Inst *iv, short x, short y, short width, short height, short minx, short maxx)
+static void samplerDraw(Inst *iv, short x, short y, short width, short height, short minx, short maxx)
 {
 	InstSamplerState *s = iv->state;
 

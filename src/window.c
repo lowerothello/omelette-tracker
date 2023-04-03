@@ -42,6 +42,7 @@ UI *allocWindow(void)
 
 	ret->defvariantlength = 0x7;
 	ret->trackerfy = STATE_ROWS;
+	ret->playfy = STATE_ROWS;
 
 	// __addInstrument(&ret->instbuffer, INST_TYPE_NULL);
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
@@ -76,6 +77,8 @@ void freeWindow(UI *cw)
 		free(cw->pbvariantv[i]);
 		free(cw->vbtrig[i]);
 	}
+
+	if (cw->bpmcache) free(cw->bpmcache);
 
 	free(cw);
 }

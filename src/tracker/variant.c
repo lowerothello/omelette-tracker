@@ -242,3 +242,135 @@ Row *getVariantRow(Variant *v, uint16_t row)
 {
 	return &v->rowv[row%(v->rowc+1)];
 }
+
+
+struct json_object *serializeMacro(Macro *m)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "c", json_object_new_int(m->c));
+	json_object_object_add(ret, "v", json_object_new_int(m->v));
+	json_object_object_add(ret, "t", json_object_new_int(m->t));
+	return ret;
+}
+
+Macro deserializeMacro(struct json_object *jso)
+{
+	Macro m;
+	m.c = json_object_get_int(json_object_object_get(jso, "c"));
+	m.v = json_object_get_int(json_object_object_get(jso, "v"));
+	m.t = json_object_get_int(json_object_object_get(jso, "t"));
+	return m;
+}
+
+struct json_object *serializeRow(Row *r)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "note", json_object_new_int(r->note));
+	json_object_object_add(ret, "inst", json_object_new_int(r->inst));
+
+	struct json_object *array = json_object_new_array_ext(8);
+	for (int i = 0; i < 8; i++)
+		json_object_array_add(array, serializeMacro(&r->macro[i]));
+	json_object_object_add(ret, "macro", array);
+
+	return ret;
+}
+
+Row deserializeRow(struct json_object *jso)
+{
+	Row r;
+	r.note = json_object_get_int(json_object_object_get(jso, "note"));
+	r.inst = json_object_get_int(json_object_object_get(jso, "inst"));
+
+	for (int i = 0; i < 8; i++)
+		r.macro[i] = deserializeMacro(json_object_array_get_idx(json_object_object_get(jso, "macro"), i));
+	return r;
+}
+
+struct json_object *serializeVariant(Variant *v)
+{
+	struct json_object *ret = json_object_new_array_ext(v->rowc + 1);
+	for (int i = 0; i < v->rowc+1; i++)
+		json_object_array_add(ret, serializeRow(&v->rowv[i]));
+	return ret;
+}
+
+Variant *deserializeVariant(struct json_object *jso)
+{
+	Variant *ret = malloc(sizeof(Variant) + json_object_array_length(jso) * sizeof(Row));
+	ret->rowc = json_object_array_length(jso) - 1;
+
+	for (int i = 0; i < ret->rowc+1; i++)
+		ret->rowv[i] = deserializeRow(json_object_array_get_idx(jso, i));
+
+	return ret;
+}
+
+struct json_object *serializeVtrig(Vtrig *trig)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "index", json_object_new_int(trig->index));
+	json_object_object_add(ret, "flags", json_object_new_int(trig->flags));
+	return ret;
+}
+
+Vtrig deserializeVtrig(struct json_object *jso)
+{
+	Vtrig ret;
+	ret.index = json_object_get_int(json_object_object_get(jso, "index"));
+	ret.flags = json_object_get_int(json_object_object_get(jso, "flags"));
+	return ret;
+}
+
+struct json_object *serializeVariantChain(VariantChain *chain)
+{
+	int i;
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "songlen", json_object_new_int(chain->songlen));
+	json_object_object_add(ret, "macroc", json_object_new_int(chain->macroc));
+
+	struct json_object *array;
+	array = json_object_new_array_ext(chain->songlen);
+	for (i = 0; i < chain->songlen; i++)
+		json_object_array_add(array, serializeVtrig(&chain->trig[i]));
+	json_object_object_add(ret, "trig", array);
+
+	json_object_object_add(ret, "main", serializeVariant(chain->main));
+
+	array = json_object_new_array_ext(VARIANT_MAX);
+	for (i = 0; i < VARIANT_MAX; i++)
+		json_object_array_add(array, json_object_new_int(chain->i[i]));
+	json_object_object_add(ret, "index", array);
+
+	array = json_object_new_array_ext(chain->c);
+	for (i = 0; i < chain->c; i++)
+		json_object_array_add(array, serializeVariant(chain->v[i]));
+	json_object_object_add(ret, "data", array);
+
+	return ret;
+}
+
+VariantChain *deserializeVariantChain(struct json_object *jso)
+{
+	int i;
+	VariantChain *ret = calloc(1, sizeof(VariantChain) + sizeof(Variant*) * json_object_array_length(json_object_object_get(jso, "data")));
+
+	ret->songlen = json_object_get_int(json_object_object_get(jso, "songlen"));
+	ret->macroc = json_object_get_int(json_object_object_get(jso, "macroc"));
+
+	ret->trig = calloc(ret->songlen, sizeof(Vtrig));
+	for (i = 0; i < ret->songlen; i++)
+		ret->trig[i] = deserializeVtrig(json_object_array_get_idx(json_object_object_get(jso, "trig"), i));
+
+	ret->main = deserializeVariant(json_object_object_get(jso, "main"));
+
+	for (i = 0; i < VARIANT_MAX; i++)
+		ret->i[i] = json_object_get_int(json_object_array_get_idx(json_object_object_get(jso, "index"), i));
+
+	ret->c = json_object_array_length(json_object_object_get(jso, "data"));
+
+	for (i = 0; i < ret->c; i++)
+		ret->v[i] = deserializeVariant(json_object_array_get_idx(json_object_object_get(jso, "data"), i));
+
+	return ret;
+}

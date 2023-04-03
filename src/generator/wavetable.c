@@ -117,7 +117,7 @@ void processWavetable(Instrument *iv, Track *cv, float rp, uint32_t pointer, uin
 	float f;
 	uint8_t localsamplerate;
 	f = macroStateGetMono(&cv->samplerate, rp);
-	if (f != NAN)
+	if (!isnan(f))
 		localsamplerate = f*256;
 	else
 		localsamplerate = iv->samplerate;

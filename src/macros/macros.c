@@ -339,7 +339,10 @@ void macroStateApply(MacroState *s)
 float macroStateGetMono(MacroState *s, float rp)
 {
 	if (s->rand == -1)
+	{
+		DEBUG=-2; p->redraw = 1;
 		return NAN;
+	}
 
 	if (s->target != -1)
 	{

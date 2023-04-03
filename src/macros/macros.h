@@ -4,7 +4,7 @@ bool ifMacro(Track *cv, Row *r, char m);
 void ifMacroCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*callback)(uint32_t, uint16_t*, int, Track*, Row*));
 
 /* access macros with (Row*)->macro[i] */
-#define FOR_ROW_MACROS(i, cv) for (int i = 0; i < cv->variant->macroc; i++)
+#define FOR_ROW_MACROS(i, cv) for (int i = 0; i < cv->variant->macroc + 1; i++)
 
 /* if the row needs to be ramped in based on the macros present */
 bool ifMacroRamp(Track *cv, Row *r);
@@ -42,7 +42,6 @@ typedef struct MacroAPI
 	void    (*postsampler)(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state);
 	size_t statesize;
 } MacroAPI;
-// MacroAPI *macro_api;
 
 void macroCallbackClear(Track *cv);
 void macroCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);

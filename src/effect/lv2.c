@@ -372,3 +372,30 @@ static void runLV2Effect(void *state, uint32_t samplecount, float **input, float
 	if (s->outputc == 1) /* handle mono output correctly */
 		memcpy(output[1], output[0], sizeof(float)*samplecount);
 }
+
+static struct json_object *serializeLV2Effect(void *state)
+{
+	LV2State *s = state;
+	struct json_object *obj = json_object_new_object();
+	json_object_object_add(obj, "uri", json_object_new_string(lilv_node_as_string(lilv_plugin_get_uri(s->plugin))));
+
+	struct json_object *array = json_object_new_array_ext(s->controlc);
+	for (uint32_t i = 0; i < s->controlc; i++)
+		json_object_array_add(array, json_object_new_double(s->controlv[i]));
+	json_object_object_add(obj, "control", array);
+
+	return obj;
+}
+
+static void *deserializeLV2Effect(struct json_object *jso, float **input, float **output)
+{
+	LilvNode *node = lilv_new_uri(lv2_db.world, json_object_get_string(json_object_object_get(jso, "Label")));
+	LV2State *ret = initLV2Effect(lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), node), input, output);
+	lilv_node_free(node);
+
+	struct json_object *array = json_object_object_get(jso, "control");
+	for (uint32_t i = 0; i < json_object_array_length(array); i++)
+		ret->controlv[i] = json_object_get_double(json_object_array_get_idx(array, i));
+
+	return ret;
+}

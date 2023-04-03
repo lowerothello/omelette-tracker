@@ -24,7 +24,7 @@ void cleanup(int ret)
 	if (s)
 	{
 		stopPlayback();
-		while (s->playing)
+		while (w->playing)
 		{ /* wait until stopPlayback() finishes fully */
 			req.tv_sec = 0;
 			req.tv_nsec = UPDATE_DELAY;

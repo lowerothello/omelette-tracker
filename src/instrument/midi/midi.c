@@ -1,10 +1,9 @@
-void midiInit(Inst *iv)
+void *midiInit(void)
 {
-	iv->type = INST_TYPE_MIDI;
+	InstMidiState *ret = calloc(1, sizeof(InstMidiState));
+	ret->channel = -1;
 
-	InstMidiState *s = iv->state = calloc(1, sizeof(InstMidiState));
-
-	s->channel = -1;
+	return ret;
 }
 void midiFree(Inst *iv)
 {
@@ -29,11 +28,18 @@ void midiTriggerNote(uint32_t fptr, Inst *iv, Track *cv, uint8_t oldnote, uint8_
 	triggerMidi(fptr, iv->state, cv, oldnote, note, inst);
 }
 
-void midiProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r)
-{ }
+static struct json_object *midiSerialize(void *state, size_t *dataoffset)
+{
+	InstMidiState *s = state;
+	return json_object_new_int(s->channel);
+}
 
-void midiLookback(Inst *iv, Track *cv, uint16_t *spr)
-{ }
+static void *midiDeserialize(struct json_object *jso, void *data, double ratemultiplier)
+{
+	InstMidiState *ret = midiInit();
+	ret->channel = json_object_get_int(jso);
+	return ret;
+}
 
 #include "draw.c"
 #include "input.c"

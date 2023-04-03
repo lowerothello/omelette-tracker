@@ -224,7 +224,7 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 void copyEffectChain(EffectChain **dest, EffectChain *src)
 { /* NOT atomic */
 	EffectChain *ret = calloc(1, sizeof(EffectChain) + src->c * sizeof(Effect));
-	memcpy(ret, *dest, sizeof(float *) * 4); /* copy input and output */
+	memcpy(ret, *dest, sizeof(float*) * 4); /* copy input and output */
 	ret->c = src->c;
 
 	for (uint8_t i = 0; i < src->c; i++)
@@ -240,7 +240,53 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	if (!e) return;
 
 	if (effect_api[e->type].run)
+	{
 		effect_api[e->type].run(e->state, samplecount, chain->input, chain->output);
+		memcpy(chain->input[0], chain->output[0], samplecount * sizeof(float));
+		memcpy(chain->input[1], chain->output[1], samplecount * sizeof(float));
+	}
+}
+
+struct json_object *serializeEffectChain(EffectChain *ec)
+{
+	struct json_object *effectchain = json_object_new_array_ext(ec->c);
+
+	struct json_object *effect;
+	for (int i = 0; i < ec->c; i++)
+	{
+		effect = json_object_new_object();
+		json_object_object_add(effect, "type", json_object_new_int(ec->v[i].type));
+
+		if (effect_api[ec->v[i].type].serialize)
+			json_object_object_add(effect, "state", effect_api[ec->v[i].type].serialize(ec->v[i].state));
+		else
+			json_object_object_add(effect, "state", NULL);
+
+		json_object_array_add(effectchain, effect);
+	}
+
+	return effectchain;
+}
+
+EffectChain *deserializeEffectChain(struct json_object *jso)
+{
+	EffectChain *ret = newEffectChain();
+	ret->c = json_object_array_length(jso);
+	ret = realloc(ret, sizeof(EffectChain) + ret->c * sizeof(Effect));
+
+	struct json_object *effect;
+	for (int i = 0; i < ret->c; i++)
+	{
+		effect = json_object_array_get_idx(jso, i);
+		ret->v[i].type = json_object_get_int(json_object_object_get(jso, "type"));
+
+		if (effect_api[ret->v[i].type].deserialize)
+			ret->v[i].state = effect_api[ret->v[i].type].deserialize(effect, ret->input, ret->output);
+		else
+			ret->v[i].state = NULL;
+	}
+
+	return ret;
 }
 
 #include "draw.c"

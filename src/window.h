@@ -30,7 +30,10 @@ enum Page {
 #define TRACKERFX_VISUAL_MIN 0
 #define DEF_OCTAVE 4
 #define DEF_STEP 0
-typedef struct UI {
+
+/* runtime state, NOT serialized */
+typedef struct UI
+{
 	Variant *pbvariantv[TRACK_MAX];
 	Vtrig   *vbtrig    [TRACK_MAX];
 	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */
@@ -86,6 +89,13 @@ typedef struct UI {
 	uint8_t  instrecv;  /* value, set to an INST_REC_LOCK constant */
 	short   *recbuffer; /* disallow removing an instrument while recording to it */
 	uint32_t recptr;
+
+	short    *bpmcache;    /* bpm change caching so multithreading isn't hell                */
+	uint16_t  bpmcachelen; /* how far into bpmcache it's safe to index                       */
+	uint16_t  playfy;      /* analogous to window->trackerfy                                 */
+	uint16_t  spr;         /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
+	uint16_t  sprp;        /* samples per row progress                                       */
+	bool      playing;     /* true if the sequencer is running                               */
 } UI;
 UI *w;
 

@@ -128,8 +128,10 @@ InstChain *_addInst(uint8_t index, InstType type)
 	InstChain *newinst = calloc(1, sizeof(InstChain) + (s->inst->c+1) * sizeof(Inst));
 	memcpy(newinst, s->inst, sizeof(InstChain) + s->inst->c * sizeof(Inst));
 
+	newinst->v[newinst->c].type = type;
 	const InstAPI *api;
-	if ((api = instGetAPI(type))) api->init(&newinst->v[newinst->c]);
+	if ((api = instGetAPI(type)))
+		newinst->v[newinst->c].state = api->init();
 
 	newinst->i[index] = newinst->c;
 	newinst->c++;
@@ -272,6 +274,80 @@ int delInst(uint8_t index)
 // }
 
 void instControlCallback(void) { p->redraw = 1; }
+
+struct json_object *serializeInst(Inst *inst, size_t *dataoffset)
+{
+	struct json_object *jso = json_object_new_object();
+	json_object_object_add(jso, "type", json_object_new_int(inst->type));
+
+	const InstAPI *api;
+	if ((api = instGetAPI(inst->type)))
+		json_object_object_add(jso, "state", api->serialize(inst->state, dataoffset));
+	else
+		json_object_object_add(jso, "state", NULL);
+
+	return jso;
+}
+void serializeInstData(FILE *fp, Inst *inst, size_t *dataoffset)
+{
+	const InstAPI *api;
+	if ((api = instGetAPI(inst->type)))
+		api->serializedata(fp, inst->state, dataoffset);
+}
+
+Inst deserializeInst(struct json_object *jso, void *data, double ratemultiplier)
+{
+	Inst ret;
+	ret.type = json_object_get_int(json_object_object_get(jso, "type"));
+
+	const InstAPI *api;
+	if ((api = instGetAPI(ret.type)))
+		ret.state = api->deserialize(json_object_object_get(jso, "state"), data, ratemultiplier);
+
+	return ret;
+}
+
+struct json_object *serializeInstChain(InstChain *chain)
+{
+	int i;
+	size_t dataoffset = 0;
+	struct json_object *ret = json_object_new_object();
+	struct json_object *array;
+
+	array = json_object_new_array_ext(INSTRUMENT_MAX);
+	for (i = 0; i < INSTRUMENT_MAX; i++)
+		json_object_array_add(array, json_object_new_int(chain->i[i]));
+	json_object_object_add(ret, "index", array);
+
+	array = json_object_new_array_ext(chain->c);
+	for (i = 0; i < chain->c; i++)
+		json_object_array_add(array, serializeInst(&chain->v[i], &dataoffset));
+	json_object_object_add(ret, "data", array);
+
+	return ret;
+}
+
+void serializeInstChainData(FILE *fp, InstChain *chain)
+{
+	size_t dataoffset = 0;
+	for (int i = 0; i < chain->c; i++)
+		serializeInstData(fp, &chain->v[i], &dataoffset);
+}
+
+InstChain *deserializeInstChain(struct json_object *jso, void *data, double ratemultiplier)
+{
+	int i;
+	InstChain *ret = calloc(1, sizeof(InstChain) + json_object_array_length(json_object_object_get(jso, "data")) * sizeof(Inst));
+
+	ret->c = json_object_array_length(json_object_object_get(jso, "data"));
+	for (i = 0; i < INSTRUMENT_MAX; i++)
+		ret->i[i] = json_object_get_int(json_object_array_get_idx(json_object_object_get(jso, "index"), i));
+
+	for (i = 0; i < ret->c; i++)
+		ret->v[i] = deserializeInst(json_object_array_get_idx(json_object_object_get(jso, "data"), i), data, ratemultiplier);
+
+	return ret;
+}
 
 #include "input.c"
 #include "waveform.c"

@@ -4,7 +4,7 @@ uint32_t calcDecimate(uint8_t decimate, uint32_t pointer)
 {
 	/* using a double here so the pointer should't be quantized by float bullshit too badly */
 	/* TODO: using integer maths would be better to avoid precision issues */
-	double d = 1.0 + (1.0 - decimate*DIV255) * 10.0; /* TODO: scale exponentially? (more precision at the top end) */
+	double d = pow(1.0 + (1.0 - decimate*DIV255), 2);
 	return (uint32_t)(pointer/d)*d;
 }
 

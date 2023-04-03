@@ -1,14 +1,14 @@
-uint32_t getDummyEffectControlCount(void *state)
+static uint32_t getDummyEffectControlCount(void *state)
 {
 	return 1;
 }
 
-short getDummyEffectHeight(void *state)
+static short getDummyEffectHeight(void *state)
 {
 	return DUMMY_EFFECT_HEIGHT;
 }
 
-void drawDummyEffect(void *state, short x, short w, short y, short ymin, short ymax)
+static void drawDummyEffect(void *state, short x, short w, short y, short ymin, short ymax)
 {
 	if (ymin <= y-1 && ymax >= y-1)
 		printf("\033[%d;%dH\033[7mNULL\033[27m", y-1, x + 1);
@@ -22,4 +22,14 @@ void drawDummyEffect(void *state, short x, short w, short y, short ymin, short y
 	}
 
 	addControlDummy(x + w - 3, y);
+}
+
+static struct json_object *serializeDummyEffect(void *state)
+{
+	return NULL;
+}
+
+static void *deserializeDummyEffect(struct json_object *jso, float **input, float **output)
+{
+	return NULL;
 }

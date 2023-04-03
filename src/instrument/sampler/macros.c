@@ -39,7 +39,7 @@ void macroInstSamplerPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, v
 	/* TODO: would like to apply these indescriminately, could cause some nasty edge cases between instrument switches */
 	macroStateApply(&ps->pitchshift);
 	macroStateApply(&ps->pitchwidth);
-	macroStateApply(&ps->samplerate);
+	macroStateApply(&ps->rateredux);
 
 	FOR_ROW_MACROS(i, cv)
 		switch (r->macro[i].c)
@@ -65,8 +65,8 @@ void macroInstSamplerPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, v
 				ps->localcyclelength = (((uint16_t)ps->localcyclelength>>8)<<8)+r->macro[i].v;
 				break;
 
-			case MACRO_SAMPLERATE:        macroStateSet   (&ps->samplerate, r->macro[i]); break;
-			case MACRO_SMOOTH_SAMPLERATE: macroStateSmooth(&ps->samplerate, r->macro[i]); break;
+			case MACRO_SAMPLERATE:        macroStateSet   (&ps->rateredux, r->macro[i]); break;
+			case MACRO_SMOOTH_SAMPLERATE: macroStateSmooth(&ps->rateredux, r->macro[i]); break;
 
 			case MACRO_ATT_DEC: ps->localenvelope = r->macro[i].v; break;
 			case MACRO_SUS_REL: ps->localsustain = r->macro[i].v; break;
@@ -83,7 +83,7 @@ void macroInstSamplerTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint
 	/* local controls */
 	macroStateReset(&ps->pitchshift);
 	macroStateReset(&ps->pitchwidth);
-	macroStateReset(&ps->samplerate);
+	macroStateReset(&ps->rateredux);
 	ps->localenvelope = -1;
 	ps->localsustain = -1;
 	ps->localcyclelength = -1;

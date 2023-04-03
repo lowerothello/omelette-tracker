@@ -541,7 +541,8 @@ void handleStdin(void)
 						break;
 				} break;
 			case '\n': case '\r': inputTooltip(mod, XK_Return, 0); break;
-			case '\b': case 127:  inputTooltip(mod, XK_BackSpace, 0); break;
+			case '\b': case 127: inputTooltip(mod, XK_BackSpace, 0); break;
+			case ' ': inputTooltip(mod, XK_space, 0); break;
 			default:
 				if (input <= 0x20) inputTooltip(mod|ControlMask, input+0x40, 0);
 				else               inputTooltip(mod            , input     , 0);

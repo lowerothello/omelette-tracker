@@ -69,6 +69,8 @@ static void freeLV2Effect(void*);
 static void copyLV2Effect(void *dest, void *src, float **input, float **output);
 static void drawLV2Effect(void*, short x, short w, short y, short ymin, short ymax);
 static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output);
+static struct json_object *serializeLV2Effect(void *state);
+static void *deserializeLV2Effect(struct json_object *jso, float **input, float **output);
 
 const EffectAPI lv2_effect_api = {
 	"LV2",
@@ -83,4 +85,6 @@ const EffectAPI lv2_effect_api = {
 	getLV2EffectControlCount,
 	getLV2EffectHeight,
 	drawLV2Effect,
+	serializeLV2Effect,
+	deserializeLV2Effect,
 };

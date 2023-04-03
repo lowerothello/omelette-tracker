@@ -158,7 +158,7 @@ void processRow(uint32_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 {
 	bool triggerramp = 0;
 	Track oldcv;
-	memcpy(&oldcv, cv, sizeof(Track)); /* pointers are still followable from this copy */
+	memcpy(&oldcv, cv, sizeof(Track));
 
 	for (int i = 0; i <= cv->variant->macroc; i++)
 		cv->r.macro[i] = r->macro[i];
@@ -242,6 +242,7 @@ void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
 		} else cv->pointer += *spr;
 	}
 }
+
 void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 {
 	float rowprogress = (float)sprp / (float)(*spr);
@@ -339,7 +340,7 @@ void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 		if (cv->variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_VOID; }
 
 		r = getTrackRow(cv, i);
-		if (p->s->bpmcachelen > i && p->s->bpmcache[i] != -1) macroBpm(fptr, spr, p->s->bpmcache[i], cv, r);
+		if (p->w->bpmcachelen > i && p->w->bpmcache[i] != -1) macroBpm(fptr, spr, p->w->bpmcache[i], cv, r);
 		processRow(fptr, spr, 0, cv, r);
 		playTrackLookback(fptr, spr, cv);
 	}
@@ -356,7 +357,7 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 		if ((*sprp)++ > *spr)
 		{
 			*sprp = 0;
-			if (readrows && p->s->playing)
+			if (readrows && p->w->playing)
 			{
 				/* walk the pointer and loop */
 				(*playfy)++;
@@ -381,7 +382,7 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 
 				/* preprocess track */
 				r = getTrackRow(cv, *playfy);
-				if (p->s->bpmcachelen > *playfy && p->s->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->s->bpmcache[*playfy], cv, r);
+				if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->w->bpmcache[*playfy], cv, r);
 				processRow(fptr, spr, 1, cv, r);
 			}
 		}
@@ -395,17 +396,17 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 
 static void *trackThreadRoutine(void *arg) /* wrapper for some temp variables */
 {
-	uint16_t spr = p->s->spr;
-	uint16_t sprp = p->s->sprp;
-	uint16_t playfy = p->s->playfy;
+	uint16_t spr = p->w->spr;
+	uint16_t sprp = p->w->sprp;
+	uint16_t playfy = p->w->playfy;
 	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 1);
 	return NULL;
 }
 static void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that don't exist */
 {
-	uint16_t spr = p->s->spr;
-	uint16_t sprp = p->s->sprp;
-	uint16_t playfy = p->s->playfy;
+	uint16_t spr = p->w->spr;
+	uint16_t sprp = p->w->sprp;
+	uint16_t playfy = p->w->playfy;
 	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
 	return NULL;
 }
@@ -432,7 +433,12 @@ void processOutput(uint32_t nfptr)
 {
 	Track *cv;
 
-	if (processM_SEM()) return;
+	if (processM_SEM())
+	{
+		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
+			audio_api.writeAudio(fptr, 0.0f, 0.0f);
+		return;
+	}
 
 	/* TODO: should be events */
 	/* will no longer write to the record buffer */
@@ -499,9 +505,9 @@ void processOutput(uint32_t nfptr)
 	}
 
 	/* run track 0 in this thread */
-	uint16_t c0spr = p->s->spr;
-	uint16_t c0sprp = p->s->sprp;
-	uint16_t c0playfy = p->s->playfy;
+	uint16_t c0spr = p->w->spr;
+	uint16_t c0sprp = p->w->sprp;
+	uint16_t c0playfy = p->w->playfy;
 	if (p->s->track->c)
 		_trackThreadRoutine(p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
 
@@ -521,14 +527,14 @@ void processOutput(uint32_t nfptr)
 #endif
 
 	/* apply the new sprp and playfy track0 calculated */
-	if (c0playfy != p->s->playfy)
+	if (c0playfy != p->w->playfy)
 	{
 		if (p->w->follow) p->w->trackerfy = c0playfy;
 		p->redraw = 1;
 	}
-	p->s->playfy = c0playfy;
-	p->s->sprp = c0sprp;
-	p->s->spr = c0spr;
+	p->w->playfy = c0playfy;
+	p->w->sprp = c0sprp;
+	p->w->spr = c0spr;
 
 	/* clear the master and send chain ports */
 	memset(p->s->master->input[0], 0, nfptr * sizeof(float));
@@ -540,13 +546,13 @@ void processOutput(uint32_t nfptr)
 	for (uint8_t i = 0; i < p->s->track->c; i++)
 	{
 		cv = p->s->track->v[i];
-		if (cv->effect->output[0] && cv->effect->output[1])
+		if (cv->effect->input[0] && cv->effect->input[1])
 			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				p->s->master->input[0][fptr] += cv->effect->output[0][fptr] * cv->mainmult[0][fptr];
-				p->s->master->input[1][fptr] += cv->effect->output[1][fptr] * cv->mainmult[1][fptr];
-				p->s->send->input[0][fptr] += cv->effect->output[0][fptr] * cv->sendmult[0][fptr];
-				p->s->send->input[1][fptr] += cv->effect->output[1][fptr] * cv->sendmult[1][fptr];
+				p->s->master->input[0][fptr] += cv->effect->input[0][fptr] * cv->mainmult[0][fptr];
+				p->s->master->input[1][fptr] += cv->effect->input[1][fptr] * cv->mainmult[1][fptr];
+				p->s->send->input[0][fptr] += cv->effect->input[0][fptr] * cv->sendmult[0][fptr];
+				p->s->send->input[1][fptr] += cv->effect->input[1][fptr] * cv->sendmult[1][fptr];
 			}
 	}
 
@@ -556,16 +562,16 @@ void processOutput(uint32_t nfptr)
 	/* mix the send chain output into the master input */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 	{
-		p->s->master->input[0][fptr] += p->s->send->output[0][fptr];
-		p->s->master->input[1][fptr] += p->s->send->output[1][fptr];
+		p->s->master->input[0][fptr] += p->s->send->input[0][fptr];
+		p->s->master->input[1][fptr] += p->s->send->input[1][fptr];
 	}
 
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
 		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			p->s->master->input[0][fptr] += p->w->previewtrack[i]->effect->output[0][fptr] * p->w->previewtrack[i]->mainmult[0][fptr];
-			p->s->master->input[1][fptr] += p->w->previewtrack[i]->effect->output[1][fptr] * p->w->previewtrack[i]->mainmult[1][fptr];
+			p->s->master->input[0][fptr] += p->w->previewtrack[i]->effect->input[0][fptr] * p->w->previewtrack[i]->mainmult[0][fptr];
+			p->s->master->input[1][fptr] += p->w->previewtrack[i]->effect->input[1][fptr] * p->w->previewtrack[i]->mainmult[1][fptr];
 		}
 	}
 
@@ -576,8 +582,8 @@ void processOutput(uint32_t nfptr)
 	/* output */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		audio_api.writeAudio(fptr,
-				p->s->master->output[0][fptr],
-				p->s->master->output[1][fptr]);
+				p->s->master->input[0][fptr],
+				p->s->master->input[1][fptr]);
 
 	triggerFlash(p);
 }

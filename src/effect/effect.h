@@ -19,17 +19,19 @@ typedef struct EffectBrowserLine
 typedef struct EffectAPI
 {
 	const char *name;
-	void              (*init_db)(void);
-	void              (*free_db)(void);
-	uint32_t         (*db_count)(void); /* get how many plugins */
-	EffectBrowserLine (*db_line)(uint32_t index); /* get a plugin out of the database */
-	void*                (*init)(const void *data, float **i, float **o); /* returns a new state, initialized against .data */
-	void                 (*free)(void *state); /* frees .state */
-	void                 (*copy)(void *state, void *src, float **i, float **o); /* copies from .src to .state */
-	void                  (*run)(void *state, uint32_t bufsize, float **i, float **o); /* process .bufsize samples from .i to .o */
-	uint32_t         (*controlc)(void *state); /* get how many controls .state has */
-	short              (*height)(void *state); /* get the height in rows .state wants */
-	void                 (*draw)(void *state, short x, short w, short y, short ymin, short ymax);
+	void                  (*init_db)(void);
+	void                  (*free_db)(void);
+	uint32_t             (*db_count)(void); /* get how many plugins */
+	EffectBrowserLine     (*db_line)(uint32_t index); /* get a plugin out of the database */
+	void*                    (*init)(const void *data, float **i, float **o); /* returns a new state, initialized against .data */
+	void                     (*free)(void *state); /* frees .state */
+	void                     (*copy)(void *state, void *src, float **i, float **o); /* copies from .src to .state */
+	void                      (*run)(void *state, uint32_t bufsize, float **i, float **o); /* process .bufsize samples from .i to .o */
+	uint32_t             (*controlc)(void *state); /* get how many controls .state has */
+	short                  (*height)(void *state); /* get the height in rows .state wants */
+	void                     (*draw)(void *state, short x, short w, short y, short ymin, short ymax);
+	struct json_object* (*serialize)(void *state);
+	void*             (*deserialize)(struct json_object *jso, float **i, float **o);
 } EffectAPI;
 
 #include "dummy.h"
@@ -90,5 +92,8 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output);
 void copyEffectChain(EffectChain **dest, EffectChain *src);
 
 void runEffect(uint32_t samplecount, EffectChain*, Effect*);
+
+struct json_object *serializeEffectChain(EffectChain*);
+EffectChain *deserializeEffectChain(struct json_object*);
 
 #include "draw.h"
