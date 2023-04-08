@@ -949,7 +949,7 @@ void initTrackerInput(void)
 			addTooltipBind("enter insert mode"     , 0                   , XK_i         , 0              , (void(*)(void*))trackerEnterInsertMode    , NULL     );
 			addTooltipBind("enter effect mode"     , 0                   , XK_e         , 0              , (void(*)(void*))trackerEnterEffectMode    , NULL     );
 			addTooltipBind("enter visual mode"     , 0                   , XK_v         , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
-			addTooltipBind("enter visual mode"     , ControlMask         , XK_V         , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
+			addTooltipBind("enter visual mode"     , ControlMask         , XK_v         , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
 			addTooltipBind("enter visual line mode", 0                   , XK_V         , 0              , (void(*)(void*))trackerEnterVisualLineMode, NULL     );
 			addTooltipBind("delete"                , 0                   , XK_d         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordDeleteRow         , NULL     );
 			addTooltipBind("yank"                  , 0                   , XK_y         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordYankRow           , NULL     );

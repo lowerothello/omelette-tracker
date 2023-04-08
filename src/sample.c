@@ -117,6 +117,9 @@ void serializeSampleData(FILE *fp, Sample *s, size_t *dataoffset)
 
 Sample *deserializeSample(struct json_object *jso, void *data, double ratemultiplier)
 {
+	if (json_object_is_type(jso, json_type_null))
+		return NULL;
+
 	Sample *ret = calloc(1, sizeof(Sample) + sizeof(short)
 			* json_object_get_uint64(json_object_object_get(jso, "length"))
 			* json_object_get_int(json_object_object_get(jso, "channels")));

@@ -72,18 +72,15 @@ void filebrowserEditCallback(char *path)
 	free(buffer);
 } */
 
-static bool commandCallback(char *command, enum Mode *mode)
+static bool commandCallback(char *command, void *arg)
 {
 	char *buffer = malloc(strlen(command) + 1);
 	wordSplit(buffer, command, 0);
-	if      (!strcmp(buffer, "q"))   { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "q!"))  { free(buffer); buffer = NULL; return 1; }
-	else if (!strcmp(buffer, "w"))   { wordSplit(buffer, command, 1); writeSongJson(s, buffer); }
-	else if (!strcmp(buffer, "wq"))
-	{
-		wordSplit(buffer, command, 1);
-		if (!writeSongJson(s, buffer)) { free(buffer); buffer = NULL; return 1; } /* exit if writing the file succeeded */
-	} else if (!strcmp(buffer, "e"))
+	if      (!strcmp(buffer, "q"))  { free(buffer); return 1; }
+	else if (!strcmp(buffer, "q!")) { free(buffer); return 1; }
+	else if (!strcmp(buffer, "w"))  { wordSplit(buffer, command, 1); writeSongJson(s, buffer); }
+	else if (!strcmp(buffer, "wq")) { wordSplit(buffer, command, 1); if (!writeSongJson(s, buffer)) { free(buffer); return 1; } }
+	else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
 		if (strcmp(buffer, ""))
@@ -96,14 +93,14 @@ static bool commandCallback(char *command, enum Mode *mode)
 		}
 	}
 
-	free(buffer); buffer = NULL;
+	free(buffer);
 	p->redraw = 1;
 	return 0;
 }
 static void enterCommandMode(void *arg)
 {
 	setAutoRepeatOn();
-	setCommand(&w->command, &commandCallback, NULL, NULL, 1, ":", "");
+	setCommand(&commandCallback, NULL, NULL, NULL, 1, ":", "");
 	w->oldmode = w->mode;
 	switch (w->mode)
 	{
@@ -167,11 +164,6 @@ void resize(int signal)
 	ioctl(1, TIOCGWINSZ, &ws);
 	w->centre = (ws.ws_row>>1) + 1;
 
-	resizeBrowser(fbstate,
-			INSTRUMENT_INDEX_COLS + 2,         /* x */
-			TRACK_ROW + 1,                     /* y */
-			ws.ws_col - INSTRUMENT_INDEX_COLS, /* w */
-			ws.ws_row - TRACK_ROW - 1);        /* h */
 	resizeBrowser(pbstate,
 			1,                          /* x */
 			TRACK_ROW + 1,              /* y */

@@ -133,8 +133,15 @@ static void samplerDraw(Inst *iv, short x, short y, short width, short height, s
 		}
 	}
 
-	drawWaveform((*s->sample)[w->sample], x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, (width-INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
-	drawInstUI(&sampleInstUI, iv, x+1, width-2, y + whh - 1, 0, sample_rows);
+	if ((*s->sample)[w->sample])
+	{
+		drawWaveform((*s->sample)[w->sample], x+INSTUI_MULTISAMPLE_WIDTH + 1, y+1, (width-INSTUI_MULTISAMPLE_WIDTH) - 1, whh - 2);
+		drawInstUI(&sampleInstUI, iv, x+1, width-2, y + whh - 1, 0, sample_rows);
+	} else
+	{
+		resizeBrowser(fbstate, x + 5, y + 1, width - 5, wh - 2);
+		drawBrowser(fbstate);
+	}
 
 	y += wh;
 

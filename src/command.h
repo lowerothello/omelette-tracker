@@ -5,25 +5,27 @@ typedef struct {
 	short historyc; /* count of history entries */
 	char historyv[COMMAND_HISTORY_LENGTH][COMMAND_LENGTH + 1]; /* history entries */
 
-	short          history;                       /* current point in history */
-	unsigned short commandptr;                    /* command char */
-	char           error[COMMAND_LENGTH + 1];     /* visual error code */
-	char           prompt[COMMAND_LENGTH + 1];    /* prompt */
-	bool          (*callback)(char*, enum Mode*); /* (command, mode) mode is *window->mode */
-	void          (*keycallback)(char*);          /* (text) */
-	void          (*tabcallback)(char*);          /* (text) */
+	short          history;
+	unsigned short commandptr;
+	char           error[COMMAND_LENGTH + 1];
+	char           prompt[COMMAND_LENGTH + 1];
+	void          *arg;
+	bool    (*callback)(char*, void *arg);
+	void (*keycallback)(char*, void *arg);
+	void (*tabcallback)(char*, void *arg);
 } Command;
 
 void wordSplit(char *output, char *line, int wordt);
 
-void setCommand(Command*,
-		bool (*callback)(char*, enum Mode*),
-		void (*keycallback)(char*),
-		void (*tabcallback)(char*),
-		char historyenabled,
+void setCommand(
+		bool    (*callback)(char*, void *arg),
+		void (*keycallback)(char*, void *arg),
+		void (*tabcallback)(char*, void *arg),
+		void *arg,
+		bool historyenabled,
 		char *prompt,
 		char *startvalue);
 
-void drawCommand(Command*, enum Mode mode);
+void drawCommand(void);
 
 void initCommandInput(void);

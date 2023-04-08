@@ -114,5 +114,12 @@ void drawInstrument(void)
 
 		drawControls();
 	} else
+	{
+		resizeBrowser(fbstate,
+				INSTRUMENT_INDEX_COLS + 2,         /* x */
+				TRACK_ROW + 1,                     /* y */
+				ws.ws_col - INSTRUMENT_INDEX_COLS, /* w */
+				ws.ws_row - TRACK_ROW - 1);        /* h */
 		drawBrowser(fbstate);
+	}
 }

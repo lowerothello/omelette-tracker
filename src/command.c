@@ -25,35 +25,35 @@ void wordSplit(char *output, char *line, int wordt)
 	}
 }
 
-void setCommand(Command *command,
-		bool (*callback)(char*, enum Mode*),
-		void (*keycallback)(char*),
-		void (*tabcallback)(char*),
-		char historyenabled,
+void setCommand(
+		bool    (*callback)(char*, void *arg),
+		void (*keycallback)(char*, void *arg),
+		void (*tabcallback)(char*, void *arg),
+		void *arg,
+		bool historyenabled,
 		char *prompt,
 		char *startvalue)
 {
-	command->callback = callback;
-	command->keycallback = keycallback;
-	command->tabcallback = tabcallback;
-	if (historyenabled)
-		command->history = 0;
-	else
-		command->history = -1;
+	w->command.callback = callback;
+	w->command.keycallback = keycallback;
+	w->command.tabcallback = tabcallback;
+	w->command.arg = arg;
 
-	strcpy(command->prompt, prompt);
-	strcpy(command->historyv[command->historyc], startvalue);
-	command->commandptr = strlen(startvalue);
+	w->command.history = (int)historyenabled - 1; /* 0 for history, -1 for no history */
+
+	strcpy(w->command.prompt, prompt);
+	strcpy(w->command.historyv[w->command.historyc], startvalue);
+	w->command.commandptr = strlen(startvalue);
 }
 
-void drawCommand(Command *command, enum Mode mode)
+void drawCommand(void)
 {
-	if (mode == MODE_COMMAND) /* command mode */
+	if (w->mode == MODE_COMMAND) /* command mode */
 	{
-		printf("\033[?25h\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, command->prompt, command->historyv[command->historyc], ws.ws_row, (command->commandptr + (unsigned short)strlen(command->prompt) + 1) % ws.ws_col);
-		command->error[0] = '\0';
-	} else if (strlen(command->error))
-		printf("\033[s\033[%d;0H%s\033[u", ws.ws_row, command->error);
+		printf("\033[?25h\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, w->command.prompt, w->command.historyv[w->command.historyc], ws.ws_row, (w->command.commandptr + (unsigned short)strlen(w->command.prompt) + 1) % ws.ws_col);
+		w->command.error[0] = '\0';
+	} else if (strlen(w->command.error))
+		printf("\033[s\033[%d;0H%s\033[u", ws.ws_row, w->command.error);
 }
 
 static void previousHistory(void *arg)
@@ -96,7 +96,7 @@ static void cursorEnd  (void *arg)
 
 static void commandAutocomplete(void *arg)
 {
-	if (w->command.tabcallback) w->command.tabcallback(w->command.historyv[w->command.historyc]);
+	if (w->command.tabcallback) w->command.tabcallback(w->command.historyv[w->command.historyc], w->command.arg);
 	w->command.commandptr = strlen(w->command.historyv[w->command.historyc]);
 	p->redraw = 1;
 }
@@ -108,7 +108,7 @@ static void commandBackspace(void *arg)
 			if (w->command.historyv[w->command.historyc][i] != '\0' && i > w->command.commandptr - 2)
 				w->command.historyv[w->command.historyc][i] = w->command.historyv[w->command.historyc][i + 1];
 		w->command.commandptr--;
-		if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc]);
+		if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
 	}
 	p->redraw = 1;
 }
@@ -116,13 +116,13 @@ static void commandCtrlU(void *arg)
 {
 	memcpy(w->command.historyv[w->command.historyc], w->command.historyv[w->command.historyc] + w->command.commandptr, COMMAND_LENGTH - w->command.commandptr);
 	w->command.commandptr = 0;
-	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc]);
+	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
 	p->redraw = 1;
 }
 static void commandCtrlK(void *arg)
 {
 	w->command.historyv[w->command.historyc][w->command.commandptr] = '\0';
-	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc]);
+	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
 	p->redraw = 1;
 }
 
@@ -134,16 +134,21 @@ static void commandCommit(void *arg)
 
 	if (strcmp(w->command.historyv[w->command.historyc], ""))
 	{
-		if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc]);
-		if (w->command.callback) if (w->command.callback  (w->command.historyv[w->command.historyc], &w->mode)) cleanup(0);
+		if (w->command.keycallback)
+			w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
 
-		if (w->command.history < 0) cleanup(0);
+		if (w->command.callback)
+			if (w->command.callback(w->command.historyv[w->command.historyc], w->command.arg))
+				cleanup(0);
+
+		if (w->command.history < 0) goto commandCommitEnd;
 		w->command.historyc++;
 
 		/* protect against reaching an int limit, VERY unnecessary lol */
 		if (w->command.historyc >= COMMAND_HISTORY_LENGTH * 2)
 			w->command.historyc =  COMMAND_HISTORY_LENGTH;
 	}
+commandCommitEnd:
 	p->redraw = 1;
 }
 
@@ -156,7 +161,7 @@ static void commandInputKey(void *key)
 
 	w->command.historyv[w->command.historyc][w->command.commandptr] = (char)(size_t)key;
 	w->command.commandptr++;
-	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc]);
+	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
 	p->redraw = 1;
 }
 

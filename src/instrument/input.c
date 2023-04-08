@@ -11,29 +11,15 @@ static void instrumentEscape(void *arg)
 #include "chord/add.c"
 
 
-static void instrumentUpArrow(size_t count)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		browserUpArrow(fbstate, count);
-}
-static void instrumentDnArrow(size_t count)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		browserDownArrow(fbstate, count);
-}
-static void instrumentHome(void)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		browserHome(fbstate);
-}
-static void instrumentEnd(void)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		browserEnd(fbstate);
-}
-
+static void instrumentUpArrow(size_t count) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserUpArrow  (fbstate, count); }
+static void instrumentDnArrow(size_t count) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserDownArrow(fbstate, count); }
+static void instrumentHome(void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserHome(fbstate); }
+static void instrumentEnd(void)  { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserEnd (fbstate); }
 static void instrumentPgUp(void) { instrumentUpArrow((ws.ws_row>>1)); }
 static void instrumentPgDn(void) { instrumentDnArrow((ws.ws_row>>1)); }
+static void instrumentSearchStart(void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserSearchStart(fbstate); }
+static void instrumentSearchNext(void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserSearchNext(fbstate, 0); }
+static void instrumentSearchPrev(void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserSearchPrev(fbstate, 0); }
 
 static void instrumentCtrlUpArrow(void *count)
 {
@@ -191,6 +177,9 @@ void initInstrumentInput(void)
 	addTooltipBind("return"        , 0          , XK_Escape   , 0      , instrumentEscape                         , NULL    );
 	addTooltipBind("commit"        , 0          , XK_Return   , TT_DRAW, (void(*)(void*))instrumentSampleReturn   , NULL    );
 	addTooltipBind("revert"        , 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))instrumentSampleBackspace, NULL    );
+	addTooltipBind("search start"  , 0          , XK_slash    , TT_DRAW, (void(*)(void*))instrumentSearchStart    , NULL    );
+	addTooltipBind("search next"   , 0          , XK_n        , TT_DRAW, (void(*)(void*))instrumentSearchNext     , NULL    );
+	addTooltipBind("search prev"   , 0          , XK_N        , TT_DRAW, (void(*)(void*))instrumentSearchPrev     , NULL    );
 	switch (w->mode)
 	{
 		case MODE_NORMAL:

@@ -122,6 +122,30 @@ static void fileBrowserDrawLine(BrowserState *b, int y)
 	free(testdirpath);
 }
 
+static char *fileBrowserSearchLine(void *data)
+{
+	FileBrowserData *fbd = data;
+
+	char *testdirpath = malloc(strlen(fbd->path) + strlen(fbd->dirent->d_name) + 2); /* 1 for '/', one for '\0' */
+	strcpy(testdirpath, fbd->path);
+	strcat(testdirpath, "/");
+	strcat(testdirpath, fbd->dirent->d_name);
+
+	DIR *testdir = opendir(testdirpath);
+	free(testdirpath);
+
+	if (testdir)
+	{ /* directory */
+		closedir(testdir);
+
+		char dirname[strlen(fbd->dirent->d_name) + 2];
+		strcpy(dirname, fbd->dirent->d_name);
+		strcat(dirname, "/");
+		return strdup(dirname);
+	} else /* file */
+		return strdup(fbd->dirent->d_name);
+}
+
 static uint32_t fileBrowserGetLineCount(void *data) { return ((FileBrowserData *)data)->size; }
 
 /* assume swap2 is a (Sample), free it if it is set */
@@ -233,6 +257,7 @@ BrowserState *initFileBrowser(char *path)
 	ret->getTitle     = fileBrowserGetTitle;
 	ret->getNext      = fileBrowserGetNext;
 	ret->drawLine     = fileBrowserDrawLine;
+	ret->searchLine   = fileBrowserSearchLine;
 	ret->getLineCount = fileBrowserGetLineCount;
 	ret->cursorCB     = cb_fileBrowserCursor;
 	ret->commit       = fileBrowserCommit;
@@ -248,8 +273,7 @@ void freeFileBrowser(BrowserState *b)
 {
 	closedir(((FileBrowserData *)b->data)->dir );
 	free    (((FileBrowserData *)b->data)->path);
-	free(b->data);
-	free(b);
+	browserFree(b);
 }
 
 

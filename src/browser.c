@@ -6,6 +6,30 @@ void resizeBrowser(BrowserState *b, short x, short y, short w, short h)
 	b->h = h;
 }
 
+char *tolowerString(char *s)
+{
+	for (size_t i = 0; i < strlen(s); i++)
+		s[i] = tolower(s[i]);
+	return s;
+}
+
+static bool browserSearch(BrowserState *b)
+{
+	bool ret = 0;
+	if (b->search && strlen(b->search))
+	{
+		char *searchline = b->searchLine(b->data);
+		if (searchline)
+		{
+			tolowerString(searchline);
+			if (strstr(searchline, b->search))
+				ret = 1;
+			free(searchline);
+		}
+	}
+	return ret;
+}
+
 void drawBrowser(BrowserState *b)
 {
 	char *line = b->getTitle(b->data);
@@ -20,11 +44,15 @@ void drawBrowser(BrowserState *b)
 	while (b->getNext(b->data))
 	{
 		if (yo > b->y && yo < b->y + b->h)
+		{
+			if (browserSearch(b)) printf("\033[44m\033[%d;%dH\033[%d@", yo, b->x, b->w - 3);
 			b->drawLine(b, yo);
+			printf("\033[m");
+		}
 		yo++;
 	}
 
-	drawVerticalScrollbar(b->x + b->w, b->y, b->h, b->getLineCount(b->data), b->cursor);
+	drawVerticalScrollbar(b->x + b->w - 2, b->y, b->h, b->getLineCount(b->data), b->cursor);
 
 	/* draw the cursor */
 	printf("\033[%d;%dH", b->y + (b->h>>1) + b->fyoffset, b->x);
@@ -90,4 +118,71 @@ void browserMouse(BrowserState *b, enum Button button, int x, int y)
 			} break;
 		default: break;
 	}
+}
+
+static void browserSearchKeyCallback(char *command, void *arg)
+{
+	BrowserState *b = arg;
+
+	if (b->search) free(b->search);
+	b->search = strdup(command);
+	browserSearchNext(b, 1);
+	p->redraw = 1;
+}
+
+void browserSearchStart(BrowserState *b)
+{
+	if (b->search) { free(b->search); b->search = NULL; }
+	setCommand(NULL, browserSearchKeyCallback, NULL, b, 0, "/", "");
+	w->mode = MODE_COMMAND;
+	p->redraw = 1;
+}
+
+void browserSearchNext(BrowserState *b, bool includecurrent)
+{
+	free(b->getTitle(b->data)); /* TODO: redundant alloc */
+
+	uint32_t i = 0;
+	while (b->getNext(b->data))
+	{
+		if (i >= b->cursor + 1 - includecurrent && browserSearch(b))
+		{
+			b->cursor = i;
+			return;
+		}
+		i++;
+	}
+	/* TODO: needs to loop */
+}
+
+void browserSearchPrev(BrowserState *b, bool includecurrent)
+{
+	free(b->getTitle(b->data)); /* TODO: redundant alloc */
+
+	uint32_t i = 0;
+	uint32_t lastfind = b->cursor + 1;
+	while (b->getNext(b->data))
+	{
+		if (i >= b->cursor - includecurrent) /* slight underflow is actually safe here */
+		{
+			if (lastfind == b->cursor + 1)
+			{
+				/* TODO: needs to loop */
+			} else
+				b->cursor = lastfind;
+
+			return;
+		}
+
+		if (browserSearch(b))
+			lastfind = i;
+		i++;
+	}
+}
+
+void browserFree(BrowserState *b)
+{
+	if (b->data) free(b->data);
+	if (b->search) free(b->search);
+	free(b);
 }
