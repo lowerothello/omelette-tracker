@@ -50,7 +50,6 @@ void init(int argc, char *argv[])
 	srand(time(NULL)); /* seed rand */
 
 	initTerminal();
-	initRawInput();
 	initEffectDB();
 
 	if (audioInitAPI()) common_cleanup(1);
@@ -60,6 +59,8 @@ void init(int argc, char *argv[])
 	p = malloc(sizeof(PlaybackInfo));
 	if (!p) { puts("out of memory"); common_cleanup(1); }
 	memset(p, 0, sizeof(PlaybackInfo));
+
+	initRawInput();
 
 	w = allocWindow();
 	if (!w) { puts("out of memory"); common_cleanup(1); }

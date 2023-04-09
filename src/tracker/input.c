@@ -66,6 +66,7 @@ static void trackerEnterInsertMode(void)
 static void trackerEnterEffectMode(void)
 {
 	w->mode = MODE_EFFECT;
+	cc.cursor = getCursorFromEffectTrack(w->track);
 	p->redraw = 1;
 }
 void toggleSongFollow(void)
@@ -833,47 +834,45 @@ static void trackerMouse(enum Button button, int x, int y)
 	}
 }
 
-static void addEffectBelow(EffectChain **chain)
+static void addEffectBelow(void)
 {
 	w->pluginbrowserbefore = 0;
 	w->oldpage = w->page;
 	w->page = PAGE_PLUGINBROWSER;
-	w->pluginbrowserchain = chain;
 	p->redraw = 1;
 }
-static void addEffectAbove(EffectChain **chain)
+static void addEffectAbove(void)
 {
 	w->pluginbrowserbefore = 1;
 	w->oldpage = w->page;
 	w->page = PAGE_PLUGINBROWSER;
-	w->pluginbrowserchain = chain;
 	p->redraw = 1;
 }
-static void pasteEffectBelow(EffectChain **chain)
+static void pasteEffectBelow(uint8_t track)
 {
 	if (w->effectbuffer.type != EFFECT_TYPE_DUMMY)
-		addEffect(chain, EFFECT_TYPE_DUMMY, -1, MIN(getEffectFromCursor(*chain, cc.cursor)+1, (*chain)->c), cb_addEffect);
+		addEffect(&s->track->v[track]->effect, EFFECT_TYPE_DUMMY, -1, MIN(getEffectFromCursor(track, s->track->v[track]->effect, cc.cursor)+1, s->track->v[track]->effect->c), cb_addEffect);
 	p->redraw = 1;
 }
-static void pasteEffectAbove(EffectChain **chain)
+static void pasteEffectAbove(uint8_t track)
 {
 	if (w->effectbuffer.type != EFFECT_TYPE_DUMMY)
-		addEffect(chain, EFFECT_TYPE_DUMMY, -1, getEffectFromCursor(*chain, cc.cursor), cb_addEffect);
+		addEffect(&s->track->v[track]->effect, EFFECT_TYPE_DUMMY, -1, getEffectFromCursor(track, s->track->v[track]->effect, cc.cursor), cb_addEffect);
 	p->redraw = 1;
 }
-static void delChainEffect(EffectChain **chain)
+static void delChainEffect(uint8_t track)
 {
-	if (!(*chain)->c) return;
-	uint8_t selectedindex = getEffectFromCursor(*chain, cc.cursor);
-	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&(*chain)->v[selectedindex]));
-	delEffect(chain, selectedindex);
+	if (!s->track->v[track]->effect->c) return;
+	uint8_t selectedindex = getEffectFromCursor(track, s->track->v[track]->effect, cc.cursor);
+	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&s->track->v[track]->effect->v[selectedindex]));
+	delEffect(&s->track->v[track]->effect, selectedindex);
 	p->redraw = 1;
 }
-static void copyChainEffect(EffectChain **chain)
+static void copyChainEffect(uint8_t track)
 {
-	if (!(*chain)->c) return;
-	uint8_t selectedindex = getEffectFromCursor(*chain, cc.cursor);
-	copyEffect(&w->effectbuffer, &(*chain)->v[selectedindex], NULL, NULL);
+	if (!s->track->v[track]->effect->c) return;
+	uint8_t selectedindex = getEffectFromCursor(track, s->track->v[track]->effect, cc.cursor);
+	copyEffect(&w->effectbuffer, &s->track->v[track]->effect->v[selectedindex], NULL, NULL);
 	p->redraw = 1;
 }
 
@@ -907,12 +906,12 @@ void initTrackerInput(void)
 			addTooltipBind("return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape   , NULL);
 			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0, (void(*)(void*))toggleKeyControl, NULL);
 			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0, (void(*)(void*))revertKeyControl, NULL);
-			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow  , &s->track->v[w->track]->effect);
-			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove  , &s->track->v[w->track]->effect);
-			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow, &s->track->v[w->track]->effect);
-			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove, &s->track->v[w->track]->effect);
-			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect  , &s->track->v[w->track]->effect);
-			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect , &s->track->v[w->track]->effect);
+			addTooltipBind("add effect below"        , 0          , XK_a        , 0, (void(*)(void*))addEffectBelow  , NULL);
+			addTooltipBind("add effect above"        , 0          , XK_A        , 0, (void(*)(void*))addEffectAbove  , NULL);
+			addTooltipBind("paste effect below"      , 0          , XK_p        , 0, (void(*)(void*))pasteEffectBelow, (void*)(size_t)w->track);
+			addTooltipBind("paste effect above"      , 0          , XK_P        , 0, (void(*)(void*))pasteEffectAbove, (void*)(size_t)w->track);
+			addTooltipBind("delete effect"           , 0          , XK_d        , 0, (void(*)(void*))delChainEffect  , (void*)(size_t)w->track);
+			addTooltipBind("copy effect"             , 0          , XK_y        , 0, (void(*)(void*))copyChainEffect , (void*)(size_t)w->track);
 			addTooltipBind("increment"               , ControlMask, XK_A        , 0, (void(*)(void*))incControlValue , NULL);
 			addTooltipBind("decrement"               , ControlMask, XK_X        , 0, (void(*)(void*))decControlValue , NULL);
 			break;

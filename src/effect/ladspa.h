@@ -31,7 +31,7 @@ static uint32_t getLadspaEffectControlCount(void*);
 static short getLadspaEffectHeight(void*);
 static void *initLadspaEffect(const void *data, float **input, float **output);
 static void freeLadspaEffect(void*);
-static void copyLadspaEffect(void *dest, void *src, float **input, float **output);
+static void *copyLadspaEffect(void *src, float **input, float **output);
 static void drawLadspaEffect(void*, short x, short w, short y, short ymin, short ymax); /* the current text colour will apply to the header but not the contents */
 static void runLadspaEffect(void*, uint32_t samplecount, float **input, float **output); /* only valid to call if input and output are not NULL */
 static struct json_object *serializeLadspaEffect(void *state);

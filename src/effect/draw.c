@@ -14,12 +14,12 @@ short getEffectHeight(Effect *e)
 	if (!e) return 0;
 
 	if (effect_api[e->type].height)
-		effect_api[e->type].height(e->state);
+		return effect_api[e->type].height(e->state);
 
 	return 0;
 }
 
-static int _drawEffect(Effect *e, bool selected, short x, short width, short y, short ymin, short ymax)
+static short _drawEffect(Effect *e, bool selected, short x, short width, short y, short ymin, short ymax)
 {
 	if (!e) return 0;
 
@@ -36,27 +36,48 @@ static int _drawEffect(Effect *e, bool selected, short x, short width, short y, 
 	return ret;
 }
 
-void drawEffectChain(EffectChain *chain, short x, short width, short y)
+void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, short y)
 {
 	if (x > ws.ws_col+1 || x+width < 1) return;
 
-	uint8_t focusedindex = getEffectFromCursor(chain, cc.cursor);
-	short ty = y + ((ws.ws_row-1 - y)>>1);
+	short focusindex;
+	if (track == w->track) focusindex = getEffectFromCursor(track, chain, cc.cursor);
+	else                   focusindex = -1;
 
 	if (chain->c)
 	{
-		for (uint8_t i = 0; i < focusedindex; i++)
-			ty -= getEffectHeight(&chain->v[i]);
+		short height = 0;
+		short focusheight = 0;
+		short ty = y;
+		for (uint8_t i = 0; i < chain->c; i++)
+		{
+			height += getEffectHeight(&chain->v[i]);
+			if (i == focusindex)
+				focusheight = height;
+		}
 
-		ty -= getEffectHeight(&chain->v[focusedindex])>>1;
+		if ((ws.ws_row - 1) - height < y)
+		{
+			size_t chaincontrolc = 0;
+			for (int i = 0; i < chain->c; i++)
+				chaincontrolc += getEffectControlCount(&chain->v[i]);
+
+			width--;
+			if (focusindex > -1)
+			{
+				drawVerticalScrollbar(x + width + 1, y, ws.ws_row-1 - y, chaincontrolc, cc.cursor - getCursorFromEffectTrack(track));
+				ty = MIN(y, (ws.ws_row - 1) - focusheight);
+			} else
+				drawVerticalScrollbar(x + width + 1, y, ws.ws_row-1 - y, chaincontrolc, 0);
+		}
 
 		for (uint8_t i = 0; i < chain->c; i++)
 			ty += _drawEffect(&chain->v[i],
-					focusedindex == i, x, width,
+					focusindex == i, x, width,
 					ty+1, y, ws.ws_row-1);
-		drawVerticalScrollbar(x + width + 2, y, ws.ws_row-1 - y, cc.controlc, cc.cursor);
 	} else
 	{
+		if (focusindex > -1) printf("\033[1;31m");
 		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT-1, 1, ws.ws_col, 1, ws.ws_row);
 		printf("\033[m");
 

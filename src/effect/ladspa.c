@@ -186,9 +186,14 @@ static void startLadspaEffect(LadspaState *s, float **input, float **output)
 	for (uint32_t i = 0; i < s->desc->PortCount; i++)
 		if (LADSPA_IS_PORT_CONTROL(s->desc->PortDescriptors[i]) && LADSPA_IS_PORT_INPUT(s->desc->PortDescriptors[i]))
 			s->controlc++;
+
 	/* allocate the control block */
 	bool setDefaults = 0; /* only set the defaults if memory isn't yet allocated */
-	if (!s->controlv) { s->controlv = calloc(s->controlc, sizeof(LADSPA_Data)); setDefaults = 1; }
+	if (!s->controlv)
+	{
+		s->controlv = calloc(s->controlc, sizeof(LADSPA_Data));
+		setDefaults = 1;
+	}
 
 	/* iterate again to connect ports */
 	uint32_t controlp = 0;
@@ -243,16 +248,17 @@ static void _initLadspaEffect(LadspaState *s, const LADSPA_Descriptor *desc, flo
 }
 static void *initLadspaEffect(const void *data, float **input, float **output)
 {
-	LadspaState *s = malloc(sizeof(LadspaState));
+	LadspaState *s = calloc(1, sizeof(LadspaState));
 	_initLadspaEffect(s, data, input, output);
 	return (void*)s;
 }
-static void copyLadspaEffect(void *dest, void *src, float **input, float **output)
+static void *copyLadspaEffect(void *src, float **input, float **output)
 {
-	LadspaState *d = dest;
+	LadspaState *ret = calloc(1, sizeof(LadspaState));
 	LadspaState *s = src;
-	_initLadspaEffect(d, s->desc, input, output);
-	memcpy(d->controlv, s->controlv, s->controlc * sizeof(LADSPA_Data));
+	_initLadspaEffect(ret, s->desc, input, output);
+	memcpy(ret->controlv, s->controlv, s->controlc * sizeof(LADSPA_Data));
+	return ret;
 }
 
 /* the current text colour will apply to the header but not the contents */

@@ -43,8 +43,8 @@ typedef struct
 	uint8_t cursor;
 	signed char fieldpointer;
 
-	uint8_t controlc; /* how many controls are assigned */
-	Control control[256];
+	size_t controlc; /* how many controls are assigned */
+	Control *control;
 
 	bool mouseadjust;
 	int8_t mouseclickwalk;

@@ -238,27 +238,22 @@ static void _initLV2Effect(LV2State *s, const LilvPlugin *plugin, float **input,
 // static void *initLV2Effect(void *data, float **input, float **output, const LilvPlugin *plugin)
 static void *initLV2Effect(const void *data, float **input, float **output)
 {
-	LV2State *s = malloc(sizeof(LV2State));
+	LV2State *s = calloc(1, sizeof(LV2State));
 	_initLV2Effect(s, data, input, output);
 	return (void*)s;
 }
 
-static void copyLV2Effect(void *dest, void *src, float **input, float **output)
+static void *copyLV2Effect(void *src, float **input, float **output)
 {
-	LV2State *d = dest;
+	LV2State *ret = calloc(1, sizeof(LV2State));
 	LV2State *s = src;
-	_initLV2Effect(d, s->plugin, input, output);
-	memcpy(d->controlv, s->controlv, s->controlc * sizeof(float));
+	_initLV2Effect(ret, s->plugin, input, output);
+	memcpy(ret->controlv, s->controlv, s->controlc * sizeof(float));
+	return ret;
 }
 
-static uint32_t getLV2EffectControlCount(void *s)
-{
-	return ((LV2State*)s)->controlc;
-}
-static short getLV2EffectHeight(void *s)
-{
-	return getLV2EffectControlCount(s) + 3;
-}
+static uint32_t getLV2EffectControlCount(void *s) { return ((LV2State*)s)->controlc; }
+static short getLV2EffectHeight(void *s) { return getLV2EffectControlCount(s) + 3; }
 
 /* the current text colour will apply to the header but not the contents */
 static void drawLV2Effect(void *state,

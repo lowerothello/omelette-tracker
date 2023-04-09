@@ -64,7 +64,6 @@ typedef struct UI
 	int           filebrowserindex;
 	uint32_t      plugineffectindex;
 	bool          pluginbrowserbefore; /* true to place plugins before the cursor, false to place plugins after the cursor */
-	EffectChain **pluginbrowserchain;  /* which chain to place plugins into */
 
 	unsigned short mousey, mousex;
 

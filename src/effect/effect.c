@@ -132,6 +132,7 @@ static EffectChain *_addEffect(EffectChain *chain, EffectType type, uint32_t src
 }
 void cb_addEffect(Event *e)
 {
+	cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
 }
@@ -146,7 +147,7 @@ void addEffect(EffectChain **chain, EffectType type, uint32_t srcindex, uint8_t 
 		e.dest = (void **)chain;
 		e.src = _addEffect(*chain, type, srcindex, destindex);
 		e.callback = cb;
-		e.callbackarg = (void *)(size_t)index;
+		e.callbackarg = (void *)(size_t)destindex;
 		pushEvent(&e);
 	}
 }
@@ -172,6 +173,7 @@ EffectChain *_delEffect(EffectChain *chain, uint8_t index)
 static void cb_delEffect(Event *e)
 {
 	freeEffect(&((EffectChain *)e->src)->v[(size_t)e->callbackarg]);
+	cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
 }
@@ -191,9 +193,9 @@ void delEffect(EffectChain **chain, uint8_t index)
 }
 
 /* cursor is (ControlState).cursor compatible */
-uint8_t getEffectFromCursor(EffectChain *chain, uint8_t cursor)
+uint8_t getEffectFromCursor(uint8_t track, EffectChain *chain, size_t cursor)
 {
-	uint8_t offset = 0;
+	size_t offset = getCursorFromEffectTrack(track);
 	for (int i = 0; i < chain->c; i++)
 	{
 		offset += getEffectControlCount(&chain->v[i]);
@@ -201,12 +203,25 @@ uint8_t getEffectFromCursor(EffectChain *chain, uint8_t cursor)
 	} return 0; /* fallback */
 }
 
-uint8_t getCursorFromEffect(EffectChain *chain, uint8_t index)
+size_t getCursorFromEffect(uint8_t track, EffectChain *chain, uint8_t index)
 {
-	uint8_t offset = 0;
-	for (int i = 0; i < MIN(index, chain->c); i++)
+	size_t offset = getCursorFromEffectTrack(track);
+	for (int i = 0; i < MIN(index, chain->c - 1); i++)
 		offset += getEffectControlCount(&chain->v[i]);
 	return offset;
+}
+
+size_t getCursorFromEffectTrack(uint8_t track)
+{
+	size_t ret = 0;
+	for (uint8_t i = 0; i < track; i++)
+		if (s->track->v[i]->effect->c)
+			for (uint8_t j = 0; j < s->track->v[i]->effect->c; j++)
+				ret += getEffectControlCount(&s->track->v[i]->effect->v[j]);
+		else
+			ret++;
+
+	return ret;
 }
 
 void copyEffect(Effect *dest, Effect *src, float **input, float **output)
@@ -218,7 +233,7 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 	if (effect_api[src->type].copy)
 	{
 		dest->type = src->type;
-		effect_api[src->type].copy(dest->state, src->state, input, output);
+		dest->state = effect_api[src->type].copy(src->state, input, output);
 	}
 }
 void copyEffectChain(EffectChain **dest, EffectChain *src)

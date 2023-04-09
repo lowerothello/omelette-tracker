@@ -66,7 +66,7 @@ static uint32_t getLV2EffectControlCount(void*);
 static short getLV2EffectHeight(void*);
 static void *initLV2Effect(const void *data, float **input, float **output);
 static void freeLV2Effect(void*);
-static void copyLV2Effect(void *dest, void *src, float **input, float **output);
+static void *copyLV2Effect(void *src, float **input, float **output);
 static void drawLV2Effect(void*, short x, short w, short y, short ymin, short ymax);
 static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output);
 static struct json_object *serializeLV2Effect(void *state);

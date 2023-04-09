@@ -28,10 +28,14 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 void trackerUpArrow(size_t count)
 {
 	count *= MAX(1, w->count);
+	size_t min;
+	int mincount;
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			decControlCursor(count);
+			min = getCursorFromEffectTrack(w->track);
+			mincount = cc.cursor - min;
+			decControlCursor(MIN(mincount, count));
 			break;
 		default:
 			w->follow = 0;
@@ -45,10 +49,14 @@ void trackerUpArrow(size_t count)
 void trackerDownArrow(size_t count)
 {
 	count *= MAX(1, w->count);
+	size_t max;
+	int maxcount;
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			incControlCursor(count);
+			max = getCursorFromEffectTrack(w->track + 1) - 1;
+			maxcount = max - cc.cursor;
+			incControlCursor(MIN(maxcount, count));
 			break;
 		default:
 			w->follow = 0;
@@ -124,6 +132,10 @@ static void trackSet(uint8_t track)
 	w->track = track;
 	if (w->trackerfx > 3 + s->track->v[w->track]->variant->macroc * 2)
 		w->trackerfx = 3 + s->track->v[w->track]->variant->macroc * 2;
+
+	if (w->mode == MODE_EFFECT)
+		cc.cursor = getCursorFromEffectTrack(w->track);
+
 	p->redraw = 1;
 }
 
@@ -281,8 +293,8 @@ void trackerPgUp(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			cc.cursor = getCursorFromEffect(s->track->v[w->track]->effect,
-					MAX(0, getEffectFromCursor(s->track->v[w->track]->effect, cc.cursor) - (int)MAX(1, w->count)));
+			cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect,
+					MAX(0, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) - (int)MAX(1, w->count)));
 			p->redraw = 1; break;
 		default:
 			trackerUpArrow(s->rowhighlight);
@@ -295,8 +307,8 @@ void trackerPgDn(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			cc.cursor = getCursorFromEffect(s->track->v[w->track]->effect,
-					MIN(s->track->v[w->track]->effect->c-1, getEffectFromCursor(s->track->v[w->track]->effect, cc.cursor) + MAX(1, w->count)));
+			cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect,
+					MIN(s->track->v[w->track]->effect->c-1, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) + MAX(1, w->count)));
 			p->redraw = 1; break;
 		default:
 			trackerDownArrow(s->rowhighlight);

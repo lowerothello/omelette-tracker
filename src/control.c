@@ -16,6 +16,14 @@ void clearControls(void)
 		c->callback = NULL;
 	}
 	cc.controlc = 0;
+	if (cc.control) free(cc.control);
+	cc.control = NULL;
+}
+
+static void _allocControl(void)
+{
+	cc.control = realloc(cc.control, sizeof(Control) * (cc.controlc+1));
+	memset(&(cc.control[cc.controlc]), 0, sizeof(Control));
 }
 
 /* min/max/def/nibbles should already be set */
@@ -40,11 +48,11 @@ void addControlInt(short x, short y, void *value, int8_t nibbles,
 		uint32_t scalepointlen, uint32_t scalepointcount,
 		void (*callback)(void *), void *callbackarg)
 {
+	_allocControl();
 	cc.control[cc.controlc].min.i = min;
 	cc.control[cc.controlc].max.i = max;
 	cc.control[cc.controlc].def.i = def;
 	cc.control[cc.controlc].nibbles = nibbles;
-
 	_addControl(x, y, value, scalepointlen, scalepointcount, callback, callbackarg);
 }
 void addControlFloat(short x, short y, void *value, int8_t nibbles,
@@ -52,21 +60,21 @@ void addControlFloat(short x, short y, void *value, int8_t nibbles,
 		uint32_t scalepointlen, uint32_t scalepointcount,
 		void (*callback)(void *), void *callbackarg)
 {
+	_allocControl();
 	cc.control[cc.controlc].min.f = min;
 	cc.control[cc.controlc].max.f = max;
 	cc.control[cc.controlc].def.f = def;
 	cc.control[cc.controlc].nibbles = nibbles;
-
 	_addControl(x, y, value, scalepointlen, scalepointcount, callback, callbackarg);
 }
 
 void addControlDummy(short x, short y)
 {
+	_allocControl();
 	cc.control[cc.controlc].min.i = 0;
 	cc.control[cc.controlc].max.i = 0;
 	cc.control[cc.controlc].def.i = 0;
 	cc.control[cc.controlc].nibbles = 0;
-
 	_addControl(x, y, NULL, 0, 0, NULL, NULL);
 }
 

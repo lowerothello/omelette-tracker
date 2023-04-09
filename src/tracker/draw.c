@@ -491,27 +491,41 @@ void drawTracker(void)
 
 	short sfx;
 
-	sfx = genSfx(TRACK_LINENO_COLS);
-	x = 1 + TRACK_LINENO_COLS + 2 + sfx;
-	for (uint8_t i = 0; i < s->track->c; i++)
-	{
-		drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i]->variant->macroc+1) - TRACK_HEADER_LEN)>>1),
-				LINENO_COLS, ws.ws_col);
-
-		x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
-	}
-
 	if (w->mode == MODE_EFFECT)
 	{
 		if (cc.mouseadjust || cc.keyadjust) printf("\033[%d;0H\033[1m-- EFFECT ADJUST --\033[m", ws.ws_row);
 		else                                printf("\033[%d;0H\033[1m-- EFFECT --\033[m"       , ws.ws_row);
 		w->command.error[0] = '\0';
 
-		short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		clearControls();
-		drawEffectChain(s->track->v[w->track+w->trackoffset]->effect, (ws.ws_col - effectwidth)>>1, effectwidth, TRACK_ROW + 2);
+		sfx = genSfx(TRACK_LINENO_COLS);
+		x = 1 + TRACK_LINENO_COLS + 2 + sfx;
+		for (uint8_t i = 0; i < s->track->c; i++)
+		{
+			drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i]->variant->macroc+1) - TRACK_HEADER_LEN)>>1),
+					LINENO_COLS, ws.ws_col);
+
+			drawEffectChain(i, s->track->v[i]->effect,
+					x + 3,
+					TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1) - 2,
+					TRACK_ROW + 2);
+
+			x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
+		}
+		// short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		drawControls();
 		return;
+	} else
+	{
+		sfx = genSfx(TRACK_LINENO_COLS);
+		x = 1 + TRACK_LINENO_COLS + 2 + sfx;
+		for (uint8_t i = 0; i < s->track->c; i++)
+		{
+			drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i]->variant->macroc+1) - TRACK_HEADER_LEN)>>1),
+					LINENO_COLS, ws.ws_col);
+
+			x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
+		}
 	}
 
 	sx = drawTrackerBody(sfx, 1, LINENO_COLS-1, ws.ws_col); /* TODO: the -1 here is a dirty hack */

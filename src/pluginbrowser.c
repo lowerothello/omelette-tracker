@@ -90,18 +90,13 @@ static char *pluginBrowserSearchLine(void *data)
 	return ret;
 }
 
-static void cb_addEffectAfter(Event *e)
-{
-	cc.cursor = getCursorFromEffect(*w->pluginbrowserchain, (size_t)e->callbackarg);
-	cb_addEffect(e);
-}
 static void pluginBrowserCommit(BrowserState *b)
 {
 	w->page = w->oldpage;
 	uint32_t i = b->cursor;
 	EffectType type = getPluginIndexEffectType(&i);
-	if (w->pluginbrowserbefore) addEffect(w->pluginbrowserchain, type, i, getEffectFromCursor(*w->pluginbrowserchain, cc.cursor), cb_addEffect);
-	else                        addEffect(w->pluginbrowserchain, type, i, MIN(getEffectFromCursor(*w->pluginbrowserchain, cc.cursor) + 1, (*w->pluginbrowserchain)->c), cb_addEffectAfter);
+	if (w->pluginbrowserbefore) addEffect(&s->track->v[w->track]->effect, type, i, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor), cb_addEffect);
+	else                        addEffect(&s->track->v[w->track]->effect, type, i, MIN(getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) + 1, s->track->v[w->track]->effect->c), cb_addEffect);
 }
 
 static void pluginBrowserMouse(enum Button button, int x, int y)
@@ -123,7 +118,7 @@ static void pluginBrowserEscape(void *arg)
 }
 static void pluginBrowserCommitBind(void *arg) /* TODO: shitty disambiguation */
 {
-	pbstate->commit(pbstate);
+	pluginBrowserCommit(pbstate);
 	p->redraw = 1;
 }
 

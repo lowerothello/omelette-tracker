@@ -11,9 +11,9 @@ typedef enum EffectType
 
 typedef struct EffectBrowserLine
 {
-	char *name;  /* free'd */
-	char *maker; /* free'd */
-	const void *data; /* passed into api->init() */
+	char       *name;  /* free'd */
+	char       *maker; /* free'd */
+	const void *data;  /* passed into api->init() */
 } EffectBrowserLine;
 
 typedef struct EffectAPI
@@ -25,7 +25,7 @@ typedef struct EffectAPI
 	EffectBrowserLine     (*db_line)(uint32_t index); /* get a plugin out of the database */
 	void*                    (*init)(const void *data, float **i, float **o); /* returns a new state, initialized against .data */
 	void                     (*free)(void *state); /* frees .state */
-	void                     (*copy)(void *state, void *src, float **i, float **o); /* copies from .src to .state */
+	void*                    (*copy)(void *src, float **i, float **o); /* duplicates .src */
 	void                      (*run)(void *state, uint32_t bufsize, float **i, float **o); /* process .bufsize samples from .i to .o */
 	uint32_t             (*controlc)(void *state); /* get how many controls .state has */
 	short                  (*height)(void *state); /* get the height in rows .state wants */
@@ -65,9 +65,6 @@ typedef struct EffectChain
 } EffectChain;
 
 
-/* IMPORTANT NOTE: effects should not register any more than 16 controls */
-/* TODO: fix this, controls should be dynamically allocated              */
-
 void freeEffect(Effect*);
 EffectChain *newEffectChain(void);
 
@@ -85,8 +82,9 @@ EffectChain *_delEffect(EffectChain*, uint8_t index);
 void delEffect(EffectChain**, uint8_t index);
 
 /* cursor is (ControlState).cursor compatible */
-uint8_t getEffectFromCursor(EffectChain*, uint8_t cursor);
-uint8_t getCursorFromEffect(EffectChain*, uint8_t index);
+uint8_t getEffectFromCursor(uint8_t track, EffectChain*, size_t cursor);
+size_t getCursorFromEffect(uint8_t track, EffectChain*, uint8_t index);
+size_t getCursorFromEffectTrack(uint8_t track);
 
 void copyEffect(Effect *dest, Effect *src, float **input, float **output);
 void copyEffectChain(EffectChain **dest, EffectChain *src);

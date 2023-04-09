@@ -7,7 +7,7 @@
 short getEffectHeight(Effect*);
 
 /* draw a single effect chain */
-void drawEffectChain(EffectChain*, short x, short width, short y);
+void drawEffectChain(uint8_t track, EffectChain*, short x, short width, short y);
 #endif
 
 /* draw the full effect page */
