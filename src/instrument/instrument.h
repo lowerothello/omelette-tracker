@@ -8,6 +8,12 @@ typedef enum InstType
 	INST_TYPE_MIDI    = 2,
 	INST_TYPE_COUNT
 } InstType;
+const char *InstTypeString[INST_TYPE_COUNT] =
+{
+	"null",
+	"sampler",
+	"midi"
+};
 
 typedef struct Inst
 {

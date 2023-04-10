@@ -10,9 +10,10 @@ static short getDummyEffectHeight(void *state)
 
 static void drawDummyEffect(void *state, short x, short w, short y, short ymin, short ymax)
 {
+	printf("\033[7m");
 	if (ymin <= y-1 && ymax >= y-1)
-		printf("\033[%d;%dH\033[7mNULL\033[27m", y-1, x + 1);
-	printf("\033[37;40m");
+		printCulling("NULL", x+1, y-1, 1, ws.ws_col);
+	printf("\033[27;37;40m");
 
 	if (ymin <= y && ymax >= y)
 	{

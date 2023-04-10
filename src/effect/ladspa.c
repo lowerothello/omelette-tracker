@@ -266,9 +266,10 @@ static void drawLadspaEffect(void *state, short x, short w, short y, short ymin,
 {
 	LadspaState *s = state;
 
+	printf("\033[7m");
 	if (ymin <= y-1 && ymax >= y-1)
-		printf("\033[%d;%dH\033[7mLADSPA\033[27m", y-1, x + 1);
-	printf("\033[37;40m");
+		printCulling("LADSPA", x+1, y-1, 1, ws.ws_col);
+	printf("\033[27;37;40m");
 
 	if (ymin <= y && ymax >= y)
 	{

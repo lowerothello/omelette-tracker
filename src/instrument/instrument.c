@@ -278,7 +278,7 @@ void instControlCallback(void) { p->redraw = 1; }
 struct json_object *serializeInst(Inst *inst, size_t *dataoffset)
 {
 	struct json_object *jso = json_object_new_object();
-	json_object_object_add(jso, "type", json_object_new_int(inst->type));
+	json_object_object_add(jso, "type", json_object_new_string(InstTypeString[inst->type]));
 
 	const InstAPI *api;
 	if ((api = instGetAPI(inst->type)))
@@ -299,6 +299,18 @@ Inst deserializeInst(struct json_object *jso, void *data, double ratemultiplier)
 {
 	Inst ret;
 	ret.type = json_object_get_int(json_object_object_get(jso, "type"));
+
+	const char *string;
+	if ((string = json_object_get_string(json_object_object_get(jso, "type"))))
+		for (int i = 0; i < INST_TYPE_COUNT; i++)
+		{
+			if (!strcmp(string, InstTypeString[i]))
+			{
+				ret.type = i;
+				break;
+			}
+		}
+	else ret.type = 0;
 
 	const InstAPI *api;
 	if ((api = instGetAPI(ret.type)))

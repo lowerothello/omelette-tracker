@@ -4,8 +4,7 @@ void drawCentreText(short x, short y, short w, const char *text)
 	x += (w - MIN(w, (short)strlen(text)))>>1;
 	w = MIN(w, (short)strlen(text));
 
-	if      (x >= 1) printf("\033[%d;%dH%.*s", y, x, MAX(0, MIN(w, (ws.ws_col+1) - x)), text);
-	else if (x > -w) printf("\033[%d;%dH%.*s", y, x, w-x, text-(x-1)); /* x should always be <= 0 */
+	printCulling(text, x, y, 1, MIN(ws.ws_col, x + w));
 }
 
 #ifndef OMELETTE_EFFECT_NO_STRUCTS
@@ -38,8 +37,6 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 
 void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, short y)
 {
-	if (x > ws.ws_col+1 || x+width < 1) return;
-
 	short focusindex;
 	if (track == w->track) focusindex = getEffectFromCursor(track, chain, cc.cursor);
 	else                   focusindex = -1;
@@ -98,7 +95,12 @@ void drawAutogenPluginLine(short x, short y, short w,
 		uint32_t scalepointlen, uint32_t scalepointcount)
 {
 	short controloffset = w;
-	if (ymin <= y && ymax >= y)
+	if (
+			ymin <= y &&
+			ymax >= y &&
+			x < ws.ws_col &&
+			x + w > 1
+		)
 	{
 		if (postfix)
 		{
@@ -163,5 +165,5 @@ void drawAutogenPluginLine(short x, short y, short w,
 			else if (x+1 + MIN(controloffset, (int)strlen(name)) > 1)
 				printf("\033[%d;%dH%.*s", y, x, controloffset-x, name-x);
 		}
-	} else addControlInt(0, 0, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL);
+	} else addControlDummy(0, 0);
 }

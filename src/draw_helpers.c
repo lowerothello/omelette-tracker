@@ -5,8 +5,8 @@
 /* only culls the x axis, culling the y axis is simple */
 void printCulling(const char *s, short x, short y, short minx, short maxx)
 {
-	if (x < minx) { if (x > minx - strlen(s)) printf("\033[%d;%dH%s", y, minx, s+MIN(minx - x, strlen(s))); }
-	else if (x < maxx)                        printf("\033[%d;%dH%.*s", y, x, maxx - x, s);
+	if (x < minx) { if (minx - x < MIN(strlen(s), maxx - x)) printf("\033[%d;%dH%.*s", y, minx, (int)(maxx - x - (minx - x)), s+MIN(minx - x, strlen(s))); }
+	else if (x <= maxx)                                      printf("\033[%d;%dH%.*s", y, x, (maxx+1) - x, s);
 }
 
 /* draw an opaque bounding box on the screen using box drawing glyphs */

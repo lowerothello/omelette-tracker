@@ -144,9 +144,7 @@ void drawControls(void)
 		if (c->x - 1 + cw < 2)      continue; /* off the left edge */
 		if (c->x - 1 > ws.ws_col+1) continue; /* off the right edge */
 
-		if (c->x - 1 > 0) printf("\033[%d;%dH[", c->y, c->x - 1);
-
-		buffer = calloc(cw, sizeof(char)); /* doesn't need to be big enough to hold the leading and trailing square brackets */
+		buffer = calloc(cw + 2, sizeof(char));
 
 		if (c->scalepointptr)
 		{
@@ -158,44 +156,45 @@ void drawControls(void)
 				case CONTROL_NIBBLES_SIGNED_FLOAT: /* fall through */
 				case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
 				case CONTROL_NIBBLES_SIGNED_INT:
-					for (uint32_t j = 0; j < c->scalepointptr; j++) { if (c->scalepoint[j].value.f == *(float *)c->value) { strcpy(buffer, c->scalepoint[j].label); break; } } break;
+#define CONTROL_PRINT_LABEL { strcat(buffer, "["); strcat(buffer, c->scalepoint[j].label); strcat(buffer, "]"); }
+					for (uint32_t j = 0; j < c->scalepointptr; j++) { if (c->scalepoint[j].value.f == *(float *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
 				case CONTROL_NIBBLES_PRETTY: /* fall through */
-				case CONTROL_NIBBLES_INT8:   for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((int8_t  )c->scalepoint[j].value.i == *(int8_t  *)c->value) { strcpy(buffer, c->scalepoint[j].label); break; } } break;
-				case CONTROL_NIBBLES_UINT8:  for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint8_t )c->scalepoint[j].value.i == *(uint8_t *)c->value) { strcpy(buffer, c->scalepoint[j].label); break; } } break;
-				case CONTROL_NIBBLES_UINT16: for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint16_t)c->scalepoint[j].value.i == *(uint16_t*)c->value) { strcpy(buffer, c->scalepoint[j].label); break; } } break;
-				case CONTROL_NIBBLES_UINT32: for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint32_t)c->scalepoint[j].value.i == *(uint32_t*)c->value) { strcpy(buffer, c->scalepoint[j].label); break; } } break;
-				case CONTROL_NIBBLES_INT16:  for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((int16_t )c->scalepoint[j].value.i == *(int16_t *)c->value) { strcpy(buffer, c->scalepoint[j].label); break; } } break;
+				case CONTROL_NIBBLES_INT8:   for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((int8_t  )c->scalepoint[j].value.i == *(int8_t  *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
+				case CONTROL_NIBBLES_UINT8:  for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint8_t )c->scalepoint[j].value.i == *(uint8_t *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
+				case CONTROL_NIBBLES_UINT16: for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint16_t)c->scalepoint[j].value.i == *(uint16_t*)c->value) { CONTROL_PRINT_LABEL; break; } } break;
+				case CONTROL_NIBBLES_UINT32: for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint32_t)c->scalepoint[j].value.i == *(uint32_t*)c->value) { CONTROL_PRINT_LABEL; break; } } break;
+				case CONTROL_NIBBLES_INT16:  for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((int16_t )c->scalepoint[j].value.i == *(int16_t *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
 			}
 		} else
 			switch (c->nibbles)
 			{
 				case CONTROL_NIBBLES_BOOL:
-					if (*(bool*)c->value) strcpy(buffer, "X"); // Y
-					else                  strcpy(buffer, " "); // N
+					if (*(bool*)c->value) strcpy(buffer, "[X]"); // Y
+					else                  strcpy(buffer, "[ ]"); // N
 					break;
 				case CONTROL_NIBBLES_TOGGLED:
-					if (*(float*)c->value > 0.0f) strcpy(buffer, "X"); // Y
-					else                          strcpy(buffer, " "); // N
+					if (*(float*)c->value > 0.0f) strcpy(buffer, "[X]"); // Y
+					else                          strcpy(buffer, "[ ]"); // N
 					break;
 				case CONTROL_NIBBLES_PRETTY:
-					if (*(int8_t*)c->value < 0) strcpy(buffer, "=");
-					else                        sprintf(buffer, "%x", *(int8_t*)c->value);
+					if (*(int8_t*)c->value < 0) strcpy(buffer, "[=]");
+					else                        sprintf(buffer, "[%x]", *(int8_t*)c->value);
 					break;
-				case CONTROL_NIBBLES_UINT8: sprintf(buffer, "%02x", *(uint8_t*)c->value); break;
+				case CONTROL_NIBBLES_UINT8: sprintf(buffer, "[%02x]", *(uint8_t*)c->value); break;
 				case CONTROL_NIBBLES_INT8:
-					if (*(int8_t*)c->value < 0) sprintf(buffer, "-%02x", (short)(*(int8_t*)c->value) * -1);
-					else                        sprintf(buffer, "+%02x", *(int8_t*)c->value);
+					if (*(int8_t*)c->value < 0) sprintf(buffer, "[-%02x]", (short)(*(int8_t*)c->value) * -1);
+					else                        sprintf(buffer, "[+%02x]", *(int8_t*)c->value);
 					break;
-				case CONTROL_NIBBLES_UINT16: sprintf(buffer, "%04x", *(uint16_t*)c->value); break;
+				case CONTROL_NIBBLES_UINT16: sprintf(buffer, "[%04x]", *(uint16_t*)c->value); break;
 				case CONTROL_NIBBLES_INT16:
-					if (*(int16_t*)c->value < 0) sprintf(buffer, "-%04x", (int)(*(int16_t*)c->value) * -1);
-					else                         sprintf(buffer, "+%04x", *(int16_t*)c->value);
+					if (*(int16_t*)c->value < 0) sprintf(buffer, "[-%04x]", (int)(*(int16_t*)c->value) * -1);
+					else                         sprintf(buffer, "[+%04x]", *(int16_t*)c->value);
 					break;
-				case CONTROL_NIBBLES_UINT32: sprintf(buffer, "%08x", *(uint32_t*)c->value); break;
-				case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "%0*.*f", 7, 6-getPreRadixDigits(c->max.f), *(float*)c->value); break;
-				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "%+0*.*f", 8, 6-getPreRadixDigits(c->max.f), *(float*)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
-				case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "%0*.0f",      getPreRadixDigits(c->max.f), *(float*)c->value); break;
-				case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "%+0*.0f",    1+getPreRadixDigits(c->max.f), *(float*)c->value); break;
+				case CONTROL_NIBBLES_UINT32: sprintf(buffer, "[%08x]", *(uint32_t*)c->value); break;
+				case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "[%0*.*f]", 7, 6-getPreRadixDigits(c->max.f), *(float*)c->value); break;
+				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "[%+0*.*f]", 8, 5-getPreRadixDigits(c->max.f), *(float*)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
+				case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "[%0*.0f]",      getPreRadixDigits(c->max.f), *(float*)c->value); break;
+				case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "[%+0*.0f]",    1+getPreRadixDigits(c->max.f), *(float*)c->value); break;
 			}
 
 		if (i == cc.cursor)
@@ -204,11 +203,8 @@ void drawControls(void)
 			else if (cc.resetadjust)            printf(RESET_FORMAT);
 		}
 
-		if (c->x < 1) { if (c->x > 1 - (cw-2)) printf("\033[%d;%dH%s\033[m", c->y, 1, buffer+(1 - c->x)); }
-		else                                   printf("\033[%d;%dH%.*s\033[m", c->y, c->x, (ws.ws_col+1) - c->x, buffer);
+		printCulling(buffer, c->x - 1, c->y, 1, ws.ws_col);
 		free(buffer);
-
-		if (c->x + (cw-2) < ws.ws_col+1) printf("\033[%d;%dH]", c->y, c->x - 2 + cw);
 	}
 	if (cc.cursor < cc.controlc)
 	{
@@ -219,14 +215,14 @@ void drawControls(void)
 			case CONTROL_NIBBLES_TOGGLED: printf("\033[%d;%dH", c->y, c->x); break;
 			case CONTROL_NIBBLES_UNSIGNED_FLOAT:
 				if (cc.fieldpointer < 6-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 6 - cc.fieldpointer);
-				else                                                  printf("\033[%d;%dH", c->y, c->x + 5 - cc.fieldpointer);
+				else                                                 printf("\033[%d;%dH", c->y, c->x + 5 - cc.fieldpointer);
 				break;
 			case CONTROL_NIBBLES_SIGNED_FLOAT:
-				if (cc.fieldpointer < 6-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 7 - cc.fieldpointer);
-				else                                                  printf("\033[%d;%dH", c->y, c->x + 6 - cc.fieldpointer);
+				if (cc.fieldpointer < 5-getPreRadixDigits(c->max.f)) printf("\033[%d;%dH", c->y, c->x + 7 - cc.fieldpointer);
+				else                                                 printf("\033[%d;%dH", c->y, c->x + 6 - cc.fieldpointer);
 				break;
 			case CONTROL_NIBBLES_UNSIGNED_INT: printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc.fieldpointer - 1); break;
-			case CONTROL_NIBBLES_SIGNED_INT:   printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc.fieldpointer    ); break;
+			case CONTROL_NIBBLES_SIGNED_INT:   printf("\033[%d;%dH", c->y, c->x + getPreRadixDigits(c->max.f) - cc.fieldpointer); break;
 			default: printf("\033[%d;%dH", c->y, c->x + c->nibbles - 1 - cc.fieldpointer + (MAX(1, c->scalepointlen)-1)); break;
 		}
 	}
@@ -242,7 +238,7 @@ void incControlValue(void)
 		case CONTROL_NIBBLES_BOOL: /* fall through */
 		case CONTROL_NIBBLES_TOGGLED: (*(bool*)c->value) = 1; break;
 		case CONTROL_NIBBLES_UNSIGNED_FLOAT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
-		case CONTROL_NIBBLES_SIGNED_FLOAT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->max.f); break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer - (5-getPreRadixDigits(c->max.f))), c->max.f); break;
 		case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
 		case CONTROL_NIBBLES_SIGNED_INT: (*(float*)c->value) = MIN((*(float*)c->value) + powf(10.0f, cc.fieldpointer), c->max.f); break;
 		case CONTROL_NIBBLES_PRETTY: /* fall through */
@@ -284,7 +280,7 @@ void decControlValue(void)
 		case CONTROL_NIBBLES_BOOL: /* fall through */
 		case CONTROL_NIBBLES_TOGGLED: (*(bool*)c->value) = 0; break;
 		case CONTROL_NIBBLES_UNSIGNED_FLOAT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
-		case CONTROL_NIBBLES_SIGNED_FLOAT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (6-getPreRadixDigits(c->max.f))), c->min.f); break;
+		case CONTROL_NIBBLES_SIGNED_FLOAT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer - (5-getPreRadixDigits(c->max.f))), c->min.f); break;
 		case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
 		case CONTROL_NIBBLES_SIGNED_INT: (*(float*)c->value) = MAX((*(float*)c->value) - powf(10.0f, cc.fieldpointer), c->min.f); break;
 		case CONTROL_NIBBLES_PRETTY: /* fall through */

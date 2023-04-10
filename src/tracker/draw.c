@@ -498,19 +498,18 @@ void drawTracker(void)
 		w->command.error[0] = '\0';
 
 		clearControls();
-		sfx = genSfx(TRACK_LINENO_COLS);
-		x = 1 + TRACK_LINENO_COLS + 2 + sfx;
+		x = genConstSfx(EFFECT_WIDTH);
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
-			drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i]->variant->macroc+1) - TRACK_HEADER_LEN)>>1),
-					LINENO_COLS, ws.ws_col);
+			drawTrackHeader(i, x + (EFFECT_WIDTH>>1) - 2,
+					1, ws.ws_col);
 
 			drawEffectChain(i, s->track->v[i]->effect,
-					x + 3,
-					TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1) - 2,
+					x + 2,
+					EFFECT_WIDTH - 2,
 					TRACK_ROW + 2);
 
-			x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
+			x += EFFECT_WIDTH;
 		}
 		// short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		drawControls();

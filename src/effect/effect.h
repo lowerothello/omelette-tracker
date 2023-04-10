@@ -8,6 +8,12 @@ typedef enum EffectType
 	EFFECT_TYPE_LV2    = 2,
 	EFFECT_TYPE_COUNT
 } EffectType;
+const char *EffectTypeString[EFFECT_TYPE_COUNT] =
+{
+	"dummy",
+	"ladspa",
+	"lv2"
+};
 
 typedef struct EffectBrowserLine
 {
@@ -91,6 +97,8 @@ void copyEffectChain(EffectChain **dest, EffectChain *src);
 
 void runEffect(uint32_t samplecount, EffectChain*, Effect*);
 
+struct json_object *serializeEffect(Effect *e);
+void deserializeEffect(EffectChain *ec, uint8_t index, struct json_object *jso);
 struct json_object *serializeEffectChain(EffectChain*);
 EffectChain *deserializeEffectChain(struct json_object*);
 

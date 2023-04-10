@@ -262,25 +262,47 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	}
 }
 
+struct json_object *serializeEffect(Effect *e)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "type", json_object_new_string(EffectTypeString[e->type]));
+
+	if (effect_api[e->type].serialize)
+		json_object_object_add(ret, "state", effect_api[e->type].serialize(e->state));
+	else
+		json_object_object_add(ret, "state", NULL);
+
+	return ret;
+}
+
 struct json_object *serializeEffectChain(EffectChain *ec)
 {
 	struct json_object *effectchain = json_object_new_array_ext(ec->c);
 
-	struct json_object *effect;
 	for (int i = 0; i < ec->c; i++)
-	{
-		effect = json_object_new_object();
-		json_object_object_add(effect, "type", json_object_new_int(ec->v[i].type));
-
-		if (effect_api[ec->v[i].type].serialize)
-			json_object_object_add(effect, "state", effect_api[ec->v[i].type].serialize(ec->v[i].state));
-		else
-			json_object_object_add(effect, "state", NULL);
-
-		json_object_array_add(effectchain, effect);
-	}
+		json_object_array_add(effectchain, serializeEffect(&ec->v[i]));
 
 	return effectchain;
+}
+
+void deserializeEffect(EffectChain *ec, uint8_t index, struct json_object *jso)
+{
+	const char *string;
+	if ((string = json_object_get_string(json_object_object_get(jso, "type"))))
+		for (int j = 0; j < EFFECT_TYPE_COUNT; j++)
+		{
+			if (!strcmp(string, EffectTypeString[j]))
+			{
+				ec->v[index].type = j;
+				break;
+			}
+		}
+	else ec->v[index].type = 0;
+
+	if (effect_api[ec->v[index].type].deserialize)
+		ec->v[index].state = effect_api[ec->v[index].type].deserialize(json_object_object_get(jso, "state"), ec->input, ec->output);
+	else
+		ec->v[index].state = NULL;
 }
 
 EffectChain *deserializeEffectChain(struct json_object *jso)
@@ -289,17 +311,8 @@ EffectChain *deserializeEffectChain(struct json_object *jso)
 	ret->c = json_object_array_length(jso);
 	ret = realloc(ret, sizeof(EffectChain) + ret->c * sizeof(Effect));
 
-	struct json_object *effect;
 	for (int i = 0; i < ret->c; i++)
-	{
-		effect = json_object_array_get_idx(jso, i);
-		ret->v[i].type = json_object_get_int(json_object_object_get(jso, "type"));
-
-		if (effect_api[ret->v[i].type].deserialize)
-			ret->v[i].state = effect_api[ret->v[i].type].deserialize(effect, ret->input, ret->output);
-		else
-			ret->v[i].state = NULL;
-	}
+		deserializeEffect(ret, i, json_object_array_get_idx(jso, i));
 
 	return ret;
 }

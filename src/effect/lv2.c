@@ -262,9 +262,10 @@ static void drawLV2Effect(void *state,
 {
 	LV2State *s = state;
 
+	printf("\033[7m");
 	if (ymin <= y-1 && ymax >= y-1)
-		printf("\033[%d;%dH\033[7mLV2\033[27m", y-1, x + 1);
-	printf("\033[37;40m");
+		printCulling("LV2", x+1, y-1, 1, ws.ws_col);
+	printf("\033[27;37;40m");
 
 	LilvNode *name;
 	name = lilv_plugin_get_name(s->plugin);
@@ -384,7 +385,7 @@ static struct json_object *serializeLV2Effect(void *state)
 
 static void *deserializeLV2Effect(struct json_object *jso, float **input, float **output)
 {
-	LilvNode *node = lilv_new_uri(lv2_db.world, json_object_get_string(json_object_object_get(jso, "Label")));
+	LilvNode *node = lilv_new_uri(lv2_db.world, json_object_get_string(json_object_object_get(jso, "uri")));
 	LV2State *ret = initLV2Effect(lilv_plugins_get_by_uri(lilv_world_get_all_plugins(lv2_db.world), node), input, output);
 	lilv_node_free(node);
 

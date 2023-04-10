@@ -703,7 +703,7 @@ static void trackerMouse(enum Button button, int x, int y)
 	short oldtrackerfx = w->trackerfx;
 	uint8_t oldtrack = w->track;
 
-	short tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS);
+	short tx;
 
 	p->redraw = 1;
 
@@ -731,11 +731,31 @@ static void trackerMouse(enum Button button, int x, int y)
 			if (w->mode == MODE_MOUSEADJUST) w->mode = w->oldmode;
 			/* falls through intentionally */
 		default:
-			if (trackerMouseHeader(button, x, y, &tx)) break;
 			switch (w->mode)
 			{
-				case MODE_EFFECT: mouseControls(button, x, y); break;
+				case MODE_EFFECT:
+					tx = 1 + genConstSfx(EFFECT_WIDTH);
+					for (i = 0; i < s->track->c; i++)
+					{
+						tx += EFFECT_WIDTH;
+						if (tx > x)
+						{
+							switch (button)
+							{
+								case BUTTON1: case BUTTON1_CTRL: w->trackoffset = i - w->track; break;
+								case BUTTON2: case BUTTON2_CTRL: if (y <= TRACK_ROW) toggleTrackSolo(i); break;
+								case BUTTON3: case BUTTON3_CTRL: if (y <= TRACK_ROW) toggleTrackMute(i); break;
+								default: break;
+							}
+							goto trackerInputEffectTrack;
+						}
+					}
+trackerInputEffectTrack:
+					mouseControls(button, x, y);
+					break;
 				default:
+					tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS);
+					if (trackerMouseHeader(button, x, y, &tx)) break;
 					switch (button)
 					{
 						case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
@@ -901,6 +921,8 @@ void initTrackerInput(void)
 		case MODE_EFFECT:
 			addCountBinds(0);
 			addTrackerNavBinds();
+			addTooltipBind("next effect", ControlMask, XK_Down, 0, (void(*)(void*))trackerPgUp, NULL);
+			addTooltipBind("prev effect", ControlMask, XK_Up  , 0, (void(*)(void*))trackerPgDn, NULL);
 			addRulerBinds();
 			addTrackerGraphicBinds();
 			addTooltipBind("return"                  , 0          , XK_e        , 0, (void(*)(void*))trackerEscape   , NULL);
