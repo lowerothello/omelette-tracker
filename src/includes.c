@@ -62,7 +62,7 @@ enum Mode {
 #include "process.h"
 #include "macros/macros.h"
 
-#include "input.h"
+#include "input/input.h"
 
 #include "song.c"
 #include "window.c"

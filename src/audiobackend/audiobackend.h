@@ -17,11 +17,9 @@ void processInput(uint32_t buffersize);
 
 
 #include "dummy.c"
-
 #ifdef OML_JACK
 #include "jack.c"
 #endif
 
-
-/* returns non 0 if no apis could be initialized */
-int audioInitAPI(void);
+/* returns true if no apis could be initialized */
+bool audioInitAPI(void);

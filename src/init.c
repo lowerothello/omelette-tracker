@@ -1,6 +1,8 @@
 static void common_cleanup(int ret)
 {
-	freeRawInput();
+	if (input_api.free)
+		input_api.free();
+
 	freeEvents();
 	if (p) free(p);
 
@@ -53,14 +55,13 @@ void init(int argc, char *argv[])
 	initEffectDB();
 
 	if (audioInitAPI()) common_cleanup(1);
+	inputInitAPI();
 
 	rampmax = samplerate / 1000 * RAMP_MS;
 
 	p = malloc(sizeof(PlaybackInfo));
 	if (!p) { puts("out of memory"); common_cleanup(1); }
 	memset(p, 0, sizeof(PlaybackInfo));
-
-	initRawInput();
 
 	w = allocWindow();
 	if (!w) { puts("out of memory"); common_cleanup(1); }

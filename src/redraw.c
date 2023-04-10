@@ -12,7 +12,7 @@ static void drawRuler(void)
 	printf("\033[1m\033[0;%dHv$%04x  %d\033[m", ws.ws_col - 15, version, DEBUG);
 
 	int previewtracks = PREVIEW_TRACKS;
-	if (input_mode == INPUTMODE_NONE)
+	if (!input_api.poly)
 		previewtracks = 1;
 
 	printf("\033[%d;%dH", 2, ws.ws_col - previewtracks*4 - 2);

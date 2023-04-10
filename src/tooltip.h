@@ -48,5 +48,6 @@ void addNoteReleaseBinds(const char *prettyname, unsigned int state, signed char
 void addHexBinds(const char *prettyname, unsigned int state, void (*callback)(void*));
 void addDecimalBinds(const char *prettyname, unsigned int state, void (*callback)(void*));
 void addPrintableAsciiBinds(const char *prettyname, unsigned int state, void (*callback)(void*));
+void addCountBinds(bool draw);
 
 void handleStdin(void);

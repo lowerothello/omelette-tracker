@@ -415,6 +415,29 @@ void addPrintableAsciiBinds(const char *prettyname, unsigned int state, void (*c
 	addTooltipBind("~" , state, XK_asciitilde  , 0, callback, (void*)'~' );
 }
 
+static void tooltipAddCount(void *add)
+{
+	w->count *= 10;
+	w->count += (size_t)add;
+	p->redraw = 1;
+}
+void addCountBinds(bool draw)
+{
+	unsigned int flags = TT_DEAD;
+	if (draw) flags |= TT_DRAW;
+	addTooltipBind("add 0 to count", 0, XK_0, flags, tooltipAddCount, (void*)0);
+	addTooltipBind("add 1 to count", 0, XK_1, flags, tooltipAddCount, (void*)1);
+	addTooltipBind("add 2 to count", 0, XK_2, flags, tooltipAddCount, (void*)2);
+	addTooltipBind("add 3 to count", 0, XK_3, flags, tooltipAddCount, (void*)3);
+	addTooltipBind("add 4 to count", 0, XK_4, flags, tooltipAddCount, (void*)4);
+	addTooltipBind("add 5 to count", 0, XK_5, flags, tooltipAddCount, (void*)5);
+	addTooltipBind("add 6 to count", 0, XK_6, flags, tooltipAddCount, (void*)6);
+	addTooltipBind("add 7 to count", 0, XK_7, flags, tooltipAddCount, (void*)7);
+	addTooltipBind("add 8 to count", 0, XK_8, flags, tooltipAddCount, (void*)8);
+	addTooltipBind("add 9 to count", 0, XK_9, flags, tooltipAddCount, (void*)9);
+}
+
+
 static unsigned int ansiToModState(int input)
 {
 	unsigned int ret = 0;

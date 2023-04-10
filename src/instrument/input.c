@@ -1,6 +1,8 @@
 static void instrumentEscape(void *arg)
 {
-	setAutoRepeatOff();
+	if (input_api.autorepeatoff)
+		input_api.autorepeatoff();
+
 	w->showfilebrowser = 0;
 	previewNote(NOTE_OFF, INST_VOID, 0);
 	cc.mouseadjust = cc.keyadjust = 0;
@@ -130,7 +132,9 @@ static void instrumentMouse(enum Button button, int x, int y)
 
 static void instrumentEnterInsertMode(void *arg)
 {
-	setAutoRepeatOff();
+	if (input_api.autorepeatoff)
+		input_api.autorepeatoff();
+
 	w->mode = MODE_INSERT;
 }
 

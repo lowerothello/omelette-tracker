@@ -15,7 +15,9 @@ void addStep(int delta)
 
 void showTracker(void)
 {
-	setAutoRepeatOn();
+	if (input_api.autorepeaton)
+		input_api.autorepeaton();
+
 	w->page = PAGE_VARIANT;
 	w->mode = MODE_NORMAL;
 	freePreviewSample();
@@ -23,7 +25,9 @@ void showTracker(void)
 }
 void showInstrument(void)
 {
-	setAutoRepeatOn();
+	if (input_api.autorepeaton)
+		input_api.autorepeaton();
+
 	w->showfilebrowser = 0;
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;

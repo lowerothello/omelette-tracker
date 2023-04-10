@@ -5,7 +5,9 @@ static void setStep(void *step)
 }
 static void trackerEscape(void)
 {
-	setAutoRepeatOn();
+	if (input_api.autorepeaton)
+		input_api.autorepeaton();
+
 	previewNote(NOTE_OFF, INST_VOID, 0);
 	if (cc.mouseadjust || cc.keyadjust)
 	{
@@ -53,13 +55,17 @@ static void trackerEnterVisualLineMode(void)
 }
 static void trackerEnterVisualReplaceMode(void)
 {
-	setAutoRepeatOff();
+	if (input_api.autorepeatoff)
+		input_api.autorepeatoff();
+
 	w->mode = MODE_VISUALREPLACE;
 	p->redraw = 1;
 }
 static void trackerEnterInsertMode(void)
 {
-	setAutoRepeatOff();
+	if (input_api.autorepeatoff)
+		input_api.autorepeatoff();
+
 	w->mode = MODE_INSERT;
 	p->redraw = 1;
 }

@@ -101,7 +101,9 @@ static bool commandCallback(char *command, void *arg)
 }
 static void enterCommandMode(void *arg)
 {
-	setAutoRepeatOn();
+	if (input_api.autorepeaton)
+		input_api.autorepeaton();
+
 	setCommand(&commandCallback, NULL, NULL, NULL, 1, ":", "");
 	w->oldmode = w->mode;
 	switch (w->mode)
