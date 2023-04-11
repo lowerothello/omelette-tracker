@@ -33,10 +33,10 @@ int getPreviewVoice(uint8_t note, bool release)
 
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 	{
-		if (w->previewtrack[i]->r.note == note)
+		if (w->previewtrack[i]->r.note == note && !w->previewtrack[i]->release)
 			return i;
 
-		if (w->previewtrack[i]->r.note == NOTE_VOID)
+		if (w->previewtrack[i]->r.note == NOTE_VOID || w->previewtrack[i]->release)
 			emptyslot = i;
 		else if (w->previewtrack[i]->pointer > oldestslotpointer)
 		{

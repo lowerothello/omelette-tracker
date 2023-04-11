@@ -118,6 +118,7 @@ void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short 
 			break;
 		case NOTE_CUT:
 			/* always ramp when triggering anyway */
+			cv->release = 1;
 			cv->r.note = NOTE_VOID;
 			break;
 		default:

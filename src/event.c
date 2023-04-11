@@ -120,6 +120,7 @@ bool processM_SEM(void)
 				if (p->event[0].arg3) /* release */
 				{
 					int voice = getPreviewVoice(p->event[0].arg1, 1);
+					VALGRIND_PRINTF("%d (%d) release\n", p->event[0].arg1, voice);
 					if (voice != -1)
 						triggerNote(0, p->w->previewtrack[voice], p->w->previewtrack[voice]->r.note, NOTE_OFF, p->event[0].arg2);
 				} else
@@ -127,11 +128,15 @@ bool processM_SEM(void)
 					if (p->event[0].arg1 == NOTE_OFF)
 					{
 						for (int i = 0; i < PREVIEW_TRACKS; i++)
-							if (p->w->previewtrack[i]->r.note != NOTE_VOID)
+							if (!p->w->previewtrack[i]->release)
+							{
 								triggerNote(0, p->w->previewtrack[i], p->w->previewtrack[i]->r.note, NOTE_OFF, p->event[0].arg2);
+								p->w->previewtrack[i]->r.note = NOTE_VOID;
+							}
 					} else
 					{
 						int voice = getPreviewVoice(p->event[0].arg1, 0);
+						VALGRIND_PRINTF("%d (%d) press\n", p->event[0].arg1, voice);
 						if (voice != -1)
 							triggerNote(0, p->w->previewtrack[voice], p->w->previewtrack[voice]->r.note, p->event[0].arg1, p->event[0].arg2);
 					}

@@ -1,12 +1,14 @@
 #define MOD_WIDTH 9 /* max width for the key name */
 
-enum TT {
+enum TT
+{
 	TT_DEAD    = (1<<0), /* skip regenerating the tooltip state */
 	TT_DRAW    = (1<<1), /* include in the info popup           */
 	TT_RELEASE = (1<<2), /* trigger on key release              */
 };
 
-typedef struct {
+typedef struct
+{
 	char        *prettyname;
 	char        *prettykeysym;
 	unsigned int state;  /* (XEvent*)->state compatible   */

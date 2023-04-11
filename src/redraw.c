@@ -19,8 +19,13 @@ static void drawRuler(void)
 	char buffer[4];
 	for (int i = 0; i < previewtracks; i++)
 	{
-		noteToString(w->previewtrack[i]->r.note, buffer);
-		printf("%s ", buffer);
+		if (w->previewtrack[i]->release)
+			printf("... ");
+		else
+		{
+			noteToString(w->previewtrack[i]->r.note, buffer);
+			printf("%s ", buffer);
+		}
 	}
 	printf("%02x", w->instrument);
 

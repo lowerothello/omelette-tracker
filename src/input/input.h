@@ -4,7 +4,7 @@ typedef struct InputAPI
 	void          (*free)(void);
 	void  (*autorepeaton)(void);
 	void (*autorepeatoff)(void);
-	bool poly;          /* polyphonic input is possible */
+	bool poly; /* polyphonic input is possible */
 } InputAPI;
 InputAPI input_api = {0};
 
