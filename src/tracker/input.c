@@ -1,3 +1,21 @@
+static void trackSet(uint8_t track)
+{
+	w->track = track;
+	if (w->trackerfx > 3 + s->track->v[w->track]->variant->macroc * 2)
+		w->trackerfx = 3 + s->track->v[w->track]->variant->macroc * 2;
+
+	if (w->mode == MODE_EFFECT)
+		if (!(cc.cursor > getCursorFromEffectTrack(w->track) && cc.cursor < getCursorFromEffectTrack(w->track + 1))) /* (w->track + 1) is always safe here */
+			cc.cursor = getCursorFromEffectTrack(w->track);
+
+	p->redraw = 1;
+}
+
+static void trackLeft (void) { trackSet(MAX((int)w->track - MAX(1, w->count), 0)); }
+static void trackRight(void) { trackSet(MIN(w->track + MAX(1, w->count), s->track->c-1)); }
+// static void trackHome (void) { trackSet(0); }
+// static void trackEnd  (void) { trackSet(s->track->c-1); }
+
 static void setStep(void *step)
 {
 	w->step = (size_t)step;
@@ -721,8 +739,7 @@ static void trackerMouse(enum Button button, int x, int y)
 		case WHEEL_UP: case WHEEL_UP_CTRL:     w->count = WHEEL_SPEED; trackerUpArrow  (1); w->count = 0; break;
 		case WHEEL_DOWN: case WHEEL_DOWN_CTRL: w->count = WHEEL_SPEED; trackerDownArrow(1); w->count = 0; break;
 		case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
-			if      (w->trackoffset < 0) { w->count = -w->trackoffset; trackLeft (); }
-			else if (w->trackoffset > 0) { w->count =  w->trackoffset; trackRight(); }
+			if (w->trackoffset) trackSet(w->track + w->trackoffset);
 
 			if      (w->fyoffset < 0) { w->count = -w->fyoffset; trackerUpArrow  (1); }
 			else if (w->fyoffset > 0) { w->count =  w->fyoffset; trackerDownArrow(1); }
@@ -746,14 +763,17 @@ static void trackerMouse(enum Button button, int x, int y)
 						tx += EFFECT_WIDTH;
 						if (tx > x)
 						{
-							switch (button)
+							if (y <= TRACK_ROW)
 							{
-								case BUTTON1: case BUTTON1_CTRL: w->trackoffset = i - w->track; break;
-								case BUTTON2: case BUTTON2_CTRL: if (y <= TRACK_ROW) toggleTrackSolo(i); break;
-								case BUTTON3: case BUTTON3_CTRL: if (y <= TRACK_ROW) toggleTrackMute(i); break;
-								default: break;
+								switch (button)
+								{
+									case BUTTON2: case BUTTON2_CTRL: toggleTrackSolo(i); goto trackerInputEffectTrack;
+									case BUTTON3: case BUTTON3_CTRL: toggleTrackMute(i); goto trackerInputEffectTrack;
+									default: break;
+								}
 							}
-							goto trackerInputEffectTrack;
+							w->trackoffset = i - w->track;
+							goto trackerInputEffectTrack; /* beeeg break */
 						}
 					}
 trackerInputEffectTrack:
@@ -845,7 +865,7 @@ trackerInputEffectTrack:
 
 									/* enter adjust */
 									if ((button == BUTTON1 || button == BUTTON1_CTRL)
-											&& w->fyoffset == 0 && w->trackerfx == oldtrackerfx && w->trackoffset == 0)
+											&& !w->fyoffset && w->trackerfx == oldtrackerfx && !w->trackoffset)
 									{
 										w->oldmode = w->mode;
 										w->mode = MODE_MOUSEADJUST;

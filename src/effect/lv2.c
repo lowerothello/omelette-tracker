@@ -146,7 +146,11 @@ static void startLV2Effect(LV2State *s, float **input, float **output)
 	s->controlc = lilv_plugin_get_num_ports_of_class(s->plugin, lv2_db.control_port, lv2_db.input_port, NULL);
 	/* allocate the control block */
 	bool setDefaults = 0; /* only set the defaults if memory isn't yet allocated */
-	if (!s->controlv) { s->controlv = calloc(s->controlc, sizeof(float)); setDefaults = 1; }
+	if (!s->controlv && s->controlc)
+	{
+		s->controlv = calloc(s->controlc, sizeof(float));
+		setDefaults = 1;
+	}
 
 	/* iterate to connect ports */
 	uint32_t controlp = 0;
@@ -248,12 +252,22 @@ static void *copyLV2Effect(void *src, float **input, float **output)
 	LV2State *ret = calloc(1, sizeof(LV2State));
 	LV2State *s = src;
 	_initLV2Effect(ret, s->plugin, input, output);
-	memcpy(ret->controlv, s->controlv, s->controlc * sizeof(float));
+
+	if (s->controlc)
+		memcpy(ret->controlv, s->controlv, s->controlc * sizeof(float));
+
 	return ret;
 }
 
-static uint32_t getLV2EffectControlCount(void *s) { return ((LV2State*)s)->controlc; }
-static short getLV2EffectHeight(void *s) { return getLV2EffectControlCount(s) + 3; }
+static uint32_t getLV2EffectControlCount(void *s)
+{
+	return MAX(1, ((LV2State*)s)->controlc);
+}
+
+static short getLV2EffectHeight(void *s)
+{
+	return ((LV2State*)s)->controlc + 3;
+}
 
 /* the current text colour will apply to the header but not the contents */
 static void drawLV2Effect(void *state,
@@ -357,6 +371,9 @@ static void drawLV2Effect(void *state,
 			controlp++;
 		}
 	}
+
+	if (!controlp) /* plugin has no controls */
+		addControlDummy(MAX(1, MIN(ws.ws_col, x + w - 3)), y);
 }
 
 static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output)

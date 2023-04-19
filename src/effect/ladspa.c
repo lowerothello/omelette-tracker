@@ -101,12 +101,12 @@ static EffectBrowserLine getLadspaDBLine(uint32_t index)
 
 static uint32_t getLadspaEffectControlCount(void *state)
 {
-	return ((LadspaState*)state)->controlc;
+	return MAX(1, ((LadspaState*)state)->controlc);
 }
 
 static short getLadspaEffectHeight(void *state)
 {
-	return getLadspaEffectControlCount(state) + 3;
+	return ((LadspaState*)state)->controlc + 3;
 }
 
 static void freeLadspaEffect(void *state)
@@ -189,7 +189,7 @@ static void startLadspaEffect(LadspaState *s, float **input, float **output)
 
 	/* allocate the control block */
 	bool setDefaults = 0; /* only set the defaults if memory isn't yet allocated */
-	if (!s->controlv)
+	if (!s->controlv && s->controlc)
 	{
 		s->controlv = calloc(s->controlc, sizeof(LADSPA_Data));
 		setDefaults = 1;
@@ -293,6 +293,9 @@ static void drawLadspaEffect(void *state, short x, short w, short y, short ymin,
 
 			controlp++;
 		}
+
+	if (!controlp) /* plugin has no controls */
+		addControlDummy(MAX(1, MIN(ws.ws_col, x + w - 3)), y);
 }
 
 /* only valid to call if input and output are not NULL */

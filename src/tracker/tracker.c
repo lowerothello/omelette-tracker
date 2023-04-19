@@ -127,23 +127,6 @@ void trackerRightArrow(size_t count)
 	} p->redraw = 1;
 }
 
-static void trackSet(uint8_t track)
-{
-	w->track = track;
-	if (w->trackerfx > 3 + s->track->v[w->track]->variant->macroc * 2)
-		w->trackerfx = 3 + s->track->v[w->track]->variant->macroc * 2;
-
-	if (w->mode == MODE_EFFECT)
-		cc.cursor = getCursorFromEffectTrack(w->track);
-
-	p->redraw = 1;
-}
-
-void trackLeft (void) { trackSet(MAX((int)w->track - MAX(1, w->count), 0)); }
-void trackRight(void) { trackSet(MIN(w->track + MAX(1, w->count), s->track->c-1)); }
-void trackHome (void) { trackSet(0); }
-void trackEnd  (void) { trackSet(s->track->c-1); }
-
 void trackerHome(void)
 {
 	switch (w->mode)

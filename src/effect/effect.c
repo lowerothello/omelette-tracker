@@ -192,6 +192,19 @@ void delEffect(EffectChain **chain, uint8_t index)
 	}
 }
 
+size_t getCursorFromEffectTrack(uint8_t track)
+{
+	size_t ret = 0;
+	for (uint8_t i = 0; i < track; i++)
+		if (s->track->v[i]->effect->c)
+			for (uint8_t j = 0; j < s->track->v[i]->effect->c; j++)
+				ret += getEffectControlCount(&s->track->v[i]->effect->v[j]);
+		else
+			ret++;
+
+	return ret;
+}
+
 /* cursor is (ControlState).cursor compatible */
 uint8_t getEffectFromCursor(uint8_t track, EffectChain *chain, size_t cursor)
 {
@@ -209,19 +222,6 @@ size_t getCursorFromEffect(uint8_t track, EffectChain *chain, uint8_t index)
 	for (int i = 0; i < MIN(index, chain->c - 1); i++)
 		offset += getEffectControlCount(&chain->v[i]);
 	return offset;
-}
-
-size_t getCursorFromEffectTrack(uint8_t track)
-{
-	size_t ret = 0;
-	for (uint8_t i = 0; i < track; i++)
-		if (s->track->v[i]->effect->c)
-			for (uint8_t j = 0; j < s->track->v[i]->effect->c; j++)
-				ret += getEffectControlCount(&s->track->v[i]->effect->v[j]);
-		else
-			ret++;
-
-	return ret;
 }
 
 void copyEffect(Effect *dest, Effect *src, float **input, float **output)
