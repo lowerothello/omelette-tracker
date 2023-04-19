@@ -25,8 +25,7 @@ typedef struct Track
 	void **macrostate;
 	void  *inststate;
 
-	uint32_t pointer;        /* clock */
-	uint32_t pitchedpointer; /* tuned clock */
+	uint32_t pointer; /* clock */
 
 	MacroState gain;
 	MacroState send;

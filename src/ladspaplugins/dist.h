@@ -164,7 +164,7 @@ const LADSPA_Descriptor dist_descriptor =
 	/* UniqueID            */ UID_OFFSET + BUNDLE_INDEX,
 	/* Label               */ "dist",
 	/* Properties          */ LADSPA_PROPERTY_HARD_RT_CAPABLE,
-	/* Name                */ "Waveform Circumcision",
+	/* Name                */ "Clipper",
 	/* Maker               */ MAKER,
 	/* Copyright           */ LICENSE,
 

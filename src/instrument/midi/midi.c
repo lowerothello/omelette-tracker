@@ -23,7 +23,7 @@ void midiGetIndexInfo(Inst *iv, char *buffer)
 	snprintf(buffer, 9, "- MIDI -");
 }
 
-void midiTriggerNote(uint32_t fptr, Inst *iv, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void midiTriggerNote(uint32_t fptr, Inst *iv, Track *cv, float oldnote, float note, short inst)
 {
 	triggerMidi(fptr, iv->state, cv, oldnote, note, inst);
 }

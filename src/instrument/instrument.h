@@ -40,8 +40,8 @@ typedef struct InstAPI
 	void                     (*draw)(Inst*, short x, short y, short width, short height, short minx, short maxx);
 	void                    (*input)(Inst*);
 	void                    (*mouse)(Inst*, enum Button button, int x, int y);
-	void              (*triggernote)(uint32_t fptr, Inst*, Track*, uint8_t oldnote, uint8_t note, short inst);
-	void                  (*process)(Inst*, Track*, float rp, uint32_t pointer, uint32_t pitchedpointer, float finetune, short *l, short *r);
+	void              (*triggernote)(uint32_t fptr, Inst*, Track*, float oldnote, float note, short inst);
+	void                  (*process)(Inst*, Track*, float rp, uint32_t pointer, float note, short *l, short *r);
 	void                 (*lookback)(Inst*, Track*, uint16_t *spr);
 	struct json_object* (*serialize)(void*, size_t *dataoffset);
 	void            (*serializedata)(FILE *fp, void*, size_t *dataoffset);

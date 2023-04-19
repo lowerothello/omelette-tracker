@@ -129,6 +129,7 @@ static short getControlWidth(Control *c)
 	}
 }
 
+#define CONTROL_PRINT_LABEL { strcat(buffer, "["); strcat(buffer, c->scalepoint[j].label); strcat(buffer, "]"); }
 /* dump state to the screen */
 /* leaves the cursor over the selected control */
 void drawControls(void)
@@ -155,9 +156,7 @@ void drawControls(void)
 				case CONTROL_NIBBLES_UNSIGNED_FLOAT: /* fall through */
 				case CONTROL_NIBBLES_SIGNED_FLOAT: /* fall through */
 				case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
-				case CONTROL_NIBBLES_SIGNED_INT:
-#define CONTROL_PRINT_LABEL { strcat(buffer, "["); strcat(buffer, c->scalepoint[j].label); strcat(buffer, "]"); }
-					for (uint32_t j = 0; j < c->scalepointptr; j++) { if (c->scalepoint[j].value.f == *(float *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
+				case CONTROL_NIBBLES_SIGNED_INT: for (uint32_t j = 0; j < c->scalepointptr; j++) { if (c->scalepoint[j].value.f == *(float *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
 				case CONTROL_NIBBLES_PRETTY: /* fall through */
 				case CONTROL_NIBBLES_INT8:   for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((int8_t  )c->scalepoint[j].value.i == *(int8_t  *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
 				case CONTROL_NIBBLES_UINT8:  for (uint32_t j = 0; j < c->scalepointptr; j++) { if ((uint8_t )c->scalepoint[j].value.i == *(uint8_t *)c->value) { CONTROL_PRINT_LABEL; break; } } break;
@@ -204,6 +203,7 @@ void drawControls(void)
 		}
 
 		printCulling(buffer, c->x - 1, c->y, 1, ws.ws_col);
+		printf("\033[m");
 		free(buffer);
 	}
 	if (cc.cursor < cc.controlc)

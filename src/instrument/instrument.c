@@ -141,7 +141,6 @@ InstChain *_addInst(uint8_t index, InstType type)
 int addInst(uint8_t index, InstType algorithm, void (*cb)(Event *), void *cbarg)
 { /* fully atomic */
 	if (instSafe(s->inst, index)) return 1; /* index occupied */
-	freeWaveform();
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)&s->inst;

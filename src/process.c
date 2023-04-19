@@ -4,14 +4,11 @@ void setBpm(uint16_t *spr, uint8_t newbpm)
 /* freewheel to fill up the ramp buffer */
 void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, float rowprogress, Track *cv, uint8_t realinstrument)
 {
-	// VALGRIND_PRINTF("ramp(%d, %d, %d, %p, %f, %d)\n", fptr, *spr, sprp, cv, rowprogress, realinstrument);
 	/* clear the rampbuffer properly so cruft isn't played in edge cases */
 	memset(cv->rampbuffer, 0, sizeof(float) * rampmax * 2);
 
-	float finetune = 0.0f;
-	uint32_t pointeroffset = cv->pointer;
-	uint32_t pitchedpointeroffset = cv->pitchedpointer;
-	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointeroffset, &pitchedpointeroffset);
+	float note = cv->r.note;
+	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &note);
 
 	if (realinstrument < p->s->inst->c) /* TODO: should use instSafe */
 	{
@@ -21,28 +18,25 @@ void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, float rowprogress, Track 
 		char inststatebak[instGetPlaybackStateSize()];
 		memcpy(inststatebak, cv->inststate, instGetPlaybackStateSize());
 
-		pitchedpointeroffset++;
 		if (cv->reverse)
 		{
 			uint32_t localrampmax;
-			if (pointeroffset < rampmax)
-				localrampmax = rampmax - pointeroffset;
+			if (cv->pointer < rampmax)
+				localrampmax = rampmax - cv->pointer;
 			else localrampmax = rampmax;
 
 			for (uint16_t i = 0; i < localrampmax; i++)
 			{
-				if (pitchedpointeroffset) pitchedpointeroffset--;
 				if ((api = instGetAPI(iv->type)))
-					api->process(iv, cv, rowprogress, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
+					api->process(iv, cv, rowprogress, cv->pointer+i, note, &l, &r);
 				cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT;
 				cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT;
 			}
 		} else
 			for (uint16_t i = 0; i < rampmax; i++)
 			{
-				pitchedpointeroffset++;
 				if ((api = instGetAPI(iv->type)))
-					api->process(iv, cv, rowprogress, pointeroffset+i, pitchedpointeroffset, finetune, &l, &r);
+					api->process(iv, cv, rowprogress, cv->pointer+i, note, &l, &r);
 				cv->rampbuffer[i*2 + 0] = (float)l*DIVSHRT;
 				cv->rampbuffer[i*2 + 1] = (float)r*DIVSHRT;
 			}
@@ -50,19 +44,19 @@ void ramp(uint32_t fptr, uint16_t *spr, uint32_t sprp, float rowprogress, Track 
 	} cv->rampindex = 0;
 }
 
-void midiNoteOff(uint32_t fptr, uint8_t midichannel, uint8_t note, uint8_t velocity)
+void midiNoteOff(uint32_t fptr, uint8_t midichannel, float note, uint8_t velocity)
 {
 	if (note != NOTE_VOID)
 	{
-		unsigned char event[3] = {0b10000000 | midichannel, note, velocity};
+		unsigned char event[3] = {0b10000000 | midichannel, (int)note, velocity};
 		audio_api.writeMidi(fptr, event, 3);
 	}
 }
-void midiNoteOn(uint32_t fptr, uint8_t midichannel, uint8_t note, uint8_t velocity)
+void midiNoteOn(uint32_t fptr, uint8_t midichannel, float note, uint8_t velocity)
 {
 	if (note != NOTE_VOID)
 	{
-		unsigned char event[3] = {0b10010000 | midichannel, note, velocity};
+		unsigned char event[3] = {0b10010000 | midichannel, (int)note, velocity};
 		audio_api.writeMidi(fptr, event, 3);
 	}
 }
@@ -90,7 +84,7 @@ void midiMute(Inst *iv, Track *cv)
 	}
 }
 
-bool triggerMidi(uint32_t fptr, InstMidiState *ims, Track *cv, uint8_t oldnote, uint8_t note, uint8_t inst)
+bool triggerMidi(uint32_t fptr, InstMidiState *ims, Track *cv, float oldnote, float note, uint8_t inst)
 {
 	if (note != NOTE_VOID && !cv->mute)
 	{
@@ -105,12 +99,12 @@ bool triggerMidi(uint32_t fptr, InstMidiState *ims, Track *cv, uint8_t oldnote, 
 }
 
 /* TODO: should maybe take oldnote and a row as args */
-void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void triggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst)
 {
 	Inst *iv;
 	const InstAPI *api;
 
-	switch (note)
+	switch ((int)note)
 	{
 		case NOTE_VOID:
 		case NOTE_OFF:
@@ -123,9 +117,9 @@ void triggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short 
 			break;
 		default:
 			if (note < NOTE_MAX) /* legato */
-				cv->pointer = cv->pitchedpointer = 0;
+				cv->pointer = 0; /* TODO: should affect pitchedpointer */
 
-			cv->r.note = note%NOTE_MAX;
+			cv->r.note = fmodf(note, NOTE_MAX);
 			cv->reverse = 0;
 			cv->release = 0;
 
@@ -232,12 +226,6 @@ void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
 
 		if (cv->reverse)
 		{
-			if (cv->pitchedpointer > *spr) cv->pitchedpointer -= *spr;
-			else                           cv->pitchedpointer = 0;
-		} else cv->pitchedpointer += *spr;
-
-		if (cv->reverse)
-		{
 			if (cv->pointer > *spr) cv->pointer -= *spr;
 			else                    cv->pointer = 0;
 		} else cv->pointer += *spr;
@@ -247,7 +235,7 @@ void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
 void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 {
 	float rowprogress = (float)sprp / (float)(*spr);
-	uint8_t newnote = macroCallbackSampleRow(fptr, 1, spr, sprp, cv);
+	float newnote = macroCallbackSampleRow(fptr, 1, spr, sprp, cv);
 	if (newnote != NOTE_VOID)
 	{
 		if (instSafe(p->s->inst, cv->r.inst))
@@ -259,10 +247,8 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 
 	macroCallbackPersistent(fptr, 1, spr, sprp, cv);
 
-	float finetune = 0.0f;
-	uint32_t pointer = cv->pointer;
-	uint32_t pitchedpointer = cv->pitchedpointer;
-	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &finetune, &pointer, &pitchedpointer);
+	float note = cv->r.note;
+	macroCallbackVolatile(fptr, 1, spr, sprp, cv, &note);
 
 	short li = 0;
 	short ri = 0;
@@ -290,10 +276,7 @@ void playTrack(uint32_t fptr, uint16_t *spr, uint32_t sprp, Track *cv)
 				Inst *iv = &p->s->inst->v[p->s->inst->i[cv->r.inst]];
 				const InstAPI *api;
 				if ((api = instGetAPI(iv->type)))
-					api->process(iv, cv, rowprogress, pointer, pitchedpointer, finetune, &li, &ri);
-
-				if (cv->reverse) { if (cv->pitchedpointer) cv->pitchedpointer--; }
-				else                                       cv->pitchedpointer++;
+					api->process(iv, cv, rowprogress, cv->pointer, note, &li, &ri);
 
 				if (cv->reverse) { if (cv->pointer) cv->pointer--; }
 				else                                cv->pointer++;

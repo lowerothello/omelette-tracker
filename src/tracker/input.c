@@ -513,11 +513,11 @@ static void setNoteOctave(size_t octave)
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
 				r = getTrackRow(cv, i);
-				r->note = octave*12 + (r->note-NOTE_MIN)%12 + NOTE_MIN;
+				r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			} step = 0; break;
 		default:
 			r = getTrackRow(cv, w->trackerfy);
-			r->note = octave*12 + (r->note-NOTE_MIN)%12 + NOTE_MIN;
+			r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			step = 1; break;
 	}
 

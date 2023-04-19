@@ -22,7 +22,7 @@ enum Note
 
 typedef struct Row
 {
-	uint8_t note; /* MIDI compatible  | NOTE_* declares */
+	float   note; /* MIDI compatible  | NOTE_* declares */
 	uint8_t inst; /* instrument index | INST_* declares */
 	Macro   macro[8];
 } Row;

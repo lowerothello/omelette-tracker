@@ -12,6 +12,7 @@ typedef struct Sample
 	uint8_t  channels;
 	uint32_t rate;    /* rate to play C5 at */
 	uint32_t defrate; /* rate to return to when the rate control is reset */
+	uint8_t  gain;
 	bool     invert;
 
 	uint32_t trimstart;

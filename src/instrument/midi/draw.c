@@ -12,7 +12,7 @@ void instUIMidiCallback(short x, short y, Inst *iv, uint8_t index)
 	}
 }
 
-const InstUI midiInstUI = { 18, 2, 2, instUIMidiCallback, };
+const InstUI midiInstUI = { 18, 2, 1, 3, instUIMidiCallback, };
 
 void midiDraw(Inst *iv, short x, short y, short width, short height, short minx, short maxx)
 {

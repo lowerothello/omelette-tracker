@@ -38,6 +38,7 @@ Sample *loadSample(char *path)
 	ret->trimstart = 0;
 	ret->trimlength = ret->length-1;
 	ret->looplength = 0;
+	ret->gain = 0xff;
 
 loadSample_end:
 	if (sndfile) sf_close(sndfile);
@@ -95,6 +96,7 @@ struct json_object *serializeSample(Sample *s, size_t *dataoffset)
 	json_object_object_add(ret, "channels", json_object_new_int(s->channels));
 	json_object_object_add(ret, "rate", json_object_new_uint64(s->rate));
 	json_object_object_add(ret, "defrate", json_object_new_uint64(s->defrate));
+	json_object_object_add(ret, "gain", json_object_new_int(s->gain));
 	json_object_object_add(ret, "invert", json_object_new_boolean(s->invert));
 	json_object_object_add(ret, "trimstart", json_object_new_uint64(s->trimstart));
 	json_object_object_add(ret, "trimlength", json_object_new_uint64(s->trimlength));
@@ -128,6 +130,7 @@ Sample *deserializeSample(struct json_object *jso, void *data, double ratemultip
 	ret->channels = json_object_get_int(json_object_object_get(jso, "channels"));
 	ret->rate = json_object_get_uint64(json_object_object_get(jso, "rate")) * ratemultiplier;
 	ret->defrate = json_object_get_uint64(json_object_object_get(jso, "defrate")) * ratemultiplier;
+	ret->gain = json_object_get_int(json_object_object_get(jso, "gain"));
 	ret->invert = json_object_get_boolean(json_object_object_get(jso, "invert"));
 	ret->trimstart = json_object_get_uint64(json_object_object_get(jso, "trimstart"));
 	ret->trimlength = json_object_get_uint64(json_object_object_get(jso, "trimlength"));

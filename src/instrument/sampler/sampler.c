@@ -7,10 +7,8 @@ static void *samplerInit(void)
 	ret->bitredux = 0xf;
 	ret->envelope = 0x00f0;
 
-	ret->granular.cyclelength = 0x3fff;
-	ret->granular.rampgrains = 8;
-	ret->granular.beatsensitivity = 0x80;
-	ret->granular.beatdecay = 0xff;
+	ret->cyclelength = 0x3fff;
+	ret->ramp = 8;
 
 	return ret;
 }
@@ -49,11 +47,13 @@ static void samplerGetIndexInfo(Inst *iv, char *buffer)
 	humanReadableSize(samplesize, buffer);
 }
 
-static void samplerTriggerNote(uint32_t fptr, Inst *iv, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+static void samplerTriggerNote(uint32_t fptr, Inst *iv, Track *cv, float oldnote, float note, short inst)
 {
 	InstSamplerState *s = iv->state;
 	InstSamplerPlaybackState *ps = cv->inststate;
-	ps->sampleslot = s->samplemap[cv->r.note];
+	ps->pitchedpointer = 0; /* TODO: skip resetting this if legato */
+	ps->sampleslot = s->samplemap[(int)cv->r.note];
+	ps->transattackfollower = 0.0f;
 }
 
 static struct json_object *samplerSerialize(void *state, size_t *dataoffset)
@@ -85,6 +85,17 @@ static struct json_object *samplerSerialize(void *state, size_t *dataoffset)
 	json_object_object_add(ret, "frame", json_object_new_int(s->frame));
 	json_object_object_add(ret, "envelope", json_object_new_int(s->envelope));
 	json_object_object_add(ret, "gain", json_object_new_int(s->gain));
+	json_object_object_add(ret, "reverse", json_object_new_boolean(s->reverse));
+	json_object_object_add(ret, "ramp", json_object_new_int(s->ramp));
+	json_object_object_add(ret, "cyclelength", json_object_new_int(s->cyclelength));
+	json_object_object_add(ret, "cyclelengthjitter", json_object_new_int(s->cyclelengthjitter));
+	json_object_object_add(ret, "transientsensitivity", json_object_new_int(s->transientsensitivity));
+	json_object_object_add(ret, "timestretch", json_object_new_int(s->timestretch));
+	json_object_object_add(ret, "notestretch", json_object_new_boolean(s->notestretch));
+	json_object_object_add(ret, "pitchshift", json_object_new_int(s->pitchshift));
+	json_object_object_add(ret, "pitchjitter", json_object_new_int(s->pitchjitter));
+	json_object_object_add(ret, "formantshift", json_object_new_int(s->formantshift));
+	json_object_object_add(ret, "formantstereo", json_object_new_int(s->formantstereo));
 
 	return ret;
 }
@@ -122,11 +133,22 @@ static void *samplerDeserialize(struct json_object *jso, void *data, double rate
 	ret->frame = json_object_get_int(json_object_object_get(jso, "frame"));
 	ret->envelope = json_object_get_int(json_object_object_get(jso, "envelope"));
 	ret->gain = json_object_get_int(json_object_object_get(jso, "gain"));
+	ret->reverse = json_object_get_boolean(json_object_object_get(jso, "reverse"));
+	ret->ramp = json_object_get_int(json_object_object_get(jso, "ramp"));
+	ret->cyclelength = json_object_get_int(json_object_object_get(jso, "cyclelength"));
+	ret->cyclelengthjitter = json_object_get_int(json_object_object_get(jso, "cyclelengthjitter"));
+	ret->transientsensitivity = json_object_get_int(json_object_object_get(jso, "transientsensitivity"));
+	ret->timestretch = json_object_get_int(json_object_object_get(jso, "timestretch"));
+	ret->notestretch = json_object_get_boolean(json_object_object_get(jso, "notestretch"));
+	ret->pitchshift = json_object_get_int(json_object_object_get(jso, "pitchshift"));
+	ret->pitchjitter = json_object_get_int(json_object_object_get(jso, "pitchjitter"));
+	ret->formantshift = json_object_get_int(json_object_object_get(jso, "formantshift"));
+	ret->formantstereo = json_object_get_int(json_object_object_get(jso, "formantstereo"));
 
 	return ret;
 }
 
 #include "macros.c"
-#include "input.c"
 #include "draw.c"
+#include "input.c" /* depends on "draw.c", TODO: kinda dumb dependancy */
 #include "process.c"

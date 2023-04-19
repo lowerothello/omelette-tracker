@@ -80,7 +80,7 @@ macroRetrigEnd:
 	}
 }
 
-void macroRetrigTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst, void *state)
+void macroRetrigTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state)
 {
 	MacroRetrigState *ms = state;
 

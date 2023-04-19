@@ -2,7 +2,7 @@ typedef struct MacroRowState
 {
 	uint16_t cutsamples;   /* samples into the row to cut, 0 for no cut */
 	uint16_t delaysamples; /* samples into the row to delay, 0 for no delay */
-	uint8_t  delaynote;
+	float    delaynote;
 } MacroRowState;
 
 #define MACRO_ROW_CUT   'C'
@@ -47,12 +47,12 @@ void macroRowPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *stat
 }
 
 /* returns the new note, or NOTE_VOID for no change */
-uint8_t macroRowSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state)
+float macroRowSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state)
 {
 	MacroRowState *ms = state;
+	float ret = NOTE_VOID;
 
 	sprp += count;
-	uint8_t ret = NOTE_VOID;
 
 	if (ms->delaysamples > ms->cutsamples && sprp > ms->delaysamples)
 	{

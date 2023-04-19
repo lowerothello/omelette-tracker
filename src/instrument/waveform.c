@@ -131,9 +131,6 @@ void drawWaveform(Sample *sample, short x, short y, short width, short height)
 		resetWaveform(sample);
 
 	if (!waveformworkcanvas) return;
-
-	// offset = 0;
-	// width = sample->length;
 	if (!sample) return;
 
 	memcpy(waveformdrawcanvas->canvas, waveformworkcanvas->canvas, waveformw * waveformh);

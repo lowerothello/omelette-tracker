@@ -52,7 +52,7 @@ void macroPitchPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *st
 		ms->vibratosamples = 0;
 }
 
-void macroPitchTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst, void *state)
+void macroPitchTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state)
 {
 	MacroPitchState *ms = state;
 
@@ -65,49 +65,49 @@ void macroPitchTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t no
 /* should affect cv->pointer, cv->pitchedpointer, and cv->finetune */
 void macroPitchPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state)
 {
-	MacroPitchState *ms = state;
-
-	sprp += count;
-	int delta; /* pretty sure this needs to be signed */
-	float multiplier;
-
-	if (ms->portamentosamplepointer != -1 && ms->portamentosamplepointer+count > ms->portamentosamples)
-	{
-		ms->portamentofinetune = ms->targetportamentofinetune;
-		ms->portamentosamplepointer = -1;
-		cv->r.note += ms->targetportamentofinetune;
-	} else
-	{
-		/* sample portamentofinetune */
-		ms->portamentofinetune = ms->startportamentofinetune +
-			(ms->targetportamentofinetune - ms->startportamentofinetune) * (float)ms->portamentosamplepointer/(float)ms->portamentosamples;
-
-		multiplier = powf(M_12_ROOT_2, ms->portamentofinetune);
-		delta = (int)((ms->portamentosamplepointer+count)*multiplier) - (int)(ms->portamentosamplepointer*multiplier);
-
-		delta -= count; /* anticipate reapplication */
-
-		if (cv->reverse)
-		{
-			if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
-			else                            cv->pitchedpointer = 0;
-		} else cv->pitchedpointer += delta;
-
-		ms->portamentosamplepointer += count;
-	}
+	// MacroPitchState *ms = state;
+	//
+	// sprp += count;
+	// int delta; /* pretty sure this needs to be signed */
+	// float multiplier;
+	//
+	// if (ms->portamentosamplepointer != -1 && ms->portamentosamplepointer+count > ms->portamentosamples)
+	// {
+	// 	ms->portamentofinetune = ms->targetportamentofinetune;
+	// 	ms->portamentosamplepointer = -1;
+	// 	cv->r.note += ms->targetportamentofinetune;
+	// } else
+	// {
+	// 	/* sample portamentofinetune */
+	// 	ms->portamentofinetune = ms->startportamentofinetune +
+	// 		(ms->targetportamentofinetune - ms->startportamentofinetune) * (float)ms->portamentosamplepointer/(float)ms->portamentosamples;
+	//
+	// 	multiplier = powf(M_12_ROOT_2, ms->portamentofinetune);
+	// 	delta = (int)((ms->portamentosamplepointer+count)*multiplier) - (int)(ms->portamentosamplepointer*multiplier);
+	//
+	// 	delta -= count; /* anticipate reapplication */
+	//
+	// 	// if (cv->reverse)
+	// 	// {
+	// 	// 	if (cv->pitchedpointer > delta) cv->pitchedpointer -= delta;
+	// 	// 	else                            cv->pitchedpointer = 0;
+	// 	// } else cv->pitchedpointer += delta;
+	//
+	// 	ms->portamentosamplepointer += count;
+	// }
 }
 
-void macroPitchVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state)
+void macroPitchVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *note, void *state)
 {
 	MacroPitchState *ms = state;
 
 	sprp += count;
 
-	*finetune += ms->microtonalfinetune;
+	*note += ms->microtonalfinetune;
 	if (ms->vibratosamples)
 	{
 		/* sample the vibrato oscillator */
-		*finetune += triosc((float)ms->vibratosamplepointer / (float)ms->vibratosamples) * ms->vibrato*DIV16;
+		*note += triosc((float)ms->vibratosamplepointer / (float)ms->vibratosamples) * ms->vibrato*DIV16;
 
 		ms->vibratosamplepointer += count;
 		/* re-read the macro once phase is about to overflow */

@@ -11,7 +11,7 @@ void midiGetIndexInfo(Inst *iv, char *buffer);
 void midiDraw(Inst *iv, short x, short y, short width, short height, short minx, short maxx);
 void midiInput(Inst *iv);
 void midiMouse(Inst *iv, enum Button button, int x, int y);
-void midiTriggerNote(uint32_t fptr, Inst *iv, Track *cv, uint8_t oldnote, uint8_t note, short inst);
+void midiTriggerNote(uint32_t fptr, Inst *iv, Track *cv, float oldnote, float note, short inst);
 static struct json_object *midiSerialize(void *state, size_t *dataoffset);
 static void *midiDeserialize(struct json_object *jso, void *data, double ratemultiplier);
 

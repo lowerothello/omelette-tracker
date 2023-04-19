@@ -45,16 +45,15 @@ void macroCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 		if (global_macro_callbacks[i].posttrig)
 			global_macro_callbacks[i].posttrig(fptr, spr, cv, r, cv->macrostate[i]);
 }
-void macroCallbackTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst)
+void macroCallbackTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].triggernote)
 			global_macro_callbacks[i].triggernote(fptr, cv, oldnote, note, inst, cv->macrostate[i]);
 }
-uint8_t macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+float macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
-	uint8_t tryret;
-	uint8_t ret = NOTE_VOID;
+	float tryret, ret = NOTE_VOID;
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].samplerow)
 		{
@@ -70,11 +69,11 @@ void macroCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint1
 		if (global_macro_callbacks[i].persistenttune)
 			global_macro_callbacks[i].persistenttune(fptr, count, spr, sprp, cv, cv->macrostate[i]);
 }
-void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer)
+void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *note)
 {
 	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
 		if (global_macro_callbacks[i].volatiletune)
-			global_macro_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, finetune, pointer, pitchedpointer, cv->macrostate[i]);
+			global_macro_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, note, cv->macrostate[i]);
 }
 void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf)
 {

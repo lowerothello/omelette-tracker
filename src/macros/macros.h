@@ -35,10 +35,10 @@ typedef struct MacroAPI
 	void          (*clear)(Track *cv, void *state);
 	void        (*pretrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state);
 	void       (*posttrig)(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state);
-	void    (*triggernote)(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst, void *state);
-	uint8_t   (*samplerow)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state);
+	void    (*triggernote)(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state);
+	float     (*samplerow)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state);
 	void (*persistenttune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, void *state);
-	void   (*volatiletune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state);
+	void   (*volatiletune)(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *note, void *state);
 	void    (*postsampler)(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state);
 	size_t statesize;
 } MacroAPI;
@@ -46,10 +46,10 @@ typedef struct MacroAPI
 void macroCallbackClear(Track *cv);
 void macroCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
 void macroCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r);
-void macroCallbackTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst);
-uint8_t macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
+void macroCallbackTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst);
+float macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
 void macroCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv);
-void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer);
+void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *note);
 void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf);
 
 #include "bpm.c"
@@ -57,7 +57,7 @@ void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, flo
 #include "gain.c"
 #include "send.c"
 #include "pitch.c"
-#include "retrigger.c"
+// #include "retrigger.c"
 #include "chance.c"
 #include "filter.c"
 #include "midi.c"
@@ -70,7 +70,7 @@ MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
 	{ macroSendClear, macroSendPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
 	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState) },
-	{ macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState) },
+	// { macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState) },
 	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
 	{ macroFilterClear, NULL, macroFilterPostTrig, NULL, NULL, NULL, NULL, macroFilterPostSampler, sizeof(MacroFilterState) },
 	{ NULL, NULL, macroInstSamplerPostTrig, macroInstSamplerTriggerNote, NULL, NULL, NULL, NULL, 0 },
@@ -98,16 +98,12 @@ const MacroDef global_macro_db[MACRO_MAX] =
 {
 	[MACRO_GAIN]                  = { 1, "stereo gain"                 , MC_GAIN     , MF_STEREO|MF_RAMP|MF_EXTENDSTATE },//S~ +- %
 	[MACRO_SMOOTH_GAIN]           = { 1, "smooth stereo gain"          , MC_GAIN     , MF_STEREO|0      |0              },//--
-	// [MACRO_GAIN_JITTER]           = { 1, "stereo gain jitter"          , MC_GAIN     , MF_STEREO|MF_RAMP|0              },//--
-	// [MACRO_SMOOTH_GAIN_JITTER]    = { 1, "smooth stereo gain jitter"   , MC_GAIN     , MF_STEREO|0      |0              },//--
 	[MACRO_SEND]                  = { 1, "stereo send"                 , MC_GAIN     , MF_STEREO|MF_RAMP|MF_EXTENDSTATE },//S~ +- %
 	[MACRO_SMOOTH_SEND]           = { 1, "smooth stereo send"          , MC_GAIN     , MF_STEREO|MF_RAMP|0              },//--
-	// [MACRO_SEND_JITTER]           = { 1, "stereo send jitter"          , MC_GAIN     , MF_STEREO|0      |0              },//--
-	// [MACRO_SMOOTH_SEND_JITTER]    = { 1, "smooth stereo send jitter"   , MC_GAIN     , MF_STEREO|0      |0              },//--
-	[MACRO_BLOCK_RETRIG]          = { 1, "block retrigger"             , MC_SEQUENCER, 0        |0      |0              },//
-	[MACRO_REVERSE_BLOCK_RETRIG]  = { 1, "reverse block retrigger"     , MC_SEQUENCER, 0        |0      |0              },//
-	[MACRO_TICK_RETRIG]           = { 1, "tick retrigger"              , MC_SEQUENCER, 0        |0      |0              },//
-	[MACRO_REVERSE_TICK_RETRIG]   = { 1, "reverse tick retrigger"      , MC_SEQUENCER, 0        |0      |0              },//
+	// [MACRO_BLOCK_RETRIG]          = { 1, "block retrigger"             , MC_SEQUENCER, 0        |0      |0              },//
+	// [MACRO_REVERSE_BLOCK_RETRIG]  = { 1, "reverse block retrigger"     , MC_SEQUENCER, 0        |0      |0              },//
+	// [MACRO_TICK_RETRIG]           = { 1, "tick retrigger"              , MC_SEQUENCER, 0        |0      |0              },//
+	// [MACRO_REVERSE_TICK_RETRIG]   = { 1, "reverse tick retrigger"      , MC_SEQUENCER, 0        |0      |0              },//
 	[MACRO_PORTAMENTO]            = { 1, "portamento slide"            , MC_PITCH    , 0        |0      |0              },//
 	[MACRO_PITCH_OFFSET]          = { 1, "microtonal pitch offset"     , MC_PITCH    , 0        |0      |MF_EXTENDSTATE },//S~ +- %
 	[MACRO_VIBRATO]               = { 1, "vibrato"                     , MC_PITCH    , 0        |0      |0              },//--

@@ -74,3 +74,8 @@
 // #define DISABLE_BOX_OUTLINE 1
 
 #define PREVIEW_TRACKS 6
+
+/* transient detection envelope follower timings */
+#define TRANS_ENV_FOLLOWER_MAX      .3f
+#define TRANS_ENV_FOLLOWER_RELTHRES .03f
+#define TRANS_ENV_FOLLOWER_SPEED    .1f

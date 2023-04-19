@@ -1,15 +1,13 @@
 Variant *dupVariant(Variant *oldvariant, uint16_t newlen)
 {
-	Variant *ret = malloc(sizeof(uint16_t) + (newlen+1) * sizeof(Row));
+	Variant *ret = calloc(1, sizeof(Variant) + (newlen+1) * sizeof(Row));
 
-	/* properly zero out the new variant */
-	memset(ret->rowv, 0, (newlen+1) * sizeof(Row));
-	for (uint32_t i = 0; i <= newlen; i++)
+	/* properly initialize the new variant */
+	for (uint32_t i = 0; i < newlen+1; i++) /* iterator is bigger than a uint16_t */
 	{
 		ret->rowv[i].note = NOTE_VOID;
 		ret->rowv[i].inst = INST_VOID;
 	}
-
 	ret->rowc = newlen;
 
 	if (oldvariant)

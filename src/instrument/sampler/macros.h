@@ -15,4 +15,4 @@
 
 
 void macroInstSamplerPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state);
-void macroInstSamplerTriggerNote(uint32_t fptr, Track *cv, uint8_t oldnote, uint8_t note, short inst, void *state);
+void macroInstSamplerTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state);

@@ -17,15 +17,15 @@ static void drawRuler(void)
 
 	printf("\033[%d;%dH", 2, ws.ws_col - previewtracks*4 - 2);
 	char buffer[4];
+	uint8_t note;
 	for (int i = 0; i < previewtracks; i++)
 	{
+		note = w->previewtrack[i]->r.note;
 		if (w->previewtrack[i]->release)
-			printf("... ");
-		else
-		{
-			noteToString(w->previewtrack[i]->r.note, buffer);
-			printf("%s ", buffer);
-		}
+			note = NOTE_VOID;
+
+		noteToString(note, buffer);
+		printf("%s ", buffer);
 	}
 	printf("%02x", w->instrument);
 
@@ -45,7 +45,7 @@ static void drawRuler(void)
 		}
 
 		if (w->count) printf("\033[%d;%dH%3d", ws.ws_row, ws.ws_col - 29, w->count);
-		if (w->chord) printf("\033[%d;%dH%c", ws.ws_row, ws.ws_col - 26, w->chord);
+		if (w->chord) printf("\033[%d;%dH%c" , ws.ws_row, ws.ws_col - 26, w->chord);
 
 		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - RULER_WIDTH);
 
