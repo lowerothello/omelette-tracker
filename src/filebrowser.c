@@ -228,7 +228,6 @@ static void sampleLoadCallbackOverload(char *path)
 
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
-	w->showfilebrowser = 0;
 	free(path);
 }
 

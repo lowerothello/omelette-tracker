@@ -96,6 +96,7 @@ static void samplerDraw(Inst *iv, short x, short y, short width, short height, s
 {
 	InstSamplerState *s = iv->state;
 
+	/* TODO: also calculate wh for mouse input, functionize it */
 	short rows, cols;
 	if (!(cols = getMaxInstUICols(&cyclicInstUI, width))) return;
 	if (!(rows = getInstUIRows(&cyclicInstUI, cols))) return;
@@ -106,35 +107,25 @@ static void samplerDraw(Inst *iv, short x, short y, short width, short height, s
 
 	short sample_rows = getInstUIRows(&sampleInstUI, getMaxInstUICols(&sampleInstUI, width - 5));
 
-	short whh = wh - sample_rows;
-
 	/* multisample indices */
 	char buffer[5];
-	short siy;
 	for (uint8_t i = 0; i < SAMPLE_MAX; i++)
 	{
-		siy = y + (whh>>1) - w->sample + i;
-		if (siy > y && siy < y + (whh - 1))
-		{ /* vertical bounds limiting */
-			if (i == w->sample) printf("\033[1;7m");
-			if ((*s->sample)[i]) snprintf(buffer, 5, " %01x ", i);
-			else                 snprintf(buffer, 5, " . ");
-			printCulling(buffer, x + ((width - 3)>>1) + (i - w->sample)*5, y+1, x+1, x + width-1);
-			if (i == w->sample) printf("\033[22;27m");
-		}
+		if (i == w->sample+w->fxoffset) printf("\033[1;7m");
+		if ((*s->sample)[i]) snprintf(buffer, 5, " %01x ", i);
+		else                 snprintf(buffer, 5, " . ");
+		printCulling(buffer, x + ((width - 3)>>1) + (i - w->sample)*5, y+1, x+1, x + width-1);
+		printf("\033[22;27m");
 	}
 
 	if ((*s->sample)[w->sample])
 	{
-		drawWaveform((*s->sample)[w->sample], x+1, y+2, width-1, whh-3);
-		drawInstUI(&sampleInstUI, iv, x+1, width-2, y+whh-1, 0, sample_rows);
+		drawWaveform((*s->sample)[w->sample], x+1, y+2, width-1, wh - sample_rows - 3);
+		drawInstUI(&sampleInstUI, iv, x+1, width-2, y + wh - sample_rows - 1, 0, sample_rows);
+		drawInstUI(&cyclicInstUI, iv, x, width, y + wh, 0, rows);
 	} else
 	{
 		resizeBrowser(fbstate, x + 3, y + 2, width - 3, wh - 3);
 		drawBrowser(fbstate);
 	}
-
-	y += wh;
-
-	drawInstUI(&cyclicInstUI, iv, x, width, y, 0, rows);
 }

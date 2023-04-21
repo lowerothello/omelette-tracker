@@ -3,16 +3,16 @@ void instUIEmptyCallback(short x, short y, Inst *iv, uint8_t index)
 	printf("\033[%d;%d%s", y, x, EMPTY_INST_UI_TEXT);
 }
 
-static short drawInstIndex(short bx, short minx, short maxx)
+static void drawInstIndex(short minx, short maxx)
 {
 	Inst *iv;
 	const InstAPI *api;
 	char buffer[9];
-	short x = 0;
+	short x;
 	for (int i = 0; i < INSTRUMENT_MAX; i++)
 		if (w->centre - w->instrument + i > TRACK_ROW && w->centre - w->instrument + i < ws.ws_row)
 		{
-			x = bx;
+			x = 1;
 
 			if (instSafe(s->inst, i))
 				if (s->inst->v[s->inst->i[i]].triggerflash)
@@ -41,7 +41,6 @@ static short drawInstIndex(short bx, short minx, short maxx)
 
 			printf("\033[40;37;22;27m");
 		}
-	return x - bx;
 }
 
 short getInstUIRows(const InstUI *iui, short cols)
@@ -101,7 +100,8 @@ void drawInstrument(void)
 
 	short minx = 1;
 	short maxx = ws.ws_col;
-	short x = drawInstIndex(1, minx, maxx) + 2;
+	drawInstIndex(minx, maxx);
+	short x = INSTRUMENT_INDEX_COLS - 1;
 
 	if (instSafe(s->inst, w->instrument))
 	{

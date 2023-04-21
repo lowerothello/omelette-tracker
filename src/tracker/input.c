@@ -5,7 +5,7 @@ static void trackSet(uint8_t track)
 		w->trackerfx = 3 + s->track->v[w->track]->variant->macroc * 2;
 
 	if (w->mode == MODE_EFFECT)
-		if (!(cc.cursor > getCursorFromEffectTrack(w->track) && cc.cursor < getCursorFromEffectTrack(w->track + 1))) /* (w->track + 1) is always safe here */
+		if (!(cc.cursor > getCursorFromEffectTrack(w->track) && cc.cursor < getCursorFromEffectTrack(w->track + 1)))
 			cc.cursor = getCursorFromEffectTrack(w->track);
 
 	p->redraw = 1;

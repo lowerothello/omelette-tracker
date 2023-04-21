@@ -60,14 +60,13 @@ typedef struct UI
 	int8_t         trackerfx, visualfx;
 	uint8_t        visualtrack;
 
-	bool          showfilebrowser; /* show the instrument sample browser */
 	int           filebrowserindex;
 	uint32_t      plugineffectindex;
 	bool          pluginbrowserbefore; /* true to place plugins before the cursor, false to place plugins after the cursor */
 
 	unsigned short mousey, mousex;
 
-	short       fyoffset;
+	short       fyoffset, fxoffset;
 	short       shiftoffset; /* TODO */
 	signed char trackoffset;
 	signed char fieldpointer;

@@ -3,7 +3,6 @@ static void instrumentEscape(void *arg)
 	if (input_api.autorepeatoff)
 		input_api.autorepeatoff();
 
-	w->showfilebrowser = 0;
 	previewNote(NOTE_OFF, INST_VOID, 0);
 	cc.mouseadjust = cc.keyadjust = 0;
 	w->mode = MODE_NORMAL;
@@ -13,59 +12,36 @@ static void instrumentEscape(void *arg)
 #include "chord/add.c"
 
 
-static void instrumentUpArrow(size_t count) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserUpArrow  (fbstate, count); }
-static void instrumentDnArrow(size_t count) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserDownArrow(fbstate, count); }
-static void instrumentHome(void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserHome(fbstate); }
-static void instrumentEnd (void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserEnd (fbstate); }
+static void instrumentUpArrow(size_t count) { browserUpArrow  (fbstate, count); }
+static void instrumentDnArrow(size_t count) { browserDownArrow(fbstate, count); }
+static void instrumentHome(void) { browserHome(fbstate); }
+static void instrumentEnd (void) { browserEnd (fbstate); }
 static void instrumentPgUp(void) { instrumentUpArrow((ws.ws_row>>1)); }
 static void instrumentPgDn(void) { instrumentDnArrow((ws.ws_row>>1)); }
-static void instrumentSearchStart(void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserSearchStart(fbstate);    }
-static void instrumentSearchNext (void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserSearchNext (fbstate, 0); }
-static void instrumentSearchPrev (void) { if (!instSafe(s->inst, w->instrument) || w->showfilebrowser) browserSearchPrev (fbstate, 0); }
+static void instrumentSearchStart(void) { browserSearchStart(fbstate);    }
+static void instrumentSearchNext (void) { browserSearchNext (fbstate, 0); }
+static void instrumentSearchPrev (void) { browserSearchPrev (fbstate, 0); }
 
-static void instrumentCtrlUpArrow(void *count)
+static void instrumentSetIndex(short inst)
 {
-	w->showfilebrowser = 0;
-	w->instrument -= (size_t)count * MAX(1, w->count);
-
-	if (w->instrument < 0)
-		w->instrument = 0;
-	else freeWaveform();
-}
-static void instrumentCtrlDownArrow(void *count)
-{
-	w->showfilebrowser = 0;
-	w->instrument += (size_t)count * MAX(1, w->count);
-
-	if (w->instrument > 254)
-		w->instrument = 254;
-	else freeWaveform();
+	if (inst >= 0 && inst <= 254)
+	{
+		w->instrument = inst;
+		w->sample = 0;
+		freeWaveform();
+	}
 }
 
-static void instrumentSampleReturn(void)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		fbstate->commit(fbstate);
-}
-static void instrumentSampleBackspace(void)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		fileBrowserBackspace(fbstate);
-}
-static void instrumentSamplePressPreview(size_t note)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		fileBrowserPreview(fbstate, note, 0);
-	else
-		previewNote(note, w->instrument, 0);
-}
-static void instrumentSampleReleasePreview(size_t note)
-{
-	if (!instSafe(s->inst, w->instrument) || w->showfilebrowser)
-		fileBrowserPreview(fbstate, note, 1);
-	else
-		previewNote(note, w->instrument, 1);
-}
+static void instrumentCtrlUpArrow  (void *count) { instrumentSetIndex(w->instrument - (size_t)count * MAX(1, w->count)); }
+static void instrumentCtrlDownArrow(void *count) { instrumentSetIndex(w->instrument + (size_t)count * MAX(1, w->count)); }
+
+static void instrumentSampleReturn(void) { fbstate->commit(fbstate); }
+static void instrumentSampleBackspace(void) { fileBrowserBackspace(fbstate); }
+static void instrumentSamplePressPreview(size_t note) { fileBrowserPreview(fbstate, note, 0); }
+static void instrumentSampleReleasePreview(size_t note) { fileBrowserPreview(fbstate, note, 1); }
+
+void instrumentSamplePressPreviewActive(size_t note) { previewNote(note, w->instrument, 0); }
+void instrumentSampleReleasePreviewActive(size_t note) { previewNote(note, w->instrument, 1); }
 
 static void instrumentMouse(enum Button button, int x, int y)
 {
@@ -76,7 +52,7 @@ static void instrumentMouse(enum Button button, int x, int y)
 		case BUTTON2_HOLD: case BUTTON2_HOLD_CTRL:
 			break;
 		default:
-			if ((!instSafe(s->inst, w->instrument) || w->showfilebrowser)
+			if ((!instSafe(s->inst, w->instrument))
 					&& y > TRACK_ROW-2
 					&& x >= INSTRUMENT_INDEX_COLS)
 				browserMouse(fbstate, button, x, y);
@@ -94,22 +70,13 @@ static void instrumentMouse(enum Button button, int x, int y)
 			{
 				switch (button)
 				{
-					case WHEEL_UP: case WHEEL_UP_CTRL:
-						if (w->instrument > WHEEL_SPEED) w->instrument -= WHEEL_SPEED;
-						else                             w->instrument = 0;
-						break;
-					case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
-						if (w->instrument < 254 - WHEEL_SPEED) w->instrument += WHEEL_SPEED;
-						else                                   w->instrument = 254;
-						break;
+					case WHEEL_UP: case WHEEL_UP_CTRL: instrumentSetIndex(w->instrument - WHEEL_SPEED); break;
+					case WHEEL_DOWN: case WHEEL_DOWN_CTRL: instrumentSetIndex(w->instrument + WHEEL_SPEED); break;
 					case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 						if (w->fyoffset)
-						{
-							if ((short)w->instrument + w->fyoffset < 0)        w->instrument = 0;
-							else if ((short)w->instrument + w->fyoffset > 254) w->instrument = 254;
-							else                                               w->instrument += w->fyoffset;
-							w->fyoffset = 0;
-						} break;
+							instrumentSetIndex(w->instrument + w->fyoffset);
+						w->fyoffset = 0;
+						break;
 					case BUTTON1_HOLD: case BUTTON1_HOLD_CTRL: break; /* ignore */
 					default:
 						switch (button)
@@ -144,7 +111,7 @@ static void instrumentEnterInsertMode(void *arg)
 
 static void setInsertOctave(void *octave) { w->octave = (size_t)octave; }
 
-static void emptyInstrumentIndex(void) { w->instrument = emptyInst(0); }
+static void emptyInstrumentIndex(void) { instrumentSetIndex(emptyInst(0)); }
 
 static void yankInstrumentInput(void) { yankInst(w->instrument); }
 static void putInstrumentInput(void) { putInst(w->instrument); }

@@ -28,7 +28,6 @@ void showInstrument(void)
 	if (input_api.autorepeaton)
 		input_api.autorepeaton();
 
-	w->showfilebrowser = 0;
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
 
