@@ -254,23 +254,24 @@ static void drawStarColumn(short x, short minx, short maxx)
 		}
 }
 
-/* minx is the xpos where the start of the track will get clipped at */
 #define TRACK_HEADER_LEN 8
-static void drawTrackHeader(uint8_t track, short x, short minx, short maxx)
+static void drawTrackHeader(uint8_t track, short x, short width, short minx, short maxx)
 {
 	Track *cv = s->track->v[track];
 
-	char headerbuffer[9];
-	snprintf(headerbuffer, 9, "TRACK %02x", track);
-
 	if (cv->mute) printf("\033[2m");
 	else          printf("\033[1m");
+
+	char headerbuffer[MAX(TRACK_HEADER_LEN, width)];
+	snprintf(headerbuffer, width+1, "%.*s", width, cv->name);
+	printCulling(headerbuffer, x, TRACK_ROW - 1, minx, maxx);
 
 	if (cv->triggerflash) printf("\033[3%dm", track%6 + 1);
 
 	if (track == w->track + w->trackoffset) printf("\033[7m");
 
-	printCulling(headerbuffer, x, TRACK_ROW, minx, maxx);
+	snprintf(headerbuffer, TRACK_HEADER_LEN+1, "TRACK %02x", track);
+	printCulling(headerbuffer, x + ((width - TRACK_HEADER_LEN)>>1), TRACK_ROW, minx, maxx);
 
 	printf("\033[m");
 }
@@ -485,11 +486,7 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 
 void drawTracker(void)
 {
-	short x = 1;
-	short sx = 0;
-	short macro;
-
-	short sfx;
+	short x;
 
 	if (w->mode == MODE_EFFECT)
 	{
@@ -501,7 +498,7 @@ void drawTracker(void)
 		x = genConstSfx(EFFECT_WIDTH);
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
-			drawTrackHeader(i, x + (EFFECT_WIDTH>>1) - 2,
+			drawTrackHeader(i, x+1, EFFECT_WIDTH,
 					1, ws.ws_col);
 
 			drawEffectChain(i, s->track->v[i]->effect,
@@ -511,48 +508,70 @@ void drawTracker(void)
 
 			x += EFFECT_WIDTH;
 		}
-		// short effectwidth = MIN(ws.ws_col - 2, MAX((ws.ws_col - 2)>>1, MIN_EFFECT_WIDTH));
 		drawControls();
-		return;
+	} else if (w->mode == MODE_SETTINGS)
+	{
+		if (cc.mouseadjust || cc.keyadjust) printf("\033[%d;0H\033[1m-- SETTINGS ADJUST --\033[m", ws.ws_row);
+		else                                printf("\033[%d;0H\033[1m-- SETTINGS --\033[m"       , ws.ws_row);
+		w->command.error[0] = '\0';
+
+		clearControls();
+		x = genConstSfx(SETTINGS_WIDTH);
+		for (uint8_t i = 0; i < s->track->c; i++)
+		{
+			if (i) drawVerticalLine(x+1, TRACK_ROW+2, ws.ws_row - TRACK_ROW - 3, 1, ws.ws_col, 1, ws.ws_row);
+
+			drawTrackHeader(i, x+2, SETTINGS_WIDTH,
+					1, ws.ws_col);
+
+			printCulling("volume:",        x + 4, TRACK_ROW+2 + 0, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 4, TRACK_ROW+2 + 0, &s->track->v[i]->volume,             2, 0,    255, 255, 0, 0, NULL, NULL);
+			printCulling("panning:",       x + 4, TRACK_ROW+2 + 1, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 5, TRACK_ROW+2 + 1, &s->track->v[i]->panning,            3, -127, 127, 0,   0, 0, NULL, NULL);
+			printCulling("transpose:",     x + 4, TRACK_ROW+2 + 2, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 5, TRACK_ROW+2 + 2, &s->track->v[i]->transpose,          3, -128, 127, 0,   0, 0, NULL, NULL);
+			printCulling("pattern scale:", x + 4, TRACK_ROW+2 + 3, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 3, TRACK_ROW+2 + 3, &s->track->v[i]->patternlengthscale, 1, 0,    8,   1,   0, 0, NULL, NULL);
+
+			x += SETTINGS_WIDTH;
+		}
+		drawControls();
 	} else
 	{
-		sfx = genSfx(TRACK_LINENO_COLS);
+		short sfx = genSfx(TRACK_LINENO_COLS);
 		x = 1 + TRACK_LINENO_COLS + 2 + sfx;
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
-			drawTrackHeader(i, x + TRACK_TRIG_PAD+3 +((6 + 4*(s->track->v[i]->variant->macroc+1) - TRACK_HEADER_LEN)>>1),
+			drawTrackHeader(i, x + TRACK_TRIG_PAD+3, 6 + 4*(s->track->v[i]->variant->macroc+1),
 					LINENO_COLS, ws.ws_col);
 
 			x += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
 		}
-	}
 
-	sx = drawTrackerBody(sfx, 1, LINENO_COLS-1, ws.ws_col); /* TODO: the -1 here is a dirty hack */
+		short sx = drawTrackerBody(sfx, 1, LINENO_COLS-1, ws.ws_col); /* TODO: the -1 here is a dirty hack */
 
-	switch (w->mode)
-	{
-		case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_INSERT:
-			printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
-			printf("\033[6 q");
-			w->command.error[0] = '\0'; break;
-		default: break;
-	}
+		switch (w->mode)
+		{
+			case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->command.error[0] = '\0'; break;
+			case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->command.error[0] = '\0'; break;
+			case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
+			case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
+			case MODE_INSERT:
+				printf("\033[%d;0H\033[1m-- INSERT --\033[m", ws.ws_row);
+				printf("\033[6 q");
+				w->command.error[0] = '\0'; break;
+			default: break;
+		}
 
-	/* position the tracker cursor */
-	short y = w->centre + w->fyoffset;
-	switch (w->trackerfx)
-	{
-		case -1: printf("\033[%d;%dH", y, sx+sfx + 2 - w->fieldpointer); break;
-		case  0: printf("\033[%d;%dH", y, sx+sfx + 3 + TRACK_TRIG_PAD); break;
-		case  1: printf("\033[%d;%dH", y, sx+sfx + 8 + TRACK_TRIG_PAD - w->fieldpointer); break;
-		default: /* macro columns */
-			macro = (w->trackerfx - 2)>>1;
-			if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 10 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset]->variant->macroc - macro)*4);
-			else                       printf("\033[%d;%dH", y, sx+sfx + 12 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset]->variant->macroc - macro)*4 - w->fieldpointer);
-			break;
+		/* position the tracker cursor */
+		short macro;
+		short y = w->centre + w->fyoffset;
+		switch (w->trackerfx)
+		{
+			case -1: printf("\033[%d;%dH", y, sx+sfx + 2 - w->fieldpointer); break;
+			case  0: printf("\033[%d;%dH", y, sx+sfx + 3 + TRACK_TRIG_PAD); break;
+			case  1: printf("\033[%d;%dH", y, sx+sfx + 8 + TRACK_TRIG_PAD - w->fieldpointer); break;
+			default: /* macro columns */
+				macro = (w->trackerfx - 2)>>1;
+				if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 10 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset]->variant->macroc - macro)*4);
+				else                       printf("\033[%d;%dH", y, sx+sfx + 12 + TRACK_TRIG_PAD + (s->track->v[w->track+w->trackoffset]->variant->macroc - macro)*4 - w->fieldpointer);
+				break;
+		}
 	}
 }

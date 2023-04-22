@@ -245,7 +245,8 @@ void copyEffectChain(EffectChain **dest, EffectChain *src)
 	for (uint8_t i = 0; i < src->c; i++)
 		copyEffect(&ret->v[i], &src->v[i], NULL, NULL);
 
-	freeEffectChain(*dest);
+	clearEffectChain(*dest);
+	free(*dest);
 	*dest = ret;
 }
 

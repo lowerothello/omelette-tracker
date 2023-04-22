@@ -11,10 +11,11 @@
 #define DIV16   0.0625f
 #define DIV8    0.125f
 #define DIV255  0.00392156862745098
+#define DIV127  0.007874015748031496
 #define DIV15   0.06666666666666667
 #define DIV1000 0.001f
-const double DIVSHRT = 1.0 / SHRT_MAX;  /* TODO: should be a define */
-const double DIVCHAR = 1.0 / SCHAR_MAX; /* TODO: should be a define */
+#define DIVSHRT 3.051850947599719e-05 /* assumes SHRT_MAX == 32767 */
+#define DIVCHAR DIV127                /* assumes SCHAR_MAX == 127  */
 
 #define M_12_ROOT_2 1.0594630943592953
 
@@ -24,8 +25,8 @@ float hardclip(float input)
 }
 
 /* state variable filter */
-#define MAX_RESONANCE 0.005f /* how far off of infinite resonance to allow */
-#define MIN_RESONANCE 1.000f /* arbitrary (i think) minimum resonance      */
+#define MAX_RESONANCE 0.005f /* how far off of infinite resonance to allow (i think) */
+#define MIN_RESONANCE 1.000f /* arbitrary minimum resonance (i think) */
 typedef struct { float l, h, b, n; } SVFilter;
 void runSVFilter(SVFilter *s, float input, float cutoff, float q)
 {

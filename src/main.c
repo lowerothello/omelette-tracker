@@ -31,17 +31,14 @@
 /* libdrawille */
 #include "../lib/libdrawille/src/Canvas.h"
 
-#include "util.c"
-
 /* version */
 const uint16_t version = 0x0001;
 
 #define LINENO_COLS 7
-
 #define TRACK_ROW 3 /* rows above the track headers */
-
 #define EFFECT_WIDTH 30
-
+#define SETTINGS_WIDTH 25
+#define SETTINGS_CONTROLS 4
 #define RECORD_LENGTH 600 /* max record length, in seconds */
 
 int DEBUG;
@@ -76,12 +73,12 @@ void filebrowserEditCallback(char *path)
 
 static bool commandCallback(char *command, void *arg)
 {
-	char *buffer = malloc(strlen(command) + 1);
+	char buffer[strlen(command) + 1];
 	wordSplit(buffer, command, 0);
-	if      (!strcmp(buffer, "q"))  { free(buffer); return 1; }
-	else if (!strcmp(buffer, "q!")) { free(buffer); return 1; }
+	if      (!strcmp(buffer, "q"))  { return 1; }
+	else if (!strcmp(buffer, "q!")) { return 1; }
 	else if (!strcmp(buffer, "w"))  { wordSplit(buffer, command, 1); writeSongJson(s, buffer); }
-	else if (!strcmp(buffer, "wq")) { wordSplit(buffer, command, 1); if (!writeSongJson(s, buffer)) { free(buffer); return 1; } }
+	else if (!strcmp(buffer, "wq")) { wordSplit(buffer, command, 1); if (!writeSongJson(s, buffer)) return 1; }
 	else if (!strcmp(buffer, "e"))
 	{
 		wordSplit(buffer, command, 1);
@@ -93,9 +90,9 @@ static bool commandCallback(char *command, void *arg)
 			e.callback = cb_reloadFile;
 			pushEvent(&e);
 		}
-	}
+	} else if (!strcmp(buffer, "trackname"))
+		memcpy(s->track->v[w->track]->name, command + (size_t)(strlen(buffer) + 1), NAME_LEN);
 
-	free(buffer);
 	p->redraw = 1;
 	return 0;
 }

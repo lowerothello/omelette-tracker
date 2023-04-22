@@ -116,10 +116,10 @@ void triggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst
 			cv->r.note = NOTE_VOID;
 			break;
 		default:
-			if (note < NOTE_MAX) /* legato */
+			if (note < NOTE_MAX) /* not legato */
 				cv->pointer = 0; /* TODO: should affect pitchedpointer */
 
-			cv->r.note = fmodf(note, NOTE_MAX);
+			cv->r.note = fmodf(note + cv->transpose, NOTE_MAX);
 			cv->reverse = 0;
 			cv->release = 0;
 
@@ -136,7 +136,7 @@ void triggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst
 				cv->file = 1;
 			}
 
-			macroCallbackTriggerNote(fptr, cv, oldnote, note, inst);
+			macroCallbackTriggerNote(fptr, cv, oldnote, cv->r.note, inst);
 
 			break;
 	}
@@ -145,7 +145,7 @@ void triggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst
 	{ /* TODO: don't really like that this is checked twice */
 		iv = &p->s->inst->v[p->s->inst->i[inst]];
 		if ((api = instGetAPI(iv->type)))
-			api->triggernote(fptr, iv, cv, oldnote, note, inst);
+			api->triggernote(fptr, iv, cv, oldnote, cv->r.note, inst);
 	}
 }
 
@@ -184,14 +184,17 @@ void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
 {
 	macroCallbackPostSampler(fptr, cv, rp, &lf, &rf);
 
+	/* main track clipping */
 	lf = hardclip(lf);
 	rf = hardclip(rf);
 
 	/* gain multipliers */
 	macroStateGetStereo(&cv->gain, rp, &cv->mainmult[0][fptr], &cv->mainmult[1][fptr]);
 
-	cv->effect->input[0][fptr] = lf;
-	cv->effect->input[1][fptr] = rf;
+	float panning = cv->panning*DIV127; /* cv->panning should never be -128 */
+	/* TODO: this ternary shit might perform terribly? not sure yet, need to profile again sometime soon tbh */
+	cv->effect->input[0][fptr] = lf * (cv->volume*DIV255) * (panning > 0.0f ? 1.0f - panning : 1.0f);
+	cv->effect->input[1][fptr] = rf * (cv->volume*DIV255) * (panning < 0.0f ? 1.0f + panning : 1.0f);
 
 	if (cv->send.target != -1)
 	{

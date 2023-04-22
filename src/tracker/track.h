@@ -11,11 +11,19 @@ typedef struct MacroState
 	unsigned lfo_stereo  : 1; /* .lfospeed should be stereo                           */
 } MacroState;
 
+#define NAME_LEN 32
 typedef struct Track
 {
+	char    name[NAME_LEN + 1];
+	uint8_t volume;
+	int8_t  panning;
+	int8_t  transpose;
+	int8_t  patternlengthscale;
+
 	bool mute;
 	VariantChain *variant;
 	EffectChain  *effect;
+
 
 	/* runtime */
 	unsigned reverse : 1;

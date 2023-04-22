@@ -64,14 +64,16 @@ void addControlFloat(short x, short y, void *value, int8_t nibbles,
 		float min, float max, float def,
 		uint32_t scalepointlen, uint32_t scalepointcount,
 		void (*callback)(void *), void *callbackarg);
+void addControlString(short x, short y, void *value, short width, uint32_t maxlen,
+		void (*callback)(void *), void *callbackarg);
 void addControlDummy(short x, short y);
 
 /* applies retroactively to the previously registered control */
 void addScalePointInt  (char *label, uint32_t value);
 void addScalePointFloat(char *label, uint32_t value);
 
-/* number of digits before the radix, up to 6 are checked for (float range) */
-/* don't think there's a more efficient way to do this? there might well be */
+/* number of digits before the radix, up to 6 are checked for (safe float range) */
+/* don't think there's a more efficient way to do this than an if chain? there might well be */
 int getPreRadixDigits(float);
 
 /* dump state to the screen */
@@ -88,7 +90,7 @@ void decControlFieldpointer(void);
 
 void hexControlValue(char value);
 void toggleKeyControl(void);
-void revertKeyControl(void); /* TODO: doesn't work properly */
+void revertKeyControl(void);
 void mouseControls(int button, int x, int y);
 
 #include "control.c"

@@ -30,7 +30,7 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 	if (effect_api[e->type].draw)
 		effect_api[e->type].draw(e->state, x, width, y, ymin, ymax);
 
-	printf("\033[22;37m");
+	printf("\033[m");
 
 	return ret;
 }

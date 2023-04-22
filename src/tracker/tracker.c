@@ -37,6 +37,11 @@ void trackerUpArrow(size_t count)
 			mincount = cc.cursor - min;
 			decControlCursor(MIN(mincount, count));
 			break;
+		case MODE_SETTINGS:
+			min = w->track*SETTINGS_CONTROLS;
+			mincount = cc.cursor - min;
+			decControlCursor(MIN(mincount, count));
+			break;
 		default:
 			w->follow = 0;
 			if (count > w->trackerfy) w->trackerfy = 0;
@@ -58,6 +63,11 @@ void trackerDownArrow(size_t count)
 			maxcount = max - cc.cursor;
 			incControlCursor(MIN(maxcount, count));
 			break;
+		case MODE_SETTINGS:
+			max = (w->track+1)*SETTINGS_CONTROLS - 1;
+			maxcount = max - cc.cursor;
+			incControlCursor(MIN(maxcount, count));
+			break;
 		default:
 			w->follow = 0;
 			if (count > s->songlen - w->trackerfy -1) w->trackerfy = s->songlen-1;
@@ -74,6 +84,7 @@ void trackerLeftArrow(size_t count)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
+		case MODE_SETTINGS:
 			for (i = 0; i < count; i++)
 				incControlFieldpointer();
 			break;
@@ -104,6 +115,7 @@ void trackerRightArrow(size_t count)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
+		case MODE_SETTINGS:
 			for (i = 0; i < count; i++)
 				decControlFieldpointer();
 			break;
@@ -132,7 +144,8 @@ void trackerHome(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			setControlCursor(0);
+		case MODE_SETTINGS:
+			setControlCursor(0); /* TODO: BLATANTLY incorrect */
 			break;
 		default:
 			w->follow = 0;
@@ -147,7 +160,8 @@ void trackerEnd(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-			setControlCursor(cc.controlc-1);
+		case MODE_SETTINGS:
+			setControlCursor(cc.controlc-1); /* TODO: BLATANTLY incorrect */
 			break;
 		default:
 			w->follow = 0;

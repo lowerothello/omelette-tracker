@@ -1,3 +1,12 @@
+static uint32_t pow32(uint32_t a, uint32_t b)
+{
+	if (!b) return 1;
+	uint32_t c = a;
+	for (uint32_t i = 1; i < b; i++)
+		c *= a;
+	return c;
+}
+
 void clearControls(void)
 {
 	Control *c;
@@ -190,10 +199,10 @@ void drawControls(void)
 					else                         sprintf(buffer, "[+%04x]", *(int16_t*)c->value);
 					break;
 				case CONTROL_NIBBLES_UINT32: sprintf(buffer, "[%08x]", *(uint32_t*)c->value); break;
-				case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "[%0*.*f]", 7, 6-getPreRadixDigits(c->max.f), *(float*)c->value); break;
-				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "[%+0*.*f]", 8, 5-getPreRadixDigits(c->max.f), *(float*)c->value); break; /* TODO: c->min can have more pre-radix digits than c->max */
-				case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "[%0*.0f]",      getPreRadixDigits(c->max.f), *(float*)c->value); break;
-				case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "[%+0*.0f]",    1+getPreRadixDigits(c->max.f), *(float*)c->value); break;
+				case CONTROL_NIBBLES_UNSIGNED_FLOAT: sprintf(buffer,  "[%0*.*f]", 7, 6-MAX(getPreRadixDigits(c->min.f), getPreRadixDigits(c->max.f)), *(float*)c->value); break;
+				case CONTROL_NIBBLES_SIGNED_FLOAT:   sprintf(buffer, "[%+0*.*f]", 8, 5-MAX(getPreRadixDigits(c->min.f), getPreRadixDigits(c->max.f)), *(float*)c->value); break;
+				case CONTROL_NIBBLES_UNSIGNED_INT:   sprintf(buffer,  "[%0*.0f]",      MAX(getPreRadixDigits(c->min.f), getPreRadixDigits(c->max.f)), *(float*)c->value); break;
+				case CONTROL_NIBBLES_SIGNED_INT:     sprintf(buffer, "[%+0*.0f]",    1+MAX(getPreRadixDigits(c->min.f), getPreRadixDigits(c->max.f)), *(float*)c->value); break;
 			}
 
 		if (i == cc.cursor)
@@ -516,7 +525,7 @@ void revertKeyControl(void)
 		case CONTROL_NIBBLES_SIGNED_FLOAT: /* fall through */
 		case CONTROL_NIBBLES_UNSIGNED_INT: /* fall through */
 		case CONTROL_NIBBLES_SIGNED_INT: /* fall through */
-		case CONTROL_NIBBLES_TOGGLED: break; /* TODO: proper floating point reverting support */
+		case CONTROL_NIBBLES_TOGGLED: *(float *)c->value = c->def.f; break;
 	}
 	if (c->callback) c->callback(c->callbackarg);
 }
