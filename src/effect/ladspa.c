@@ -101,7 +101,7 @@ static EffectBrowserLine getLadspaDBLine(uint32_t index)
 
 static uint32_t getLadspaEffectControlCount(void *state)
 {
-	return MAX(1, ((LadspaState*)state)->controlc);
+	return ((LadspaState*)state)->controlc;
 }
 
 static short getLadspaEffectHeight(void *state)
@@ -261,15 +261,9 @@ static void *copyLadspaEffect(void *src, float **input, float **output)
 	return ret;
 }
 
-/* the current text colour will apply to the header but not the contents */
 static void drawLadspaEffect(void *state, short x, short w, short y, short ymin, short ymax)
 {
 	LadspaState *s = state;
-
-	printf("\033[7m");
-	if (ymin <= y-1 && ymax >= y-1)
-		printCulling("LADSPA", x+1, y-1, 1, ws.ws_col);
-	printf("\033[27;37;40m");
 
 	if (ymin <= y && ymax >= y)
 	{
@@ -293,9 +287,6 @@ static void drawLadspaEffect(void *state, short x, short w, short y, short ymin,
 
 			controlp++;
 		}
-
-	if (!controlp) /* plugin has no controls */
-		addControlDummy(MAX(1, MIN(ws.ws_col, x + w - 3)), y);
 }
 
 /* only valid to call if input and output are not NULL */

@@ -261,7 +261,7 @@ static void *copyLV2Effect(void *src, float **input, float **output)
 
 static uint32_t getLV2EffectControlCount(void *s)
 {
-	return MAX(1, ((LV2State*)s)->controlc);
+	return ((LV2State*)s)->controlc;
 }
 
 static short getLV2EffectHeight(void *s)
@@ -269,17 +269,11 @@ static short getLV2EffectHeight(void *s)
 	return ((LV2State*)s)->controlc + 3;
 }
 
-/* the current text colour will apply to the header but not the contents */
 static void drawLV2Effect(void *state,
 		short x, short w,
 		short y, short ymin, short ymax)
 {
 	LV2State *s = state;
-
-	printf("\033[7m");
-	if (ymin <= y-1 && ymax >= y-1)
-		printCulling("LV2", x+1, y-1, 1, ws.ws_col);
-	printf("\033[27;37;40m");
 
 	LilvNode *name;
 	name = lilv_plugin_get_name(s->plugin);
@@ -371,9 +365,6 @@ static void drawLV2Effect(void *state,
 			controlp++;
 		}
 	}
-
-	if (!controlp) /* plugin has no controls */
-		addControlDummy(MAX(1, MIN(ws.ws_col, x + w - 3)), y);
 }
 
 static void runLV2Effect(void *state, uint32_t samplecount, float **input, float **output)

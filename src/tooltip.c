@@ -2,7 +2,7 @@ void clearTooltip(void)
 {
 	if (tt.entryv)
 	{
-		for (int i = 0; i < tt.entryc; i++)
+		for (size_t i = 0; i < tt.entryc; i++)
 		{
 			if (tt.entryv[i].prettyname)   free(tt.entryv[i].prettyname  );
 			if (tt.entryv[i].prettykeysym) free(tt.entryv[i].prettykeysym);
@@ -79,7 +79,7 @@ void inputTooltip(unsigned int state, KeySym input, bool release)
 		input = toupper(input);
 
 	bool dead;
-	for (int i = 0; i < tt.entryc; i++)
+	for (size_t i = 0; i < tt.entryc; i++)
 		if (tt.entryv[i].keysym == input
 				&& tt.entryv[i].state == state
 				&& (bool)(tt.entryv[i].flags&TT_RELEASE) == release)
@@ -118,7 +118,7 @@ void drawTooltip(void)
 	printf("\033[s"); /* save the cursor pos */
 
 	short drawc = 0;
-	for (short i = 0; i < tt.entryc; i++)
+	for (size_t i = 0; i < tt.entryc; i++)
 		if (tt.entryv[i].prettyname && (tt.entryv[i].flags&TT_DRAW)) drawc++;
 
 	short w = tt.maxprettynamelen + 2 + MOD_WIDTH;
@@ -130,7 +130,7 @@ void drawTooltip(void)
 	char charbufferlower[2] = {'\0'};
 
 	short yo = 0;
-	for (short i = 0; i < tt.entryc; i++)
+	for (size_t i = 0; i < tt.entryc; i++)
 	{
 		if (tt.entryv[i].prettyname && (tt.entryv[i].flags&TT_DRAW))
 		{
@@ -197,7 +197,7 @@ void drawTooltip(void)
 /* the callback's arg is the note offset cast to (void*) */
 void addNotePressBinds(const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(prettyname, state, "note keys");
+	addTooltipPrettyPrint(prettyname, state, "press note keys");
 	addTooltipBind("press C-+0", state, XK_q           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 0 )); addTooltipBind("press c-+0", state, XK_Q         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 0 ));
 	addTooltipBind("press C#+0", state, XK_w           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 1 )); addTooltipBind("press c#+0", state, XK_W         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 1 ));
 	addTooltipBind("press D-+0", state, XK_e           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 2 )); addTooltipBind("press d-+0", state, XK_E         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 2 ));
@@ -231,8 +231,8 @@ void addNotePressBinds(const char *prettyname, unsigned int state, signed char o
 	addTooltipBind("press E-+2", state, XK_b           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 28)); addTooltipBind("press e-+2", state, XK_B         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 28));
 	addTooltipBind("press F-+2", state, XK_n           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 29)); addTooltipBind("press f-+2", state, XK_N         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 29));
 	addTooltipBind("press F#+2", state, XK_m           , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 30)); addTooltipBind("press f#+2", state, XK_M         , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 30));
-	addTooltipBind("press G-+2", state, XK_period      , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 31)); addTooltipBind("press g-+2", state, XK_less      , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 31));
-	addTooltipBind("press G#+2", state, XK_comma       , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 32)); addTooltipBind("press g#+2", state, XK_greater   , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 32));
+	addTooltipBind("press G-+2", state, XK_comma       , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 31)); addTooltipBind("press g-+2", state, XK_less      , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 31));
+	addTooltipBind("press G#+2", state, XK_period      , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 32)); addTooltipBind("press g#+2", state, XK_greater   , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 32));
 	addTooltipBind("press A-+3", state, XK_slash       , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 33)); addTooltipBind("press a-+3", state, XK_question  , 0, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 33));
 
 	addTooltipBind("note off" , state, XK_equal       , 0, callback, (void*)NOTE_OFF);
@@ -240,7 +240,7 @@ void addNotePressBinds(const char *prettyname, unsigned int state, signed char o
 }
 void addNoteReleaseBinds(const char *prettyname, unsigned int state, signed char octave, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(prettyname, state, "note keys");
+	addTooltipPrettyPrint(prettyname, state, "release note keys");
 	addTooltipBind("release C-+0", state, XK_q           , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 0 )); addTooltipBind("release c-+0", state, XK_Q         , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 0 ));
 	addTooltipBind("release C#+0", state, XK_w           , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 1 )); addTooltipBind("release c#+0", state, XK_W         , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 1 ));
 	addTooltipBind("release D-+0", state, XK_e           , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 2 )); addTooltipBind("release d-+0", state, XK_E         , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 2 ));
@@ -274,8 +274,8 @@ void addNoteReleaseBinds(const char *prettyname, unsigned int state, signed char
 	addTooltipBind("release E-+2", state, XK_b           , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 28)); addTooltipBind("release e-+2", state, XK_B         , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 28));
 	addTooltipBind("release F-+2", state, XK_n           , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 29)); addTooltipBind("release f-+2", state, XK_N         , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 29));
 	addTooltipBind("release F#+2", state, XK_m           , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 30)); addTooltipBind("release f#+2", state, XK_M         , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 30));
-	addTooltipBind("release G-+2", state, XK_period      , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 31)); addTooltipBind("release g-+2", state, XK_less      , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 31));
-	addTooltipBind("release G#+2", state, XK_comma       , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 32)); addTooltipBind("release g#+2", state, XK_greater   , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 32));
+	addTooltipBind("release G-+2", state, XK_comma       , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 31)); addTooltipBind("release g-+2", state, XK_less      , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 31));
+	addTooltipBind("release G#+2", state, XK_period      , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 32)); addTooltipBind("release g#+2", state, XK_greater   , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 32));
 	addTooltipBind("release A-+3", state, XK_slash       , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_C_OFFSET + octave*12 + 33)); addTooltipBind("release a-+3", state, XK_question  , TT_RELEASE, callback, (void*)(size_t)(NOTE_MIN + NOTE_SMOOTH_OFFSET + NOTE_C_OFFSET + octave*12 + 33));
 }
 

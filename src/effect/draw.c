@@ -18,6 +18,14 @@ short getEffectHeight(Effect *e)
 	return 0;
 }
 
+char *stringToUpper(char *s)
+{
+	if (!s) return NULL;
+	for (size_t i = 0; s[i]; i++)
+		s[i] = toupper(s[i]);
+	return s;
+}
+
 static short _drawEffect(Effect *e, bool selected, short x, short width, short y, short ymin, short ymax)
 {
 	if (!e) return 0;
@@ -26,6 +34,21 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 
 	if (selected) printf("\033[1;31m");
 	drawBoundingBox(x, y-1, width, ret-1, 1, ws.ws_col, ymin, ymax);
+
+	printf("\033[7m");
+	if (ymin <= y-1 && ymax >= y-1)
+	{
+		char *upperType = stringToUpper(strdup(EffectTypeString[e->type]));
+		if (upperType)
+		{
+			printCulling(upperType, x+1, y-1, 1, ws.ws_col);
+			free(upperType);
+		}
+	}
+	printf("\033[27;37;40m");
+
+	/* NOT in the y culling block, intentional! */
+	addControlInt(x + width - 3, y-1, &e->bypass, 0, 0, 1, 0, 0, 0, NULL, NULL);
 
 	if (effect_api[e->type].draw)
 		effect_api[e->type].draw(e->state, x, width, y, ymin, ymax);

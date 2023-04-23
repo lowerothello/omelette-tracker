@@ -40,9 +40,6 @@ static void instrumentSampleBackspace(void) { fileBrowserBackspace(fbstate); }
 static void instrumentSamplePressPreview(size_t note) { fileBrowserPreview(fbstate, note, 0); }
 static void instrumentSampleReleasePreview(size_t note) { fileBrowserPreview(fbstate, note, 1); }
 
-void instrumentSamplePressPreviewActive(size_t note) { previewNote(note, w->instrument, 0); }
-void instrumentSampleReleasePreviewActive(size_t note) { previewNote(note, w->instrument, 1); }
-
 static void instrumentMouse(enum Button button, int x, int y)
 {
 	if (rulerMouse(button, x, y)) return;
@@ -150,20 +147,20 @@ void initInstrumentInput(void)
 	addTooltipBind("return"        , 0          , XK_Escape   , 0      , instrumentEscape                         , NULL    );
 	addTooltipBind("commit"        , 0          , XK_Return   , TT_DRAW, (void(*)(void*))instrumentSampleReturn   , NULL    );
 	addTooltipBind("revert"        , 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))instrumentSampleBackspace, NULL    );
-	addTooltipBind("search start"  , 0          , XK_slash    , TT_DRAW, (void(*)(void*))instrumentSearchStart    , NULL    );
-	addTooltipBind("search next"   , 0          , XK_n        , TT_DRAW, (void(*)(void*))instrumentSearchNext     , NULL    );
-	addTooltipBind("search prev"   , 0          , XK_N        , TT_DRAW, (void(*)(void*))instrumentSearchPrev     , NULL    );
 	switch (w->mode)
 	{
 		case MODE_NORMAL:
 			addCountBinds(0);
 			addRulerBinds();
-			addTooltipBind("record sample"    , 0          , XK_r, TT_DEAD|TT_DRAW, (void(*)(void*))setChordRecord       , NULL);
-			addTooltipBind("empty instrument" , 0          , XK_e, TT_DRAW        , (void(*)(void*))emptyInstrumentIndex , NULL);
-			addTooltipBind("yank instrument"  , ControlMask, XK_y, TT_DRAW        , (void(*)(void*))yankInstrumentInput  , NULL);
-			addTooltipBind("put instrument"   , ControlMask, XK_p, TT_DRAW        , (void(*)(void*))putInstrumentInput   , NULL);
-			addTooltipBind("delete instrument", ControlMask, XK_d, TT_DRAW        , (void(*)(void*))deleteInstrumentInput, NULL);
-			addTooltipBind("enter insert mode", 0          , XK_i, TT_DRAW        , instrumentEnterInsertMode            , NULL);
+			addTooltipBind("record sample"    , 0          , XK_r    , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRecord       , NULL);
+			addTooltipBind("empty instrument" , 0          , XK_e    , TT_DRAW        , (void(*)(void*))emptyInstrumentIndex , NULL);
+			addTooltipBind("yank instrument"  , ControlMask, XK_y    , TT_DRAW        , (void(*)(void*))yankInstrumentInput  , NULL);
+			addTooltipBind("put instrument"   , ControlMask, XK_p    , TT_DRAW        , (void(*)(void*))putInstrumentInput   , NULL);
+			addTooltipBind("delete instrument", ControlMask, XK_d    , TT_DRAW        , (void(*)(void*))deleteInstrumentInput, NULL);
+			addTooltipBind("enter insert mode", 0          , XK_i    , TT_DRAW        , instrumentEnterInsertMode            , NULL);
+			addTooltipBind("search start"     , 0          , XK_slash, TT_DRAW        , (void(*)(void*))instrumentSearchStart, NULL);
+			addTooltipBind("search next"      , 0          , XK_n    , TT_DRAW        , (void(*)(void*))instrumentSearchNext , NULL);
+			addTooltipBind("search prev"      , 0          , XK_N    , TT_DRAW        , (void(*)(void*))instrumentSearchPrev , NULL);
 			break;
 		case MODE_INSERT:
 			addDecimalBinds("set octave", 0, setInsertOctave);

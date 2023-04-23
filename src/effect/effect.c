@@ -4,7 +4,7 @@
 #include "ladspa.c"
 #endif
 
-#ifdef OML_LV2
+#ifdef OML_LILV_0
 #include "lv2.c"
 #endif
 
@@ -19,7 +19,7 @@ EffectAPI *effectGetAPI(void)
 	ret[EFFECT_TYPE_LADSPA] = ladspa_effect_api;
 #endif
 
-#ifdef OML_LV2
+#ifdef OML_LILV_0
 	ret[EFFECT_TYPE_LV2] = lv2_effect_api;
 #endif
 
@@ -87,11 +87,11 @@ void clearEffectChain(EffectChain *chain)
 
 uint32_t getEffectControlCount(Effect *e)
 {
-	if (!e) return 0;
+	if (!e) return 1;
 
 	if (effect_api[e->type].controlc)
-		return effect_api[e->type].controlc(e->state);
-	return 0;
+		return effect_api[e->type].controlc(e->state) + 1;
+	return 1;
 }
 
 /* TODO: needs a full rewrite and abstraction pass lol */
@@ -258,8 +258,11 @@ void runEffect(uint32_t samplecount, EffectChain *chain, Effect *e)
 	if (effect_api[e->type].run)
 	{
 		effect_api[e->type].run(e->state, samplecount, chain->input, chain->output);
-		memcpy(chain->input[0], chain->output[0], samplecount * sizeof(float));
-		memcpy(chain->input[1], chain->output[1], samplecount * sizeof(float));
+		if (!e->bypass)
+		{
+			memcpy(chain->input[0], chain->output[0], samplecount * sizeof(float));
+			memcpy(chain->input[1], chain->output[1], samplecount * sizeof(float));
+		}
 	}
 }
 
@@ -267,6 +270,7 @@ struct json_object *serializeEffect(Effect *e)
 {
 	struct json_object *ret = json_object_new_object();
 	json_object_object_add(ret, "type", json_object_new_string(EffectTypeString[e->type]));
+	json_object_object_add(ret, "bypass", json_object_new_boolean(e->bypass));
 
 	if (effect_api[e->type].serialize)
 		json_object_object_add(ret, "state", effect_api[e->type].serialize(e->state));
@@ -299,6 +303,8 @@ void deserializeEffect(EffectChain *ec, uint8_t index, struct json_object *jso)
 			}
 		}
 	else ec->v[index].type = 0;
+
+	ec->v[index].bypass = json_object_get_boolean(json_object_object_get(jso, "bypass"));
 
 	if (effect_api[ec->v[index].type].deserialize)
 		ec->v[index].state = effect_api[ec->v[index].type].deserialize(json_object_object_get(jso, "state"), ec->input, ec->output);

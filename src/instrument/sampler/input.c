@@ -51,6 +51,10 @@ static void samplerInputDelete(void)
 	}
 }
 
+static void instrumentSamplePressPreviewActive(size_t note) { previewNote(note, w->instrument, 0); }
+static void instrumentSampleReleasePreviewActive(size_t note) { previewNote(note, w->instrument, 1); }
+
+
 static void samplerInput(Inst *iv)
 {
 	InstSamplerState *s = iv->state;
@@ -73,14 +77,14 @@ static void samplerInput(Inst *iv)
 
 		addTooltipBind("", 0, XK_Page_Up  , 0, NULL, NULL);
 		addTooltipBind("", 0, XK_Page_Down, 0, NULL, NULL);
-		addTooltipBind("", 0, XK_slash    , 0, NULL, NULL);
-		addTooltipBind("", 0, XK_n        , 0, NULL, NULL);
-		addTooltipBind("", 0, XK_N        , 0, NULL, NULL);
 
 		switch (w->mode)
 		{
 			case MODE_NORMAL:
 				addTooltipBind("delete sample", 0, XK_d, TT_DRAW, (void(*)(void*))samplerInputDelete, NULL);
+				addTooltipBind("", 0, XK_slash    , 0, NULL, NULL);
+				addTooltipBind("", 0, XK_n        , 0, NULL, NULL);
+				addTooltipBind("", 0, XK_N        , 0, NULL, NULL);
 				break;
 			case MODE_INSERT:
 				addNotePressBinds("preview note", 0, w->octave, (void(*)(void*))instrumentSamplePressPreviewActive);

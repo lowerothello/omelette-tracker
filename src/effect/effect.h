@@ -46,7 +46,7 @@ typedef struct EffectAPI
 #include "ladspa.h"
 #endif
 
-#ifdef OML_LV2
+#ifdef OML_LILV_0
 #include "lv2.h"
 #endif
 
@@ -58,6 +58,7 @@ void freeEffectDB(void);
 typedef struct Effect
 {
 	EffectType type;
+	bool       bypass;
 	void      *state;
 } Effect;
 

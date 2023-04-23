@@ -24,7 +24,7 @@ typedef struct {
 	char  *prettytitle;
 	void (*mousecallback)(enum Button, int, int);
 
-	uint8_t       entryc;
+	size_t        entryc;
 	TooltipEntry *entryv;
 } TooltipState;
 TooltipState tt;
