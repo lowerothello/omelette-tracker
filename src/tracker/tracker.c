@@ -144,8 +144,10 @@ void trackerHome(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
+			cc.cursor = getCursorFromEffectTrack(w->track);
+			break;
 		case MODE_SETTINGS:
-			setControlCursor(0); /* TODO: BLATANTLY incorrect */
+			cc.cursor = w->track*SETTINGS_CONTROLS;
 			break;
 		default:
 			w->follow = 0;
@@ -160,8 +162,10 @@ void trackerEnd(void)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
+			cc.cursor = getCursorFromEffectTrack(w->track + 1) - 1;
+			break;
 		case MODE_SETTINGS:
-			setControlCursor(cc.controlc-1); /* TODO: BLATANTLY incorrect */
+			cc.cursor = (w->track+1)*SETTINGS_CONTROLS - 1;
 			break;
 		default:
 			w->follow = 0;

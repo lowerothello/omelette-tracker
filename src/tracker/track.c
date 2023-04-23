@@ -85,7 +85,6 @@ static void cb_addTrack(Event *e)
 Track *allocTrack(Song *cs, Track *copyfrom)
 {
 	Track *ret = calloc(1, sizeof(Track));
-	ret->volume = 0xff;
 	ret->patternlengthscale = 1;
 
 	addTrackRuntime(ret);
@@ -227,8 +226,6 @@ void copyTrack(Track *dest, Track *src) /* NOT atomic */
 
 	dest->mute = src->mute;
 	memcpy(dest->name, src->name, NAME_LEN + 1);
-	dest->volume = src->volume;
-	dest->panning = src->panning;
 	dest->transpose = src->transpose;
 	dest->patternlengthscale = src->patternlengthscale;
 
@@ -368,8 +365,6 @@ struct json_object *serializeTrack(Track *track)
 {
 	struct json_object *ret = json_object_new_object();
 	json_object_object_add(ret, "name", json_object_new_string(track->name));
-	json_object_object_add(ret, "volume", json_object_new_int(track->volume));
-	json_object_object_add(ret, "panning", json_object_new_int(track->panning));
 	json_object_object_add(ret, "transpose", json_object_new_int(track->transpose));
 	json_object_object_add(ret, "patternlengthscale", json_object_new_int(track->patternlengthscale));
 
@@ -387,8 +382,6 @@ Track *deserializeTrack(struct json_object *jso)
 
 	const char *string = json_object_get_string(json_object_object_get(jso, "name"));
 	memcpy(&ret->name, string, MIN(strlen(string), NAME_LEN));
-	ret->volume = json_object_get_int(json_object_object_get(jso, "volume"));
-	ret->panning = json_object_get_int(json_object_object_get(jso, "panning"));
 	ret->transpose = json_object_get_int(json_object_object_get(jso, "transpose"));
 	ret->patternlengthscale = json_object_get_int(json_object_object_get(jso, "patternlengthscale"));
 

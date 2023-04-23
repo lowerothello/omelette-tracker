@@ -1074,8 +1074,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	for (chnl = 0; chnl <= c2-c1; chnl++)
 	{
 		/* TODO: do this buffersize-wise, using buflen will overflow the plugin ports */
-		for (uint8_t i = 0; i < chain->v[chnl]->effect->c; i++)
-			runEffect(buflen, chain->v[chnl]->effect, &chain->v[chnl]->effect->v[i]);
+		runEffectChain(buflen, chain->v[chnl]->effect);
 
 		_delTrack(s, chain->v[chnl]);
 		free(chain->v[chnl]);

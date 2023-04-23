@@ -59,6 +59,7 @@ typedef struct Effect
 {
 	EffectType type;
 	bool       bypass;
+	int8_t     inputgain;
 	void      *state;
 } Effect;
 
@@ -67,6 +68,8 @@ typedef struct EffectChain
 {
 	float  *input [2];
 	float  *output[2];
+	uint8_t fader;
+	int8_t  panner;
 	uint8_t c;
 	Effect  v[];
 } EffectChain;
@@ -80,10 +83,10 @@ void clearEffectChain(EffectChain*);
 void freeEffectChain(EffectChain*);
 uint32_t getEffectControlCount(Effect*);
 
-void cb_addEffect(Event*); /* intended to be passed to addEffect().cb */
-
 /* .srcindex == ((uint32_t)-1) to paste */
-void addEffect(EffectChain**, EffectType type, uint32_t srcindex, uint8_t destindex, void (*cb)(Event*));
+void addEffect(EffectChain**, EffectType type, uint32_t srcindex, uint8_t destindex);
+
+void swapEffect(EffectChain**, uint8_t s1, uint8_t s2);
 
 EffectChain *_delEffect(EffectChain*, uint8_t index);
 void delEffect(EffectChain**, uint8_t index);
@@ -97,6 +100,7 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output);
 void copyEffectChain(EffectChain **dest, EffectChain *src);
 
 void runEffect(uint32_t samplecount, EffectChain*, Effect*);
+void runEffectChain(uint32_t samplecount, EffectChain*);
 
 struct json_object *serializeEffect(Effect *e);
 void deserializeEffect(EffectChain *ec, uint8_t index, struct json_object *jso);

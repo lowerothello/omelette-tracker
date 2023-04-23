@@ -38,7 +38,7 @@ const uint16_t version = 0x0001;
 #define TRACK_ROW 3 /* rows above the track headers */
 #define EFFECT_WIDTH 30
 #define SETTINGS_WIDTH 25
-#define SETTINGS_CONTROLS 4
+#define SETTINGS_CONTROLS 2
 #define RECORD_LENGTH 600 /* max record length, in seconds */
 
 int DEBUG;

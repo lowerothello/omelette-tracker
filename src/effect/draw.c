@@ -47,8 +47,8 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 	}
 	printf("\033[27;37;40m");
 
-	/* NOT in the y culling block, intentional! */
-	addControlInt(x + width - 3, y-1, &e->bypass, 0, 0, 1, 0, 0, 0, NULL, NULL);
+	addControlInt(x + width - 8, y-1, &e->bypass,    0,    0,   1, 0, 0, 0, NULL, NULL);
+	addControlInt(x + width - 5, y-1, &e->inputgain, 3, -127, 127, 0, 0, 0, NULL, NULL);
 
 	if (effect_api[e->type].draw)
 		effect_api[e->type].draw(e->state, x, width, y, ymin, ymax);
@@ -64,11 +64,13 @@ void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, sh
 	if (track == w->track) focusindex = getEffectFromCursor(track, chain, cc.cursor);
 	else                   focusindex = -1;
 
+	short bottom = (ws.ws_row - 1) - 3;
+	short origwidth = width;
+
 	if (chain->c)
 	{
 		short height = 0;
 		short focusheight = 0;
-		short ty = y;
 		for (uint8_t i = 0; i < chain->c; i++)
 		{
 			height += getEffectHeight(&chain->v[i]);
@@ -76,7 +78,8 @@ void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, sh
 				focusheight = height;
 		}
 
-		if ((ws.ws_row - 1) - height < y)
+		short ty = y;
+		if (bottom - height < y)
 		{
 			size_t chaincontrolc = 0;
 			for (int i = 0; i < chain->c; i++)
@@ -85,27 +88,29 @@ void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, sh
 			width--;
 			if (focusindex > -1)
 			{
-				drawVerticalScrollbar(x + width + 1, y, ws.ws_row-1 - y, chaincontrolc, cc.cursor - getCursorFromEffectTrack(track));
-				ty = MIN(y, (ws.ws_row - 1) - focusheight);
+				drawVerticalScrollbar(x + width + 1, y, bottom - y, chaincontrolc, MIN(chaincontrolc, cc.cursor - getCursorFromEffectTrack(track)));
+				ty = MIN(y, bottom - focusheight);
 			} else
-				drawVerticalScrollbar(x + width + 1, y, ws.ws_row-1 - y, chaincontrolc, 0);
+				drawVerticalScrollbar(x + width + 1, y, bottom - y, chaincontrolc, 0);
 		}
 
 		for (uint8_t i = 0; i < chain->c; i++)
 			ty += _drawEffect(&chain->v[i],
 					focusindex == i, x, width,
-					ty+1, y, ws.ws_row-1);
+					ty+1, y, bottom);
 	} else
 	{
 		if (focusindex > -1) printf("\033[1;31m");
-		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT-1, 1, ws.ws_col, 1, ws.ws_row);
+		drawBoundingBox(x, y, width, NULL_EFFECT_HEIGHT-1, 1, ws.ws_col, 1, bottom);
 		printf("\033[m");
 
-		x += ((width - (short)strlen(NULL_EFFECT_TEXT))>>1);
-		printCulling(NULL_EFFECT_TEXT, x, y+1, 1, ws.ws_col);
+		addControlDummy(x + width - 8, y);
 
-		addControlDummy(MAX(1, MIN(ws.ws_col, x)), y+1);
+		printCulling(NULL_EFFECT_TEXT, x+((width - (short)strlen(NULL_EFFECT_TEXT))>>1), y+1, 1, ws.ws_col);
 	}
+
+	printCulling("fader:",   x, bottom+2, 1, ws.ws_col); addControlInt(x + origwidth - 3, bottom+2, &chain->fader,  2,    0, 255, 255, 0, 0, NULL, NULL);
+	printCulling("panning:", x, bottom+3, 1, ws.ws_col); addControlInt(x + origwidth - 4, bottom+3, &chain->panner, 3, -127, 127,   0, 0, 0, NULL, NULL);
 }
 #endif
 

@@ -524,10 +524,8 @@ void drawTracker(void)
 			drawTrackHeader(i, x+2, SETTINGS_WIDTH,
 					1, ws.ws_col);
 
-			printCulling("volume:",        x + 4, TRACK_ROW+2 + 0, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 4, TRACK_ROW+2 + 0, &s->track->v[i]->volume,             2, 0,    255, 255, 0, 0, NULL, NULL);
-			printCulling("panning:",       x + 4, TRACK_ROW+2 + 1, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 5, TRACK_ROW+2 + 1, &s->track->v[i]->panning,            3, -127, 127, 0,   0, 0, NULL, NULL);
-			printCulling("transpose:",     x + 4, TRACK_ROW+2 + 2, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 5, TRACK_ROW+2 + 2, &s->track->v[i]->transpose,          3, -128, 127, 0,   0, 0, NULL, NULL);
-			printCulling("pattern scale:", x + 4, TRACK_ROW+2 + 3, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 3, TRACK_ROW+2 + 3, &s->track->v[i]->patternlengthscale, 1, 0,    8,   1,   0, 0, NULL, NULL);
+			printCulling("transpose:",     x + 4, TRACK_ROW+2 + 0, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 5, TRACK_ROW+2 + 0, &s->track->v[i]->transpose,          3, -128, 127, 0,   0, 0, NULL, NULL);
+			printCulling("pattern scale:", x + 4, TRACK_ROW+2 + 1, 1, ws.ws_col); addControlInt(x + SETTINGS_WIDTH - 3, TRACK_ROW+2 + 1, &s->track->v[i]->patternlengthscale, 1, 0,    8,   1,   0, 0, NULL, NULL);
 
 			x += SETTINGS_WIDTH;
 		}

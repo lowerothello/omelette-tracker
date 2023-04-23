@@ -15,8 +15,6 @@ typedef struct MacroState
 typedef struct Track
 {
 	char    name[NAME_LEN + 1];
-	uint8_t volume;
-	int8_t  panning;
 	int8_t  transpose;
 	int8_t  patternlengthscale;
 

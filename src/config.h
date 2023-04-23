@@ -79,3 +79,6 @@
 #define TRANS_ENV_FOLLOWER_MAX      .3f
 #define TRANS_ENV_FOLLOWER_RELTHRES .03f
 #define TRANS_ENV_FOLLOWER_SPEED    .1f
+
+/* pow([-1 through +1] + 1, GAIN_STAGE_SLOPE); */
+#define GAIN_STAGE_SLOPE 2.0f

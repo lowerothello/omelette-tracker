@@ -191,10 +191,8 @@ void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
 	/* gain multipliers */
 	macroStateGetStereo(&cv->gain, rp, &cv->mainmult[0][fptr], &cv->mainmult[1][fptr]);
 
-	float panning = cv->panning*DIV127; /* cv->panning should never be -128 */
-	/* TODO: this ternary shit might perform terribly? not sure yet, need to profile again sometime soon tbh */
-	cv->effect->input[0][fptr] = lf * (cv->volume*DIV255) * (panning > 0.0f ? 1.0f - panning : 1.0f);
-	cv->effect->input[1][fptr] = rf * (cv->volume*DIV255) * (panning < 0.0f ? 1.0f + panning : 1.0f);
+	cv->effect->input[0][fptr] = lf;
+	cv->effect->input[1][fptr] = rf;
 
 	if (cv->send.target != -1)
 	{
@@ -377,8 +375,7 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 
 	/* track insert effects */
 	if (cv->effect) /* previewtrack doesn't have any effects so this check is required */
-		for (uint8_t i = 0; i < cv->effect->c; i++)
-			runEffect(buffersize, cv->effect, &cv->effect->v[i]);
+		runEffectChain(buffersize, cv->effect);
 }
 
 static void *trackThreadRoutine(void *arg) /* wrapper for some temp variables */
@@ -543,9 +540,7 @@ void processOutput(uint32_t nfptr)
 			}
 	}
 
-	/* send chain */
-	for (uint8_t i = 0; i < p->s->send->c; i++)
-		runEffect(nfptr, p->s->send, &p->s->send->v[i]);
+	runEffectChain(nfptr, p->s->send);
 	/* mix the send chain output into the master input */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 	{
@@ -562,9 +557,7 @@ void processOutput(uint32_t nfptr)
 		}
 	}
 
-	/* master chain */
-	for (uint8_t i = 0; i < p->s->master->c; i++)
-		runEffect(nfptr, p->s->master, &p->s->master->v[i]);
+	runEffectChain(nfptr, p->s->master);
 
 	/* output */
 	for (uint32_t fptr = 0; fptr < nfptr; fptr++)

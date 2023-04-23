@@ -441,7 +441,7 @@ void addCountBinds(bool draw)
 static unsigned int ansiToModState(int input)
 {
 	unsigned int ret = 0;
-	input -= 0x31; /* '2' => 1 */
+	input -= '1'; /* '2' => 1 */
 	if (input&1) ret |= ShiftMask;
 	if (input&2) ret |= Mod1Mask;
 	if (input&4) ret |= ControlMask;
