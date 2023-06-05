@@ -55,7 +55,6 @@ void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, flo
 #include "bpm.c"
 #include "row.c"
 #include "gain.c"
-#include "send.c"
 #include "pitch.c"
 // #include "retrigger.c"
 #include "chance.c"
@@ -67,8 +66,7 @@ MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 {
 	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
 	{ macroRowClear, macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL, sizeof(MacroRowState) },
-	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
-	{ macroSendClear, macroSendPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
+	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, sizeof(MacroState) },
 	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState) },
 	// { macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState) },
 	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
@@ -98,8 +96,6 @@ const MacroDef global_macro_db[MACRO_MAX] =
 {
 	[MACRO_GAIN]                  = { 1, "stereo gain"                 , MC_GAIN     , MF_STEREO|MF_RAMP|MF_EXTENDSTATE },//S~ +- %
 	[MACRO_SMOOTH_GAIN]           = { 1, "smooth stereo gain"          , MC_GAIN     , MF_STEREO|0      |0              },//--
-	[MACRO_SEND]                  = { 1, "stereo send"                 , MC_GAIN     , MF_STEREO|MF_RAMP|MF_EXTENDSTATE },//S~ +- %
-	[MACRO_SMOOTH_SEND]           = { 1, "smooth stereo send"          , MC_GAIN     , MF_STEREO|MF_RAMP|0              },//--
 	// [MACRO_BLOCK_RETRIG]          = { 1, "block retrigger"             , MC_SEQUENCER, 0        |0      |0              },//
 	// [MACRO_REVERSE_BLOCK_RETRIG]  = { 1, "reverse block retrigger"     , MC_SEQUENCER, 0        |0      |0              },//
 	// [MACRO_TICK_RETRIG]           = { 1, "tick retrigger"              , MC_SEQUENCER, 0        |0      |0              },//

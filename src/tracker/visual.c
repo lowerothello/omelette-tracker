@@ -490,8 +490,8 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 				for (chnl = 0; chnl <= c2-c1; chnl++)
 				{
 					playTrack(fptr, &spr, fptr, chain->v[chnl]); /* TODO: shouldn't trigger midi */
-					sample->data[((bufptr+sprp)<<1)+0] += chain->v[chnl]->effect->output[0][fptr]*chain->v[chnl]->mainmult[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
-					sample->data[((bufptr+sprp)<<1)+1] += chain->v[chnl]->effect->output[1][fptr]*chain->v[chnl]->mainmult[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
+					sample->data[((bufptr+sprp)<<1)+0] += chain->v[chnl]->effect->output[0][fptr]*BOUNCE_SCALE*SHRT_MAX;
+					sample->data[((bufptr+sprp)<<1)+1] += chain->v[chnl]->effect->output[1][fptr]*BOUNCE_SCALE*SHRT_MAX;
 				} sprp++;
 			}
 		} bufptr += sprp;

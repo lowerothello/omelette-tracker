@@ -31,10 +31,6 @@ void addTrackRuntime(Track *cv)
 {
 	cv->rampindex = rampmax;
 	cv->rampbuffer = calloc(rampmax * 2, sizeof(float)); /* *2 for stereo */
-	cv->mainmult[0] = calloc(buffersize, sizeof(float));
-	cv->mainmult[1] = calloc(buffersize, sizeof(float));
-	cv->sendmult[0] = calloc(buffersize, sizeof(float));
-	cv->sendmult[1] = calloc(buffersize, sizeof(float));
 	cv->inststate = malloc(instGetPlaybackStateSize());
 	cv->macrostate = calloc(sizeof(void*), MACRO_CALLBACK_MAX);
 	for (int i = 0; i < MACRO_CALLBACK_MAX; i++)
@@ -146,10 +142,6 @@ void _delTrack(Song *cs, Track *cv)
 	clearTrackData(cv);
 	freeEffectChain(cv->effect);
 	if (cv->rampbuffer) free(cv->rampbuffer);
-	if (cv->mainmult[0]) free(cv->mainmult[0]);
-	if (cv->mainmult[1]) free(cv->mainmult[1]);
-	if (cv->sendmult[0]) free(cv->sendmult[0]);
-	if (cv->sendmult[1]) free(cv->sendmult[1]);
 	if (cv->inststate) free(cv->inststate);
 	if (cv->macrostate)
 	{

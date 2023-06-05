@@ -78,7 +78,8 @@ void midiMute(Inst *iv, Track *cv)
 	{
 		if (((InstMidiState*)iv->state)->channel != -1)
 		{
-			midiNoteOff(0, ((InstMidiState*)iv->state)->channel, cv->r.note, (cv->gain.rand>>4)<<3);
+			MacroState *gainstate = cv->macrostate[MACRO_GAIN];
+			midiNoteOff(0, ((InstMidiState*)iv->state)->channel, cv->r.note, (gainstate->rand>>4)<<3);
 			cv->r.note = NOTE_VOID;
 		}
 	}
@@ -91,8 +92,9 @@ bool triggerMidi(uint32_t fptr, InstMidiState *ims, Track *cv, float oldnote, fl
 		if (ims->channel != -1)
 		{
 			/* always stop the prev. note */
-			midiNoteOff(fptr, ims->channel, oldnote, (cv->gain.rand>>4)<<3);
-			midiNoteOn (fptr, ims->channel, note,    (cv->gain.rand>>4)<<3);
+			MacroState *gainstate = cv->macrostate[MACRO_GAIN];
+			midiNoteOff(fptr, ims->channel, oldnote, (gainstate->rand>>4)<<3);
+			midiNoteOn (fptr, ims->channel, note,    (gainstate->rand>>4)<<3);
 			return 1;
 		}
 	} return 0;
@@ -189,20 +191,11 @@ void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
 	rf = hardclip(rf);
 
 	/* gain multipliers */
-	macroStateGetStereo(&cv->gain, rp, &cv->mainmult[0][fptr], &cv->mainmult[1][fptr]);
+	float lm, rm;
+	macroStateGetStereo(cv->macrostate[MACRO_GAIN], rp, &lm, &rm);
 
-	cv->effect->input[0][fptr] = lf;
-	cv->effect->input[1][fptr] = rf;
-
-	if (cv->send.target != -1)
-	{
-		cv->sendmult[0][fptr] = (cv->send.rand>>4)*DIV16 + ((cv->send.target>>4) - (cv->send.rand>>4))*DIV16 * rp;
-		cv->sendmult[1][fptr] = (cv->send.rand&15)*DIV16 + ((cv->send.target&15) - (cv->send.rand>>4))*DIV16 * rp;
-	} else if (cv->send.rand)
-	{
-		cv->sendmult[0][fptr] = (cv->send.rand>>4)*DIV16;
-		cv->sendmult[1][fptr] = (cv->send.rand&15)*DIV16;
-	}
+	cv->effect->input[0][fptr] = lf*lm;
+	cv->effect->input[1][fptr] = rf*rm;
 }
 
 void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
@@ -534,10 +527,8 @@ void processOutput(uint32_t nfptr)
 		if (cv->effect->input[0] && cv->effect->input[1])
 			for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 			{
-				p->s->master->input[0][fptr] += cv->effect->input[0][fptr] * cv->mainmult[0][fptr];
-				p->s->master->input[1][fptr] += cv->effect->input[1][fptr] * cv->mainmult[1][fptr];
-				p->s->send->input[0][fptr] += cv->effect->input[0][fptr] * cv->sendmult[0][fptr];
-				p->s->send->input[1][fptr] += cv->effect->input[1][fptr] * cv->sendmult[1][fptr];
+				p->s->master->input[0][fptr] += cv->effect->input[0][fptr];
+				p->s->master->input[1][fptr] += cv->effect->input[1][fptr];
 			}
 	}
 
@@ -553,8 +544,8 @@ void processOutput(uint32_t nfptr)
 	{
 		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
 		{
-			p->s->master->input[0][fptr] += p->w->previewtrack[i]->effect->input[0][fptr] * p->w->previewtrack[i]->mainmult[0][fptr];
-			p->s->master->input[1][fptr] += p->w->previewtrack[i]->effect->input[1][fptr] * p->w->previewtrack[i]->mainmult[1][fptr];
+			p->s->master->input[0][fptr] += p->w->previewtrack[i]->effect->input[0][fptr];
+			p->s->master->input[1][fptr] += p->w->previewtrack[i]->effect->input[1][fptr];
 		}
 	}
 

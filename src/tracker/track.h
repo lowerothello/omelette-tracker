@@ -32,16 +32,10 @@ typedef struct Track
 
 	uint32_t pointer; /* clock */
 
-	MacroState gain;
-	MacroState send;
-
 	Row r;
 
 	uint16_t rampindex;  /* progress through the ramp buffer, rampmax if not ramping */
 	float   *rampbuffer; /* samples to ramp out */
-
-	float *mainmult[2]; /* stereo gain multiplier */
-	float *sendmult[2]; /* stereo gain multiplier */
 
 	uint32_t triggerflash;
 } Track; /* cv */
