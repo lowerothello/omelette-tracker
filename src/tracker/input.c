@@ -1,8 +1,8 @@
 static void trackSet(uint8_t track)
 {
 	w->track = track;
-	if (w->trackerfx > 3 + s->track->v[w->track]->variant->macroc * 2)
-		w->trackerfx = 3 + s->track->v[w->track]->variant->macroc * 2;
+	if (w->trackerfx > 3 + s->track->v[w->track]->pattern->macroc * 2)
+		w->trackerfx = 3 + s->track->v[w->track]->pattern->macroc * 2;
 
 	switch (w->mode)
 	{
@@ -219,15 +219,16 @@ static void setLoopPoints(void)
 	else
 		setLoopRange(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy));
 
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 
-static void addEmptyVariant(void)
+static void addEmptyPattern(void)
 {
 	Track *cv = s->track->v[w->track];
-	setVariantChainTrig(&cv->variant, w->trackerfy, dupEmptyVariantIndex(cv->variant, cv->variant->trig[w->trackerfy].index));
-	regenGlobalRowc(s); p->redraw = 1;
+	uint8_t pindex = getPatternChainIndex(w->trackerfy);
+	setPatternOrder(&cv->pattern, pindex, dupFreePatternIndex(cv->pattern, cv->pattern->i[cv->pattern->order[pindex]]));
+	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 /* returns true to force disable step */
 static bool visualRange(int8_t *minx, int8_t *maxx, short *miny, short *maxy, uint8_t *mintrack, uint8_t *maxtrack)
@@ -240,7 +241,7 @@ static bool visualRange(int8_t *minx, int8_t *maxx, short *miny, short *maxy, ui
 		case MODE_VISUALLINE:
 			cv = s->track->v[MAX(w->track, w->visualtrack)];
 			*minx = TRACKERFX_VISUAL_MIN;
-			*maxx = 2+cv->variant->macroc;
+			*maxx = 2+cv->pattern->macroc;
 			break;
 		case MODE_VISUAL:
 			if (w->track == w->visualtrack)
@@ -289,8 +290,8 @@ static void toggleCellCase(void *step)
 
 	tildePartPattern(minx, maxx, miny, maxy, mintrack, maxtrack);
 
-	regenGlobalRowc(s);
-	if (step) trackerDownArrow(w->step);
+	if (step)
+		trackerDownArrow(w->step);
 	p->redraw = 1;
 }
 static void interpolateCells(void)
@@ -302,7 +303,7 @@ static void interpolateCells(void)
 
 	interpolatePartPattern(minx, maxx, miny, maxy, mintrack, maxtrack);
 
-	regenGlobalRowc(s); p->redraw = 1;
+	p->redraw = 1;
 }
 static void randomCells(void)
 {
@@ -313,7 +314,7 @@ static void randomCells(void)
 
 	randPartPattern(minx, maxx, miny, maxy, mintrack, maxtrack);
 
-	regenGlobalRowc(s); p->redraw = 1;
+	p->redraw = 1;
 }
 static void trackerAdd(signed char value)
 {
@@ -322,13 +323,12 @@ static void trackerAdd(signed char value)
 	uint8_t mintrack, maxtrack;
 	visualRange(&minx, &maxx, &miny, &maxy, &mintrack, &maxtrack);
 
-	switch (w->mode)
-	{
-		case MODE_VISUALLINE: addPartPattern(value, minx, maxx, miny, maxy, mintrack, maxtrack, 0, 0); break;
-		default:              addPartPattern(value, minx, maxx, miny, maxy, mintrack, maxtrack, 0, 1); break;
-	}
+	if (w->trackerfx < 0)
+		addPartPatternOrder(value, miny, maxy, mintrack, maxtrack);
+	else
+		addPartPattern(value, minx, maxx, miny, maxy, mintrack, maxtrack, 0);
 
-	regenGlobalRowc(s); p->redraw = 1;
+	p->redraw = 1;
 }
 
 static void trackerInc(void *count) { trackerAdd(+(MAX(1, w->count) * (size_t)count)); }
@@ -351,8 +351,6 @@ static void clearCell(void)
 		delPartPattern (minx, maxx, miny, maxy, mintrack, maxtrack);
 	}
 
-	regenGlobalRowc(s);
-
 	switch (w->mode) /* leave the mode if necessary, should be done with an arg */
 	{
 		case MODE_VISUAL:
@@ -373,33 +371,12 @@ static void yankCell(void)
 
 	yankPartPattern(minx, maxx, miny, maxy, mintrack, maxtrack);
 
-	regenGlobalRowc(s);
-
 	w->trackerfx = vfxToTfx(w->visualfx);
 	w->track = w->visualtrack;
 	w->trackerfy = w->visualfy;
 	w->mode = MODE_NORMAL;
 
 	p->redraw = 1;
-}
-
-static void toggleVariantLoop(void)
-{
-	Track *cv = s->track->v[w->track];
-	int i = getVariantChainPrevVtrig(cv->variant, w->trackerfy);
-	if (i != -1) cv->variant->trig[i].flags ^= C_VTRIG_LOOP;
-	regenGlobalRowc(s); p->redraw = 1;
-}
-static void toggleVisualVariantLoop(void)
-{
-	int8_t  minx,     maxx;
-	short   miny,     maxy;
-	uint8_t mintrack, maxtrack;
-	visualRange(&minx, &maxx, &miny, &maxy, &mintrack, &maxtrack);
-
-	loopPartPattern(miny, maxy, mintrack, maxtrack);
-
-	regenGlobalRowc(s); p->redraw = 1;
 }
 
 static void bounceRows(void)
@@ -415,60 +392,10 @@ static void bounceRows(void)
 	w->track = mintrack;
 	w->trackerfy = miny;
 	w->mode = MODE_NORMAL;
-	regenGlobalRowc(s); p->redraw = 1;
+	p->redraw = 1;
 }
 
-static void ripRows(void)
-{
-	Track *cv = s->track->v[w->track];
-	Row *r;
-	uint8_t vindex = 0;
-	short vminrow = MIN(w->trackerfy, w->visualfy);
-	/* loop to find the lowest common free index */
-	for (int i = MIN(w->track, w->visualtrack); i <= MAX(w->track, w->visualtrack); i++)
-		vindex = MAX(vindex, getEmptyVariantIndex(cv->variant, vindex));
-
-	/* loop to actually rip */
-	uint8_t vlength;
-	for (int i = MIN(w->track, w->visualtrack); i <= MAX(w->track, w->visualtrack); i++)
-	{
-		vlength = MIN(VARIANT_ROWMAX, MAX(w->trackerfy, w->visualfy) - vminrow);
-		cv = s->track->v[i];
-
-		addVariant(&cv->variant, vindex, vlength);
-
-		/* move rows to the new variant */
-		for (int j = 0; j <= vlength; j++)
-		{
-			r = getTrackRow(cv, vminrow + j);
-			memcpy(&cv->variant->v[cv->variant->i[vindex]]->rowv[j], r, sizeof(Row));
-
-			/* only clear the source row if it's in the global variant */
-			if (getVariantChainVariant(NULL, cv->variant, vminrow + j) == -1)
-			{
-				memset(r, 0, sizeof(Row));
-				r->note = NOTE_VOID;
-				r->inst = INST_VOID;
-			}
-		}
-
-		/* unnecessarily complex edge case handling */
-		if (cv->variant->trig[vminrow + vlength].index == VARIANT_VOID)
-			for (int j = vminrow + vlength; j > vminrow; j--)
-				if (cv->variant->trig[j].index != VARIANT_VOID)
-				{
-					if (cv->variant->i[cv->variant->trig[j].index] != VARIANT_VOID && j + cv->variant->v[cv->variant->i[cv->variant->trig[j].index]]->rowc > vminrow + vlength)
-					{
-						cv->variant->trig[vminrow + vlength].index = cv->variant->trig[j].index;
-						// TODO: set vtrig offset to align this correctly
-					} break;
-				}
-
-		setVariantChainTrig(&cv->variant, vminrow, vindex);
-	} regenGlobalRowc(s); p->redraw = 1;
-}
-
-static void pushVtrig(void *arg)
+static void pushPatternOrderWrap(void *arg)
 {
 	Track *cv = s->track->v[w->track];
 	short i;
@@ -476,14 +403,16 @@ static void pushVtrig(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				inputVariantChainTrig(&cv->variant, i, (size_t)arg);
+				pushPatternOrder(&cv->pattern, i, (size_t)arg);
 			break;
 		default:
-			inputVariantChainTrig(&cv->variant, w->trackerfy, (size_t)arg);
+			pushPatternOrder(&cv->pattern, w->trackerfy, (size_t)arg);
 			break;
-	} regenGlobalRowc(s); p->redraw = 1;
+	}
+	regenGlobalRowc(s);
+	p->redraw = 1;
 }
-static void setVtrig(void *arg)
+static void setPatternOrderWrap(void *arg)
 {
 	Track *cv = s->track->v[w->track];
 	short i;
@@ -491,12 +420,14 @@ static void setVtrig(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				setVariantChainTrig(&cv->variant, i, (size_t)arg);
+				setPatternOrder(&cv->pattern, i, (size_t)arg);
 			break;
 		default:
-			setVariantChainTrig(&cv->variant, w->trackerfy, (size_t)arg);
+			setPatternOrder(&cv->pattern, w->trackerfy, (size_t)arg);
 			break;
-	} regenGlobalRowc(s); p->redraw = 1;
+	}
+	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 
 static bool setNote(size_t note, Row **r)
@@ -509,11 +440,11 @@ static bool setNote(size_t note, Row **r)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				*r = getTrackRow(cv, i);
+				*r = getTrackRow(cv, i, 1);
 				(*r)->note = note;
 			} step = 0; break;
 		default:
-			*r = getTrackRow(cv, w->trackerfy);
+			*r = getTrackRow(cv, w->trackerfy, 1);
 			(*r)->note = note;
 			(*r)->inst = w->instrument;
 			step = 1; break;
@@ -524,8 +455,8 @@ static void pressNote(size_t note)
 	Row *r = NULL;
 	bool step = setNote(note, &r);
 	previewNote(r->note, r->inst, 0);
-	regenGlobalRowc(s);
-	if (step) trackerDownArrow(w->step);
+	if (step)
+		trackerDownArrow(w->step);
 	p->redraw = 1;
 }
 
@@ -546,18 +477,20 @@ static void setNoteOctave(size_t octave)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i);
-				r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
+				r = getTrackRow(cv, i, 0);
+				if (r)
+					r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			} step = 0; break;
 		default:
-			r = getTrackRow(cv, w->trackerfy);
-			r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
+			r = getTrackRow(cv, w->trackerfy, 0);
+			if (r)
+				r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			step = 1; break;
 	}
 
 	previewRow(r, 0);
-	regenGlobalRowc(s);
-	if (step) trackerDownArrow(w->step);
+	if (step)
+		trackerDownArrow(w->step);
 	p->redraw = 1;
 }
 
@@ -571,14 +504,15 @@ static void imposeInst(void)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i);
+				r = getTrackRow(cv, i, 1);
 				r->inst = w->instrument;
 			} break;
 		default:
-			r = getTrackRow(cv, w->trackerfy);
+			r = getTrackRow(cv, w->trackerfy, 1);
 			r->inst = w->instrument;
 			break;
-	} regenGlobalRowc(s); p->redraw = 1;
+	}
+	p->redraw = 1;
 }
 
 static void pushInst(void *arg)
@@ -591,21 +525,22 @@ static void pushInst(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i);
+				r = getTrackRow(cv, i, 1);
 				if (r->inst == INST_VOID) r->inst++;
 				r->inst <<= 4;
 				r->inst += (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(cv, w->trackerfy);
+			r = getTrackRow(cv, w->trackerfy, 1);
 			if (r->inst == INST_VOID) r->inst++;
 			r->inst <<= 4;
 			r->inst += (size_t)arg;
 			break;
 	}
 
-	if (r && w->instrecv == INST_REC_LOCK_OK) w->instrument = r->inst;
-	regenGlobalRowc(s); p->redraw = 1;
+	if (r && w->instrecv == INST_REC_LOCK_OK)
+		w->instrument = r->inst;
+	p->redraw = 1;
 }
 
 static void _pushMacrov(Row *r, char nibble)
@@ -632,13 +567,12 @@ static void pushMacrov(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (short i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				_pushMacrov(getTrackRow(cv, i), (size_t)arg);
+				_pushMacrov(getTrackRow(cv, i, 1), (size_t)arg);
 			break;
 		default:
-			_pushMacrov(getTrackRow(cv, w->trackerfy), (size_t)arg);
+			_pushMacrov(getTrackRow(cv, w->trackerfy, 1), (size_t)arg);
 			break;
 	}
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 static void pushMacroc(void *arg)
@@ -652,54 +586,29 @@ static void pushMacroc(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i);
+				r = getTrackRow(cv, i, 1);
 				r->macro[macro].c = (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(cv, w->trackerfy);
+			r = getTrackRow(cv, w->trackerfy, 1);
 			r->macro[macro].c = (size_t)arg;
 			break;
-	} regenGlobalRowc(s); p->redraw = 1;
+	}
+	p->redraw = 1;
 }
 
 
-static void trackerAdjustRight(Track *cv) /* mouse adjust only */
-{
-	Row *r = getTrackRow(cv, w->trackerfy);
-	short macro;
-	switch (w->trackerfx)
-	{
-		case -1:
-			if (!w->playing)
-			{
-				if (w->fieldpointer) setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index+16);
-				else                 setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index+1);
-			} break;
-		case 0: r->note++; break;
-		case 1:
-			if (w->fieldpointer) r->inst+=16;
-			else                 r->inst++;
-			break;
-		default:
-			macro = (w->trackerfx - 2)>>1;
-			if (w->trackerfx % 2 == 1)
-			{
-				if (w->fieldpointer) r->macro[macro].v+=16;
-				else                 r->macro[macro].v++;
-			} break;
-	} regenGlobalRowc(s);
-}
 static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(cv, w->trackerfy);
+	Row *r = getTrackRow(cv, w->trackerfy, 1);
 	short macro;
 	switch (w->trackerfx)
 	{
 		case -1:
 			if (!w->playing)
 			{
-				if (w->fieldpointer) setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index-16);
-				else                 setVariantChainTrig(&cv->variant, w->trackerfy, cv->variant->trig[w->trackerfy].index-1);
+				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]-16);
+				else                 setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]-1);
 			} break;
 		case 0: r->note--; break;
 		case 1:
@@ -713,7 +622,37 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 				if (w->fieldpointer) r->macro[macro].v-=16;
 				else                 r->macro[macro].v--;
 			} break;
-	} regenGlobalRowc(s);
+	}
+	regenGlobalRowc(s);
+	p->redraw = 1;
+}
+static void trackerAdjustRight(Track *cv) /* mouse adjust only */
+{
+	Row *r = getTrackRow(cv, w->trackerfy, 1);
+	short macro;
+	switch (w->trackerfx)
+	{
+		case -1:
+			if (!w->playing)
+			{
+				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]+16);
+				else                 setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]+1);
+			} break;
+		case 0: r->note++; break;
+		case 1:
+			if (w->fieldpointer) r->inst+=16;
+			else                 r->inst++;
+			break;
+		default:
+			macro = (w->trackerfx - 2)>>1;
+			if (w->trackerfx % 2 == 1)
+			{
+				if (w->fieldpointer) r->macro[macro].v+=16;
+				else                 r->macro[macro].v++;
+			} break;
+	}
+	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 
 static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
@@ -721,7 +660,7 @@ static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
 	if (y <= TRACK_ROW)
 		for (int i = 0; i < s->track->c; i++)
 		{
-			*tx += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
+			*tx += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->pattern->macroc+1);
 			if (*tx > x)
 				switch (button)
 				{
@@ -759,9 +698,6 @@ static void trackerMouse(enum Button button, int x, int y)
 
 			if      (w->fyoffset < 0) { w->count = -w->fyoffset; trackerUpArrow  (1); }
 			else if (w->fyoffset > 0) { w->count =  w->fyoffset; trackerDownArrow(1); }
-
-			if      (w->shiftoffset < 0) { w->count = -w->shiftoffset; shiftUp  (); }
-			else if (w->shiftoffset > 0) { w->count =  w->shiftoffset; shiftDown(); }
 
 			w->count = 0;
 			w->fyoffset = w->shiftoffset = w->trackoffset = w->fieldpointer = 0;
@@ -847,7 +783,7 @@ trackerInputSettingsTrack:
 
 							for (i = 0; i < s->track->c; i++)
 							{
-								chanw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->variant->macroc+1);
+								chanw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->pattern->macroc+1);
 								if (i == s->track->c-1 || tx+chanw > x) /* clicked on track i */
 								{
 									if (button == BUTTON1_CTRL) { w->step = MIN(15, abs(y - w->centre)); break; }
@@ -880,15 +816,15 @@ trackerInputSettingsTrack:
 										w->trackerfx = 1;
 										if (x-tx < TRACK_TRIG_PAD + 8) w->fieldpointer = 1;
 										else                              w->fieldpointer = 0;
-									} else if (x-tx > TRACK_TRIG_PAD + 8 + 4*(s->track->v[i]->variant->macroc+1)) /* star column */
+									} else if (x-tx > TRACK_TRIG_PAD + 8 + 4*(s->track->v[i]->pattern->macroc+1)) /* star column */
 									{
 										w->trackerfx = 3;
 										w->fieldpointer = 0;
 									} else /* macro column */
 									{
 										j = x-tx - (TRACK_TRIG_PAD + 9);
-										if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i]->variant->macroc - (j>>2))<<1)+0;
-										else            w->trackerfx = 3 + ((s->track->v[i]->variant->macroc - (j>>2))<<1)-1;
+										if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i]->pattern->macroc - (j>>2))<<1)+0;
+										else            w->trackerfx = 3 + ((s->track->v[i]->pattern->macroc - (j>>2))<<1)-1;
 										if (j&0x1) w->fieldpointer = 0;
 										else       w->fieldpointer = 1;
 									}
@@ -1056,8 +992,6 @@ void initTrackerInput(void)
 			addTooltipBind("cursor right"          , 0                   , XK_l         , 0              , (void(*)(void*))trackerRightArrow         , (void*)1 );
 			addTooltipBind("variant cycle up"      , ControlMask         , XK_Up        , 0              , (void(*)(void*))cycleUp                   , NULL     );
 			addTooltipBind("variant cycle down"    , ControlMask         , XK_Down      , 0              , (void(*)(void*))cycleDown                 , NULL     );
-			addTooltipBind("song shift up"         , ShiftMask           , XK_Up        , 0              , (void(*)(void*))shiftUp                   , NULL     );
-			addTooltipBind("song shift down"       , ShiftMask           , XK_Down      , 0              , (void(*)(void*))shiftDown                 , NULL     );
 			addTooltipBind("slide track home"      , ShiftMask           , XK_Home      , 0              , (void(*)(void*))trackSlideHome            , NULL     );
 			addTooltipBind("slide track end"       , ShiftMask           , XK_End       , 0              , (void(*)(void*))trackSlideEnd             , NULL     );
 			addTooltipBind("slide track left"      , ShiftMask           , XK_Left      , 0              , (void(*)(void*))trackSlideLeft            , NULL     );
@@ -1066,8 +1000,6 @@ void initTrackerInput(void)
 			addTooltipBind("variant cycle down"    , ControlMask         , XK_J         , 0              , (void(*)(void*))cycleDown                 , NULL     );
 			addTooltipBind("track left"            , ControlMask         , XK_H         , 0              , (void(*)(void*))trackLeft                 , NULL     );
 			addTooltipBind("track right"           , ControlMask         , XK_L         , 0              , (void(*)(void*))trackRight                , NULL     );
-			addTooltipBind("song shift up"         , 0                   , XK_K         , 0              , (void(*)(void*))shiftUp                   , NULL     );
-			addTooltipBind("song shift down"       , 0                   , XK_J         , 0              , (void(*)(void*))shiftDown                 , NULL     );
 			addTooltipBind("enter insert mode"     , 0                   , XK_i         , 0              , (void(*)(void*))trackerEnterInsertMode    , NULL     );
 			addTooltipBind("enter effect mode"     , 0                   , XK_e         , 0              , (void(*)(void*))trackerEnterEffectMode    , NULL     );
 			addTooltipBind("enter settings mode"   , 0                   , XK_z         , 0              , (void(*)(void*))trackerEnterSettingsMode  , NULL     );
@@ -1078,7 +1010,7 @@ void initTrackerInput(void)
 			addTooltipBind("yank"                  , 0                   , XK_y         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordYankRow           , NULL     );
 			addTooltipBind("track"                 , 0                   , XK_c         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack             , NULL     );
 			addTooltipBind("macro"                 , 0                   , XK_m         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordMacro             , NULL     );
-			addTooltipBind("row"                   , 0                   , XK_r         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL     );
+			// addTooltipBind("row"                   , 0                   , XK_r         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL     );
 			addTooltipBind("loop"                  , 0                   , XK_semicolon , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL     );
 			addTooltipBind("put"                   , 0                   , XK_p         , TT_DRAW        , (void(*)(void*))putPartPattern            , (void*)1 );
 			addTooltipBind("mix put"               , 0                   , XK_P         , 0              , (void(*)(void*))mixPutPartPattern         , (void*)0 );
@@ -1090,8 +1022,7 @@ void initTrackerInput(void)
 			addTooltipBind("decrement cell"        , ControlMask         , XK_X         , TT_DRAW        , trackerDec                                , (void*)1 );
 			addTooltipBind("octave increment cell" , ControlMask|Mod1Mask, XK_A         , TT_DRAW        , trackerInc                                , (void*)12);
 			addTooltipBind("octave decrement cell" , ControlMask|Mod1Mask, XK_X         , TT_DRAW        , trackerDec                                , (void*)12);
-			addTooltipBind("add empty variant"     , 0                   , XK_a         , 0              , (void(*)(void*))addEmptyVariant           , NULL     );
-			addTooltipBind("toggle variant loop"   , 0                   , XK_period    , TT_DRAW        , (void(*)(void*))toggleVariantLoop         , NULL     );
+			addTooltipBind("add empty pattern"     , 0                   , XK_a         , 0              , (void(*)(void*))addEmptyPattern           , NULL     );
 			addTooltipBind("toggle cell case"      , 0                   , XK_asciitilde, TT_DRAW        , toggleCellCase                            , (void*)1 );
 			break;
 		case MODE_INSERT:
@@ -1106,8 +1037,8 @@ void initTrackerInput(void)
 			switch (w->trackerfx)
 			{
 				case -1: /* vtrig */
-					addHexBinds("push cell", 0, pushVtrig);
-					addTooltipBind("stop cell", 0, XK_space, 0, setVtrig, (void*)VARIANT_OFF);
+					addHexBinds("push cell", 0, pushPatternOrderWrap);
+					addTooltipBind("stop cell", 0, XK_space, 0, setPatternOrderWrap, (void*)VARIANT_OFF);
 					break;
 				case 0: /* note */
 					addNotePressBinds("push cell", 0, w->octave, (void(*)(void*))pressNote);
@@ -1157,9 +1088,7 @@ void initTrackerInput(void)
 			addTooltipBind("delete"               , 0                   , XK_d           , 0      , (void(*)(void*))clearCell                    , NULL     );
 			addTooltipBind("delete"               , 0                   , XK_BackSpace   , 0      , (void(*)(void*))clearCell                    , NULL     );
 			addTooltipBind("yank"                 , 0                   , XK_y           , 0      , (void(*)(void*))yankCell                     , NULL     );
-			addTooltipBind("rip rows to sample"   , 0                   , XK_b           , TT_DRAW, (void(*)(void*))bounceRows                   , NULL     );
-			addTooltipBind("rip rows to variant"  , 0                   , XK_a           , TT_DRAW, (void(*)(void*))ripRows                      , NULL     );
-			addTooltipBind("toggle variant loop"  , 0                   , XK_period      , 0      , (void(*)(void*))toggleVisualVariantLoop      , NULL     );
+			addTooltipBind("bounce rows to sample", 0                   , XK_b           , TT_DRAW, (void(*)(void*))bounceRows                   , NULL     );
 			addTooltipBind("jump loop points"     , 0                   , XK_percent     , 0      , (void(*)(void*))swapLoopPoint                , NULL     );
 			addTooltipBind("set loop range"       , 0                   , XK_semicolon   , TT_DRAW, (void(*)(void*))setLoopPoints                , NULL     );
 			break;

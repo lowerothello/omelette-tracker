@@ -8,11 +8,11 @@ Song *addSong(void)
 
 	cs->rowhighlight = 4;
 	cs->songbpm = DEF_BPM;
+	cs->plen = DEFAULT_PATTERN_LENGTH;
 
 	return cs;
 }
 
-#define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
 void initSong(Song *cs)
 {
 	cs->inst = calloc(1, sizeof(InstChain));
@@ -61,6 +61,7 @@ void serializeSong(FILE *fp, Song *cs)
 	struct json_object *jso = json_object_new_object();
 	json_object_object_add(jso, "version", json_object_new_int(version));
 	json_object_object_add(jso, "samplerate", json_object_new_int(samplerate));
+	json_object_object_add(jso, "plen", json_object_new_int(cs->plen));
 	json_object_object_add(jso, "rowhighlight", json_object_new_int(cs->rowhighlight));
 	json_object_object_add(jso, "songbpm", json_object_new_int(cs->songbpm));
 	json_object_object_add(jso, "songlen", json_object_new_int(cs->songlen));
@@ -101,6 +102,7 @@ Song *deserializeSong(FILE *fp)
 	double ratemultiplier = (double)samplerate / json_object_get_double(json_object_object_get(jso, "samplerate"));
 
 	Song *ret = calloc(1, sizeof(Song));
+	ret->plen = json_object_get_int(json_object_object_get(jso, "plen"));
 	ret->rowhighlight = json_object_get_int(json_object_object_get(jso, "rowhighlight"));
 	ret->songbpm = json_object_get_int(json_object_object_get(jso, "songbpm"));
 	ret->songlen = json_object_get_int(json_object_object_get(jso, "songlen"));

@@ -2,6 +2,7 @@
 #define TRACK_LINENO_COLS (LINENO_COLS - 3)
 
 #include "variant.h"
+#include "pattern.h"
 #include "track.h"
 
 uint8_t changeNoteOctave(uint8_t octave, uint8_t note);

@@ -1,4 +1,5 @@
-enum { /* TODO: port to the event system */
+enum InstRecLock
+{
 	INST_REC_LOCK_OK,           /* playback and most memory ops are safe */
 	INST_REC_LOCK_START,        /* want to be unsafe                     */
 	INST_REC_LOCK_CUE_START,    /* want to be unsafe                     */
@@ -10,19 +11,14 @@ enum { /* TODO: port to the event system */
 	INST_REC_LOCK_CANCEL,       /* cancelling recording has finished     */
 };
 
-enum Page {
+enum Page
+{
 	PAGE_VARIANT,
 	PAGE_INSTRUMENT,
 	PAGE_PLUGINBROWSER,
 };
 
-// enum Ptrig {
-// 	PTRIG_OK,     /* no queued preview            */
-// 	PTRIG_NORMAL, /* queued s->instrument preview */
-// 	PTRIG_FILE,   /* queued filebrowser preview   */
-// };
-
-#define MAX_OCTAVE 7 /* this +2 is accessible with the keyboard */
+#define MAX_OCTAVE 7 /* max centre octave, this +2 is accessible with the keyboard */
 #define MIN_OCTAVE 0
 #define MAX_STEP 15
 #define MIN_STEP 0
@@ -32,11 +28,12 @@ enum Page {
 #define DEF_STEP 0
 
 /* runtime state, NOT serialized */
+/* more than is needed for just playback, TODO: should be split into a few separate structures */
 typedef struct UI
 {
 	Variant *pbvariantv[TRACK_MAX];
-	Vtrig   *vbtrig    [TRACK_MAX];
-	uint8_t  pbtrackc; /* how many tracks are in the pattern buffer */
+	// Vtrig   *pbindex   [TRACK_MAX];
+	uint8_t  pbtrackc; /* how many tracks are in the pattern data buffer  */
 	int8_t   pbfx[2];  /* patternbuffer horizontal clipping region */
 	uint8_t  defvariantlength;
 
@@ -56,7 +53,7 @@ typedef struct UI
 	short          instrument; /* focused instrument, TODO: should be a uint8_t */
 	uint8_t        sample;     /* focused instrument sample slot */
 
-	uint16_t       trackerfy, visualfy;
+	uint32_t       trackerfy, visualfy;
 	int8_t         trackerfx, visualfx;
 	uint8_t        visualtrack;
 
@@ -67,7 +64,7 @@ typedef struct UI
 	unsigned short mousey, mousex;
 
 	short       fyoffset, fxoffset;
-	short       shiftoffset; /* TODO */
+	signed char shiftoffset;
 	signed char trackoffset;
 	signed char fieldpointer;
 
@@ -80,16 +77,14 @@ typedef struct UI
 	signed char step;
 	bool        follow;
 
-	Track *previewtrack[PREVIEW_TRACKS];
+	Track  *previewtrack[PREVIEW_TRACKS];
 	Sample *previewsample; /* used by the filebrowser to soft load samples */
 
-	uint8_t  instreci;  /* NOT a realindex */
-	uint8_t  instrecv;  /* value, set to an INST_REC_LOCK constant */
-	short   *recbuffer; /* disallow removing an instrument while recording to it */
-	uint32_t recptr;
+	uint8_t          instreci;  /* NOT a realindex */
+	enum InstRecLock instrecv;
+	short           *recbuffer; /* disallow removing an instrument while recording to it */
+	uint32_t         recptr;
 
-	short    *bpmcache;    /* bpm change caching so multithreading isn't hell                */
-	uint16_t  bpmcachelen; /* how far into bpmcache it's safe to index                       */
 	uint16_t  playfy;      /* analogous to window->trackerfy                                 */
 	uint16_t  spr;         /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
 	uint16_t  sprp;        /* samples per row progress                                       */

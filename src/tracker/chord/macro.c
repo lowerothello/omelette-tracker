@@ -3,9 +3,10 @@ void chordAddMacro(void *_)
 	Track *cv = s->track->v[w->track];
 
 	for (int i = 0; i < MAX(1, w->count); i++)
-		if (cv->variant->macroc < 7)
-			cv->variant->macroc++;
+		if (cv->pattern->macroc < 7)
+			cv->pattern->macroc++;
 	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 void chordDelMacro(void *_)
 {
@@ -13,20 +14,24 @@ void chordDelMacro(void *_)
 
 	for (int i = 0; i < MAX(1, w->count); i++)
 	{
-		if (cv->variant->macroc) cv->variant->macroc--;
-		if (w->trackerfx > 3 + cv->variant->macroc*2)
-			w->trackerfx = 3 + cv->variant->macroc*2;
-	} regenGlobalRowc(s);
+		if (cv->pattern->macroc)
+			cv->pattern->macroc--;
+		if (w->trackerfx > 3 + cv->pattern->macroc*2)
+			w->trackerfx = 3 + cv->pattern->macroc*2;
+	}
+	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 void chordSetMacro(void *_)
 {
 	Track *cv = s->track->v[w->track];
 
-	if (w->count) cv->variant->macroc = MIN(8, w->count) - 1;
-	else          cv->variant->macroc = 1;
-	if (w->trackerfx > 3 + cv->variant->macroc*2)
-		w->trackerfx = 3 + cv->variant->macroc*2;
+	if (w->count) cv->pattern->macroc = MIN(8, w->count) - 1;
+	else          cv->pattern->macroc = 1;
+	if (w->trackerfx > 3 + cv->pattern->macroc*2)
+		w->trackerfx = 3 + cv->pattern->macroc*2;
 	regenGlobalRowc(s);
+	p->redraw = 1;
 }
 
 

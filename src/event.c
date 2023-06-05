@@ -162,7 +162,7 @@ bool processM_SEM(void)
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 					lookback(0, &p->w->spr, p->w->playfy, cv);
-					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv, p->w->playfy));
+					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv, p->w->playfy, 0));
 				}
 
 
@@ -207,8 +207,9 @@ void cb_reloadFile(Event *e)
 	if (cs) { freeSong(s); s = cs; }
 	p->s = s;
 	if (s->loop[1]) w->trackerfy = s->loop[0];
-	else            w->trackerfy = STATE_ROWS;
+	else            w->trackerfy = 0;
 	w->page = PAGE_VARIANT;
 	regenGlobalRowc(s);
+	p->redraw = 1;
 	reapplyBpm();
 }

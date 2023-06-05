@@ -1,5 +1,4 @@
 #define SONG_MAX 65535
-#define STATE_ROWS 4
 
 typedef struct MacroState
 {
@@ -16,10 +15,10 @@ typedef struct Track
 {
 	char    name[NAME_LEN + 1];
 	int8_t  transpose;
-	int8_t  patternlengthscale;
 
 	bool mute;
-	VariantChain *variant;
+	// VariantChain *variant;
+	PatternChain *pattern;
 	EffectChain  *effect;
 
 
@@ -55,13 +54,11 @@ typedef struct TrackChain
 } TrackChain;
 
 
-void regenGlobalRowc(struct Song *cs);
-
 /* clears the playback state of a track */
 void clearTrackRuntime(Track *cv);
 
-void initTrackData(Track *cv, uint16_t songlen); /* TODO: should be atomic */
-void clearTrackData(Track *cv, uint16_t songlen);
+void initTrackData(Track *cv); /* TODO: should be atomic */
+void clearTrackData(Track *cv);
 void addTrackRuntime(Track *cv);
 void debug_dumpTrackState(struct Song *cs);
 
@@ -77,11 +74,8 @@ void _delTrack(struct Song *cs, Track *cv);
 
 void delTrack(uint8_t index, uint16_t count);
 void copyTrack(Track *dest, Track *src); /* NOT atomic */
-Row *getTrackRow(Track *cv, uint16_t index);
-void regenBpmCache(struct Song *cs);
+Row *getTrackRow(Track *cv, uint16_t index, bool createifmissing);
 void regenGlobalRowc(struct Song *cs);
-void cycleVariantUp(Variant *v, uint16_t bound);
-void cycleVariantDown(Variant *v, uint16_t bound);
 
 void applyTrackMutes(void);
 void toggleTrackMute(uint8_t track);

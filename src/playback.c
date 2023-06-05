@@ -16,7 +16,7 @@ void startPlayback(void)
 {
 	leaveSpecialModes();
 	if (s->loop[1]) w->playfy = s->loop[0];
-	else            w->playfy = STATE_ROWS;
+	else            w->playfy = 0;
 	w->sprp = 0;
 	if (w->follow)
 		w->trackerfy = w->playfy;
@@ -39,7 +39,7 @@ void stopPlayback(void)
 	} else
 	{
 		if (s->loop[1]) w->trackerfy = s->loop[0];
-		else            w->trackerfy = STATE_ROWS;
+		else            w->trackerfy = 0;
 	}
 	w->mode = 0; /* always go to mode 0 on stop */
 	p->redraw = 1;

@@ -61,18 +61,11 @@ VariantChain *dupVariantChain(VariantChain *vc);
 uint8_t dupEmptyVariantIndex(VariantChain *vc, uint8_t fallbackindex);
 
 
-/* set the length of the main variant */
-/* invalidates past getRow() calls    */
-void resizeVariantChain(VariantChain *vc, uint16_t newlen);
-
 /* returns true on failure */
 int addVariant(VariantChain **vc, uint8_t index, uint8_t length);
 int delVariant(VariantChain **vc, uint8_t index);
 
 void freeVariantChain(VariantChain **vc);
-
-/* returns true if the variant is popuplated */
-bool variantPopulated(VariantChain *vc, uint8_t index);
 
 /* remove variant if it's empty            */
 /* returns true if the variant was removed */
@@ -91,8 +84,8 @@ int getVariantChainPrevVtrig(VariantChain *vc, uint16_t index);
 /* returns the first empty variant index */
 uint8_t getEmptyVariantIndex(VariantChain *vc, uint8_t fallbackindex);
 
-void inputVariantChainTrig(VariantChain **vc, uint16_t index, char    value);
-void setVariantChainTrig  (VariantChain **vc, uint16_t index, uint8_t value);
+void pushVariantChainTrig(VariantChain **vc, uint16_t index, char    value);
+void setVariantChainTrig (VariantChain **vc, uint16_t index, uint8_t value);
 
 /* returns the index within the variant  */
 /* writes the variant pointer to *output */

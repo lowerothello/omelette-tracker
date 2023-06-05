@@ -1,6 +1,6 @@
 bool ifMacro(Track *cv, Row *r, char m)
 {
-	for (int i = 0; i <= cv->variant->macroc; i++)
+	for (int i = 0; i <= cv->pattern->macroc; i++)
 		if (r->macro[i].c == m)
 			return 1;
 	return 0;
@@ -9,7 +9,7 @@ bool ifMacro(Track *cv, Row *r, char m)
 /* ifMacro(), but run .triggercallback */
 void ifMacroCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*triggercallback)(uint32_t, uint16_t*, int, Track*, Row*))
 {
-	for (int i = 0; i <= cv->variant->macroc; i++)
+	for (int i = 0; i <= cv->pattern->macroc; i++)
 		if (r->macro[i].c == m && MACRO_SET(r->macro[i].c))
 		{
 			triggercallback(fptr, spr, r->macro[i].v, cv, r);
@@ -21,7 +21,7 @@ void ifMacroCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, vo
 /* if the row needs to be ramped in based on the macros present */
 bool ifMacroRamp(Track *cv, Row *r)
 {
-	for (int i = 0; i <= cv->variant->macroc; i++)
+	for (int i = 0; i <= cv->pattern->macroc; i++)
 		if (MACRO_RAMP(r->macro[i].c)) return 1;
 
 	return 0;

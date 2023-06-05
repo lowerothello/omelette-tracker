@@ -43,16 +43,14 @@ UI *allocWindow(void)
 	ret->octave = DEF_OCTAVE;
 	ret->step = DEF_STEP;
 
-	ret->defvariantlength = 0x7;
-	ret->trackerfy = STATE_ROWS;
-	ret->playfy = STATE_ROWS;
+	ret->trackerfy = 0;
+	ret->playfy = 0;
 
-	// __addInstrument(&ret->instbuffer, INST_TYPE_NULL);
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 		ret->previewtrack[i] = allocTrack(NULL, NULL);
 
 	ret->trackbuffer.effect = newEffectChain();
-	initTrackData(&ret->trackbuffer, 0);
+	initTrackData(&ret->trackbuffer);
 
 	return ret;
 }
@@ -76,12 +74,7 @@ void freeWindow(UI *cw)
 	if (cw->previewsample) free(cw->previewsample);
 
 	for (short i = 0; i < cw->pbtrackc; i++)
-	{
 		free(cw->pbvariantv[i]);
-		free(cw->vbtrig[i]);
-	}
-
-	if (cw->bpmcache) free(cw->bpmcache);
 
 	free(cw);
 }

@@ -7,7 +7,7 @@ on any POSIX compilant system, but i've only tested it on linux.
 don't expect files saved with the current version to not crash when tried with a
 newer version! the serialization code is awful currently
 
-src/lib/libdrawille: <https://github.com/huulivoide/libdrawille>
+lib/libdrawille: <https://github.com/huulivoide/libdrawille>
 
 DEPENDS:
 - jack2       - audio input/output

@@ -33,8 +33,8 @@ enum WaveShape {
 
 #include "sample.h"
 #include "effect/effect.h" /* audio effects (LADSPA, LV2) */
-#include "tracker/tracker.h" /* tracker page */
-#include "instrument/instrument.h" /* instrument page */
+#include "tracker/tracker.h"
+#include "instrument/instrument.h"
 
 /* TODO: should be in a header */
 enum Mode {

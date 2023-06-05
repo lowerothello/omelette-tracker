@@ -82,3 +82,6 @@
 
 /* pow([-1 through +1] + 1, GAIN_STAGE_SLOPE); */
 #define GAIN_STAGE_SLOPE 2.0f
+
+#define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
+#define DEFAULT_PATTERN_LENGTH 0x3f

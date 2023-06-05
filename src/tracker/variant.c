@@ -3,7 +3,7 @@ Variant *dupVariant(Variant *oldvariant, uint16_t newlen)
 	Variant *ret = calloc(1, sizeof(Variant) + (newlen+1) * sizeof(Row));
 
 	/* properly initialize the new variant */
-	for (uint32_t i = 0; i < newlen+1; i++) /* iterator is bigger than a uint16_t */
+	for (uint32_t i = 0; i <= newlen; i++) /* iterator is bigger than a uint16_t */
 	{
 		ret->rowv[i].note = NOTE_VOID;
 		ret->rowv[i].inst = INST_VOID;
@@ -24,6 +24,17 @@ VariantChain *dupVariantChain(VariantChain *vc)
 	VariantChain *ret = reallocVariantChain(NULL, vc->c);
 	memcpy(ret, vc, sizeof(VariantChain) + vc->c*sizeof(Variant*));
 	return ret;
+}
+
+/* returns true if the variant is populated */
+static bool variantPopulated(VariantChain *vc, uint8_t index)
+{
+	for (int i = 0; i < vc->v[vc->i[index]]->rowc; i++)
+	{
+		if (vc->v[vc->i[index]]->rowv[i].note != NOTE_VOID) return 1;
+		for (short j = 0; j <= vc->macroc; j++)
+			if (vc->v[vc->i[index]]->rowv[i].macro[j].c) return 1;
+	} return 0;
 }
 
 uint8_t dupEmptyVariantIndex(VariantChain *vc, uint8_t fallbackindex)
@@ -69,37 +80,15 @@ uint16_t getSignificantRowc(VariantChain *vc)
 	return lvtrig+1;
 }
 
-/* invalidates past getRow() calls */
-void resizeVariantChain(VariantChain *vc, uint16_t newlen)
-{
-	Vtrig *newtrig = calloc(newlen, sizeof(Vtrig));
-
-	/* can't initialize with memset cos flags will be set to VARIANT_VOID as well */
-	for (uint16_t i = 0; i < newlen; i++)
-		newtrig[i].index = VARIANT_VOID;
-
-	vc->songlen = newlen;
-
-	/* depends on songv->rowc */
-	if (vc->main && vc->trig)
-		memcpy(newtrig, vc->trig, MIN(vc->main->rowc, newlen) * sizeof(Vtrig));
-
-	if (vc->trig) free(vc->trig);
-	vc->trig = newtrig;
-
-	Variant *temp = dupVariant(vc->main, newlen);
-	free(vc->main); vc->main = temp;
-}
-
 int addVariant(VariantChain **vc, uint8_t index, uint8_t length)
 {
 	if (index == VARIANT_VOID || (*vc)->i[index] != VARIANT_VOID) return 1;
 
-	*vc = reallocVariantChain(*vc, (*vc)->c+1);
-
-	(*vc)->i[index] = (*vc)->c;
-	(*vc)->v[(*vc)->c] = dupVariant(NULL, length);
 	(*vc)->c++;
+	*vc = reallocVariantChain(*vc, (*vc)->c);
+
+	(*vc)->i[index] = (*vc)->c - 1;
+	(*vc)->v[(*vc)->c - 1] = dupVariant(NULL, length);
 	return 0;
 }
 int delVariant(VariantChain **vc, uint8_t index)
@@ -132,17 +121,6 @@ void freeVariantChain(VariantChain **vc)
 			free((*vc)->v[i]);
 		free(*vc); *vc = NULL;
 	}
-}
-
-/* returns true if the variant is popuplated */
-bool variantPopulated(VariantChain *vc, uint8_t index)
-{
-	for (int i = 0; i < vc->v[vc->i[index]]->rowc; i++)
-	{
-		if (vc->v[vc->i[index]]->rowv[i].note != NOTE_VOID) return 1;
-		for (short j = 0; j <= vc->macroc; j++)
-			if (vc->v[vc->i[index]]->rowv[i].macro[j].c) return 1;
-	} return 0;
 }
 
 /* remove variant if it's empty           */
@@ -185,7 +163,7 @@ uint8_t getEmptyVariantIndex(VariantChain *vc, uint8_t fallbackindex)
 	return fallbackindex;
 }
 
-void inputVariantChainTrig(VariantChain **vc, uint16_t index, char value)
+void pushVariantChainTrig(VariantChain **vc, uint16_t index, char value)
 {
 	uint8_t oldvariant = (*vc)->trig[index].index;
 

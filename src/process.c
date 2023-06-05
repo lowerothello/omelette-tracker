@@ -155,7 +155,7 @@ void processRow(uint32_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 	Track oldcv;
 	memcpy(&oldcv, cv, sizeof(Track));
 
-	for (int i = 0; i <= cv->variant->macroc; i++)
+	for (int i = 0; i <= cv->pattern->macroc; i++)
 		cv->r.macro[i] = r->macro[i];
 
 	/* try to persist old state a little bit */
@@ -321,12 +321,11 @@ void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 	Row *r;
 	for (uint16_t i = 0; i < playfy; i++)
 	{
-		/* scope lookback notes within the most recent vtrig */
-		if (cv->variant->trig[i].index != VARIANT_VOID) { cv->r.note = NOTE_VOID; }
-
-		r = getTrackRow(cv, i);
-		if (p->w->bpmcachelen > i && p->w->bpmcache[i] != -1) macroBpm(fptr, spr, p->w->bpmcache[i], cv, r);
-		processRow(fptr, spr, 0, cv, r);
+		r = getTrackRow(cv, i, 0);
+		/* TODO: proper implementation of master track macros, including bpm */
+		// if (p->w->bpmcachelen > i && p->w->bpmcache[i] != -1) macroBpm(fptr, spr, p->w->bpmcache[i], cv, r);
+		if (r)
+			processRow(fptr, spr, 0, cv, r);
 		playTrackLookback(fptr, spr, cv);
 	}
 }
@@ -359,16 +358,18 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
 				} else if (!p->s->loop[1] && *playfy >= p->s->songlen)
 				{
-					*playfy = STATE_ROWS;
+					*playfy = 0;
 					lookback(fptr, spr, *playfy, cv);
 					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
 					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
 				}
 
 				/* preprocess track */
-				r = getTrackRow(cv, *playfy);
-				if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->w->bpmcache[*playfy], cv, r);
-				processRow(fptr, spr, 1, cv, r);
+				r = getTrackRow(cv, *playfy, 0);
+				/* TODO: proper implementation of master track macros, including bpm */
+				// if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->w->bpmcache[*playfy], cv, r);
+				if (r)
+					processRow(fptr, spr, 1, cv, r);
 			}
 		}
 	}
