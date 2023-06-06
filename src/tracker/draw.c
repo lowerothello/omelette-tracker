@@ -53,30 +53,30 @@ static void noteToString(short note, char *buffer)
 short getTrackWidth(Track *cv) { return 9 + 4*(cv->pattern->macroc+1); }
 
 /* generate sfx using dynamic width tracks */
-short genSfx(short x)
+short genSfx(short viewport)
 {
-	short wx = x;
+	short x = 0;
 	short ret = 0;
 	short trackw;
 
 	for (int i = 0; i < s->track->c; i++)
 	{
 		trackw = getTrackWidth(s->track->v[i]);
-		wx += trackw;
-		if (i == w->track) ret = wx - (trackw>>1); /* should only be set once */
-		/* keep iterating so wx is the full width of all tracks */
+		x += trackw;
+		if (i == w->track) ret = x - (trackw>>1); /* should only be set once */
+		/* keep iterating so x is the full width of all tracks */
 	}
-	if (wx > ws.ws_col)
+	if (x > viewport)
 	{
-		ret = x + ((ws.ws_col - x)>>1) - ret;
+		ret = (viewport>>1) - ret;
 		ret = MIN(ret, 0);
-		ret = MAX(ret, -(wx - ws.ws_col));
+		ret = MAX(ret, -(x - viewport));
 	} else
-		ret = ((ws.ws_col - wx)>>1);
+		ret = ((viewport - x)>>1);
 	return ret;
 }
 /* generate sfx using constant width tracks */
-short genConstSfx(short trackw)
+short genConstSfx(short trackw, short viewportwidth)
 {
 	short x = 0;
 	short ret = 0;
@@ -87,13 +87,13 @@ short genConstSfx(short trackw)
 		if (i == w->track) ret = x - (trackw>>1); /* should only be set once */
 		/* keep iterating so x is the full width of all tracks */
 	}
-	if (x > ws.ws_col)
+	if (x > viewportwidth)
 	{
-		ret = (ws.ws_col>>1) - ret;
+		ret = (viewportwidth>>1) - ret;
 		ret = MIN(ret, 0);
-		ret = MAX(ret, -(x - ws.ws_col));
+		ret = MAX(ret, -(x - viewportwidth));
 	} else
-		ret = ((ws.ws_col - x)>>1);
+		ret = ((viewportwidth - x)>>1);
 	return ret;
 }
 
@@ -275,11 +275,28 @@ static void drawTrackHeader(uint8_t track, short x, short width, short minx, sho
 	printCulling(headerbuffer, x, TRACK_ROW - 1, minx, maxx);
 
 	if (cv->triggerflash) printf("\033[3%dm", track%6 + 1);
-
 	if (track == w->track + w->trackoffset) printf("\033[7m");
 
 	snprintf(headerbuffer, TRACK_HEADER_LEN+1, "TRACK %02x", track);
 	printCulling(headerbuffer, x + ((width - TRACK_HEADER_LEN)>>1), TRACK_ROW, minx, maxx);
+
+	printf("\033[m");
+}
+
+static void drawTrackSmallHeader(uint8_t track, short x, short minx, short maxx)
+{
+	Track *cv = s->track->v[track];
+
+	if (cv->mute) printf("\033[2m");
+	else          printf("\033[1m");
+
+	char headerbuffer[3];
+
+	if (cv->triggerflash) printf("\033[3%dm", track%6 + 1);
+	if (track == w->track + w->trackoffset) printf("\033[7m");
+
+	snprintf(headerbuffer, 3, "%02x", track);
+	printCulling(headerbuffer, x, TRACK_ROW, minx, maxx);
 
 	printf("\033[m");
 }
@@ -515,7 +532,7 @@ void drawTracker(void)
 		w->command.error[0] = '\0';
 
 		clearControls();
-		x = genConstSfx(EFFECT_WIDTH);
+		x = genConstSfx(EFFECT_WIDTH, ws.ws_col);
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
 			drawTrackHeader(i, x+1, EFFECT_WIDTH,
@@ -531,15 +548,33 @@ void drawTracker(void)
 		drawControls();
 	} else
 	{
-		// short offset = ws.ws_col>>1;
-		short offset = 0;
-		short sfx = genSfx((TRACK_LINENO_COLS<<1) + offset);
+		short offset = MIN(s->track->c * 3, ws.ws_col>>2);
+		short sfx = genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset));
 		x = TRACK_LINENO_COLS + 3 + sfx + offset;
+		short xpartition = MAX(offset, MAX(sfx, 0) + offset);
+		short smallsfx = genConstSfx(3, offset);
+		short smallx, y;
+		int j;
+		char smallbuffer[3];
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
-			drawTrackHeader(i, x + 1, getTrackWidth(s->track->v[i]) - 3,
-					offset + TRACK_LINENO_COLS + 2, ws.ws_col);
+			smallx = xpartition - TRACK_LINENO_COLS - offset + (i+1)*3 + smallsfx;
+			drawTrackSmallHeader(i, smallx, 1, xpartition - TRACK_LINENO_COLS + 1);
+			for (j = 0; j < PATTERN_ORDER_LENGTH; j++)
+			{
+				y = w->centre - (w->trackerfy/(s->plen+1)) + j;
+				if (y >= ws.ws_row) break;
+				if (y > TRACK_ROW)
+				{
+					snprintf(smallbuffer, 3, "%02x", s->track->v[i]->pattern->order[j]);
 
+					// setRowIntensity(0, i);
+					printCulling(smallbuffer, smallx, y, 1, xpartition - TRACK_LINENO_COLS + 1);
+					// printf("\033[22m");
+				}
+			}
+
+			drawTrackHeader(i, x + 1, getTrackWidth(s->track->v[i]) - 3, xpartition + 4, ws.ws_col);
 			x += getTrackWidth(s->track->v[i]);
 		}
 
@@ -557,7 +592,7 @@ void drawTracker(void)
 
 		/* position the tracker cursor */
 		short macro;
-		short y = w->centre + w->fyoffset;
+		y = w->centre + w->fyoffset;
 		switch (w->trackerfx)
 		{
 			case -1: printf("\033[%d;%dH", y, sx+sfx + 2 - w->fieldpointer); break;

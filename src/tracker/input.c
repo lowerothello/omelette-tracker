@@ -672,7 +672,7 @@ static void trackerMouse(enum Button button, int x, int y)
 	short oldtrackerfx = w->trackerfx;
 	uint8_t oldtrack = w->track;
 
-	short tx;
+	short tx, offset;
 
 	p->redraw = 1;
 
@@ -699,7 +699,7 @@ static void trackerMouse(enum Button button, int x, int y)
 			switch (w->mode)
 			{
 				case MODE_EFFECT:
-					tx = 1 + genConstSfx(EFFECT_WIDTH);
+					tx = 1 + genConstSfx(EFFECT_WIDTH, ws.ws_col);
 					for (i = 0; i < s->track->c; i++)
 					{
 						tx += EFFECT_WIDTH;
@@ -726,7 +726,8 @@ trackerInputEffectTrack:
 					mouseControls(button, x, y);
 					break;
 				default:
-					tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS<<1);
+					offset = MIN(s->track->c * 3, ws.ws_col>>2);
+					tx = TRACK_LINENO_COLS + 3 + genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset)) + offset;
 					if (trackerMouseHeader(button, x, y, &tx)) break;
 					switch (button)
 					{
