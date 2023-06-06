@@ -34,7 +34,6 @@
 /* version */
 const uint16_t version = 0x0001;
 
-#define LINENO_COLS 7
 #define TRACK_ROW 3 /* rows above the track headers */
 #define EFFECT_WIDTH 30
 #define SETTINGS_WIDTH 25

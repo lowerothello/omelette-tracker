@@ -1,5 +1,4 @@
-#define TRACK_TRIG_PAD 3 /* space between the vtrigcol and the notecol */
-#define TRACK_LINENO_COLS (LINENO_COLS - 3)
+#define TRACK_LINENO_COLS 2
 
 #include "variant.h"
 #include "pattern.h"

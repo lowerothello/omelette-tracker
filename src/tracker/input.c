@@ -10,10 +10,6 @@ static void trackSet(uint8_t track)
 			if (!(cc.cursor > getCursorFromEffectTrack(w->track) && cc.cursor < getCursorFromEffectTrack(w->track + 1)))
 				cc.cursor = getCursorFromEffectTrack(w->track);
 			break;
-		case MODE_SETTINGS:
-			if (cc.cursor < w->track*SETTINGS_CONTROLS || cc.cursor >= (w->track+1)*SETTINGS_CONTROLS)
-				cc.cursor = w->track*SETTINGS_CONTROLS + cc.cursor%SETTINGS_CONTROLS;
-			break;
 		default: break;
 	}
 
@@ -100,12 +96,6 @@ static void trackerEnterEffectMode(void)
 {
 	w->mode = MODE_EFFECT;
 	cc.cursor = getCursorFromEffectTrack(w->track);
-	p->redraw = 1;
-}
-static void trackerEnterSettingsMode(void)
-{
-	w->mode = MODE_SETTINGS;
-	cc.cursor = w->track*SETTINGS_CONTROLS;
 	p->redraw = 1;
 }
 
@@ -660,7 +650,7 @@ static bool trackerMouseHeader(enum Button button, int x, int y, short *tx)
 	if (y <= TRACK_ROW)
 		for (int i = 0; i < s->track->c; i++)
 		{
-			*tx += TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->pattern->macroc+1);
+			*tx += getTrackWidth(s->track->v[i]);
 			if (*tx > x)
 				switch (button)
 				{
@@ -735,33 +725,6 @@ static void trackerMouse(enum Button button, int x, int y)
 trackerInputEffectTrack:
 					mouseControls(button, x, y);
 					break;
-				case MODE_SETTINGS:
-					tx = 1 + genConstSfx(SETTINGS_WIDTH);
-					for (i = 0; i < s->track->c; i++)
-					{
-						tx += SETTINGS_WIDTH;
-						if (tx > x)
-						{
-							if (y <= TRACK_ROW)
-							{
-								switch (button)
-								{
-									case BUTTON2: case BUTTON2_CTRL: toggleTrackSolo(i); goto trackerInputSettingsTrack;
-									case BUTTON3: case BUTTON3_CTRL: toggleTrackMute(i); goto trackerInputSettingsTrack;
-									default: break;
-								}
-							}
-							switch (button)
-							{
-								case BUTTON1: case BUTTON1_CTRL: w->trackoffset = i - w->track; break;
-								default: break;
-							}
-							goto trackerInputSettingsTrack; /* beeeg break */
-						}
-					}
-trackerInputSettingsTrack:
-					mouseControls(button, x, y);
-					break;
 				default:
 					tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS);
 					if (trackerMouseHeader(button, x, y, &tx)) break;
@@ -783,7 +746,7 @@ trackerInputSettingsTrack:
 
 							for (i = 0; i < s->track->c; i++)
 							{
-								chanw = TRACK_TRIG_PAD + 11 + 4*(s->track->v[i]->pattern->macroc+1);
+								chanw = getTrackWidth(s->track->v[i]);
 								if (i == s->track->c-1 || tx+chanw > x) /* clicked on track i */
 								{
 									if (button == BUTTON1_CTRL) { w->step = MIN(15, abs(y - w->centre)); break; }
@@ -804,25 +767,20 @@ trackerInputSettingsTrack:
 											} break;
 										default: break;
 									}
-									if (x-tx < TRACK_TRIG_PAD+2) /* vtrig column */
-									{
-										w->trackerfx = -1;
-										if (x-tx < 2) w->fieldpointer = 1;
-										else          w->fieldpointer = 0;
-									} else if (x-tx < TRACK_TRIG_PAD + 6) /* note column */
+									if (x-tx < 4) /* note column */
 										w->trackerfx = 0;
-									else if (x-tx < TRACK_TRIG_PAD + 9) /* inst column */
+									else if (x-tx < 7) /* inst column */
 									{
 										w->trackerfx = 1;
-										if (x-tx < TRACK_TRIG_PAD + 8) w->fieldpointer = 1;
+										if (x-tx < 6) w->fieldpointer = 1;
 										else                              w->fieldpointer = 0;
-									} else if (x-tx > TRACK_TRIG_PAD + 8 + 4*(s->track->v[i]->pattern->macroc+1)) /* star column */
+									} else if (x-tx > getTrackWidth(s->track->v[i]) - 3) /* star column */
 									{
 										w->trackerfx = 3;
 										w->fieldpointer = 0;
 									} else /* macro column */
 									{
-										j = x-tx - (TRACK_TRIG_PAD + 9);
+										j = x-tx - 7;
 										if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i]->pattern->macroc - (j>>2))<<1)+0;
 										else            w->trackerfx = 3 + ((s->track->v[i]->pattern->macroc - (j>>2))<<1)-1;
 										if (j&0x1) w->fieldpointer = 0;
@@ -950,31 +908,18 @@ void initTrackerInput(void)
 			addTooltipBind("slide effect up",   ControlMask|ShiftMask, XK_Up  , 0, (void(*)(void*))slideEffectUp  , NULL);
 			addTooltipBind("slide effect down", ControlMask|ShiftMask, XK_Down, 0, (void(*)(void*))slideEffectDown, NULL);
 			addRulerBinds();
-			addTooltipBind("return"                  , 0          , XK_e        , 0              , (void(*)(void*))trackerEscape           , NULL);
-			addTooltipBind("enter settings mode"     , 0          , XK_z        , 0              , (void(*)(void*))trackerEnterSettingsMode, NULL);
-			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0              , (void(*)(void*))toggleKeyControl        , NULL);
-			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0              , (void(*)(void*))revertKeyControl        , NULL);
-			addTooltipBind("add effect below"        , 0          , XK_a        , 0              , (void(*)(void*))addEffectBelow          , NULL);
-			addTooltipBind("add effect above"        , 0          , XK_A        , 0              , (void(*)(void*))addEffectAbove          , NULL);
-			addTooltipBind("paste effect below"      , 0          , XK_p        , 0              , (void(*)(void*))pasteEffectBelow        , NULL);
-			addTooltipBind("paste effect above"      , 0          , XK_P        , 0              , (void(*)(void*))pasteEffectAbove        , NULL);
-			addTooltipBind("delete effect"           , 0          , XK_d        , 0              , (void(*)(void*))delChainEffect          , NULL);
-			addTooltipBind("copy effect"             , 0          , XK_y        , 0              , (void(*)(void*))copyChainEffect         , NULL);
-			addTooltipBind("increment"               , ControlMask, XK_A        , 0              , (void(*)(void*))incControlValue         , NULL);
-			addTooltipBind("decrement"               , ControlMask, XK_X        , 0              , (void(*)(void*))decControlValue         , NULL);
-			addTooltipBind("track"                   , 0          , XK_c        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack           , NULL);
-			break;
-		case MODE_SETTINGS:
-			addCountBinds(0);
-			addTrackerNavBinds();
-			addRulerBinds();
-			addTooltipBind("return"                  , 0          , XK_z        , 0              , (void(*)(void*))trackerEscape         , NULL);
-			addTooltipBind("enter effect mode"       , 0          , XK_e        , 0              , (void(*)(void*))trackerEnterEffectMode, NULL);
-			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0              , (void(*)(void*))toggleKeyControl      , NULL);
-			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0              , (void(*)(void*))revertKeyControl      , NULL);
-			addTooltipBind("increment"               , ControlMask, XK_A        , 0              , (void(*)(void*))incControlValue       , NULL);
-			addTooltipBind("decrement"               , ControlMask, XK_X        , 0              , (void(*)(void*))decControlValue       , NULL);
-			addTooltipBind("track"                   , 0          , XK_c        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack         , NULL);
+			addTooltipBind("return"                  , 0          , XK_e        , 0              , (void(*)(void*))trackerEscape   , NULL);
+			addTooltipBind("toggle checkmark button" , 0          , XK_Return   , 0              , (void(*)(void*))toggleKeyControl, NULL);
+			addTooltipBind("reset control to default", 0          , XK_BackSpace, 0              , (void(*)(void*))revertKeyControl, NULL);
+			addTooltipBind("add effect below"        , 0          , XK_a        , 0              , (void(*)(void*))addEffectBelow  , NULL);
+			addTooltipBind("add effect above"        , 0          , XK_A        , 0              , (void(*)(void*))addEffectAbove  , NULL);
+			addTooltipBind("paste effect below"      , 0          , XK_p        , 0              , (void(*)(void*))pasteEffectBelow, NULL);
+			addTooltipBind("paste effect above"      , 0          , XK_P        , 0              , (void(*)(void*))pasteEffectAbove, NULL);
+			addTooltipBind("delete effect"           , 0          , XK_d        , 0              , (void(*)(void*))delChainEffect  , NULL);
+			addTooltipBind("copy effect"             , 0          , XK_y        , 0              , (void(*)(void*))copyChainEffect , NULL);
+			addTooltipBind("increment"               , ControlMask, XK_A        , 0              , (void(*)(void*))incControlValue , NULL);
+			addTooltipBind("decrement"               , ControlMask, XK_X        , 0              , (void(*)(void*))decControlValue , NULL);
+			addTooltipBind("track"                   , 0          , XK_c        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack   , NULL);
 			break;
 		case MODE_NORMAL:
 			addCountBinds(0);
@@ -1002,7 +947,6 @@ void initTrackerInput(void)
 			addTooltipBind("track right"           , ControlMask         , XK_L         , 0              , (void(*)(void*))trackRight                , NULL     );
 			addTooltipBind("enter insert mode"     , 0                   , XK_i         , 0              , (void(*)(void*))trackerEnterInsertMode    , NULL     );
 			addTooltipBind("enter effect mode"     , 0                   , XK_e         , 0              , (void(*)(void*))trackerEnterEffectMode    , NULL     );
-			addTooltipBind("enter settings mode"   , 0                   , XK_z         , 0              , (void(*)(void*))trackerEnterSettingsMode  , NULL     );
 			addTooltipBind("enter visual mode"     , 0                   , XK_v         , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
 			addTooltipBind("enter visual mode"     , ControlMask         , XK_v         , 0              , (void(*)(void*))trackerEnterVisualMode    , NULL     );
 			addTooltipBind("enter visual line mode", 0                   , XK_V         , 0              , (void(*)(void*))trackerEnterVisualLineMode, NULL     );

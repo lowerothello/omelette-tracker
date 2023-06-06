@@ -1,5 +1,5 @@
 #include "visual.h"
-#include "draw.c"
+#include "draw.h"
 
 #include "variant.c"
 #include "pattern.c"
@@ -38,11 +38,6 @@ void trackerUpArrow(size_t count)
 			mincount = cc.cursor - min;
 			decControlCursor(MIN(mincount, count));
 			break;
-		case MODE_SETTINGS:
-			min = w->track*SETTINGS_CONTROLS;
-			mincount = cc.cursor - min;
-			decControlCursor(MIN(mincount, count));
-			break;
 		default:
 			w->follow = 0;
 			if (w->trackerfx >= 0)
@@ -75,11 +70,6 @@ void trackerDownArrow(size_t count)
 			maxcount = max - cc.cursor;
 			incControlCursor(MIN(maxcount, count));
 			break;
-		case MODE_SETTINGS:
-			max = (w->track+1)*SETTINGS_CONTROLS - 1;
-			maxcount = max - cc.cursor;
-			incControlCursor(MIN(maxcount, count));
-			break;
 		default:
 			w->follow = 0;
 			if (w->trackerfx >= 0)
@@ -98,7 +88,6 @@ void trackerLeftArrow(size_t count)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-		case MODE_SETTINGS:
 			for (i = 0; i < count; i++)
 				incControlFieldpointer();
 			break;
@@ -129,7 +118,6 @@ void trackerRightArrow(size_t count)
 	switch (w->mode)
 	{
 		case MODE_EFFECT:
-		case MODE_SETTINGS:
 			for (i = 0; i < count; i++)
 				decControlFieldpointer();
 			break;
@@ -160,9 +148,6 @@ void trackerHome(void)
 		case MODE_EFFECT:
 			cc.cursor = getCursorFromEffectTrack(w->track);
 			break;
-		case MODE_SETTINGS:
-			cc.cursor = w->track*SETTINGS_CONTROLS;
-			break;
 		default:
 			w->follow = 0;
 			if (w->trackerfx >= 0)
@@ -179,9 +164,6 @@ void trackerEnd(void)
 	{
 		case MODE_EFFECT:
 			cc.cursor = getCursorFromEffectTrack(w->track + 1) - 1;
-			break;
-		case MODE_SETTINGS:
-			cc.cursor = (w->track+1)*SETTINGS_CONTROLS - 1;
 			break;
 		default:
 			w->follow = 0;

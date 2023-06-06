@@ -153,6 +153,8 @@ void triggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst
 
 void processRow(uint32_t fptr, uint16_t *spr, bool midi, Track *cv, Row *r)
 {
+	if (!r) return;
+
 	bool triggerramp = 0;
 	Track oldcv;
 	memcpy(&oldcv, cv, sizeof(Track));
