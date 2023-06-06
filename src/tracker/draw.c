@@ -53,26 +53,26 @@ static void noteToString(short note, char *buffer)
 short getTrackWidth(Track *cv) { return 9 + 4*(cv->pattern->macroc+1); }
 
 /* generate sfx using dynamic width tracks */
-short genSfx(short minx)
+short genSfx(short x)
 {
-	short x = minx<<1;
+	short wx = x;
 	short ret = 0;
 	short trackw;
 
 	for (int i = 0; i < s->track->c; i++)
 	{
 		trackw = getTrackWidth(s->track->v[i]);
-		x += trackw;
-		if (i == w->track) ret = x - (trackw>>1); /* should only be set once */
-		/* keep iterating so x is the full width of all tracks */
+		wx += trackw;
+		if (i == w->track) ret = wx - (trackw>>1); /* should only be set once */
+		/* keep iterating so wx is the full width of all tracks */
 	}
-	if (x > ws.ws_col)
+	if (wx > ws.ws_col)
 	{
-		ret = (ws.ws_col>>1) - ret;
+		ret = x + ((ws.ws_col - x)>>1) - ret;
 		ret = MIN(ret, 0);
-		ret = MAX(ret, -(x - ws.ws_col));
+		ret = MAX(ret, -(wx - ws.ws_col));
 	} else
-		ret = ((ws.ws_col - x)>>1);
+		ret = ((ws.ws_col - wx)>>1);
 	return ret;
 }
 /* generate sfx using constant width tracks */
@@ -461,7 +461,7 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 	short ret = 0;
 	short y;
 
-	drawLineNumbers(x+MAX(sfx, minx), MAX(sfx, minx), minx+TRACK_LINENO_COLS+MAX(sfx, minx));
+	drawLineNumbers(MAX(x, MAX(sfx+1, 0) + minx), MAX(sfx+1, 0) + minx, minx+TRACK_LINENO_COLS+MAX(sfx+1, 0) + minx);
 	x += TRACK_LINENO_COLS;
 	drawStarColumn(x+sfx + 1, minx+TRACK_LINENO_COLS+2, maxx);
 	x += 2;
@@ -474,14 +474,17 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 		x += drawTrack(i, x+sfx, minx+TRACK_LINENO_COLS+3, maxx);
 		drawStarColumn(x+sfx - 1, minx+TRACK_LINENO_COLS+2, maxx);
 	}
-	if (sfx < minx)
+	if (sfx < 0)
 	{
 		for (int i = 0; i < 65536; i++)
 		{
 			y = w->centre - w->trackerfy + i;
 			if (y >= ws.ws_row) break;
 			if (y > TRACK_ROW)
-				printf("\033[%d;%dH^", w->centre - w->trackerfy + i, minx+TRACK_LINENO_COLS+2);
+			{
+				setRowIntensity(0, i);
+				printf("\033[%d;%dH^\033[22m", w->centre - w->trackerfy + i, minx+TRACK_LINENO_COLS+2);
+			}
 		}
 	}
 	if (x + sfx > maxx + 1)
@@ -491,7 +494,10 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 			y = w->centre - w->trackerfy + i;
 			if (y >= ws.ws_row) break;
 			if (y > TRACK_ROW)
-				printf("\033[%d;%dH$", w->centre - w->trackerfy + i, maxx);
+			{
+				setRowIntensity(0, i);
+				printf("\033[%d;%dH$\033[22m", w->centre - w->trackerfy + i, maxx);
+			}
 		}
 	}
 
@@ -525,17 +531,19 @@ void drawTracker(void)
 		drawControls();
 	} else
 	{
-		short sfx = genSfx(TRACK_LINENO_COLS + 0);
-		x = 1 + TRACK_LINENO_COLS + 2 + sfx;
+		// short offset = ws.ws_col>>1;
+		short offset = 0;
+		short sfx = genSfx((TRACK_LINENO_COLS<<1) + offset);
+		x = TRACK_LINENO_COLS + 3 + sfx + offset;
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
 			drawTrackHeader(i, x + 1, getTrackWidth(s->track->v[i]) - 3,
-					TRACK_LINENO_COLS, ws.ws_col);
+					offset + TRACK_LINENO_COLS + 2, ws.ws_col);
 
 			x += getTrackWidth(s->track->v[i]);
 		}
 
-		short sx = drawTrackerBody(sfx, 1, 0, ws.ws_col);
+		short sx = drawTrackerBody(sfx, offset + 1, offset, ws.ws_col);
 
 		switch (w->mode)
 		{

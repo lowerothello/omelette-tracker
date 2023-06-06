@@ -12,7 +12,7 @@
  *   running under gdb without stalling jackd.
  *
  *   pretty janky, but good enough for some debugging. */
-// #define DEBUG_DISABLE_AUDIO_OUTPUT 1
+#define DEBUG_DISABLE_AUDIO_OUTPUT 1
 
 /* DISABLE_RAW_INPUT
  *   only parse stdin, don't try to aquire raw events
@@ -84,4 +84,4 @@
 #define GAIN_STAGE_SLOPE 2.0f
 
 #define STARTING_TRACKC 4 /* how many tracks to allocate for new files */
-#define DEFAULT_PATTERN_LENGTH 0x3f
+#define DEFAULT_PATTERN_LENGTH 0x0f

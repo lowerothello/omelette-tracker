@@ -18,10 +18,5 @@ void shiftDown(void);
 void trackerPgUp(void);
 void trackerPgDn(void);
 
-/* generate sfx using dynamic width tracks */
-short genSfx(short minx);
-/* generate sfx using constant width tracks */
-short genConstSfx(short trackw);
-
-void drawTracker(void);
 void initTrackerInput(void);
+#include "draw.h"

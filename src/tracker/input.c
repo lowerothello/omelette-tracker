@@ -726,7 +726,7 @@ trackerInputEffectTrack:
 					mouseControls(button, x, y);
 					break;
 				default:
-					tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS);
+					tx = 1 + TRACK_LINENO_COLS + 2 + genSfx(TRACK_LINENO_COLS<<1);
 					if (trackerMouseHeader(button, x, y, &tx)) break;
 					switch (button)
 					{

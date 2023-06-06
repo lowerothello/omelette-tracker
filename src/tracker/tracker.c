@@ -1,5 +1,5 @@
 #include "visual.h"
-#include "draw.h"
+#include "draw.c"
 
 #include "variant.c"
 #include "pattern.c"

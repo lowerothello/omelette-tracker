@@ -11,5 +11,3 @@ short getSfx(Track*);
 short genConstSfx(short trackw);
 
 void drawTracker(void);
-
-#include "draw.c"
