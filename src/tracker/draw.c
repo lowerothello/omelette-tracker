@@ -548,7 +548,7 @@ void drawTracker(void)
 		drawControls();
 	} else
 	{
-		short offset = MIN(s->track->c * 3, ws.ws_col>>2);
+		short offset = MIN(s->track->c * 3, ws.ws_col>>2) + 1;
 		short sfx = genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset));
 		x = TRACK_LINENO_COLS + 3 + sfx + offset;
 		short xpartition = MAX(offset, MAX(sfx, 0) + offset);
@@ -566,11 +566,19 @@ void drawTracker(void)
 				if (y >= ws.ws_row) break;
 				if (y > TRACK_ROW)
 				{
-					snprintf(smallbuffer, 3, "%02x", s->track->v[i]->pattern->order[j]);
+					if (s->track->v[i]->pattern->order[j] == PATTERN_VOID)
+						strcpy(smallbuffer, "--");
+					else
+						snprintf(smallbuffer, 3, "%02x", s->track->v[i]->pattern->order[j]);
 
-					// setRowIntensity(0, i);
+					if (s->track->v[i]->mute)
+						printf("\033[2m");
+					else if (w->playing && getPatternChainIndex(w->playfy) == j)
+						printf("\033[1m");
+
 					printCulling(smallbuffer, smallx, y, 1, xpartition - TRACK_LINENO_COLS + 1);
-					// printf("\033[22m");
+
+					printf("\033[22m");
 				}
 			}
 
