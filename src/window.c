@@ -73,8 +73,8 @@ void freeWindow(UI *cw)
 	if (cw->recbuffer) free(cw->recbuffer);
 	if (cw->previewsample) free(cw->previewsample);
 
-	for (short i = 0; i < cw->pbtrackc; i++)
-		free(cw->pbvariantv[i]);
+	// for (short i = 0; i < cw->pbtrackc; i++)
+	// 	free(cw->pbvariantv[i]);
 
 	free(cw);
 }

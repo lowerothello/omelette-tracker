@@ -44,7 +44,7 @@ enum Mode {
 /* more than is needed for just playback, TODO: should be split into a few separate structures */
 typedef struct UI
 {
-	Variant *pbvariantv[TRACK_MAX];
+	// Variant *pbvariantv[TRACK_MAX];
 	// Vtrig   *pbindex   [TRACK_MAX];
 	uint8_t  pbtrackc; /* how many tracks are in the pattern data buffer */
 	int8_t   pbfx[2];  /* patternbuffer horizontal clipping region       */

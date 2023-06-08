@@ -1,6 +1,5 @@
 #define TRACK_LINENO_COLS 2
 
-#include "variant.h"
 #include "pattern.h"
 #include "track.h"
 

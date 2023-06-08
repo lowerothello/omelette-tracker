@@ -1045,7 +1045,7 @@ void initTrackerInput(void)
 					{
 						case -1: /* vtrig */
 							addHexBinds("push cell", 0, pushPatternOrderWrap);
-							addTooltipBind("stop cell", 0, XK_space, 0, setPatternOrderWrap, (void*)VARIANT_OFF);
+							addTooltipBind("stop cell", 0, XK_space, 0, setPatternOrderWrap, (void*)PATTERN_VOID);
 							break;
 						case 0: /* note */
 							addNotePressBinds("push cell", 0, w->octave, (void(*)(void*))pressNote);

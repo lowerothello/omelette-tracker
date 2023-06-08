@@ -1,3 +1,32 @@
+typedef struct Macro
+{
+	char    c; /* command        */
+	uint8_t v; /* argument       */
+	uint8_t t; /* special tokens */
+} Macro;
+
+#define NOTE_SMOOTH_OFFSET 120 /* offset from any note value to get it's legato variant */
+#define NOTE_C_OFFSET 3 /* offset to work based off of C */
+enum Note
+{
+	NOTE_VOID   = 0x00,
+	NOTE_MIN    = 0x01, // 1
+	NOTE_C5     = 0x40, // 64
+	NOTE_MAX    = 0x78, // 120
+	NOTE_UNUSED = 0xfd,
+	NOTE_CUT    = 0xfe,
+	NOTE_OFF    = 0xff,
+};
+#define INST_VOID 255
+/* TODO: MACRO_VOID */
+
+typedef struct Row
+{
+	float   note; /* MIDI compatible  | NOTE_* declares */
+	uint8_t inst; /* instrument index | INST_* declares */
+	Macro   macro[8];
+} Row;
+
 typedef struct Pattern
 {
 	uint16_t length;
@@ -44,6 +73,10 @@ void pushPatternOrder(PatternChain**, uint8_t orderindex, char value);
 /* set the playback order directly */
 void setPatternOrder(PatternChain**, uint8_t orderindex, uint8_t index);
 
+struct json_object *serializeMacro(Macro*);
+Macro deserializeMacro(struct json_object*);
+struct json_object *serializeRow(Row*);
+Row deserializeRow(struct json_object*);
 struct json_object *serializePattern(Pattern*);
 Pattern *deserializePattern(struct json_object*);
 struct json_object *serializePatternChain(PatternChain*);

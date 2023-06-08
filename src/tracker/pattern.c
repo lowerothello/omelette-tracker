@@ -96,7 +96,7 @@ static void cb_addPattern(Event *e)
 }
 bool addPattern(PatternChain **pc, uint8_t index)
 { /* fully atomic */
-	if (index == PATTERN_VOID || (*pc)->i[index] != VARIANT_VOID)
+	if (index == PATTERN_VOID || (*pc)->i[index] != PATTERN_VOID)
 		return 1;
 
 	Event e;
@@ -111,12 +111,12 @@ bool addPattern(PatternChain **pc, uint8_t index)
 /* returns the pattern removed, or -1 if no patterns were removed */
 int _delPattern(PatternChain **pc, uint8_t index)
 {
-	if ((*pc)->i[index] == VARIANT_VOID)
+	if ((*pc)->i[index] == PATTERN_VOID)
 		return -1; /* index not occupied */
 
 	int cutindex = (*pc)->i[index];
 
-	(*pc)->i[index] = VARIANT_VOID;
+	(*pc)->i[index] = PATTERN_VOID;
 	(*pc)->c--;
 	memmove(&(*pc)->v[cutindex], &(*pc)->v[cutindex+1], ((*pc)->c - cutindex)*sizeof(Pattern*));
 	*pc = reallocPatternChain(*pc);
@@ -275,6 +275,47 @@ void setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 	pushEvent(&e);
 }
 
+struct json_object *serializeMacro(Macro *m)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "c", json_object_new_int(m->c));
+	json_object_object_add(ret, "v", json_object_new_int(m->v));
+	json_object_object_add(ret, "t", json_object_new_int(m->t));
+	return ret;
+}
+Macro deserializeMacro(struct json_object *jso)
+{
+	Macro m;
+	m.c = json_object_get_int(json_object_object_get(jso, "c"));
+	m.v = json_object_get_int(json_object_object_get(jso, "v"));
+	m.t = json_object_get_int(json_object_object_get(jso, "t"));
+	return m;
+}
+
+struct json_object *serializeRow(Row *r)
+{
+	struct json_object *ret = json_object_new_object();
+	json_object_object_add(ret, "note", json_object_new_int(r->note));
+	json_object_object_add(ret, "inst", json_object_new_int(r->inst));
+
+	struct json_object *array = json_object_new_array_ext(8);
+	for (int i = 0; i < 8; i++)
+		json_object_array_add(array, serializeMacro(&r->macro[i]));
+	json_object_object_add(ret, "macro", array);
+
+	return ret;
+}
+Row deserializeRow(struct json_object *jso)
+{
+	Row r;
+	r.note = json_object_get_int(json_object_object_get(jso, "note"));
+	r.inst = json_object_get_int(json_object_object_get(jso, "inst"));
+
+	for (int i = 0; i < 8; i++)
+		r.macro[i] = deserializeMacro(json_object_array_get_idx(json_object_object_get(jso, "macro"), i));
+	return r;
+}
+
 struct json_object *serializePattern(Pattern *p)
 {
 	struct json_object *ret = json_object_new_array_ext(p->length+1);
@@ -291,6 +332,7 @@ Pattern *deserializePattern(struct json_object *jso)
 		ret->row[i] = deserializeRow(json_object_array_get_idx(jso, i));
 	return ret;
 }
+
 struct json_object *serializePatternChain(PatternChain *pc)
 {
 	int i;

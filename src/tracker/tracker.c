@@ -1,7 +1,6 @@
 #include "visual.h"
 #include "draw.c"
 
-#include "variant.c"
 #include "pattern.c"
 #include "track.c"
 

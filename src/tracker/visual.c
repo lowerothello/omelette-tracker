@@ -67,123 +67,122 @@ bool vfxVmoRangeIncl(short min, short max, short x)
 	return (x >= min && x <= max); /* not inverted */
 }
 
-/* TODO: skip the vtrig column? */
 void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	/* walk over allocated tracks and free them */
-	for (short i = 0; i < w->pbtrackc; i++)
-		free(w->pbvariantv[i]);
-
-	w->pbfx[0] = x1;
-	w->pbfx[1] = x2;
-	w->pbtrackc = c2-c1 + 1;
-
-	Track *cv;
-	Row *r;
-	for (uint8_t i = 0; i <= c2-c1; i++)
-	{
-		cv = s->track->v[c1+i];
-		w->pbvariantv[i] = dupVariant(NULL, y2-y1 + 1);
-		for (uint16_t j = 0; j <= y2-y1; j++)
-		{
-			r = getTrackRow(cv, y1+j, 0);
-			if (r)
-				w->pbvariantv[i]->rowv[j] = *r;
-		}
-	}
+	// /* walk over allocated tracks and free them */
+	// for (short i = 0; i < w->pbtrackc; i++)
+	// 	free(w->pbvariantv[i]);
+	//
+	// w->pbfx[0] = x1;
+	// w->pbfx[1] = x2;
+	// w->pbtrackc = c2-c1 + 1;
+	//
+	// Track *cv;
+	// Row *r;
+	// for (uint8_t i = 0; i <= c2-c1; i++)
+	// {
+	// 	cv = s->track->v[c1+i];
+	// 	w->pbvariantv[i] = dupVariant(NULL, y2-y1 + 1);
+	// 	for (uint16_t j = 0; j <= y2-y1; j++)
+	// 	{
+	// 		r = getTrackRow(cv, y1+j, 0);
+	// 		if (r)
+	// 			w->pbvariantv[i]->rowv[j] = *r;
+	// 	}
+	// }
 }
 
 void putPartPattern(bool step) /* TODO: count */
 {
-	uint8_t j;
-	int k;
-	Row *dest, *src;
-	char targetmacro;
-
-	if (!w->pbtrackc) return;
-	FOR_BUFFER_TRACKS(i, cv, xstart, xend) // {
-		if (xstart > 1 && xend > 1) /* just macro columns */
-		{
-			if (w->trackerfx < 2) targetmacro = 0;
-			else                  targetmacro = tfxToVfx(w->trackerfx)-2;
-
-			targetmacro -= xend - xstart;
-
-			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
-			{
-				dest = getTrackRow(cv, w->trackerfy+j, 1);
-				src = getVariantRow(w->pbvariantv[0], j);
-				for (k = 0; k <= xend - xstart; k++)
-				{
-					if (targetmacro+k < 0) continue;
-					memcpy(&dest->macro[targetmacro+k], &src->macro[xstart-2+k], sizeof(Macro));
-				}
-			}
-		} else
-		{
-			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
-			{
-				dest = getTrackRow(cv, w->trackerfy+j, 1);
-				src = getVariantRow(w->pbvariantv[0], j);
-				if (xstart <= 0 && xend >= 0) dest->note = src->note;
-				if (xstart <= 1 && xend >= 1) dest->inst = src->inst;
-				for (k = 0; k <= cv->pattern->macroc; k++)
-					if (xstart <= k+2 && xend >= k+2)
-						memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
-			}
-		}
-	}
-
-	if (step)
-		trackerDownArrow(w->pbvariantv[0]->rowc);
-	p->redraw = 1;
+	// uint8_t j;
+	// int k;
+	// Row *dest, *src;
+	// char targetmacro;
+	//
+	// if (!w->pbtrackc) return;
+	// FOR_BUFFER_TRACKS(i, cv, xstart, xend) // {
+	// 	if (xstart > 1 && xend > 1) /* just macro columns */
+	// 	{
+	// 		if (w->trackerfx < 2) targetmacro = 0;
+	// 		else                  targetmacro = tfxToVfx(w->trackerfx)-2;
+	//
+	// 		targetmacro -= xend - xstart;
+	//
+	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
+	// 		{
+	// 			dest = getTrackRow(cv, w->trackerfy+j, 1);
+	// 			src = getVariantRow(w->pbvariantv[0], j);
+	// 			for (k = 0; k <= xend - xstart; k++)
+	// 			{
+	// 				if (targetmacro+k < 0) continue;
+	// 				memcpy(&dest->macro[targetmacro+k], &src->macro[xstart-2+k], sizeof(Macro));
+	// 			}
+	// 		}
+	// 	} else
+	// 	{
+	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
+	// 		{
+	// 			dest = getTrackRow(cv, w->trackerfy+j, 1);
+	// 			src = getVariantRow(w->pbvariantv[0], j);
+	// 			if (xstart <= 0 && xend >= 0) dest->note = src->note;
+	// 			if (xstart <= 1 && xend >= 1) dest->inst = src->inst;
+	// 			for (k = 0; k <= cv->pattern->macroc; k++)
+	// 				if (xstart <= k+2 && xend >= k+2)
+	// 					memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
+	// 		}
+	// 	}
+	// }
+	//
+	// if (step)
+	// 	trackerDownArrow(w->pbvariantv[0]->rowc);
+	// p->redraw = 1;
 }
 
 void mixPutPartPattern(bool step) /* TODO: count */
 {
-	uint8_t j;
-	int k;
-	Row *dest, *src;
-	char targetmacro;
-
-	if (!w->pbtrackc) return;
-	FOR_BUFFER_TRACKS(i, cv, xstart, xend) // {
-		if (xstart > 1 && xend > 1) /* just macro columns */
-		{
-			if (w->trackerfx < 2) targetmacro = 0;
-			else                  targetmacro = tfxToVfx(w->trackerfx)-2;
-
-			targetmacro -= xend - xstart;
-
-			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
-			{
-				dest = getTrackRow(cv, w->trackerfy+j, 1);
-				src = getVariantRow(w->pbvariantv[0], j);
-				for (k = 0; k <= xend - xstart; k++)
-				{
-					if (targetmacro+k < 0) continue;
-					if (src->macro[xstart-2+k].c)
-						memcpy(&dest->macro[targetmacro+k], &src->macro[xstart-2+k], sizeof(Macro));
-				}
-			} w->trackerfx = vfxToTfx(targetmacro+(xend - xstart)+2);
-		} else
-		{
-			for (j = 0; j < w->pbvariantv[0]->rowc; j++)
-			{
-				dest = getTrackRow(cv, w->trackerfy+j, 1);
-				src = getVariantRow(w->pbvariantv[0], j);
-				if (xstart <= 0 && xend >= 0 && src->note != NOTE_VOID) dest->note = src->note;
-				if (xstart <= 1 && xend >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-				for (k = 0; k <= cv->pattern->macroc; k++)
-					if (xstart <= k+2 && xend >= k+2 && src->macro[k].c)
-						memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
-			} w->trackerfx = vfxToTfx(xstart);
-		}
-	}
-
-	if (step)
-		trackerDownArrow(w->pbvariantv[0]->rowc);
-	p->redraw = 1;
+	// uint8_t j;
+	// int k;
+	// Row *dest, *src;
+	// char targetmacro;
+	//
+	// if (!w->pbtrackc) return;
+	// FOR_BUFFER_TRACKS(i, cv, xstart, xend) // {
+	// 	if (xstart > 1 && xend > 1) /* just macro columns */
+	// 	{
+	// 		if (w->trackerfx < 2) targetmacro = 0;
+	// 		else                  targetmacro = tfxToVfx(w->trackerfx)-2;
+	//
+	// 		targetmacro -= xend - xstart;
+	//
+	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
+	// 		{
+	// 			dest = getTrackRow(cv, w->trackerfy+j, 1);
+	// 			src = getVariantRow(w->pbvariantv[0], j);
+	// 			for (k = 0; k <= xend - xstart; k++)
+	// 			{
+	// 				if (targetmacro+k < 0) continue;
+	// 				if (src->macro[xstart-2+k].c)
+	// 					memcpy(&dest->macro[targetmacro+k], &src->macro[xstart-2+k], sizeof(Macro));
+	// 			}
+	// 		} w->trackerfx = vfxToTfx(targetmacro+(xend - xstart)+2);
+	// 	} else
+	// 	{
+	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
+	// 		{
+	// 			dest = getTrackRow(cv, w->trackerfy+j, 1);
+	// 			src = getVariantRow(w->pbvariantv[0], j);
+	// 			if (xstart <= 0 && xend >= 0 && src->note != NOTE_VOID) dest->note = src->note;
+	// 			if (xstart <= 1 && xend >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
+	// 			for (k = 0; k <= cv->pattern->macroc; k++)
+	// 				if (xstart <= k+2 && xend >= k+2 && src->macro[k].c)
+	// 					memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
+	// 		} w->trackerfx = vfxToTfx(xstart);
+	// 	}
+	// }
+	//
+	// if (step)
+	// 	trackerDownArrow(w->pbvariantv[0]->rowc);
+	// p->redraw = 1;
 }
 
 void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2)
