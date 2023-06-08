@@ -3,6 +3,7 @@ static void leaveSpecialModes(void)
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
+		case PAGE_PATTERN:
 			switch (w->mode)
 			{
 				case MODE_INSERT: break;

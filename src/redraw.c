@@ -171,7 +171,9 @@ void redraw(void)
 	drawRuler();
 	switch (w->page)
 	{
-		case PAGE_VARIANT:       drawTracker();        break;
+		case PAGE_EFFECT:
+		case PAGE_VARIANT:       drawTracker(0);       break;
+		case PAGE_PATTERN:       drawTracker(1);       break;
 		case PAGE_INSTRUMENT:    drawInstrument();     break;
 		case PAGE_PLUGINBROWSER: drawBrowser(pbstate); break;
 	}

@@ -14,9 +14,22 @@ enum InstRecLock
 enum Page
 {
 	PAGE_VARIANT,
+	PAGE_PATTERN,
+	PAGE_EFFECT,
 	PAGE_INSTRUMENT,
 	PAGE_PLUGINBROWSER,
 };
+
+enum Mode {
+	MODE_NORMAL,
+	MODE_INSERT,
+	MODE_MOUSEADJUST,
+	MODE_VISUAL,
+	MODE_VISUALLINE,
+	MODE_VISUALREPLACE,
+	MODE_COMMAND,
+};
+
 
 #define MAX_OCTAVE 7 /* max centre octave, this +2 is accessible with the keyboard */
 #define MIN_OCTAVE 0
@@ -33,8 +46,8 @@ typedef struct UI
 {
 	Variant *pbvariantv[TRACK_MAX];
 	// Vtrig   *pbindex   [TRACK_MAX];
-	uint8_t  pbtrackc; /* how many tracks are in the pattern data buffer  */
-	int8_t   pbfx[2];  /* patternbuffer horizontal clipping region */
+	uint8_t  pbtrackc; /* how many tracks are in the pattern data buffer */
+	int8_t   pbfx[2];  /* patternbuffer horizontal clipping region       */
 	uint8_t  defvariantlength;
 
 	Inst   instbuffer;   /* instrument paste buffer */

@@ -1,6 +1,10 @@
 void previewNote(uint8_t note, uint8_t inst, bool release)
 {
-	if (p->w->page == PAGE_VARIANT && p->w->playing) return;
+	if ((p->w->page == PAGE_VARIANT
+	  || p->w->page == PAGE_PATTERN)
+	  && p->w->playing)
+		return;
+
 	Event ev;
 	ev.sem = M_SEM_PREVIEW;
 	ev.arg1 = note;

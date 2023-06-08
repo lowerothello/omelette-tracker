@@ -152,6 +152,8 @@ void resetInput(void)
 			addTooltipBind("hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
 			switch (w->page)
 			{
+				case PAGE_EFFECT:
+				case PAGE_PATTERN:
 				case PAGE_VARIANT:       initTrackerInput();             break;
 				case PAGE_INSTRUMENT:    initInstrumentInput();          break;
 				case PAGE_PLUGINBROWSER: initPluginEffectBrowserInput(); break;

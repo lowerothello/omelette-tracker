@@ -9,10 +9,10 @@ typedef struct Pattern
 typedef struct PatternChain
 {
 	uint8_t  macroc; /* TODO: should be addressable from the settings page */
-	uint8_t  order[PATTERN_ORDER_LENGTH]; /* pattern playback order */
-	uint8_t  c;                           /* pattern data length */
-	uint8_t  i[PATTERN_VOID];             /* pattern data arrangement */
-	Pattern *v[];                         /* pattern data */
+	uint8_t  order[PATTERN_ORDER_LENGTH]; /* pattern playback order        */
+	uint8_t  c;                           /* pattern data length           */
+	uint8_t  i[PATTERN_VOID];             /* pattern data arrangement      */
+	Pattern *v[];                         /* pattern data                  */
 } PatternChain;
 
 PatternChain *newPatternChain(void);

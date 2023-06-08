@@ -36,18 +36,6 @@ enum WaveShape {
 #include "tracker/tracker.h"
 #include "instrument/instrument.h"
 
-/* TODO: should be in a header */
-enum Mode {
-	MODE_NORMAL,
-	MODE_INSERT,
-	MODE_EFFECT,
-	MODE_MOUSEADJUST,
-	MODE_VISUAL,
-	MODE_VISUALLINE,
-	MODE_VISUALREPLACE,
-	MODE_COMMAND,
-};
-
 #include "command.h"
 
 #include "song.h"

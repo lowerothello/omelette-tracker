@@ -111,15 +111,14 @@ static void setRowIntensity(bool mute, int i)
 static void drawLineNumbers(short x, short minx, short maxx)
 {
 	char buffer[5];
-	short y;
-	for (int i = 0; i < 65536; i++) /* try to draw every possible line number */
+	int i;
+	for (short y = TRACK_ROW+1; y < ws.ws_row; y++)
 	{
-		y = w->centre - w->trackerfy + i;
-		if (y >= ws.ws_row) break;
-		if (y > TRACK_ROW && getPatternChainIndex(w->trackerfy) == getPatternChainIndex(i))
+		i = y - (w->centre - w->trackerfy);
+		if (i < 0) continue;
+		if (getPatternChainIndex(w->trackerfy) == getPatternChainIndex(i))
 		{
-			snprintf(buffer, 5, "%02x", getPatternIndex(i)); /* TODO: optimising a bit would be nice */
-
+			snprintf(buffer, 5, "%02x", getPatternIndex(i));
 			setRowIntensity(0, i);
 			printCulling(buffer, x, y, minx, maxx);
 			printf("\033[22m");
@@ -245,20 +244,17 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 static void drawStarColumn(short x, short minx, short maxx)
 {
 	char buffer[4];
-	short y;
-	for (int i = 0; i < 65536; i++)
+	int i;
+	for (short y = TRACK_ROW+1; y < ws.ws_row; y++)
 	{
-		y = w->centre - w->trackerfy + i;
-		if (y >= ws.ws_row) break;
-		if (y > TRACK_ROW)
-		{
-			if (w->playing && w->playfy == i)                   strcpy(buffer, "-");
-			else if (s->rowhighlight && !(i % s->rowhighlight)) strcpy(buffer, "*");
-			else                                                strcpy(buffer, " ");
-			setRowIntensity(0, i);
-			printCulling(buffer, x, w->centre - w->trackerfy + i, minx, maxx);
-			printf("\033[22m"); /* undo setRowIntensity() */
-		}
+		i = y - (w->centre - w->trackerfy);
+		if (i < 0) continue;
+		if (w->playing && w->playfy == i)                   strcpy(buffer, "-");
+		else if (s->rowhighlight && !(i % s->rowhighlight)) strcpy(buffer, "*");
+		else                                                strcpy(buffer, " ");
+		setRowIntensity(0, i);
+		printCulling(buffer, x, w->centre - w->trackerfy + i, minx, maxx);
+		printf("\033[22m");
 	}
 }
 
@@ -311,162 +307,159 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 
 	Track *cv = s->track->v[track];
 
-	short x, y;
+	short x;
+	int i;
 
 	if (bx <= maxx && bx + getTrackWidth(cv) >= minx)
 	{
-		for (int i = 0; i < 65536; i++)
+		for (short y = TRACK_ROW+1; y < ws.ws_row; y++)
 		{
-			y = w->centre - w->trackerfy + i;
-			if (y >= ws.ws_row) break;
-			if (y > TRACK_ROW)
+			i = y - (w->centre - w->trackerfy);
+			if (i < 0) continue;
+			x = bx;
+			// lineno = getVariantChainVariant(NULL, cv->variant, i);
+
+			//
+			// if (cv->variant->trig[i].index == VARIANT_OFF)
+			// {
+			// 	printf("\033[1m");
+			// 	strcpy(buffer, " ==  ");
+			// } else if (cv->variant->trig[i].index != VARIANT_VOID)
+			// {
+			// 	printf("\033[1;3%dm", cv->variant->trig[i].index%6 + 1);
+			// 	if (cv->variant->trig[i].flags&C_VTRIG_LOOP) snprintf(buffer, 6, "l%02x  ", cv->variant->trig[i].index);
+			// 	else                                         snprintf(buffer, 6, " %02x  ", cv->variant->trig[i].index);
+			// } else
+			// {
+			// 	printf("\033[2m");
+			// 	if (lineno == -1) strcpy(buffer, " ..  ");
+			// 	else              snprintf(buffer, 6, " %02x  ", lineno);
+			// }
+			// printCulling(buffer, x, y, minx, maxx);
+			//
+			// /* box drawing variant range thing, drawn separately cos multibyte chars break things */
+			// if (x+5 < maxx && x+4 > minx && lineno != -1)
+			// 	printf("\033[1D\033[22;3%dm│", cv->variant->trig[getVariantChainPrevVtrig(cv->variant, i)].index%6 + 1);
+			//
+			// stopVisual(track, i, -1);
+			// printf("\033[22;37;40m");
+
+			x++;
+
+			r = getTrackRow(cv, i, 0);
+			setRowIntensity(cv->mute, i);
+			if (ifVisual(track, i, 0)) printf("\033[2;7m");
+
+			if (x <= maxx)
 			{
-				x = bx;
-				// lineno = getVariantChainVariant(NULL, cv->variant, i);
-
-				//
-				// if (cv->variant->trig[i].index == VARIANT_OFF)
-				// {
-				// 	printf("\033[1m");
-				// 	strcpy(buffer, " ==  ");
-				// } else if (cv->variant->trig[i].index != VARIANT_VOID)
-				// {
-				// 	printf("\033[1;3%dm", cv->variant->trig[i].index%6 + 1);
-				// 	if (cv->variant->trig[i].flags&C_VTRIG_LOOP) snprintf(buffer, 6, "l%02x  ", cv->variant->trig[i].index);
-				// 	else                                         snprintf(buffer, 6, " %02x  ", cv->variant->trig[i].index);
-				// } else
-				// {
-				// 	printf("\033[2m");
-				// 	if (lineno == -1) strcpy(buffer, " ..  ");
-				// 	else              snprintf(buffer, 6, " %02x  ", lineno);
-				// }
-				// printCulling(buffer, x, y, minx, maxx);
-				//
-				// /* box drawing variant range thing, drawn separately cos multibyte chars break things */
-				// if (x+5 < maxx && x+4 > minx && lineno != -1)
-				// 	printf("\033[1D\033[22;3%dm│", cv->variant->trig[getVariantChainPrevVtrig(cv->variant, i)].index%6 + 1);
-				//
-				// stopVisual(track, i, -1);
-				// printf("\033[22;37;40m");
-
-				x++;
-
-				r = getTrackRow(cv, i, 0);
+				if (r && r->note != NOTE_VOID)
+				{
+					noteToString(r->note,   buffer);
+					if (cv->mute) printCulling(buffer, x, y, minx, maxx);
+					else
+					{
+						if (ifVisual(track, i, 0))
+						{
+							printf("\033[22m");
+							if (w->playing && w->playfy == i) printf("\033[1m");
+						}
+						if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
+						else                            printf("\033[37m");
+						printCulling(buffer, x, y, minx, maxx);
+						printf("\033[37m");
+						if (ifVisual(track, i, 0)) printf("\033[2m");
+					}
+				} else
+				{
+					strcpy(buffer, "...");
+					printCulling(buffer, x, y, minx, maxx);
+				}
+				stopVisual(track, i, 0);
 				setRowIntensity(cv->mute, i);
-				if (ifVisual(track, i, 0)) printf("\033[2;7m");
+			}
 
+			x+=3;
+
+			if (x <= maxx)
+			{
+				startVisual(track, i, 1);
+				if (r && r->inst != INST_VOID)
+				{
+					snprintf(buffer, 4, " %02x", r->inst);
+					if (!cv->mute)
+					{
+						if (ifVisual(track, i, 1))
+						{
+							printf("\033[22m");
+							setRowIntensity(cv->mute, i);
+						}
+						if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
+						else                            printf("\033[37m");
+						printCulling(buffer, x, y, minx, maxx);
+						printf("\033[22;37m");
+						if (ifVisual(track, i, 1)) printf("\033[2m");
+					} else printCulling(buffer, x, y, minx, maxx);
+				} else
+				{
+					strcpy(buffer, " ..");
+					printCulling(buffer, x, y, minx, maxx);
+				}
+				stopVisual(track, i, 1);
+				setRowIntensity(cv->mute, i);
+			}
+
+			x+=3;
+
+			for (int j = cv->pattern->macroc; j >= 0; j--)
+			{
 				if (x <= maxx)
 				{
-					if (r && r->note != NOTE_VOID)
+					startVisual(track, i, 2+j);
+					if (r && r->macro[j].c)
 					{
-						noteToString(r->note,   buffer);
-						if (cv->mute) printCulling(buffer, x, y, minx, maxx);
+						if (ifVisual(track, i, 2+j))
+						{
+							printf("\033[22m");
+							setRowIntensity(cv->mute, i);
+						}
+
+						snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
+						switch (r->macro[j].t>>4)
+						{
+							case 1: buffer[2] = '~'; break;
+							case 2: buffer[2] = '+'; break;
+							case 3: buffer[2] = '-'; break;
+							case 4: buffer[2] = '%'; break;
+						}
+						switch (r->macro[j].t&15)
+						{
+							case 1: buffer[3] = '~'; break;
+							case 2: buffer[3] = '+'; break;
+							case 3: buffer[3] = '-'; break;
+							case 4: buffer[3] = '%'; break;
+						}
+
+						if (cv->mute)
+							printCulling(buffer, x, y, minx, maxx);
 						else
 						{
-							if (ifVisual(track, i, 0))
-							{
-								printf("\033[22m");
-								if (w->playing && w->playfy == i) printf("\033[1m");
-							}
-							if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
-							else                            printf("\033[37m");
-							printCulling(buffer, x, y, minx, maxx);
-							printf("\033[37m");
-							if (ifVisual(track, i, 0)) printf("\033[2m");
-						}
-					} else
-					{
-						strcpy(buffer, "...");
-						printCulling(buffer, x, y, minx, maxx);
-					}
-					stopVisual(track, i, 0);
-					setRowIntensity(cv->mute, i);
-				}
-
-				x+=3;
-
-				if (x <= maxx)
-				{
-					startVisual(track, i, 1);
-					if (r && r->inst != INST_VOID)
-					{
-						snprintf(buffer, 4, " %02x", r->inst);
-						if (!cv->mute)
-						{
-							if (ifVisual(track, i, 1))
-							{
-								printf("\033[22m");
-								setRowIntensity(cv->mute, i);
-							}
-							if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
-							else                            printf("\033[37m");
-							printCulling(buffer, x, y, minx, maxx);
-							printf("\033[22;37m");
-							if (ifVisual(track, i, 1)) printf("\033[2m");
-						} else printCulling(buffer, x, y, minx, maxx);
-					} else
-					{
-						strcpy(buffer, " ..");
-						printCulling(buffer, x, y, minx, maxx);
-					}
-					stopVisual(track, i, 1);
-					setRowIntensity(cv->mute, i);
-				}
-
-				x+=3;
-
-				for (int j = cv->pattern->macroc; j >= 0; j--)
-				{
-					if (x <= maxx)
-					{
-						startVisual(track, i, 2+j);
-						if (r && r->macro[j].c)
-						{
-							if (ifVisual(track, i, 2+j))
-							{
-								printf("\033[22m");
-								setRowIntensity(cv->mute, i);
-							}
-
-							snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
-							switch (r->macro[j].t>>4)
-							{
-								case 1: buffer[2] = '~'; break;
-								case 2: buffer[2] = '+'; break;
-								case 3: buffer[2] = '-'; break;
-								case 4: buffer[2] = '%'; break;
-							}
-							switch (r->macro[j].t&15)
-							{
-								case 1: buffer[3] = '~'; break;
-								case 2: buffer[3] = '+'; break;
-								case 3: buffer[3] = '-'; break;
-								case 4: buffer[3] = '%'; break;
-							}
-
-							if (cv->mute)
-								printCulling(buffer, x, y, minx, maxx);
-							else
-							{
-								printf("\033[3%dm", MACRO_COLOUR(r->macro[j].c) + 1);
-								printCulling(buffer, x, y, minx, maxx);
-							}
-
-							if (ifVisual(track, i, 2+j)) printf("\033[23;2;7;37m");
-							else                         printf("\033[23;27;37m");
-						} else
-						{
-							strcpy(buffer, " ...");
+							printf("\033[3%dm", MACRO_COLOUR(r->macro[j].c) + 1);
 							printCulling(buffer, x, y, minx, maxx);
 						}
-						stopVisual(track, i, 2+j);
-						setRowIntensity(cv->mute, i);
-					}
-					x += 4;
-				}
 
-				printf("\033[m"); /* clear attributes before row highlighting */
+						if (ifVisual(track, i, 2+j)) printf("\033[23;2;7;37m");
+						else                         printf("\033[23;27;37m");
+					} else
+					{
+						strcpy(buffer, " ...");
+						printCulling(buffer, x, y, minx, maxx);
+					}
+					stopVisual(track, i, 2+j);
+					setRowIntensity(cv->mute, i);
+				}
+				x += 4;
 			}
+			printf("\033[m"); /* clear attributes before row highlighting */
 		}
 	}
 	return getTrackWidth(cv);
@@ -477,6 +470,7 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 {
 	short ret = 0;
 	short y;
+	int i;
 
 	drawLineNumbers(MAX(x, MAX(sfx+1, 0) + minx), MAX(sfx+1, 0) + minx, minx+TRACK_LINENO_COLS+MAX(sfx+1, 0) + minx);
 	x += TRACK_LINENO_COLS;
@@ -493,46 +487,38 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 	}
 	if (sfx < 0)
 	{
-		for (int i = 0; i < 65536; i++)
+		for (y = TRACK_ROW+1; y < ws.ws_row; y++)
 		{
-			y = w->centre - w->trackerfy + i;
-			if (y >= ws.ws_row) break;
-			if (y > TRACK_ROW)
-			{
-				setRowIntensity(0, i);
-				printf("\033[%d;%dH^\033[22m", w->centre - w->trackerfy + i, minx+TRACK_LINENO_COLS+2);
-			}
+			i = y - (w->centre - w->trackerfy);
+			if (i < 0) continue;
+			setRowIntensity(0, i);
+			printf("\033[%d;%dH^\033[22m", y, minx+TRACK_LINENO_COLS+2);
 		}
 	}
 	if (x + sfx > maxx + 1)
 	{
-		for (int i = 0; i < 65536; i++)
+		for (y = TRACK_ROW+1; y < ws.ws_row; y++)
 		{
-			y = w->centre - w->trackerfy + i;
-			if (y >= ws.ws_row) break;
-			if (y > TRACK_ROW)
-			{
-				setRowIntensity(0, i);
-				printf("\033[%d;%dH$\033[22m", w->centre - w->trackerfy + i, maxx);
-			}
+			i = y - (w->centre - w->trackerfy);
+			if (i < 0) continue;
+			setRowIntensity(0, i);
+			printf("\033[%d;%dH$\033[22m", y, maxx);
 		}
 	}
 
 	return ret;
 }
 
-void drawTracker(void)
+void drawTracker(bool patternlist)
 {
-	short x;
-
-	if (w->mode == MODE_EFFECT)
+	if (w->page == PAGE_EFFECT)
 	{
 		if (cc.mouseadjust || cc.keyadjust) printf("\033[%d;0H\033[1m-- EFFECT ADJUST --\033[m", ws.ws_row);
 		else                                printf("\033[%d;0H\033[1m-- EFFECT --\033[m"       , ws.ws_row);
 		w->command.error[0] = '\0';
 
 		clearControls();
-		x = genConstSfx(EFFECT_WIDTH, ws.ws_col);
+		short x = genConstSfx(EFFECT_WIDTH, ws.ws_col);
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
 			drawTrackHeader(i, x+1, EFFECT_WIDTH,
@@ -550,17 +536,21 @@ void drawTracker(void)
 	{
 		short offset = MIN(s->track->c * 3, ws.ws_col>>2) + 1;
 		short sfx = genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset));
-		x = TRACK_LINENO_COLS + 3 + sfx + offset;
+		short x = TRACK_LINENO_COLS + 3 + sfx + offset;
 		short xpartition = MAX(offset, MAX(sfx, 0) + offset);
 		short smallsfx = genConstSfx(3, offset);
-		short smallx, y;
+		short smallx, y, smallsx;
 		int j;
 		char smallbuffer[3];
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
 			smallx = xpartition - TRACK_LINENO_COLS - offset + (i+1)*3 + smallsfx;
+
+			if (i == w->track + w->trackoffset)
+				smallsx = smallx;
+
 			drawTrackSmallHeader(i, smallx, 1, xpartition - TRACK_LINENO_COLS + 1);
-			for (j = 0; j < PATTERN_ORDER_LENGTH; j++)
+			for (j = 0; j < PATTERN_ORDER_LENGTH - 1; j++)
 			{
 				y = w->centre - (w->trackerfy/(s->plen+1)) + j;
 				if (y >= ws.ws_row) break;
@@ -601,16 +591,18 @@ void drawTracker(void)
 		/* position the tracker cursor */
 		short macro;
 		y = w->centre + w->fyoffset;
-		switch (w->trackerfx)
-		{
-			case -1: printf("\033[%d;%dH", y, sx+sfx + 2 - w->fieldpointer); break;
-			case  0: printf("\033[%d;%dH", y, sx+sfx + 1); break;
-			case  1: printf("\033[%d;%dH", y, sx+sfx + 6 - w->fieldpointer); break;
-			default: /* macro columns */
-				macro = (w->trackerfx - 2)>>1;
-				if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 8  + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4);
-				else                       printf("\033[%d;%dH", y, sx+sfx + 10 + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4 - w->fieldpointer);
-				break;
-		}
+		if (patternlist)
+			printf("\033[%d;%dH", y, smallsx + 1 - w->fieldpointer);
+		else
+			switch (w->trackerfx)
+			{
+				case  0: printf("\033[%d;%dH", y, sx+sfx + 1); break;
+				case  1: printf("\033[%d;%dH", y, sx+sfx + 6 - w->fieldpointer); break;
+				default: /* macro columns */
+					macro = (w->trackerfx - 2)>>1;
+					if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 8  + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4);
+					else                       printf("\033[%d;%dH", y, sx+sfx + 10 + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4 - w->fieldpointer);
+					break;
+			}
 	}
 }

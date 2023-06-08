@@ -31,29 +31,28 @@ void trackerUpArrow(size_t count)
 	count *= MAX(1, w->count);
 	size_t min;
 	int mincount;
-	switch (w->mode)
+
+	w->follow = 0;
+	switch (w->page)
 	{
-		case MODE_EFFECT:
+		case PAGE_EFFECT:
 			min = getCursorFromEffectTrack(w->track);
 			mincount = cc.cursor - min;
 			decControlCursor(MIN(mincount, count));
 			break;
-		default:
-			w->follow = 0;
-			if (w->trackerfx >= 0)
-			{
-				if (count > w->trackerfy)
-					w->trackerfy = 0;
-				else
-					w->trackerfy -= count;
-			} else
-			{
-				if (count*getPatternLength() > w->trackerfy)
-					w->trackerfy = 0;
-				else
-					w->trackerfy -= count*getPatternLength();
-			}
+		case PAGE_VARIANT:
+			if (count > w->trackerfy)
+				w->trackerfy = 0;
+			else
+				w->trackerfy -= count;
 			break;
+		case PAGE_PATTERN:
+			if (count*getPatternLength() > w->trackerfy)
+				w->trackerfy = 0;
+			else
+				w->trackerfy -= count*getPatternLength();
+			break;
+		default: break;
 	}
 	p->redraw = 1;
 }
@@ -63,39 +62,62 @@ void trackerDownArrow(size_t count)
 	count *= MAX(1, w->count);
 	size_t max;
 	int maxcount;
-	switch (w->mode)
+
+	w->follow = 0;
+	switch (w->page)
 	{
-		case MODE_EFFECT:
+		case PAGE_EFFECT:
 			max = getCursorFromEffectTrack(w->track + 1) - 1;
 			maxcount = max - cc.cursor;
 			incControlCursor(MIN(maxcount, count));
 			break;
-		default:
-			w->follow = 0;
-			if (w->trackerfx >= 0)
-				w->trackerfy = MIN(w->trackerfy + count, getPatternLength()*255 - 1);
-			else
-				w->trackerfy = MIN(w->trackerfy + count*getPatternLength(), getPatternLength()*255 - 1);
+		case PAGE_VARIANT:
+			w->trackerfy = MIN(w->trackerfy + count, getPatternLength()*255 - 1);
 			break;
+		case PAGE_PATTERN:
+			w->trackerfy = MIN(w->trackerfy + count*getPatternLength(), getPatternLength()*255 - 1);
+			break;
+		default: break;
 	}
 	p->redraw = 1;
 }
+
+void trackSet(uint8_t track)
+{
+	w->track = track;
+	if (w->trackerfx > 3 + s->track->v[w->track]->pattern->macroc * 2)
+		w->trackerfx = 3 + s->track->v[w->track]->pattern->macroc * 2;
+
+	switch (w->page)
+	{
+		case PAGE_EFFECT:
+			if (!(cc.cursor > getCursorFromEffectTrack(w->track) && cc.cursor < getCursorFromEffectTrack(w->track + 1)))
+				cc.cursor = getCursorFromEffectTrack(w->track);
+			break;
+		default: break;
+	}
+
+	p->redraw = 1;
+}
+
+void trackLeft (void) { trackSet(MAX((int)w->track - MAX(1, w->count), 0)); }
+void trackRight(void) { trackSet(MIN(w->track + MAX(1, w->count), s->track->c-1)); }
 
 void trackerLeftArrow(size_t count)
 {
 	int i;
 	count *= MAX(1, w->count);
-	switch (w->mode)
+	switch (w->page)
 	{
-		case MODE_EFFECT:
+		case PAGE_EFFECT:
 			for (i = 0; i < count; i++)
 				incControlFieldpointer();
 			break;
-		default:
+		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
 				if      (w->trackerfx == 2 + (s->track->v[w->track]->pattern->macroc<<1)) w->trackerfx = 1;
-				else if (w->trackerfx == TRACKERFX_MIN)
+				else if (!w->trackerfx)
 				{
 					if (w->track > 0)
 					{
@@ -108,6 +130,11 @@ void trackerLeftArrow(size_t count)
 					else                  w->trackerfx+=3;
 				} else w->trackerfx--;
 			} break;
+		case PAGE_PATTERN:
+			for (i = 0; i < count; i++)
+				trackLeft();
+			break;
+		default: break;
 	} p->redraw = 1;
 }
 
@@ -115,13 +142,13 @@ void trackerRightArrow(size_t count)
 {
 	int i;
 	count *= MAX(1, w->count);
-	switch (w->mode)
+	switch (w->page)
 	{
-		case MODE_EFFECT:
+		case PAGE_EFFECT:
 			for (i = 0; i < count; i++)
 				decControlFieldpointer();
 			break;
-		default:
+		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
 				if      (w->trackerfx == 1) w->trackerfx = 2 + s->track->v[w->track]->pattern->macroc * 2;
@@ -130,7 +157,7 @@ void trackerRightArrow(size_t count)
 					if (w->track < s->track->c-1)
 					{
 						w->track++;
-						w->trackerfx = TRACKERFX_MIN;
+						w->trackerfx = 0;
 					} else w->trackerfx = 3;
 				} else if (w->trackerfx > 1)
 				{
@@ -138,40 +165,35 @@ void trackerRightArrow(size_t count)
 					else                  w->trackerfx++;
 				} else w->trackerfx++;
 			} break;
+		case PAGE_PATTERN:
+			for (i = 0; i < count; i++)
+				trackRight();
+			break;
+		default: break;
 	} p->redraw = 1;
 }
 
 void trackerHome(void)
 {
-	switch (w->mode)
+	w->follow = 0;
+	switch (w->page)
 	{
-		case MODE_EFFECT:
-			cc.cursor = getCursorFromEffectTrack(w->track);
-			break;
-		default:
-			w->follow = 0;
-			if (w->trackerfx >= 0)
-				w->trackerfy = getPatternChainIndex(w->trackerfy) * getPatternLength();
-			else
-				w->trackerfy = getPatternIndex(w->trackerfy);
-			break;
+		case PAGE_EFFECT: cc.cursor = getCursorFromEffectTrack(w->track); break;
+		case PAGE_VARIANT: w->trackerfy = getPatternChainIndex(w->trackerfy) * getPatternLength(); break;
+		case PAGE_PATTERN: w->trackerfy = getPatternIndex(w->trackerfy); break;
+		default: break;
 	} p->redraw = 1;
 }
 
 void trackerEnd(void)
 {
-	switch (w->mode)
+	w->follow = 0;
+	switch (w->page)
 	{
-		case MODE_EFFECT:
-			cc.cursor = getCursorFromEffectTrack(w->track + 1) - 1;
-			break;
-		default:
-			w->follow = 0;
-			if (w->trackerfx >= 0)
-				w->trackerfy = (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1;
-			else
-				w->trackerfy = 255 * getPatternLength() + getPatternIndex(w->trackerfy);
-			break;
+		case PAGE_EFFECT: cc.cursor = getCursorFromEffectTrack(w->track + 1) - 1; break;
+		case PAGE_VARIANT: w->trackerfy = (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1; break;
+		case PAGE_PATTERN: w->trackerfy = 255 * getPatternLength() + getPatternIndex(w->trackerfy); break;
+		default: break;
 	} p->redraw = 1;
 }
 
@@ -184,9 +206,6 @@ void cycleUp(void)
 			switch (w->mode)
 			{
 				case MODE_NORMAL: case MODE_INSERT:
-					/* TODO: pattern order cycling */
-					if (w->trackerfx < 0) break;
-
 					cycleUpPartPattern(count, 0, 2+s->track->v[w->track]->pattern->macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
 					break;
 				case MODE_VISUAL: case MODE_VISUALREPLACE:
@@ -197,6 +216,9 @@ void cycleUp(void)
 					break;
 				default: break;
 			} break;
+		case PAGE_PATTERN:
+			/* TODO: */
+			break;
 		default: break;
 	} p->redraw = 1;
 }
@@ -211,10 +233,8 @@ void cycleDown(void)
 			{
 				/* TODO: variant trig mode and variant trig visual mode handling */
 				case MODE_NORMAL: case MODE_INSERT:
-					/* TODO: pattern order cycling */
-					if (w->trackerfx < 0) break;
-
 					cycleDownPartPattern(count, 0, 2+s->track->v[w->track]->pattern->macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
+					break;
 				case MODE_VISUAL: case MODE_VISUALREPLACE:
 					cycleDownPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
@@ -223,15 +243,18 @@ void cycleDown(void)
 					break;
 				default: break;
 			} break;
+		case PAGE_PATTERN:
+			/* TODO: */
+			break;
 		default: break;
 	} p->redraw = 1;
 }
 
 void trackerPgUp(void)
 {
-	switch (w->mode)
+	switch (w->page)
 	{
-		case MODE_EFFECT:
+		case PAGE_EFFECT:
 			cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect,
 					MAX(0, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) - (int)MAX(1, w->count)));
 			p->redraw = 1; break;
@@ -243,9 +266,9 @@ void trackerPgUp(void)
 
 void trackerPgDn(void)
 {
-	switch (w->mode)
+	switch (w->page)
 	{
-		case MODE_EFFECT:
+		case PAGE_EFFECT:
 			cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect,
 					MIN(s->track->v[w->track]->effect->c-1, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) + MAX(1, w->count)));
 			p->redraw = 1; break;

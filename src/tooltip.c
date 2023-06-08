@@ -550,8 +550,8 @@ void handleStdin(void)
 							case 'K': inputTooltip(mod|ShiftMask  , XK_End, 0); break;
 							case 'M': { /* TODO: ctrl+delete maps to CSI M, which conflicts */
 									enum Button button = getchar();
-									int x = getchar() - 32;
-									int y = getchar() - 32;
+									int x = getchar() - ' ';
+									int y = getchar() - ' ';
 									if (tt.mousecallback)
 										tt.mousecallback(button, x, y);
 									resetInput();
@@ -564,6 +564,7 @@ void handleStdin(void)
 						break;
 				} break;
 			case '\n': case '\r': inputTooltip(mod, XK_Return, 0); break;
+			case '\t': inputTooltip(mod, XK_Tab, 0); break;
 			case '\b': case 127: inputTooltip(mod, XK_BackSpace, 0); break;
 			case ' ': inputTooltip(mod, XK_space, 0); break;
 			default:

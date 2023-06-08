@@ -10,4 +10,4 @@ short genSfx(short viewportwidth);
 /* generate sfx using constant width tracks */
 short genConstSfx(short trackw, short viewportwidth);
 
-void drawTracker(void);
+void drawTracker(bool patternlist);
