@@ -100,7 +100,6 @@ short genConstSfx(short trackw, short viewportwidth)
 static void setRowIntensity(bool mute, int i)
 {
 	if (mute
-	|| (s->loop[1] && (i < s->loop[0] || i > s->loop[1]))
 	|| (getPatternChainIndex(w->trackerfy) != getPatternChainIndex(i))
 	)
 		printf("\033[2m");

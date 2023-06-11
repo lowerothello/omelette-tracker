@@ -64,13 +64,6 @@ void serializeSong(FILE *fp, Song *cs)
 	json_object_object_add(jso, "plen", json_object_new_int(cs->plen));
 	json_object_object_add(jso, "rowhighlight", json_object_new_int(cs->rowhighlight));
 	json_object_object_add(jso, "songbpm", json_object_new_int(cs->songbpm));
-	json_object_object_add(jso, "songlen", json_object_new_int(cs->songlen));
-
-	struct json_object *array;
-	array = json_object_new_array_ext(3);
-	for (int i = 0; i < 3; i++)
-		json_object_array_add(array, json_object_new_int(cs->loop[i]));
-	json_object_object_add(jso, "loop", array);
 
 	json_object_object_add(jso, "master", serializeEffectChain(cs->master));
 	json_object_object_add(jso, "send", serializeEffectChain(cs->send));
@@ -105,10 +98,6 @@ Song *deserializeSong(FILE *fp)
 	ret->plen = json_object_get_int(json_object_object_get(jso, "plen"));
 	ret->rowhighlight = json_object_get_int(json_object_object_get(jso, "rowhighlight"));
 	ret->songbpm = json_object_get_int(json_object_object_get(jso, "songbpm"));
-	ret->songlen = json_object_get_int(json_object_object_get(jso, "songlen"));
-
-	for (int i = 0; i < 3; i++)
-		ret->loop[i] = json_object_get_int(json_object_array_get_idx(json_object_object_get(jso, "loop"), i));
 
 	ret->master = deserializeEffectChain(json_object_object_get(jso, "master"));
 	ret->send = deserializeEffectChain(json_object_object_get(jso, "send"));

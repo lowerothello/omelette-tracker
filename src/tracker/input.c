@@ -184,26 +184,26 @@ static void trackSlideRight(void)
 	trackRight();
 }
 
-static void swapLoopPoint(void)
-{
-	if (s->loop[1])
-	{
-		if      (w->trackerfy == s->loop[0]) w->trackerfy = s->loop[1];
-		else if (w->trackerfy == s->loop[1]) w->trackerfy = s->loop[0];
-		else if (w->trackerfy < (s->loop[0] + s->loop[1])>>1) w->trackerfy = s->loop[0];
-		else                                                  w->trackerfy = s->loop[1];
-	}
-	p->redraw = 1;
-}
-static void setLoopPoints(void)
-{
-	if (s->loop[0] == MIN(w->trackerfy, w->visualfy) && s->loop[1] == MAX(w->trackerfy, w->visualfy))
-		setLoopRange(0, 0);
-	else
-		setLoopRange(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy));
-
-	p->redraw = 1;
-}
+// static void swapLoopPoint(void)
+// {
+// 	if (s->loop[1])
+// 	{
+// 		if      (w->trackerfy == s->loop[0]) w->trackerfy = s->loop[1];
+// 		else if (w->trackerfy == s->loop[1]) w->trackerfy = s->loop[0];
+// 		else if (w->trackerfy < (s->loop[0] + s->loop[1])>>1) w->trackerfy = s->loop[0];
+// 		else                                                  w->trackerfy = s->loop[1];
+// 	}
+// 	p->redraw = 1;
+// }
+// static void setLoopPoints(void)
+// {
+// 	if (s->loop[0] == MIN(w->trackerfy, w->visualfy) && s->loop[1] == MAX(w->trackerfy, w->visualfy))
+// 		setLoopRange(0, 0);
+// 	else
+// 		setLoopRange(MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy));
+//
+// 	p->redraw = 1;
+// }
 
 static void addEmptyPattern(void)
 {
@@ -1045,13 +1045,13 @@ void initTrackerInput(void)
 					addTooltipBind("track"                 , 0                   , XK_c         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack             , NULL     );
 					addTooltipBind("macro"                 , 0                   , XK_m         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordMacro             , NULL     );
 					// addTooltipBind("row"                   , 0                   , XK_r         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL     );
-					addTooltipBind("loop"                  , 0                   , XK_semicolon , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL     );
+					// addTooltipBind("loop"                  , 0                   , XK_semicolon , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL     );
 					addTooltipBind("put"                   , 0                   , XK_p         , TT_DRAW        , (void(*)(void*))putPartPattern            , (void*)1 );
 					addTooltipBind("mix put"               , 0                   , XK_P         , 0              , (void(*)(void*))mixPutPartPattern         , (void*)0 );
 					addTooltipBind("toggle song follow"    , 0                   , XK_f         , TT_DRAW        , (void(*)(void*))toggleSongFollow          , NULL     );
 					addTooltipBind("clear cell"            , 0                   , XK_x         , TT_DRAW        , (void(*)(void*))clearCell                 , NULL     );
 					addTooltipBind("clear cell"            , 0                   , XK_BackSpace , 0              , (void(*)(void*))clearCell                 , NULL     );
-					addTooltipBind("jump loop points"      , 0                   , XK_percent   , TT_DRAW        , (void(*)(void*))swapLoopPoint             , NULL     );
+					// addTooltipBind("jump loop points"      , 0                   , XK_percent   , TT_DRAW        , (void(*)(void*))swapLoopPoint             , NULL     );
 					addTooltipBind("increment cell"        , ControlMask         , XK_A         , TT_DRAW        , trackerInc                                , (void*)1 );
 					addTooltipBind("decrement cell"        , ControlMask         , XK_X         , TT_DRAW        , trackerDec                                , (void*)1 );
 					addTooltipBind("octave increment cell" , ControlMask|Mod1Mask, XK_A         , TT_DRAW        , trackerInc                                , (void*)12);
@@ -1128,8 +1128,8 @@ void initTrackerInput(void)
 					addTooltipBind("delete"               , 0                   , XK_BackSpace   , 0      , (void(*)(void*))clearCell                    , NULL     );
 					addTooltipBind("yank"                 , 0                   , XK_y           , 0      , (void(*)(void*))yankCell                     , NULL     );
 					addTooltipBind("bounce rows to sample", 0                   , XK_b           , TT_DRAW, (void(*)(void*))bounceRows                   , NULL     );
-					addTooltipBind("jump loop points"     , 0                   , XK_percent     , 0      , (void(*)(void*))swapLoopPoint                , NULL     );
-					addTooltipBind("set loop range"       , 0                   , XK_semicolon   , TT_DRAW, (void(*)(void*))setLoopPoints                , NULL     );
+					// addTooltipBind("jump loop points"     , 0                   , XK_percent     , 0      , (void(*)(void*))swapLoopPoint                , NULL     );
+					// addTooltipBind("set loop range"       , 0                   , XK_semicolon   , TT_DRAW, (void(*)(void*))setLoopPoints                , NULL     );
 					break;
 				default: break;
 			} break;

@@ -7,7 +7,7 @@
 // #include "chord/row.c"
 #include "chord/track.c"
 #include "chord/macro.c"
-#include "chord/loop.c"
+// #include "chord/loop.c"
 #include "chord/yank.c"
 #include "chord/delete.c"
 #include "chord/graphic.c"

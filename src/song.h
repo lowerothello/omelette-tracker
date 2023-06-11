@@ -7,10 +7,6 @@ typedef struct Song
 	EffectChain *master;
 	EffectChain *send;
 
-	/* song pointers */
-	uint16_t songlen; /* how long the global variant is */
-	uint16_t loop[3]; /* loop range pointers, 3rd value is the staging loop end */
-
 	/* misc. state */
 	uint8_t plen;
 	uint8_t rowhighlight;

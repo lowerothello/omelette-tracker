@@ -185,12 +185,6 @@ bool processM_SEM(void)
 					clearTrackRuntime(cv); /* TODO: think this is unnecessary, cos it's implied by lookback */
 				}
 
-				if (p->s->loop[2])
-				{
-					p->s->loop[1] = p->s->loop[2];
-					p->s->loop[2] = 0;
-				}
-
 				p->w->playing = 0;
 				p->redraw = 1;
 				p->event[0].sem = M_SEM_DONE;
@@ -206,8 +200,7 @@ void cb_reloadFile(Event *e)
 	Song *cs = readSongJson(w->filepath);
 	if (cs) { freeSong(s); s = cs; }
 	p->s = s;
-	if (s->loop[1]) w->trackerfy = s->loop[0];
-	else            w->trackerfy = 0;
+	w->trackerfy = 0;
 	w->page = PAGE_VARIANT;
 	regenGlobalRowc(s);
 	p->redraw = 1;

@@ -347,24 +347,13 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 			{
 				/* walk the pointer and loop */
 				(*playfy)++;
-				if (p->s->loop[1] && *playfy > p->s->loop[1])
-				{
-					*playfy = p->s->loop[0];
-					if (p->s->loop[2])
-					{
-						p->s->loop[1] = p->s->loop[2];
-						p->s->loop[2] = 0;
-					}
-					lookback(fptr, spr, *playfy, cv);
-					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
-					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
-				} else if (!p->s->loop[1] && *playfy >= p->s->songlen)
-				{
-					*playfy = 0;
-					lookback(fptr, spr, *playfy, cv);
-					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
-					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
-				}
+				/* TODO: looping :3 */
+				// {
+				// 	*playfy = 0;
+				// 	lookback(fptr, spr, *playfy, cv);
+				// 	if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
+				// 	if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
+				// }
 
 				/* preprocess track */
 				r = getTrackRow(cv, *playfy, 0);
