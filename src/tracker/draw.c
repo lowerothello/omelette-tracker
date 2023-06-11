@@ -126,34 +126,37 @@ static void drawLineNumbers(short x, short minx, short maxx)
 	}
 }
 
+#define VISUAL_ON "\033[2;7m"
+#define VISUAL_OFF "\033[22;27m"
 static bool startVisual(uint8_t track, int i, int8_t fieldpointer)
 {
+	if (w->page != PAGE_VARIANT) return 0;
 	switch (w->mode)
 	{
 		case MODE_VISUAL:
-			if (track == MIN(w->visualtrack, w->track)
+			if (track == MIN(w->visualtrack, w->track+w->trackoffset)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
-					&& ((w->visualtrack == w->track && fieldpointer == vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)))
-					||  (w->visualtrack != w->track && fieldpointer == ((w->visualtrack <= w->track) ? w->visualfx : tfxToVfx(w->trackerfx)))))
+					&& ((w->visualtrack == w->track+w->trackoffset && fieldpointer == vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)))
+					||  (w->visualtrack != w->track+w->trackoffset && fieldpointer == ((w->visualtrack <= w->track+w->trackoffset) ? w->visualfx : tfxToVfx(w->trackerfx)))))
 			{
-					printf("\033[2;7m");
+					printf(VISUAL_ON);
 					return 1;
 			} break;
 		case MODE_VISUALREPLACE:
-			if (track == w->track && fieldpointer == tfxToVfx(w->trackerfx)
+			if (track == w->track+w->trackoffset && fieldpointer == tfxToVfx(w->trackerfx)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 			{
-				printf("\033[2;7m");
+				printf(VISUAL_ON);
 				return 1;
 			} break;
 		case MODE_VISUALLINE:
-			if (track == MIN(w->visualtrack, w->track) && fieldpointer == 0
+			if (track == MIN(w->visualtrack, w->track+w->trackoffset) && fieldpointer == 0
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 			{
-				printf("\033[2;7m");
+				printf(VISUAL_ON);
 				return 1;
 			} break;
 		default: break;
@@ -161,33 +164,57 @@ static bool startVisual(uint8_t track, int i, int8_t fieldpointer)
 }
 static bool stopVisual(uint8_t track, int i, int8_t fieldpointer)
 {
+	if (w->page != PAGE_VARIANT) return 0;
 	switch (w->mode)
 	{
 		case MODE_VISUAL:
-			if (track == MAX(w->visualtrack, w->track)
+			if (track == MAX(w->visualtrack, w->track+w->trackoffset)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset)
-					&& ((w->visualtrack == w->track && fieldpointer == vfxVmoMax(w->visualfx, tfxToVfx(w->trackerfx)))
-					||  (w->visualtrack != w->track && fieldpointer == ((w->visualtrack >= w->track) ? w->visualfx : tfxToVfx(w->trackerfx)))))
+					&& ((w->visualtrack == w->track+w->trackoffset && fieldpointer == vfxVmoMax(w->visualfx, tfxToVfx(w->trackerfx)))
+					||  (w->visualtrack != w->track+w->trackoffset && fieldpointer == ((w->visualtrack >= w->track+w->trackoffset) ? w->visualfx : tfxToVfx(w->trackerfx)))))
 			{
-				printf("\033[22;27m");
+				printf(VISUAL_OFF);
 				return 1;
 			} break;
 		case MODE_VISUALREPLACE:
-			if (track == w->track && fieldpointer == tfxToVfx(w->trackerfx)
+			if (track == w->track+w->trackoffset && fieldpointer == tfxToVfx(w->trackerfx)
 					&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 					&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 			{
-				printf("\033[22;27m");
+				printf(VISUAL_OFF);
 				return 1;
 			} break;
 		default: break;
 	} return 0;
 }
+static bool ifVisualOrder(uint8_t track, int i)
+{
+	if (w->page != PAGE_PATTERN) return 0;
+
+	switch (w->mode)
+	{
+		case MODE_VISUAL:
+		case MODE_VISUALREPLACE:
+		case MODE_VISUALLINE:
+			if ((
+				   track >= MIN(w->visualtrack, w->track+w->trackoffset)
+				&& track <= MAX(w->visualtrack, w->track+w->trackoffset)
+				) && (
+				   i >= MIN(w->visualfy/(s->plen+1), w->trackerfy/(s->plen+1)+w->fyoffset)
+				&& i <= MAX(w->visualfy/(s->plen+1), w->trackerfy/(s->plen+1)+w->fyoffset)
+				))
+					return 1;
+			break;
+		default: break;
+	}
+	return 0;
+}
 static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 {
-	if (track >= MIN(w->visualtrack, w->track)
-	 && track <= MAX(w->visualtrack, w->track))
+	if (w->page != PAGE_VARIANT) return 0;
+	if (track >= MIN(w->visualtrack, w->track+w->trackoffset)
+	 && track <= MAX(w->visualtrack, w->track+w->trackoffset))
 	{
 		switch (w->mode)
 		{
@@ -195,7 +222,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 				if (i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 				 && i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 				{
-					if (w->visualtrack == w->track)
+					if (w->visualtrack == w->track+w->trackoffset)
 					{
 						if (vfxVmoRangeIncl(
 								vfxVmoMin(w->visualfx, tfxToVfx(w->trackerfx)),
@@ -204,17 +231,17 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 							return 1;
 					} else
 					{
-						if (track > MIN(w->visualtrack, w->track)
-						 && track < MAX(w->visualtrack, w->track)) /* middle track */
+						if (track > MIN(w->visualtrack, w->track+w->trackoffset)
+						 && track < MAX(w->visualtrack, w->track+w->trackoffset)) /* middle track */
 							return 1;
-						else if (track == MIN(w->visualtrack, w->track)) /* first track */
+						else if (track == MIN(w->visualtrack, w->track+w->trackoffset)) /* first track */
 						{
 							if (vfxVmoRangeIncl(
 									w->visualtrack == track ? w->visualfx : tfxToVfx(w->trackerfx),
 									1 + s->track->v[track]->pattern->macroc,
 									fieldpointer))
 								return 1;
-						} else if (track == MAX(w->visualtrack, w->track)) /* last track */
+						} else if (track == MAX(w->visualtrack, w->track+w->trackoffset)) /* last track */
 						{
 							if (vfxVmoRangeIncl(
 									TRACKERFX_MIN,
@@ -225,7 +252,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 					}
 				} break;
 			case MODE_VISUALREPLACE:
-				if (track == w->track && fieldpointer == tfxToVfx(w->trackerfx)
+				if (track == w->track+w->trackoffset && fieldpointer == tfxToVfx(w->trackerfx)
 						&& i >= MIN(w->visualfy, w->trackerfy+w->fyoffset)
 						&& i <= MAX(w->visualfy, w->trackerfy+w->fyoffset))
 					return 1;
@@ -542,7 +569,7 @@ void drawTracker(bool patternlist)
 		short smallsfx = genConstSfx(3, offset);
 		short smallx, y, smallsx;
 		int j;
-		char smallbuffer[3];
+		char smallbuffer[4];
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
 			smallx = xpartition - TRACK_LINENO_COLS - offset + (i+1)*3 + smallsfx;
@@ -558,18 +585,19 @@ void drawTracker(bool patternlist)
 				if (y > TRACK_ROW)
 				{
 					if (s->track->v[i]->pattern->order[j] == PATTERN_VOID)
-						strcpy(smallbuffer, "--");
+						strcpy(smallbuffer, "-- ");
 					else
-						snprintf(smallbuffer, 3, "%02x", s->track->v[i]->pattern->order[j]);
+						snprintf(smallbuffer, 4, "%02x ", s->track->v[i]->pattern->order[j]);
 
 					if (s->track->v[i]->mute)
 						printf("\033[2m");
 					else if (w->playing && getPatternChainIndex(w->playfy) == j)
 						printf("\033[1m");
 
+					if (ifVisualOrder(i, j))
+						printf(VISUAL_ON);
 					printCulling(smallbuffer, smallx, y, 1, xpartition - TRACK_LINENO_COLS + 1);
-
-					printf("\033[22m");
+					printf(VISUAL_OFF);
 				}
 			}
 

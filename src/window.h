@@ -66,7 +66,7 @@ typedef struct UI
 	short          instrument; /* focused instrument, TODO: should be a uint8_t */
 	uint8_t        sample;     /* focused instrument sample slot */
 
-	uint32_t       trackerfy, visualfy;
+	int            trackerfy, visualfy;
 	int8_t         trackerfx, visualfx;
 	uint8_t        visualtrack;
 
