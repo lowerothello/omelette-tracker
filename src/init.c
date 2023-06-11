@@ -34,8 +34,10 @@ void cleanup(int ret)
 		}
 	}
 
+	VALGRIND_PRINTF("audio backend pre-close\n");
 	if (audio_api.clean)
 		audio_api.clean();
+	VALGRIND_PRINTF("audio backend post-close\n");
 
 	freeWaveform();
 
@@ -59,9 +61,8 @@ void init(int argc, char *argv[])
 
 	rampmax = samplerate / 1000 * RAMP_MS;
 
-	p = malloc(sizeof(PlaybackInfo));
+	p = calloc(1, sizeof(PlaybackInfo));
 	if (!p) { puts("out of memory"); common_cleanup(1); }
-	memset(p, 0, sizeof(PlaybackInfo));
 
 	w = allocWindow();
 	if (!w) { puts("out of memory"); common_cleanup(1); }

@@ -61,8 +61,7 @@ void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, flo
 #include "filter.c"
 #include "midi.c"
 
-#define MACRO_CALLBACK_MAX 11
-MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
+MacroAPI global_macro_callbacks[] =
 {
 	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
 	{ macroRowClear, macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL, sizeof(MacroRowState) },
@@ -74,6 +73,7 @@ MacroAPI global_macro_callbacks[MACRO_CALLBACK_MAX] =
 	{ NULL, NULL, macroInstSamplerPostTrig, macroInstSamplerTriggerNote, NULL, NULL, NULL, NULL, 0 },
 	{ NULL, NULL, macroMidiPostTrig, NULL, NULL, NULL, NULL, NULL, 0 },
 };
+const size_t MACRO_CALLBACK_MAX = sizeof(global_macro_callbacks) / sizeof(global_macro_callbacks[0]);
 
 /* not an enum so they can be accessed within macros */
 #define MF_STEREO      (1<<0) /* treat both nibbles as equally significant               */

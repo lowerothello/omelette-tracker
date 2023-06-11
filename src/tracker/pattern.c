@@ -23,7 +23,8 @@ static PatternChain *reallocPatternChain(PatternChain *pc)
 PatternChain *newPatternChain(void)
 {
 	PatternChain *ret = calloc(1, sizeof(PatternChain));
-	memset(ret->order, PATTERN_VOID, PATTERN_ORDER_LENGTH);
+	memset(ret->order, PATTERN_VOID, PATTERN_VOID);
+	memset(ret->i, PATTERN_VOID, PATTERN_VOID);
 	ret->macroc = 1;
 	return ret;
 }
@@ -168,7 +169,7 @@ int _prunePattern(PatternChain **pc, uint8_t index)
 		return -1;
 
 	/* fail if the pattern is still referenced */
-	for (int i = 0; i < PATTERN_ORDER_LENGTH; i++)
+	for (int i = 0; i < PATTERN_VOID; i++)
 		if ((*pc)->order[i] == index)
 			return -1;
 
@@ -208,19 +209,25 @@ uint8_t getFreePatternIndex(PatternChain *pc, uint8_t fallbackindex)
 			return i;
 	return fallbackindex;
 }
+
+/* NOTE: gonna put this here cos i always forget:
+ *       this function should give an empty pattern if applied to an unpopulated index,
+ *       however it should duplicate the index into a new slot for a populated index!
+ *       that's why it's written like it is, and why .fallbackindex is passed. */
 uint8_t dupFreePatternIndex(PatternChain *pc, uint8_t fallbackindex)
 {
 	for (int i = 0; i < PATTERN_VOID; i++)
+	{
 		if (pc->i[i] == PATTERN_VOID)
 		{
 			if (fallbackindex != PATTERN_VOID && patternPopulated(pc, fallbackindex))
-			{ /* duplicate the fallback index if it makes sense to do so */
+			{ /* duplicate the fallback index if it's populated */
 				pc->i[i] = pc->c;
 				pc->v[pc->c] = dupPattern(pc->v[pc->i[fallbackindex]], pc->v[pc->i[fallbackindex]]->length);
 				pc->c++;
 			} return i;
 		}
-	return fallbackindex;
+	} return fallbackindex;
 }
 
 /* push a hex digit into the playback order */
@@ -340,8 +347,8 @@ struct json_object *serializePatternChain(PatternChain *pc)
 	struct json_object *ret = json_object_new_object();
 	json_object_object_add(ret, "macroc", json_object_new_int(pc->macroc));
 
-	array = json_object_new_array_ext(PATTERN_ORDER_LENGTH);
-	for (i = 0; i < PATTERN_ORDER_LENGTH; i++)
+	array = json_object_new_array_ext(PATTERN_VOID);
+	for (i = 0; i < PATTERN_VOID; i++)
 		json_object_array_add(array, json_object_new_int(pc->order[i]));
 	json_object_object_add(ret, "order", array);
 
@@ -364,7 +371,7 @@ PatternChain *deserializePatternChain(struct json_object *jso)
 	PatternChain *ret = calloc(1, sizeof(PatternChain) + sizeof(Pattern*) * c);
 	ret->macroc = json_object_get_int(json_object_object_get(jso, "macroc"));
 
-	for (i = 0; i < PATTERN_ORDER_LENGTH; i++)
+	for (i = 0; i < PATTERN_VOID; i++)
 		ret->order[i] = json_object_get_int(json_object_array_get_idx(json_object_object_get(jso, "order"), i));
 
 	ret->c = c;

@@ -354,8 +354,9 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 			{
 				if (r && r->note != NOTE_VOID)
 				{
-					noteToString(r->note,   buffer);
-					if (cv->mute) printCulling(buffer, x, y, minx, maxx);
+					noteToString(r->note, buffer);
+					if (cv->mute)
+						printCulling(buffer, x, y, minx, maxx);
 					else
 					{
 						if (ifVisual(track, i, 0))
@@ -550,7 +551,7 @@ void drawTracker(bool patternlist)
 				smallsx = smallx;
 
 			drawTrackSmallHeader(i, smallx, 1, xpartition - TRACK_LINENO_COLS + 1);
-			for (j = 0; j < PATTERN_ORDER_LENGTH - 1; j++)
+			for (j = 0; j < PATTERN_VOID; j++)
 			{
 				y = w->centre - (w->trackerfy/(s->plen+1)) + j;
 				if (y >= ws.ws_row) break;

@@ -1,3 +1,10 @@
+#ifndef NO_MULTITHREADING
+bool preview_thread_running[PREVIEW_TRACKS];
+pthread_t preview_thread_ids[PREVIEW_TRACKS];
+bool thread_running[TRACK_MAX];
+pthread_t thread_ids[TRACK_MAX]; /* index 0 is the preview track */
+#endif
+
 void setBpm(uint16_t *spr, uint8_t newbpm)
 { *spr = samplerate * (60.f / newbpm) / p->s->rowhighlight; }
 
@@ -409,6 +416,30 @@ static void triggerFlash(PlaybackInfo *p)
 		}
 }
 
+void joinProcessThreads(void)
+{
+#ifndef NO_MULTITHREADING
+	if (!RUNNING_ON_VALGRIND)
+	{
+		/* join with the track threads */
+		for (uint8_t i = 1; i < p->s->track->c; i++)
+		{
+			if (thread_running[i])
+				pthread_join(thread_ids[i], NULL);
+			thread_running[i] = 0;
+		}
+
+		/* join with the prevew threads */
+		for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
+		{
+			if (preview_thread_running[i])
+				pthread_join(preview_thread_ids[i], NULL);
+			preview_thread_running[i] = 0;
+		}
+	}
+#endif
+}
+
 void processOutput(uint32_t nfptr)
 {
 	Track *cv;
@@ -434,33 +465,26 @@ void processOutput(uint32_t nfptr)
 	/*                        MULTITHREADING                         */
 	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
 	/* honestly half this file probably isn't strictly realtime-safe */
-#ifndef NO_MULTITHREADING
-	bool preview_thread_failed[PREVIEW_TRACKS];
-	memset(preview_thread_failed, 1, PREVIEW_TRACKS);
-	bool thread_failed[p->s->track->c-1];
-	memset(thread_failed, 1, p->s->track->c-1);
-	pthread_t preview_thread_ids[PREVIEW_TRACKS];
-	pthread_t thread_ids[p->s->track->c-1]; /* index 0 is the preview track */
-#endif
 
 	/* handle the preview tracks first */
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
+		preview_thread_running[i] = 0;
 		if (p->w->previewtrack[i]->r.note != NOTE_VOID
 				&& p->w->previewtrack[i]->r.inst != INST_VOID)
 		{
 #ifdef NO_MULTITHREADING
 			previewTrackThreadRoutine(p->w->previewtrack[i]);
 #else
-			preview_thread_failed[i] = 0; /* set low if the thread needs to be joined with */
 			if (RUNNING_ON_VALGRIND)
 				previewTrackThreadRoutine(p->w->previewtrack[i]);
 			else
+			{
 				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, p->w->previewtrack[i]))
-				{
-					preview_thread_failed[i] = 1;
 					previewTrackThreadRoutine(p->w->previewtrack[i]);
-				}
+				else
+					preview_thread_running[i] = 1;
+			}
 #endif
 		}
 	}
@@ -468,19 +492,20 @@ void processOutput(uint32_t nfptr)
 	/* spawn threads for each track except for track 0 */
 	for (uint8_t i = 1; i < p->s->track->c; i++)
 	{
+		thread_running[i] = 0;
 		cv = p->s->track->v[i];
 #ifdef NO_MULTITHREADING
 		trackThreadRoutine(cv);
 #else
-		thread_failed[i-1] = 0;
 		if (RUNNING_ON_VALGRIND)
 			trackThreadRoutine(cv);
 		else
-			if (audio_api.realtimeThread(&thread_ids[i-1], trackThreadRoutine, cv))
-			{
-				thread_failed[i-1] = 1;
+		{
+			if (audio_api.realtimeThread(&thread_ids[i], trackThreadRoutine, cv))
 				trackThreadRoutine(cv);
-			}
+			else
+				thread_running[i] = 1;
+		}
 #endif
 	}
 
@@ -491,20 +516,7 @@ void processOutput(uint32_t nfptr)
 	if (p->s->track->c)
 		_trackThreadRoutine(p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
 
-#ifndef NO_MULTITHREADING
-	if (!RUNNING_ON_VALGRIND)
-	{
-		/* join with the track threads */
-		for (uint8_t i = 1; i < p->s->track->c; i++)
-			if (!thread_failed[i-1])
-				pthread_join(thread_ids[i-1], NULL);
-
-		/* join with the prevew threads */
-		for (uint8_t i = 1; i < p->s->track->c; i++)
-			if (!preview_thread_failed[i])
-				pthread_join(preview_thread_ids[i], NULL);
-	}
-#endif
+	joinProcessThreads();
 
 	/* apply the new sprp and playfy track0 calculated */
 	if (c0playfy != p->w->playfy)

@@ -34,14 +34,13 @@ typedef struct Pattern
 } Pattern;
 
 #define PATTERN_VOID 255
-#define PATTERN_ORDER_LENGTH 256
 typedef struct PatternChain
 {
 	uint8_t  macroc; /* TODO: should be addressable from the settings page */
-	uint8_t  order[PATTERN_ORDER_LENGTH]; /* pattern playback order        */
-	uint8_t  c;                           /* pattern data length           */
-	uint8_t  i[PATTERN_VOID];             /* pattern data arrangement      */
-	Pattern *v[];                         /* pattern data                  */
+	uint8_t  order[PATTERN_VOID]; /* pattern playback order        */
+	uint8_t  c;                   /* pattern data length           */
+	uint8_t  i[PATTERN_VOID];     /* pattern data arrangement      */
+	Pattern *v[];                 /* pattern data                  */
 } PatternChain;
 
 PatternChain *newPatternChain(void);
@@ -71,6 +70,7 @@ uint8_t dupFreePatternIndex(PatternChain*, uint8_t fallbackindex);
 /* push a hex digit into the playback order */
 void pushPatternOrder(PatternChain**, uint8_t orderindex, char value);
 /* set the playback order directly */
+int _setPatternOrder(PatternChain**, uint8_t orderindex, uint8_t index);
 void setPatternOrder(PatternChain**, uint8_t orderindex, uint8_t index);
 
 struct json_object *serializeMacro(Macro*);

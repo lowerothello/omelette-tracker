@@ -91,6 +91,10 @@ void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 	// 	}
 	// }
 }
+void yankPartPatternOrder(short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	// p->redraw = 1;
+}
 
 void putPartPattern(bool step) /* TODO: count */
 {
@@ -204,6 +208,20 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 	}
 	p->redraw = 1;
 }
+void delPartPatternOrder(short y1, short y2, uint8_t c1, uint8_t c2)
+{
+	uint8_t i, j;
+
+	for (i = c1; i <= c2; i++)
+	{
+		if (i >= s->track->c) break;
+
+		for (j = y1; j <= y2; j++)
+			_setPatternOrder(&s->track->v[i]->pattern, j, PATTERN_VOID); /* TODO: can't be atomic cos it would overflow the queue pretty badly */
+	}
+	p->redraw = 1;
+}
+
 /* block inc/dec */
 void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2, bool noteonly)
 {
@@ -239,7 +257,8 @@ void addPartPatternOrder(signed char value, short y1, short y2, uint8_t c1, uint
 		pc = s->track->v[i]->pattern;
 
 		for (j = y1; j <= y2; j++)
-			setPatternOrder(&s->track->v[i]->pattern, j, pc->order[j] + value);
+			/* can't use pc as the first arg to the below call cos it'd be a stale pointer by the time it's followed */
+			_setPatternOrder(&s->track->v[i]->pattern, j, pc->order[j] + value); /* TODO: can't be atomic cos it would overflow the queue pretty badly */
 	}
 	p->redraw = 1;
 }

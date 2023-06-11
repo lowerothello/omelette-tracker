@@ -209,7 +209,9 @@ static void addEmptyPattern(void)
 {
 	Track *cv = s->track->v[w->track];
 	uint8_t pindex = getPatternChainIndex(w->trackerfy);
-	setPatternOrder(&cv->pattern, pindex, dupFreePatternIndex(cv->pattern, cv->pattern->i[cv->pattern->order[pindex]]));
+	uint8_t freefallbackindex = cv->pattern->order[pindex];
+	uint8_t freeindex = dupFreePatternIndex(cv->pattern, freefallbackindex);
+	setPatternOrder(&cv->pattern, pindex, freeindex);
 	regenGlobalRowc(s);
 	p->redraw = 1;
 }
@@ -306,11 +308,12 @@ static void trackerAdd(signed char value)
 	uint8_t mintrack, maxtrack;
 	visualRange(&minx, &maxx, &miny, &maxy, &mintrack, &maxtrack);
 
-	if (w->trackerfx < 0)
-		addPartPatternOrder(value, miny, maxy, mintrack, maxtrack);
-	else
-		addPartPattern(value, minx, maxx, miny, maxy, mintrack, maxtrack, 0);
-
+	switch (w->page)
+	{
+		case PAGE_PATTERN: addPartPatternOrder(value, miny/(s->plen+1), maxy/(s->plen+1), mintrack, maxtrack); break;
+		case PAGE_VARIANT: addPartPattern(value, minx, maxx, miny, maxy, mintrack, maxtrack, 0); break;
+		default: break;
+	}
 	p->redraw = 1;
 }
 
@@ -324,14 +327,25 @@ static void clearCell(void)
 	uint8_t mintrack, maxtrack;
 	visualRange(&minx, &maxx, &miny, &maxy, &mintrack, &maxtrack);
 
-	if (mintrack == maxtrack && !minx && !maxx) /* edge case to clear both the note and inst columns */
+	switch (w->page)
 	{
-		yankPartPattern(0, 1, miny, maxy, mintrack, maxtrack);
-		delPartPattern (0, 1, miny, maxy, mintrack, maxtrack);
-	} else
-	{
-		yankPartPattern(minx, maxx, miny, maxy, mintrack, maxtrack);
-		delPartPattern (minx, maxx, miny, maxy, mintrack, maxtrack);
+		case PAGE_PATTERN:
+			yankPartPatternOrder(miny/(s->plen+1), maxy/(s->plen+1), mintrack, maxtrack);
+			delPartPatternOrder (miny/(s->plen+1), maxy/(s->plen+1), mintrack, maxtrack);
+			break;
+		case PAGE_VARIANT:
+			// addPartPattern(value, minx, maxx, miny, maxy, mintrack, maxtrack, 0);
+			if (mintrack == maxtrack && !minx && !maxx) /* edge case to clear both the note and inst columns */
+			{
+				yankPartPattern(0, 1, miny, maxy, mintrack, maxtrack);
+				delPartPattern (0, 1, miny, maxy, mintrack, maxtrack);
+			} else
+			{
+				yankPartPattern(minx, maxx, miny, maxy, mintrack, maxtrack);
+				delPartPattern (minx, maxx, miny, maxy, mintrack, maxtrack);
+			}
+			break;
+		default: break;
 	}
 
 	switch (w->mode) /* leave the mode if necessary, should be done with an arg */
@@ -382,14 +396,16 @@ static void pushPatternOrderWrap(void *arg)
 {
 	Track *cv = s->track->v[w->track];
 	short i;
+	uint8_t end;
 	switch (w->mode)
 	{
 		case MODE_VISUALREPLACE:
-			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+			end = MAX(w->trackerfy, w->visualfy)/(s->plen+1);
+			for (i = MIN(w->trackerfy, w->visualfy)/(s->plen+1); i <= end; i++)
 				pushPatternOrder(&cv->pattern, i, (size_t)arg);
 			break;
 		default:
-			pushPatternOrder(&cv->pattern, w->trackerfy, (size_t)arg);
+			pushPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), (size_t)arg);
 			break;
 	}
 	regenGlobalRowc(s);
@@ -399,14 +415,16 @@ static void setPatternOrderWrap(void *arg)
 {
 	Track *cv = s->track->v[w->track];
 	short i;
+	uint8_t end;
 	switch (w->mode)
 	{
 		case MODE_VISUALREPLACE:
-			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
+			end = MAX(w->trackerfy, w->visualfy)/(s->plen+1);
+			for (i = MIN(w->trackerfy, w->visualfy)/(s->plen+1); i <= end; i++)
 				setPatternOrder(&cv->pattern, i, (size_t)arg);
 			break;
 		default:
-			setPatternOrder(&cv->pattern, w->trackerfy, (size_t)arg);
+			setPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), (size_t)arg);
 			break;
 	}
 	regenGlobalRowc(s);
@@ -585,26 +603,31 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 {
 	Row *r = getTrackRow(cv, w->trackerfy, 1);
 	short macro;
-	switch (w->trackerfx)
+	switch (w->page)
 	{
-		case -1:
+		case PAGE_PATTERN:
 			if (!w->playing)
 			{
 				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]-16);
 				else                 setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]-1);
 			} break;
-		case 0: r->note--; break;
-		case 1:
-			if (w->fieldpointer) r->inst-=16;
-			else                 r->inst--;
-			break;
-		default:
-			macro = (w->trackerfx - 2)>>1;
-			if (w->trackerfx % 2 == 1)
+		case PAGE_VARIANT:
+			switch (w->trackerfx)
 			{
-				if (w->fieldpointer) r->macro[macro].v-=16;
-				else                 r->macro[macro].v--;
+				case 0: r->note--; break;
+				case 1:
+					if (w->fieldpointer) r->inst-=16;
+					else                 r->inst--;
+					break;
+				default:
+					macro = (w->trackerfx - 2)>>1;
+					if (w->trackerfx % 2 == 1)
+					{
+						if (w->fieldpointer) r->macro[macro].v-=16;
+						else                 r->macro[macro].v--;
+					} break;
 			} break;
+		default: break;
 	}
 	regenGlobalRowc(s);
 	p->redraw = 1;
@@ -613,26 +636,31 @@ static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 {
 	Row *r = getTrackRow(cv, w->trackerfy, 1);
 	short macro;
-	switch (w->trackerfx)
+	switch (w->page)
 	{
-		case -1:
+		case PAGE_PATTERN:
 			if (!w->playing)
 			{
 				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]+16);
 				else                 setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]+1);
 			} break;
-		case 0: r->note++; break;
-		case 1:
-			if (w->fieldpointer) r->inst+=16;
-			else                 r->inst++;
-			break;
-		default:
-			macro = (w->trackerfx - 2)>>1;
-			if (w->trackerfx % 2 == 1)
+		case PAGE_VARIANT:
+			switch (w->trackerfx)
 			{
-				if (w->fieldpointer) r->macro[macro].v+=16;
-				else                 r->macro[macro].v++;
+				case 0: r->note++; break;
+				case 1:
+					if (w->fieldpointer) r->inst+=16;
+					else                 r->inst++;
+					break;
+				default:
+					macro = (w->trackerfx - 2)>>1;
+					if (w->trackerfx % 2 == 1)
+					{
+						if (w->fieldpointer) r->macro[macro].v+=16;
+						else                 r->macro[macro].v++;
+					} break;
 			} break;
+		default: break;
 	}
 	regenGlobalRowc(s);
 	p->redraw = 1;
@@ -842,7 +870,6 @@ trackerInputEffectTrack:
 										else       w->fieldpointer = 1;
 									} break;
 								case PAGE_PATTERN:
-									DEBUG=x-tx;
 									w->fieldpointer = (x-tx < 4);
 									break;
 								default: break;
@@ -1041,32 +1068,37 @@ void initTrackerInput(void)
 					addTooltipBind("octave increment cell", ControlMask|Mod1Mask, XK_A        , TT_DRAW, trackerInc                      , (void*)12);
 					addTooltipBind("octave decrement cell", ControlMask|Mod1Mask, XK_X        , TT_DRAW, trackerDec                      , (void*)12);
 					addTooltipBind("clear cell"           , 0                   , XK_BackSpace, 0      , (void(*)(void*))clearCell       , NULL     );
-					switch (w->trackerfx)
+					switch (w->page)
 					{
-						case -1: /* vtrig */
+						case PAGE_VARIANT:
+							switch (w->trackerfx)
+							{
+								case 0: /* note */
+									addNotePressBinds("push cell", 0, w->octave, (void(*)(void*))pressNote);
+									addNoteReleaseBinds("release preview", 0, w->octave, (void(*)(void*))releaseNote);
+									addDecimalBinds("set octave", 0, (void(*)(void*))setNoteOctave);
+									break;
+								case 1: /* inst */
+									addHexBinds("push cell", 0, pushInst);
+									addTooltipBind("impose state on cell", 0, XK_space, 0, (void(*)(void*))imposeInst, NULL);
+									break;
+								default: /* macro */
+									if (!(w->trackerfx&1)) /* macroc */
+										addMacroBinds("push cell", 0, pushMacroc);
+									else                   /* macrov */
+									{
+										addHexBinds("push cell", 0, pushMacrov);
+										addTooltipBind("push lfo token", 0, XK_asciitilde, 0, pushMacrov, (void*)'~');
+										addTooltipBind("push inc token", 0, XK_plus      , 0, pushMacrov, (void*)'+');
+										addTooltipBind("push dec token", 0, XK_minus     , 0, pushMacrov, (void*)'-');
+										addTooltipBind("push rng token", 0, XK_percent   , 0, pushMacrov, (void*)'%');
+									} break;
+							} break;
+						case PAGE_PATTERN:
 							addHexBinds("push cell", 0, pushPatternOrderWrap);
 							addTooltipBind("stop cell", 0, XK_space, 0, setPatternOrderWrap, (void*)PATTERN_VOID);
 							break;
-						case 0: /* note */
-							addNotePressBinds("push cell", 0, w->octave, (void(*)(void*))pressNote);
-							addNoteReleaseBinds("release preview", 0, w->octave, (void(*)(void*))releaseNote);
-							addDecimalBinds("set octave", 0, (void(*)(void*))setNoteOctave);
-							break;
-						case 1: /* inst */
-							addHexBinds("push cell", 0, pushInst);
-							addTooltipBind("impose state on cell", 0, XK_space, 0, (void(*)(void*))imposeInst, NULL);
-							break;
-						default: /* macro */
-							if (!(w->trackerfx&1)) /* macroc */
-								addMacroBinds("push cell", 0, pushMacroc);
-							else                   /* macrov */
-							{
-								addHexBinds("push cell", 0, pushMacrov);
-								addTooltipBind("push lfo token", 0, XK_asciitilde, 0, pushMacrov, (void*)'~');
-								addTooltipBind("push inc token", 0, XK_plus      , 0, pushMacrov, (void*)'+');
-								addTooltipBind("push dec token", 0, XK_minus     , 0, pushMacrov, (void*)'-');
-								addTooltipBind("push rng token", 0, XK_percent   , 0, pushMacrov, (void*)'%');
-							} break;
+						default: break;
 					} break;
 				case MODE_VISUAL:
 				case MODE_VISUALLINE:

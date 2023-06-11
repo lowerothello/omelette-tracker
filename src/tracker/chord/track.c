@@ -8,6 +8,7 @@ void chordClearTrack(void)
 void chordAddTrack(void)
 {
 	addTrack(s, w->track+1, MAX(1, w->count), NULL);
+	/* aaa */
 	w->track = MIN(TRACK_MAX-1, w->track + MAX(1, w->count)); /* atomically safe */
 }
 void chordPasteTrack(void)

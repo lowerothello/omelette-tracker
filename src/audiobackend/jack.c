@@ -76,10 +76,15 @@ static void startJackAudio(void)
 
 static void cleanJackAudio(void)
 {
+	VALGRIND_PRINTF("cleanJackAudio(%p)\n", jackState.client);
 	if (!jackState.client) return;
 
+	VALGRIND_PRINTF("jack_deactivate\n");
 	jack_deactivate(jackState.client);
+	VALGRIND_PRINTF("jack_client_close\n");
 	jack_client_close(jackState.client);
+	jackState.client = NULL;
+	VALGRIND_PRINTF("cleanJackAudio done\n");
 }
 
 static int createJackRealtimeThread(pthread_t *thread, void *(*start_routine)(void*), void *arg)

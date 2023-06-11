@@ -225,7 +225,7 @@ Row *getTrackRow(Track *cv, uint16_t index, bool createifmissing)
 	{
 		if (createifmissing)
 		{
-			_setPatternOrder(&cv->pattern, pindex, dupFreePatternIndex(cv->pattern, cv->pattern->i[cv->pattern->order[pindex]]));
+			_setPatternOrder(&cv->pattern, pindex, dupFreePatternIndex(cv->pattern, cv->pattern->order[pindex]));
 			regenGlobalRowc(s);
 		} else return NULL;
 	}
@@ -237,7 +237,7 @@ void regenGlobalRowc(Song *cs)
 { /* TODO: atomicity */
 	uint16_t songlen = 0;
 	for (uint8_t i = 0; i < cs->track->c; i++)
-		for (int j = PATTERN_ORDER_LENGTH; j >= 0; j--)
+		for (int j = PATTERN_VOID; j >= 0; j--)
 			if (cs->track->v[i]->pattern->order[j] != PATTERN_VOID)
 				songlen = MAX(songlen, (j+1)*getPatternLength());
 	cs->songlen = songlen;

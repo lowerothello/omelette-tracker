@@ -9,10 +9,11 @@ short vfxVmoMax(short x1, short x2);
 bool vfxVmoRangeIncl(short min, short max, short x);
 
 void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
-// void yankPartPatternIndex(short y1, short y2, uint8_t c1, uint8_t c2); /* TODO: */
+// void yankPartPatternOrder(short y1, short y2, uint8_t c1, uint8_t c2); /* TODO: */
 void putPartPattern(bool step); /* TODO: count */
 void mixPutPartPattern(bool step); /* TODO: count */
 void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
+void delPartPatternOrder(short y1, short y2, uint8_t c1, uint8_t c2);
 void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2, bool noteonly);
 void addPartPatternOrder(signed char value, short y1, short y2, uint8_t c1, uint8_t c2);
 void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);
