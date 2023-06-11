@@ -95,8 +95,9 @@ static void pluginBrowserCommit(BrowserState *b)
 	w->page = w->oldpage;
 	uint32_t i = b->cursor;
 	EffectType type = getPluginIndexEffectType(&i);
-	if (w->pluginbrowserbefore) addEffect(&s->track->v[w->track]->effect, type, i, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor));
-	else                        addEffect(&s->track->v[w->track]->effect, type, i, MIN(getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) + 1, s->track->v[w->track]->effect->c));
+	EffectChain *ec = s->track->v[w->track]->effect;
+	if (w->pluginbrowserbefore) addEffect(&ec, type, i, getEffectFromCursor(w->track, ec, cc.cursor));
+	else                        addEffect(&ec, type, i, MIN(getEffectFromCursor(w->track, ec, cc.cursor) + 1, ec->c));
 }
 
 static void pluginBrowserMouse(enum Button button, int x, int y)

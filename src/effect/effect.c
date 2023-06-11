@@ -219,11 +219,13 @@ void delEffect(EffectChain **chain, uint8_t index)
 size_t getCursorFromEffectTrack(uint8_t track)
 {
 	size_t ret = 0;
+	EffectChain *ec;
 	for (uint8_t i = 0; i < track; i++)
 	{
-		if (s->track->v[i]->effect->c)
-			for (uint8_t j = 0; j < s->track->v[i]->effect->c; j++)
-				ret += getEffectControlCount(&s->track->v[i]->effect->v[j]);
+		ec = s->track->v[i]->effect;
+		if (ec->c)
+			for (uint8_t j = 0; j < ec->c; j++)
+				ret += getEffectControlCount(&ec->v[j]);
 		else
 			ret++;
 		ret += 2;

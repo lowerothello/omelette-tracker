@@ -115,20 +115,20 @@ void macroStateReset(MacroState *s)
 	s->rand = -1;
 	s->target = -1;
 }
-void macroStateSet(MacroState *s, Macro macro)
+void macroStateSet(MacroState *s, Macro *m)
 {
 	uint8_t hold;
 	short oversample;
-	if (macro.t) /* special tokens are present */
+	if (m->t) /* special tokens are present */
 	{
-		switch (macro.t>>4)
+		switch (m->t>>4)
 		{
 			case 1: /* ~ */
 				s->lfo_stereo = 0;
-				s->lfospeed = macro.v&15;
+				s->lfospeed = m->v&15;
 				break;
 			case 2: /* + */
-				hold = macro.v&15;
+				hold = m->v&15;
 				if (!hold) hold = 1;
 				hold *= 0x10;
 
@@ -138,7 +138,7 @@ void macroStateSet(MacroState *s, Macro macro)
 				s->rand = oversample;
 				break;
 			case 3: /* - */
-				hold = macro.v&15;
+				hold = m->v&15;
 				if (!hold) hold = 1;
 				hold *= 0x10;
 
@@ -148,11 +148,11 @@ void macroStateSet(MacroState *s, Macro macro)
 				s->rand = oversample;
 				break;
 			case 4: /* % */
-				hold = macro.v&15;
+				hold = m->v&15;
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(macro.c))
+				if (MACRO_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -166,14 +166,14 @@ void macroStateSet(MacroState *s, Macro macro)
 				} break;
 		}
 
-		switch (macro.t&15)
+		switch (m->t&15)
 		{
 			case 1: /* ~ */
 				s->lfo_stereo = 1;
-				s->lfospeed = macro.v>>4;
+				s->lfospeed = m->v>>4;
 				break;
 			case 2: /* + */
-				hold = macro.v>>4;
+				hold = m->v>>4;
 				if (!hold) hold = 1;
 
 				oversample = (short)s->rand + (short)hold;
@@ -182,7 +182,7 @@ void macroStateSet(MacroState *s, Macro macro)
 				s->rand = oversample;
 				break;
 			case 3: /* - */
-				hold = macro.v>>4;
+				hold = m->v>>4;
 				if (!hold) hold = 1;
 
 				oversample = (short)s->rand - (short)hold;
@@ -191,11 +191,11 @@ void macroStateSet(MacroState *s, Macro macro)
 				s->rand = oversample;
 				break;
 			case 4: /* % */
-				hold = macro.v>>4;
+				hold = m->v>>4;
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(macro.c))
+				if (MACRO_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -209,27 +209,27 @@ void macroStateSet(MacroState *s, Macro macro)
 		}
 	} else
 	{
-		s->base = macro.v;
-		s->rand = macro.v;
+		s->base = m->v;
+		s->rand = m->v;
 	}
 }
-void macroStateSmooth(MacroState *s, Macro macro)
+void macroStateSmooth(MacroState *s, Macro *m)
 {
 	uint8_t hold;
 	short oversample;
-	if (macro.t) /* special tokens are present */
+	if (m->t) /* special tokens are present */
 	{
-		switch (macro.t>>4)
+		switch (m->t>>4)
 		{
 			case 1: /* ~ */
 				s->lfo_stereo  = 0;
 				s->target_rand = 1;
 				s->target = s->rand; /* mark as smooth */
-				s->lfospeed = macro.v&15;
+				s->lfospeed = m->v&15;
 				break;
 			case 2: /* + */
 				s->target_rand = 1;
-				hold = macro.v&15;
+				hold = m->v&15;
 				if (!hold) hold = 1;
 				hold *= 0x10;
 
@@ -240,7 +240,7 @@ void macroStateSmooth(MacroState *s, Macro macro)
 				break;
 			case 3: /* - */
 				s->target_rand = 1;
-				hold = macro.v&15;
+				hold = m->v&15;
 				if (!hold) hold = 1;
 				hold *= 0x10;
 
@@ -251,11 +251,11 @@ void macroStateSmooth(MacroState *s, Macro macro)
 				break;
 			case 4: /* % */
 				s->target_rand = 1;
-				hold = macro.v&15;
+				hold = m->v&15;
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(macro.c))
+				if (MACRO_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -269,17 +269,17 @@ void macroStateSmooth(MacroState *s, Macro macro)
 				} break;
 		}
 
-		switch (macro.t&15)
+		switch (m->t&15)
 		{
 			case 1: /* ~ */
 				s->lfo_stereo  = 1;
 				s->target_rand = 1;
 				s->target = s->rand; /* mark as smooth */
-				s->lfospeed = macro.v>>4;
+				s->lfospeed = m->v>>4;
 				break;
 			case 2: /* + */
 				s->target_rand = 1;
-				hold = macro.v>>4;
+				hold = m->v>>4;
 				if (!hold) hold = 1;
 
 				oversample = (short)s->rand + (short)hold;
@@ -289,7 +289,7 @@ void macroStateSmooth(MacroState *s, Macro macro)
 				break;
 			case 3: /* - */
 				s->target_rand = 1;
-				hold = macro.v>>4;
+				hold = m->v>>4;
 				if (!hold) hold = 1;
 
 				oversample = (short)s->rand - (short)hold;
@@ -299,11 +299,11 @@ void macroStateSmooth(MacroState *s, Macro macro)
 				break;
 			case 4: /* % */
 				s->target_rand = 1;
-				hold = macro.v>>4;
+				hold = m->v>>4;
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(macro.c))
+				if (MACRO_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -316,7 +316,7 @@ void macroStateSmooth(MacroState *s, Macro macro)
 				} break;
 		}
 	} else
-		s->target = macro.v;
+		s->target = m->v;
 }
 void macroStateApply(MacroState *s)
 {

@@ -24,8 +24,8 @@ enum MacroColour
 };
 
 void macroStateReset(MacroState *s);
-void macroStateSet(MacroState *s, Macro macro);
-void macroStateSmooth(MacroState *s, Macro macro);
+void macroStateSet(MacroState *s, Macro *m);
+void macroStateSmooth(MacroState *s, Macro *m);
 void macroStateApply(MacroState *s);
 float macroStateGetMono(MacroState *s, float rp);
 void macroStateGetStereo(MacroState *s, float rp, float *l, float *r);

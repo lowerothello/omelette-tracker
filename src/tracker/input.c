@@ -441,11 +441,11 @@ static bool setNote(size_t note, Row **r)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				*r = getTrackRow(cv, i, 1);
+				*r = getTrackRow(cv->pattern, i, 1);
 				(*r)->note = note;
 			} step = 0; break;
 		default:
-			*r = getTrackRow(cv, w->trackerfy, 1);
+			*r = getTrackRow(cv->pattern, w->trackerfy, 1);
 			(*r)->note = note;
 			(*r)->inst = w->instrument;
 			step = 1; break;
@@ -478,12 +478,12 @@ static void setNoteOctave(size_t octave)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i, 0);
+				r = getTrackRow(cv->pattern, i, 0);
 				if (r)
 					r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			} step = 0; break;
 		default:
-			r = getTrackRow(cv, w->trackerfy, 0);
+			r = getTrackRow(cv->pattern, w->trackerfy, 0);
 			if (r)
 				r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			step = 1; break;
@@ -505,11 +505,11 @@ static void imposeInst(void)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i, 1);
+				r = getTrackRow(cv->pattern, i, 1);
 				r->inst = w->instrument;
 			} break;
 		default:
-			r = getTrackRow(cv, w->trackerfy, 1);
+			r = getTrackRow(cv->pattern, w->trackerfy, 1);
 			r->inst = w->instrument;
 			break;
 	}
@@ -526,13 +526,13 @@ static void pushInst(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i, 1);
+				r = getTrackRow(cv->pattern, i, 1);
 				if (r->inst == INST_VOID) r->inst++;
 				r->inst <<= 4;
 				r->inst += (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(cv, w->trackerfy, 1);
+			r = getTrackRow(cv->pattern, w->trackerfy, 1);
 			if (r->inst == INST_VOID) r->inst++;
 			r->inst <<= 4;
 			r->inst += (size_t)arg;
@@ -546,19 +546,19 @@ static void pushInst(void *arg)
 
 static void _pushMacrov(Row *r, char nibble)
 {
-	short macro = (w->trackerfx - 2)>>1;
-	r->macro[macro].v <<= 4;
-	r->macro[macro].t <<= 4;
+	Macro *m = &r->macro[(w->trackerfx - 2)>>1];
+	m->v <<= 4;
+	m->t <<= 4;
 	switch (nibble)
 	{
 		/* TODO: check validity before pushing tokens */
 		/* TODO: enum or smth for these constants     */
-		case '~': r->macro[macro].t += 1; break;
-		case '+': r->macro[macro].t += 2; break;
-		case '-': r->macro[macro].t += 3; break;
-		case '%': r->macro[macro].t += 4; break;
+		case '~': m->t += 1; break;
+		case '+': m->t += 2; break;
+		case '-': m->t += 3; break;
+		case '%': m->t += 4; break;
 
-		default: r->macro[macro].v += nibble; break;
+		default: m->v += nibble; break;
 	}
 }
 static void pushMacrov(void *arg)
@@ -568,10 +568,10 @@ static void pushMacrov(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (short i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				_pushMacrov(getTrackRow(cv, i, 1), (size_t)arg);
+				_pushMacrov(getTrackRow(cv->pattern, i, 1), (size_t)arg);
 			break;
 		default:
-			_pushMacrov(getTrackRow(cv, w->trackerfy, 1), (size_t)arg);
+			_pushMacrov(getTrackRow(cv->pattern, w->trackerfy, 1), (size_t)arg);
 			break;
 	}
 	p->redraw = 1;
@@ -587,11 +587,11 @@ static void pushMacroc(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv, i, 1);
+				r = getTrackRow(cv->pattern, i, 1);
 				r->macro[macro].c = (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(cv, w->trackerfy, 1);
+			r = getTrackRow(cv->pattern, w->trackerfy, 1);
 			r->macro[macro].c = (size_t)arg;
 			break;
 	}
@@ -601,7 +601,7 @@ static void pushMacroc(void *arg)
 
 static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(cv, w->trackerfy, 1);
+	Row *r = getTrackRow(cv->pattern, w->trackerfy, 1);
 	short macro;
 	switch (w->page)
 	{
@@ -634,7 +634,7 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 }
 static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(cv, w->trackerfy, 1);
+	Row *r = getTrackRow(cv->pattern, w->trackerfy, 1);
 	short macro;
 	switch (w->page)
 	{
@@ -703,7 +703,6 @@ static void trackerMouse(enum Button button, int x, int y)
 	if (rulerMouse(button, x, y)) return;
 
 	int i, j;
-	Track *cv = s->track->v[w->track];
 	short oldtrackerfx = w->trackerfx;
 	uint8_t oldtrack = w->track;
 
@@ -785,8 +784,8 @@ trackerInputEffectTrack:
 							w->follow = 0;
 							if (w->mode == MODE_MOUSEADJUST)
 							{
-								if      (x > w->mousex) { trackerAdjustRight(cv); }
-								else if (x < w->mousex) { trackerAdjustLeft (cv); }
+								if      (x > w->mousex) { trackerAdjustRight(s->track->v[w->track]); }
+								else if (x < w->mousex) { trackerAdjustLeft (s->track->v[w->track]); }
 							}
 							w->mousex = x; break;
 						case WHEEL_UP: case WHEEL_UP_CTRL:
@@ -934,33 +933,37 @@ static void pasteEffectAbove(void)
 }
 static void delChainEffect(void)
 {
-	if (!s->track->v[w->track]->effect->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor);
-	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&s->track->v[w->track]->effect->v[selectedindex]));
-	delEffect(&s->track->v[w->track]->effect, selectedindex);
+	EffectChain *ec = s->track->v[w->track]->effect;
+	if (!ec->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
+	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&ec->v[selectedindex]));
+	delEffect(&ec, selectedindex);
 	p->redraw = 1;
 }
 static void copyChainEffect(void)
 {
-	if (!s->track->v[w->track]->effect->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor);
-	copyEffect(&w->effectbuffer, &s->track->v[w->track]->effect->v[selectedindex], NULL, NULL);
+	EffectChain *ec = s->track->v[w->track]->effect;
+	if (!ec->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
+	copyEffect(&w->effectbuffer, &ec->v[selectedindex], NULL, NULL);
 	p->redraw = 1;
 }
 
 static void slideEffectUp(void)
 {
-	if (!s->track->v[w->track]->effect->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor);
+	EffectChain *ec = s->track->v[w->track]->effect;
+	if (!ec->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
 	if (selectedindex)
-		swapEffect(&s->track->v[w->track]->effect, selectedindex, selectedindex - 1);
+		swapEffect(&ec, selectedindex, selectedindex - 1);
 }
 static void slideEffectDown(void)
 {
-	if (!s->track->v[w->track]->effect->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor);
-	if (selectedindex < s->track->v[w->track]->effect->c - 1)
-		swapEffect(&s->track->v[w->track]->effect, selectedindex, selectedindex + 1);
+	EffectChain *ec = s->track->v[w->track]->effect;
+	if (!ec->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
+	if (selectedindex < ec->c - 1)
+		swapEffect(&ec, selectedindex, selectedindex + 1);
 }
 
 static void addTrackerNavBinds(void)

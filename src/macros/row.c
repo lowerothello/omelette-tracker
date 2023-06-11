@@ -21,29 +21,33 @@ void macroRowPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *stat
 	ms->cutsamples = 0;
 	ms->delaysamples = 0;
 
+	Macro *m;
 	FOR_ROW_MACROS(i, cv)
-		switch (r->macro[i].c)
+	{
+		m = &r->macro[i];
+		switch (m->c)
 		{
 			case MACRO_ROW_CUT:
-				if (!r->macro[i].v)
+				if (!m->v)
 				{ /* cut now */
 					ramp(fptr, spr, 0, 0.0f, cv, p->s->inst->i[cv->r.inst]); /* TODO: proper rowprogress */
 					triggerNote(fptr, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 					ms->cutsamples = 0;
 					r->note = NOTE_VOID;
 				} else /* cut later */
-					ms->cutsamples = *spr * r->macro[i].v*DIV256;
+					ms->cutsamples = *spr * m->v*DIV256;
 				break;
 			case MACRO_ROW_DELAY:
-				if (r->macro[i].v)
+				if (m->v)
 				{
-					ms->delaysamples = *spr * r->macro[i].v*DIV256;
+					ms->delaysamples = *spr * m->v*DIV256;
 					ms->delaynote = r->note;
 					cv->r.inst = r->inst;
 					r->note = NOTE_VOID;
 				}
 				break;
 		}
+	}
 }
 
 /* returns the new note, or NOTE_VOID for no change */

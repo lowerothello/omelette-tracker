@@ -37,24 +37,28 @@ void macroFilterPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *
 	macroStateApply(&ms->cut);
 	macroStateApply(&ms->res);
 
+	Macro *m;
 	FOR_ROW_MACROS(i, cv)
-		switch (r->macro[i].c)
+	{
+		m = &r->macro[i];
+		switch (m->c)
 		{
-			case MACRO_FILTER:           macroStateSet   (&ms->cut, r->macro[i]); break;
-			case MACRO_SMOOTH_FILTER:    macroStateSmooth(&ms->cut, r->macro[i]); break;
-			case MACRO_RESONANCE:        macroStateSet   (&ms->res, r->macro[i]); break;
-			case MACRO_SMOOTH_RESONANCE: macroStateSmooth(&ms->res, r->macro[i]); break;
+			case MACRO_FILTER:           macroStateSet   (&ms->cut, m); break;
+			case MACRO_SMOOTH_FILTER:    macroStateSmooth(&ms->cut, m); break;
+			case MACRO_RESONANCE:        macroStateSet   (&ms->res, m); break;
+			case MACRO_SMOOTH_RESONANCE: macroStateSmooth(&ms->res, m); break;
 			case MACRO_FILTER_MODE:
-				ms->mode[0] = (r->macro[i].v&0x70)>>4; /* ignore the '8' bit */
-				ms->mode[1] =  r->macro[i].v&0x07;     /* ignore the '8' bit */
+				ms->mode[0] = (m->v&0x70)>>4; /* ignore the '8' bit */
+				ms->mode[1] =  m->v&0x07;     /* ignore the '8' bit */
 				break;
 			case MACRO_SMOOTH_FILTER_MODE:
 				if (ms->targetmode[0] != -1) { ms->mode[0] = ms->targetmode[0]; ms->targetmode[0] = -1; }
 				if (ms->targetmode[1] != -1) { ms->mode[1] = ms->targetmode[1]; ms->targetmode[1] = -1; }
-				ms->targetmode[0] = (r->macro[i].v&0x70)>>4; /* ignore the '8' bit */
-				ms->targetmode[1] =  r->macro[i].v&0x07;     /* ignore the '8' bit */
+				ms->targetmode[0] = (m->v&0x70)>>4; /* ignore the '8' bit */
+				ms->targetmode[1] =  m->v&0x07;     /* ignore the '8' bit */
 				break;
 		}
+	}
 }
 
 void macroFilterPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state)

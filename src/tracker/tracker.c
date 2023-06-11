@@ -84,8 +84,9 @@ void trackerDownArrow(size_t count)
 void trackSet(uint8_t track)
 {
 	w->track = track;
-	if (w->trackerfx > 3 + s->track->v[w->track]->pattern->macroc * 2)
-		w->trackerfx = 3 + s->track->v[w->track]->pattern->macroc * 2;
+	Track *cv = s->track->v[w->track];
+	if (w->trackerfx > 3 + cv->pattern->macroc * 2)
+		w->trackerfx = 3 + cv->pattern->macroc * 2;
 
 	switch (w->page)
 	{
@@ -106,6 +107,7 @@ void trackerLeftArrow(size_t count)
 {
 	int i;
 	count *= MAX(1, w->count);
+	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
 	switch (w->page)
 	{
 		case PAGE_EFFECT:
@@ -115,7 +117,7 @@ void trackerLeftArrow(size_t count)
 		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
-				if      (w->trackerfx == 2 + (s->track->v[w->track]->pattern->macroc<<1)) w->trackerfx = 1;
+				if      (w->trackerfx == 2 + (macroc<<1)) w->trackerfx = 1;
 				else if (!w->trackerfx)
 				{
 					if (w->track > 0)
@@ -141,6 +143,7 @@ void trackerRightArrow(size_t count)
 {
 	int i;
 	count *= MAX(1, w->count);
+	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
 	switch (w->page)
 	{
 		case PAGE_EFFECT:
@@ -150,7 +153,7 @@ void trackerRightArrow(size_t count)
 		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
-				if      (w->trackerfx == 1) w->trackerfx = 2 + s->track->v[w->track]->pattern->macroc * 2;
+				if      (w->trackerfx == 1) w->trackerfx = 2 + macroc * 2;
 				else if (w->trackerfx == 3)
 				{
 					if (w->track < s->track->c-1)
@@ -199,19 +202,20 @@ void trackerEnd(void)
 void cycleUp(void)
 {
 	size_t count = MAX(1, w->count);
+	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
 			switch (w->mode)
 			{
 				case MODE_NORMAL: case MODE_INSERT:
-					cycleUpPartPattern(count, 0, 2+s->track->v[w->track]->pattern->macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
+					cycleUpPartPattern(count, 0, 2+macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
 					break;
 				case MODE_VISUAL: case MODE_VISUALREPLACE:
 					cycleUpPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				case MODE_VISUALLINE:
-					cycleUpPartPattern(count, 0, 2+s->track->v[w->track]->pattern->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleUpPartPattern(count, 0, 2+macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				default: break;
 			} break;
@@ -225,6 +229,7 @@ void cycleUp(void)
 void cycleDown(void)
 {
 	size_t count = MAX(1, w->count);
+	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
@@ -232,13 +237,13 @@ void cycleDown(void)
 			{
 				/* TODO: variant trig mode and variant trig visual mode handling */
 				case MODE_NORMAL: case MODE_INSERT:
-					cycleDownPartPattern(count, 0, 2+s->track->v[w->track]->pattern->macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
+					cycleDownPartPattern(count, 0, 2+macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
 					break;
 				case MODE_VISUAL: case MODE_VISUALREPLACE:
 					cycleDownPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				case MODE_VISUALLINE:
-					cycleDownPartPattern(count, 0, 2+s->track->v[w->track]->pattern->macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleDownPartPattern(count, 0, 2+macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				default: break;
 			} break;
@@ -251,11 +256,12 @@ void cycleDown(void)
 
 void trackerPgUp(void)
 {
+	EffectChain *ec;
 	switch (w->page)
 	{
 		case PAGE_EFFECT:
-			cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect,
-					MAX(0, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) - (int)MAX(1, w->count)));
+			ec = s->track->v[w->track]->effect;
+			cc.cursor = getCursorFromEffect(w->track, ec, MAX(0, getEffectFromCursor(w->track, ec, cc.cursor) - (int)MAX(1, w->count)));
 			p->redraw = 1; break;
 		default:
 			trackerUpArrow(s->rowhighlight);
@@ -265,11 +271,12 @@ void trackerPgUp(void)
 
 void trackerPgDn(void)
 {
+	EffectChain *ec;
 	switch (w->page)
 	{
 		case PAGE_EFFECT:
-			cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect,
-					MIN(s->track->v[w->track]->effect->c-1, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor) + MAX(1, w->count)));
+			ec = s->track->v[w->track]->effect;
+			cc.cursor = getCursorFromEffect(w->track, ec, MIN(ec->c-1, getEffectFromCursor(w->track, ec, cc.cursor) + MAX(1, w->count)));
 			p->redraw = 1; break;
 		default:
 			trackerDownArrow(s->rowhighlight);

@@ -372,7 +372,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 
 			x++;
 
-			r = getTrackRow(cv, i, 0);
+			r = getTrackRow(cv->pattern, i, 0);
 			setRowIntensity(cv->mute, i);
 			if (ifVisual(track, i, 0)) printf("\033[2;7m");
 

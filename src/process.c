@@ -323,7 +323,7 @@ void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 	Row *r;
 	for (uint16_t i = 0; i < playfy; i++)
 	{
-		r = getTrackRow(cv, i, 0);
+		r = getTrackRow(cv->pattern, i, 0);
 		/* TODO: proper implementation of master track macros, including bpm */
 		// if (p->w->bpmcachelen > i && p->w->bpmcache[i] != -1) macroBpm(fptr, spr, p->w->bpmcache[i], cv, r);
 		if (r)
@@ -356,7 +356,7 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 				// }
 
 				/* preprocess track */
-				r = getTrackRow(cv, *playfy, 0);
+				r = getTrackRow(cv->pattern, *playfy, 0);
 				/* TODO: proper implementation of master track macros, including bpm */
 				// if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->w->bpmcache[*playfy], cv, r);
 				if (r)
@@ -390,19 +390,27 @@ static void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that
 static void triggerFlash(PlaybackInfo *p)
 {
 	/* triggerflash animations */
+	Inst *iv;
 	for (int i = 0; i < p->s->inst->c; i++)
-		if (p->s->inst->v[i].triggerflash)
+	{
+		iv = &p->s->inst->v[i];
+		if (iv->triggerflash)
 		{
-			if (p->s->inst->v[i].triggerflash == 1) p->redraw = 1;
-			p->s->inst->v[i].triggerflash--;
+			if (iv->triggerflash == 1) p->redraw = 1;
+			iv->triggerflash--;
 		}
+	}
 
+	Track *cv;
 	for (int i = 0; i < p->s->track->c; i++)
-		if (p->s->track->v[i]->triggerflash)
+	{
+		cv = p->s->track->v[i];
+		if (cv->triggerflash)
 		{
-			if (p->s->track->v[i]->triggerflash == 1) p->redraw = 1;
-			p->s->track->v[i]->triggerflash--;
+			if (cv->triggerflash == 1) p->redraw = 1;
+			cv->triggerflash--;
 		}
+	}
 }
 
 void joinProcessThreads(void)
@@ -458,19 +466,20 @@ void processOutput(uint32_t nfptr)
 	/* handle the preview tracks first */
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
+		cv = p->w->previewtrack[i];
 		preview_thread_running[i] = 0;
-		if (p->w->previewtrack[i]->r.note != NOTE_VOID
-				&& p->w->previewtrack[i]->r.inst != INST_VOID)
+		if (cv->r.note != NOTE_VOID
+				&& cv->r.inst != INST_VOID)
 		{
 #ifdef NO_MULTITHREADING
-			previewTrackThreadRoutine(p->w->previewtrack[i]);
+			previewTrackThreadRoutine(cv);
 #else
 			if (RUNNING_ON_VALGRIND)
-				previewTrackThreadRoutine(p->w->previewtrack[i]);
+				previewTrackThreadRoutine(cv);
 			else
 			{
-				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, p->w->previewtrack[i]))
-					previewTrackThreadRoutine(p->w->previewtrack[i]);
+				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, cv))
+					previewTrackThreadRoutine(cv);
 				else
 					preview_thread_running[i] = 1;
 			}

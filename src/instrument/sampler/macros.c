@@ -40,33 +40,37 @@ void macroInstSamplerPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, v
 	macroStateApply(&ps->pitchshift);
 	macroStateApply(&ps->rateredux);
 
+	Macro *m;
 	FOR_ROW_MACROS(i, cv)
-		switch (r->macro[i].c)
+	{
+		m = &r->macro[i];
+		switch (m->c)
 		{
-			case MACRO_OFFSET:                cv->reverse = 0;                    _macroOffset(fptr, spr, r->macro[i].v, iss, cv, r); break;
-			case MACRO_REVERSE_OFFSET:        cv->reverse = 1; if (r->macro[i].v) _macroOffset(fptr, spr, r->macro[i].v, iss, cv, r); break;
+			case MACRO_OFFSET:                cv->reverse = 0;           _macroOffset(fptr, spr, m->v, iss, cv, r); break;
+			case MACRO_REVERSE_OFFSET:        cv->reverse = 1; if (m->v) _macroOffset(fptr, spr, m->v, iss, cv, r); break;
 
-			case MACRO_OFFSET_JITTER:         cv->reverse = 0;                    _macroOffsetJitter(fptr, spr, r->macro[i].v, iss, cv, r); break;
-			case MACRO_REVERSE_OFFSET_JITTER: cv->reverse = 1; if (r->macro[i].v) _macroOffsetJitter(fptr, spr, r->macro[i].v, iss, cv, r); break;
+			case MACRO_OFFSET_JITTER:         cv->reverse = 0;           _macroOffsetJitter(fptr, spr, m->v, iss, cv, r); break;
+			case MACRO_REVERSE_OFFSET_JITTER: cv->reverse = 1; if (m->v) _macroOffsetJitter(fptr, spr, m->v, iss, cv, r); break;
 
-			case MACRO_PITCH_SHIFT:        macroStateSet   (&ps->pitchshift, r->macro[i]); break;
-			case MACRO_SMOOTH_PITCH_SHIFT: macroStateSmooth(&ps->pitchshift, r->macro[i]); break;
+			case MACRO_PITCH_SHIFT:        macroStateSet   (&ps->pitchshift, m); break;
+			case MACRO_SMOOTH_PITCH_SHIFT: macroStateSmooth(&ps->pitchshift, m); break;
 
 			case MACRO_CYCLE_LENGTH_HI_BYTE:
 				if (ps->localcyclelength == -1) ps->localcyclelength = iss->cyclelength;
-				ps->localcyclelength = (((uint16_t)ps->localcyclelength<<8)>>8) + (r->macro[i].v<<8);
+				ps->localcyclelength = (((uint16_t)ps->localcyclelength<<8)>>8) + (m->v<<8);
 				break;
 			case MACRO_CYCLE_LENGTH_LO_BYTE:
 				if (ps->localcyclelength == -1) ps->localcyclelength = iss->cyclelength;
-				ps->localcyclelength = (((uint16_t)ps->localcyclelength>>8)<<8)+r->macro[i].v;
+				ps->localcyclelength = (((uint16_t)ps->localcyclelength>>8)<<8)+m->v;
 				break;
 
-			case MACRO_SAMPLERATE:        macroStateSet   (&ps->rateredux, r->macro[i]); break;
-			case MACRO_SMOOTH_SAMPLERATE: macroStateSmooth(&ps->rateredux, r->macro[i]); break;
+			case MACRO_SAMPLERATE:        macroStateSet   (&ps->rateredux, m); break;
+			case MACRO_SMOOTH_SAMPLERATE: macroStateSmooth(&ps->rateredux, m); break;
 
-			case MACRO_ATT_DEC: ps->localenvelope = r->macro[i].v; break;
-			case MACRO_SUS_REL: ps->localsustain = r->macro[i].v; break;
+			case MACRO_ATT_DEC: ps->localenvelope = m->v; break;
+			case MACRO_SUS_REL: ps->localsustain  = m->v; break;
 		}
+	}
 }
 
 void macroInstSamplerTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state)

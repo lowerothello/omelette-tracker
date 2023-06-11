@@ -6,9 +6,9 @@ void resizeBrowser(BrowserState *b, short x, short y, short w, short h)
 	b->h = h;
 }
 
-char *tolowerString(char *s)
+static char *tolowerString(char *s, size_t slen)
 {
-	for (size_t i = 0; i < strlen(s); i++)
+	for (size_t i = 0; i < slen; i++)
 		s[i] = tolower(s[i]);
 	return s;
 }
@@ -21,7 +21,7 @@ static bool browserSearch(BrowserState *b)
 		char *searchline = b->searchLine(b->data);
 		if (searchline)
 		{
-			tolowerString(searchline);
+			tolowerString(searchline, strlen(searchline));
 			if (strstr(searchline, b->search))
 				ret = 1;
 			free(searchline);

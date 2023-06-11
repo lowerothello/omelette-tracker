@@ -120,23 +120,28 @@ bool processM_SEM(void)
 				if (p->event[0].arg3) /* release */
 				{
 					int voice = getPreviewVoice(p->event[0].arg1, 1);
+					cv = p->w->previewtrack[voice];
 					if (voice != -1)
-						triggerNote(0, p->w->previewtrack[voice], p->w->previewtrack[voice]->r.note, NOTE_OFF, p->event[0].arg2);
+						triggerNote(0, cv, cv->r.note, NOTE_OFF, p->event[0].arg2);
 				} else
 				{
 					if (p->event[0].arg1 == NOTE_OFF)
 					{
 						for (int i = 0; i < PREVIEW_TRACKS; i++)
-							if (!p->w->previewtrack[i]->release)
+						{
+							cv = p->w->previewtrack[i];
+							if (!cv->release)
 							{
-								triggerNote(0, p->w->previewtrack[i], p->w->previewtrack[i]->r.note, NOTE_OFF, p->event[0].arg2);
-								p->w->previewtrack[i]->r.note = NOTE_VOID;
+								triggerNote(0, cv, cv->r.note, NOTE_OFF, p->event[0].arg2);
+								cv->r.note = NOTE_VOID;
 							}
+						}
 					} else
 					{
 						int voice = getPreviewVoice(p->event[0].arg1, 0);
+						cv = p->w->previewtrack[voice];
 						if (voice != -1)
-							triggerNote(0, p->w->previewtrack[voice], p->w->previewtrack[voice]->r.note, p->event[0].arg1, p->event[0].arg2);
+							triggerNote(0, cv, cv->r.note, p->event[0].arg1, p->event[0].arg2);
 					}
 				}
 				p->event[0].sem = M_SEM_DONE;
@@ -149,8 +154,9 @@ bool processM_SEM(void)
 				/* stop preview */
 				for (i = 0; i < PREVIEW_TRACKS; i++)
 				{
-					p->w->previewtrack[i]->r.note = NOTE_VOID;
-					p->w->previewtrack[i]->r.inst = INST_VOID;
+					cv = p->w->previewtrack[i];
+					cv->r.note = NOTE_VOID;
+					cv->r.inst = INST_VOID;
 				}
 
 				/* TODO: also stop the sampler's follower note */
@@ -162,7 +168,7 @@ bool processM_SEM(void)
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 					lookback(0, &p->w->spr, p->w->playfy, cv);
-					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv, p->w->playfy, 0));
+					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv->pattern, p->w->playfy, 0));
 				}
 
 

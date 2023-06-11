@@ -39,28 +39,6 @@ void addTrackRuntime(Track *cv)
 	clearTrackRuntime(cv);
 }
 
-void debug_dumpTrackState(Song *cs)
-{
-#ifdef DEBUG_LOGS
-	FILE *fp = fopen(".oml_trackdump", "w");
-
-	fprintf(fp, "===== TRACK DUMP =====\n");
-	fprintf(fp, "s->track: %p\n", cs->track);
-	fprintf(fp, "trackc:   %02x\n\n", cs->track->c);
-
-	for (int i = 0; i < cs->track->c; i++)
-	{
-		fprintf(fp, "TRACK %02x:\n", i);
-		fprintf(fp, "length: %d\n", getSignificantRowc(cs->track->v[i].variant));
-		fprintf(fp, "output[0]: %p\n", cs->track->v[i].effect->output[0]);
-		fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "\n");
-	fclose(fp);
-#endif
-}
-
 static void cb_addTrack(Event *e)
 {
 	free(((TrackChain*)e->src)->v);
@@ -218,19 +196,19 @@ void copyTrack(Track *dest, Track *src) /* NOT atomic */
 	copyEffectChain(&dest->effect, src->effect);
 }
 
-Row *getTrackRow(Track *cv, uint16_t index, bool createifmissing)
+Row *getTrackRow(PatternChain *pc, uint16_t index, bool createifmissing)
 {
 	uint8_t pindex = getPatternChainIndex(index);
-	if (cv->pattern->order[pindex] == PATTERN_VOID)
+	if (pc->order[pindex] == PATTERN_VOID)
 	{
 		if (createifmissing)
 		{
-			_setPatternOrder(&cv->pattern, pindex, dupFreePatternIndex(cv->pattern, cv->pattern->order[pindex]));
+			_setPatternOrder(&pc, pindex, dupFreePatternIndex(pc, pc->order[pindex]));
 			regenGlobalRowc(s);
 		} else return NULL;
 	}
 
-	return getPatternRow(getPatternChainPattern(cv->pattern, index), getPatternIndex(index));
+	return getPatternRow(getPatternChainPattern(pc, index), getPatternIndex(index));
 }
 
 void regenGlobalRowc(Song *cs)

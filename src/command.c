@@ -5,7 +5,8 @@ void wordSplit(char *output, char *line, int wordt)
 	strcpy(output, "");
 	char lastwhitespace = 0;
 
-	for (size_t i = 0; i < strlen(line); i++)
+	size_t linelen = strlen(line);
+	for (size_t i = 0; i < linelen; i++)
 	{
 		if (isspace(line[i]))
 		{
@@ -32,7 +33,8 @@ void setCommand(
 		void *arg,
 		bool historyenabled,
 		char *prompt,
-		char *startvalue)
+		char *startvalue
+	)
 {
 	w->command.callback = callback;
 	w->command.keycallback = keycallback;
@@ -104,25 +106,29 @@ static void commandBackspace(void *arg)
 {
 	if (w->command.commandptr > 0)
 	{
-		for (int i = 0; i < strlen(w->command.historyv[w->command.historyc]); i++)
-			if (w->command.historyv[w->command.historyc][i] != '\0' && i > w->command.commandptr - 2)
-				w->command.historyv[w->command.historyc][i] = w->command.historyv[w->command.historyc][i + 1];
+		char *s = w->command.historyv[w->command.historyc];
+		size_t slen = strlen(s);
+		for (int i = 0; i < slen; i++)
+			if (s[i] != '\0' && i > w->command.commandptr - 2)
+				s[i] = s[i + 1];
 		w->command.commandptr--;
-		if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
+		if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	}
 	p->redraw = 1;
 }
 static void commandCtrlU(void *arg)
 {
-	memcpy(w->command.historyv[w->command.historyc], w->command.historyv[w->command.historyc] + w->command.commandptr, COMMAND_LENGTH - w->command.commandptr);
+	char *s = w->command.historyv[w->command.historyc];
+	memcpy(s, s + w->command.commandptr, COMMAND_LENGTH - w->command.commandptr);
 	w->command.commandptr = 0;
-	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
+	if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	p->redraw = 1;
 }
 static void commandCtrlK(void *arg)
 {
-	w->command.historyv[w->command.historyc][w->command.commandptr] = '\0';
-	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
+	char *s = w->command.historyv[w->command.historyc];
+	s[w->command.commandptr] = '\0';
+	if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	p->redraw = 1;
 }
 
@@ -132,13 +138,14 @@ static void commandCommit(void *arg)
 {
 	w->mode = w->oldmode;
 
-	if (strcmp(w->command.historyv[w->command.historyc], ""))
+	char *s = w->command.historyv[w->command.historyc];
+	if (strcmp(s, ""))
 	{
 		if (w->command.keycallback)
-			w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
+			w->command.keycallback(s, w->command.arg);
 
 		if (w->command.callback)
-			if (w->command.callback(w->command.historyv[w->command.historyc], w->command.arg))
+			if (w->command.callback(s, w->command.arg))
 				cleanup(0);
 
 		if (w->command.history < 0) goto commandCommitEnd;
@@ -154,14 +161,15 @@ commandCommitEnd:
 
 static void commandInputKey(void *key)
 {
-	w->command.historyv[w->command.historyc][strlen(w->command.historyv[w->command.historyc]) + 1] = '\0';
-	for (int i = strlen(w->command.historyv[w->command.historyc]); i > 0; i--)
-		if (i > w->command.commandptr - 1) w->command.historyv[w->command.historyc][i + 1] = w->command.historyv[w->command.historyc][i];
+	char *s = w->command.historyv[w->command.historyc];
+	s[strlen(s) + 1] = '\0'; /* ensure that the nullbyte at the end of the string is safe to overwrite by putting another one after it */
+	for (int i = strlen(s); i > 0; i--)
+		if (i > w->command.commandptr - 1) s[i + 1] = s[i];
 		else break;
 
-	w->command.historyv[w->command.historyc][w->command.commandptr] = (char)(size_t)key;
+	s[w->command.commandptr] = (char)(size_t)key;
 	w->command.commandptr++;
-	if (w->command.keycallback) w->command.keycallback(w->command.historyv[w->command.historyc], w->command.arg);
+	if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	p->redraw = 1;
 }
 

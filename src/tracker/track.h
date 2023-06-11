@@ -68,7 +68,7 @@ void _delTrack(struct Song *cs, Track *cv);
 
 void delTrack(uint8_t index, uint16_t count);
 void copyTrack(Track *dest, Track *src); /* NOT atomic */
-Row *getTrackRow(Track *cv, uint16_t index, bool createifmissing);
+Row *getTrackRow(PatternChain *pc, uint16_t index, bool createifmissing);
 void regenGlobalRowc(struct Song *cs);
 
 void applyTrackMutes(void);

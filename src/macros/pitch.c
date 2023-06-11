@@ -22,13 +22,16 @@ void macroPitchPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *st
 	MacroPitchState *ms = state;
 
 	bool vibrato = 0;
+	Macro *m;
 	FOR_ROW_MACROS(i, cv)
-		switch (r->macro[i].c)
+	{
+		m = &r->macro[i];
+		switch (m->c)
 		{
 			case MACRO_PORTAMENTO:
 				if (ms->portamentosamplepointer > ms->portamentosamples)
 				{
-					ms->portamentosamples = (*spr * r->macro[i].v)/16;
+					ms->portamentosamples = (*spr * m->v)/16;
 					ms->portamentosamplepointer = 0;
 					ms->startportamentofinetune = ms->portamentofinetune;
 					ms->targetportamentofinetune = (r->note - (cv->r.note + ms->portamentofinetune));
@@ -36,17 +39,18 @@ void macroPitchPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *st
 				r->note = NOTE_VOID;
 				break;
 			case MACRO_PITCH_OFFSET:
-				ms->microtonalfinetune = r->macro[i].v*DIV255;
+				ms->microtonalfinetune = m->v*DIV255;
 				break;
 			case MACRO_VIBRATO:
-				ms->vibrato = r->macro[i].v&0xf;
+				ms->vibrato = m->v&0xf;
 				if (!ms->vibratosamples) /* reset the phase if starting */
 					ms->vibratosamplepointer = 0;
-				ms->vibratosamples = *spr / (((r->macro[i].v>>4) + 1) / 16.0); /* use floats for slower lfo speeds */
+				ms->vibratosamples = *spr / (((m->v>>4) + 1) / 16.0); /* use floats for slower lfo speeds */
 				ms->vibratosamplepointer = MIN(ms->vibratosamplepointer, ms->vibratosamples - 1);
 				vibrato = 1;
 				break;
 		}
+	}
 
 	if (!vibrato)
 		ms->vibratosamples = 0;

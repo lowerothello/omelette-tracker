@@ -43,11 +43,13 @@ static void samplerSampleRight(void)
 
 static void samplerInputDelete(void)
 {
+	InstSamplerState *ss = s->inst->v[s->inst->i[w->instrument]].state;
+
 	if (!(w->instrecv != INST_REC_LOCK_OK && w->instreci == w->instrument)
 			&& instSafe(s->inst, w->instrument))
 	{
 		freeWaveform();
-		attachSample(&((InstSamplerState*)s->inst->v[s->inst->i[w->instrument]].state)->sample, NULL, w->sample);
+		attachSample(&ss->sample, NULL, w->sample);
 	}
 }
 

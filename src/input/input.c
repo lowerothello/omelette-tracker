@@ -35,17 +35,19 @@ int getPreviewVoice(uint8_t note, bool release)
 	int      oldestslot = -1;
 	uint32_t oldestslotpointer = 0;
 
+	Track *cv;
 	for (int i = 0; i < PREVIEW_TRACKS; i++)
 	{
-		if (w->previewtrack[i]->r.note == note && !w->previewtrack[i]->release)
+		cv = w->previewtrack[i];
+		if (cv->r.note == note && !cv->release)
 			return i;
 
-		if (w->previewtrack[i]->r.note == NOTE_VOID || w->previewtrack[i]->release)
+		if (cv->r.note == NOTE_VOID || cv->release)
 			emptyslot = i;
-		else if (w->previewtrack[i]->pointer > oldestslotpointer)
+		else if (cv->pointer > oldestslotpointer)
 		{
 			oldestslot = i;
-			oldestslotpointer = w->previewtrack[i]->pointer;
+			oldestslotpointer = cv->pointer;
 		}
 	}
 
