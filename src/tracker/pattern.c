@@ -83,6 +83,8 @@ Pattern *dupPattern(Pattern *p, uint16_t newlen)
 
 static PatternChain *_addPattern(PatternChain *pc, uint8_t index)
 {
+	if (pc->i[index] != PATTERN_VOID) return pc; /* pattern already exists, don't try to add it */
+
 	pc->c++;
 	pc = reallocPatternChain(pc);
 
@@ -162,6 +164,9 @@ Row *getPatternRow(Pattern *pc, uint8_t index)
 	return &pc->row[index];
 }
 
+/* returns the pattern removed, or: */
+/*    -1: pattern doesn't exist     */
+/*    -2: pattern is populated      */
 /* returns the pattern removed, or -1 if no patterns were removed */
 int _prunePattern(PatternChain **pc, uint8_t index)
 {
@@ -171,11 +176,11 @@ int _prunePattern(PatternChain **pc, uint8_t index)
 	/* fail if the pattern is still referenced */
 	for (int i = 0; i < PATTERN_VOID; i++)
 		if ((*pc)->order[i] == index)
-			return -1;
+			return -2;
 
 	/* fail if the pattern is populated */
 	if (patternPopulated(*pc, index))
-		return -1;
+		return -2;
 
 	return _delPattern(pc, index);
 }
@@ -185,7 +190,7 @@ bool prunePattern(PatternChain **pc, uint8_t index)
 	PatternChain *newchain = dupPatternChain(*pc);
 	int cutindex = _prunePattern(&newchain, index);
 
-	if (cutindex == -1)
+	if (cutindex < 0)
 	{
 		free(newchain);
 		return 1;
@@ -230,32 +235,6 @@ uint8_t dupFreePatternIndex(PatternChain *pc, uint8_t fallbackindex)
 	} return fallbackindex;
 }
 
-/* push a hex digit into the playback order */
-void pushPatternOrder(PatternChain **pc, uint8_t index, char value)
-{
-	PatternChain *newchain = dupPatternChain(*pc);
-	uint8_t oldindex = newchain->order[index];
-
-	/* initialize to zero before adjusting */
-	if (newchain->order[index] == PATTERN_VOID)
-		newchain->order[index] = 0;
-
-	newchain->order[index] <<= 4;
-	newchain->order[index] += value;
-
-	int cutindex = _prunePattern(&newchain, oldindex);
-	newchain = _addPattern(newchain, newchain->order[index]);
-
-	Event e;
-	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void**)pc;
-	e.src = newchain;
-	if (cutindex == -1) e.callback = cb_addPattern;
-	else                e.callback = cb_delPattern;
-	e.callbackarg = (void*)(size_t)cutindex;
-	pushEvent(&e);
-}
-
 /* set the playback order directly */
 int _setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 {
@@ -264,20 +243,55 @@ int _setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 	(*pc)->order[index] = value;
 
 	int cutindex = _prunePattern(pc, oldindex);
+
 	*pc = _addPattern(*pc, (*pc)->order[index]);
+
 	return cutindex;
 }
 void setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 {
 	PatternChain *newchain = dupPatternChain(*pc);
+
 	int cutindex = _setPatternOrder(&newchain, index, value);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)pc;
 	e.src = newchain;
-	if (cutindex == -1) e.callback = cb_addPattern;
-	else                e.callback = cb_delPattern;
+	switch (cutindex)
+	{
+		case -2: e.callback = NULL;          break;
+		case -1: e.callback = cb_addPattern; break;
+		default: e.callback = cb_delPattern; break;
+	}
+	e.callbackarg = (void*)(size_t)cutindex;
+	pushEvent(&e);
+}
+/* push a hex digit into the playback order */
+void pushPatternOrder(PatternChain **pc, uint8_t index, char value)
+{
+	PatternChain *newchain = dupPatternChain(*pc);
+
+	uint8_t newindex = newchain->order[index];
+	/* initialize to zero before adjusting */
+	if (newindex == PATTERN_VOID)
+		newindex = 0;
+
+	newindex <<= 4;
+	newindex += value;
+
+	int cutindex = _setPatternOrder(&newchain, index, newindex);
+
+	Event e;
+	e.sem = M_SEM_SWAP_REQ;
+	e.dest = (void**)pc;
+	e.src = newchain;
+	switch (cutindex)
+	{
+		case -2: e.callback = NULL;          break;
+		case -1: e.callback = cb_addPattern; break;
+		default: e.callback = cb_delPattern; break;
+	}
 	e.callbackarg = (void*)(size_t)cutindex;
 	pushEvent(&e);
 }

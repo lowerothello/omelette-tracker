@@ -24,8 +24,8 @@ typedef struct event
 	int arg1, arg2, arg3;
 	void     **dest; /* swapping sets *.dest to .src, leaving what *.dest used to be in .src */
 	void      *src;  /* note that only .dest is a double pointer */
-	void     (*callback)(struct event *);
+	void     (*callback)(struct event*);
 	void      *callbackarg;
 } Event;
 
-void pushEvent(Event *e);
+void pushEvent(Event*);
