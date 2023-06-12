@@ -208,7 +208,6 @@ void cb_reloadFile(Event *e)
 	p->s = s;
 	w->trackerfy = 0;
 	w->page = PAGE_VARIANT;
-	regenGlobalRowc(s);
 	p->redraw = 1;
 	reapplyBpm();
 }

@@ -4,7 +4,6 @@ void chordDeleteRow(void *_)
 	yankPartPattern(0, 2+cv->pattern->macroc, w->trackerfy, w->trackerfy+MAX(1, w->count)-1, w->track, w->track);
 	delPartPattern (0, 2+cv->pattern->macroc, w->trackerfy, w->trackerfy+MAX(1, w->count)-1, w->track, w->track);
 	trackerDownArrow(MAX(1, w->count));
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 

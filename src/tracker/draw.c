@@ -588,7 +588,7 @@ void drawTracker(bool patternlist)
 					else
 						snprintf(smallbuffer, 4, "%02x ", s->track->v[i]->pattern->order[j]);
 
-					if (s->track->v[i]->mute)
+					if (s->track->v[i]->mute || j > s->slen)
 						printf("\033[2m");
 					else if (w->playing && getPatternChainIndex(w->playfy) == j)
 						printf("\033[1m");

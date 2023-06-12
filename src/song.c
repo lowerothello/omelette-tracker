@@ -20,7 +20,6 @@ void initSong(Song *cs)
 
 	cs->track = calloc(1, sizeof(TrackChain));
 	cs->track->v = calloc(STARTING_TRACKC, sizeof(Track*));
-	regenGlobalRowc(cs);
 	cs->track->c = STARTING_TRACKC;
 	for (uint8_t i = 0; i < STARTING_TRACKC; i++)
 		cs->track->v[i] = allocTrack(cs, NULL);

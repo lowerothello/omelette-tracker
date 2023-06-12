@@ -212,7 +212,6 @@ static void addEmptyPattern(void)
 	uint8_t freefallbackindex = cv->pattern->order[pindex];
 	uint8_t freeindex = dupFreePatternIndex(cv->pattern, freefallbackindex);
 	setPatternOrder(&cv->pattern, pindex, freeindex);
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 /* returns true to force disable step */
@@ -408,7 +407,6 @@ static void pushPatternOrderWrap(void *arg)
 			pushPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), (size_t)arg);
 			break;
 	}
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 static void setPatternOrderWrap(void *arg)
@@ -427,7 +425,6 @@ static void setPatternOrderWrap(void *arg)
 			setPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), (size_t)arg);
 			break;
 	}
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 
@@ -629,7 +626,6 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 			} break;
 		default: break;
 	}
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 static void trackerAdjustRight(Track *cv) /* mouse adjust only */
@@ -662,7 +658,6 @@ static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 			} break;
 		default: break;
 	}
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 

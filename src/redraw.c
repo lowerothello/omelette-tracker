@@ -144,7 +144,7 @@ int rulerMouse(enum Button button, int x, int y)
 }
 
 static void setBpmCount(void) { s->songbpm = MIN(255, MAX(32, w->count)); reapplyBpm(); p->redraw = 1; }
-static void setRowHighlightCount(void) { s->rowhighlight = MIN(16, w->count); regenGlobalRowc(s); p->redraw = 1; }
+static void setRowHighlightCount(void) { s->rowhighlight = MIN(16, w->count); p->redraw = 1; }
 static void setOctaveCount(void) { w->octave = MIN(w->count, MAX_OCTAVE); p->redraw = 1; }
 static void setStepCount(void) { w->step = MIN(w->count, MAX_STEP); p->redraw = 1; }
 static void setInstCount(void) { w->instrument = MIN(w->count, INSTRUMENT_MAX); p->redraw = 1; }

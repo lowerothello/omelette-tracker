@@ -44,6 +44,7 @@ static void cb_addTrack(Event *e)
 	free(((TrackChain*)e->src)->v);
 	free(e->src);
 
+	regenSongLength();
 	p->redraw = 1;
 }
 
@@ -147,7 +148,7 @@ static void cb_delTrack(Event *e)
 	if (w->track > s->track->c-1)
 		w->track = s->track->c-1;
 
-	regenGlobalRowc(s);
+	regenSongLength();
 	p->redraw = 1;
 }
 void delTrack(uint8_t index, uint16_t count)
@@ -202,17 +203,11 @@ Row *getTrackRow(PatternChain *pc, uint16_t index, bool createifmissing)
 	if (pc->order[pindex] == PATTERN_VOID)
 	{
 		if (createifmissing)
-		{
 			_setPatternOrder(&pc, pindex, dupFreePatternIndex(pc, pc->order[pindex]));
-			regenGlobalRowc(s);
-		} else return NULL;
+		else return NULL;
 	}
 
 	return getPatternRow(getPatternChainPattern(pc, index), getPatternIndex(index));
-}
-
-void regenGlobalRowc(Song *cs)
-{ /* TODO: atomicity */
 }
 
 void applyTrackMutes(void)
@@ -304,4 +299,53 @@ TrackChain *deserializeTrackChain(struct json_object *jso)
 		ret->v[i] = deserializeTrack(json_object_array_get_idx(jso, i));
 
 	return ret;
+}
+
+static void cb_setPatternOrderBlock(Event *e)
+{
+	size_t freeindexlen = (size_t)((void**)e->callbackarg)[0];
+	for (size_t i = 0; i < freeindexlen; i++)
+		free(((void**)e->callbackarg)[i+1]);
+
+	free(e->callbackarg);
+	free(((TrackChain*)e->src)->v);
+	free(e->src);
+
+	regenSongLength();
+	p->redraw = 1;
+}
+void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, uint8_t value)
+{
+	TrackChain *newtrack = malloc(sizeof(TrackChain));
+	newtrack->c = s->track->c;
+	newtrack->v = calloc(s->track->c, sizeof(Track*));
+	memcpy(newtrack->v, s->track->v, s->track->c * sizeof(Track*));
+
+	void **freeindex = malloc(sizeof(void*) * (((y2-y1) + 1) * ((c2-c1) + 1) + 2 + (c2-c1)));
+	size_t freeindexlen = 0;
+
+	uint8_t i;
+	short j;
+	int cutindex;
+	for (i = c1; i <= c2; i++)
+	{
+		freeindex[++freeindexlen] = newtrack->v[i]->pattern;
+		newtrack->v[i]->pattern = dupPatternChain(newtrack->v[i]->pattern);
+		for (j = y1; j <= y2; j++)
+		{
+			cutindex = _setPatternOrder(&newtrack->v[i]->pattern, j, value);
+			if (cutindex >= 0)
+				freeindex[++freeindexlen] = s->track->v[i]->pattern->v[cutindex];
+		}
+	}
+
+	freeindex[0] = (void*)freeindexlen;
+
+	Event e;
+	e.sem = M_SEM_SWAP_REQ;
+	e.dest = (void**)&s->track;
+	e.src = newtrack;
+	e.callback = cb_setPatternOrderBlock;
+	e.callbackarg = freeindex;
+	pushEvent(&e);
 }

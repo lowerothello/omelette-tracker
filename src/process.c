@@ -348,12 +348,13 @@ static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16
 				/* walk the pointer and loop */
 				(*playfy)++;
 				/* TODO: looping :3 */
-				// {
-				// 	*playfy = 0;
-				// 	lookback(fptr, spr, *playfy, cv);
-				// 	if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
-				// 	if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
-				// }
+				if (*playfy >= (p->s->slen+1) * (p->s->plen+1))
+				{
+					*playfy = 0;
+					lookback(fptr, spr, *playfy, cv);
+					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
+					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
+				}
 
 				/* preprocess track */
 				r = getTrackRow(cv->pattern, *playfy, 0);

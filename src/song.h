@@ -8,7 +8,8 @@ typedef struct Song
 	EffectChain *send;
 
 	/* misc. state */
-	uint8_t plen;
+	uint8_t plen; /* rows in each pattern */
+	uint8_t slen; /* patterns in the song */
 	uint8_t rowhighlight;
 	uint8_t songbpm;
 } Song;

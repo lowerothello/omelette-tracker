@@ -1,7 +1,6 @@
 void chordClearTrack(void)
 {
 	initTrackData(s->track->v[w->track]); /* TODO: not atomic */
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 
@@ -25,7 +24,6 @@ void chordDeleteTrack(void) { delTrack(w->track, MAX(1, w->count)); }
 void chordCopyTrack(void)
 {
 	copyTrack(&w->trackbuffer, s->track->v[w->track]);
-	regenGlobalRowc(s);
 	p->redraw = 1;
 }
 

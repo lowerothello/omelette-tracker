@@ -39,14 +39,14 @@ void freePatternChain(PatternChain *pc)
 }
 
 /* doesn't duplicate pc's children, use deepDupPatternChain to also copy children */
-PatternChain *dupPatternChain(PatternChain *pc)
+static PatternChain *dupPatternChain(PatternChain *pc)
 {
 	PatternChain *ret = malloc(sizeof(PatternChain) + pc->c * sizeof(Pattern*));
 	memcpy(ret, pc, sizeof(PatternChain) + pc->c*sizeof(Pattern*));
 	return ret;
 }
 
-PatternChain *deepDupPatternChain(PatternChain *pc)
+static PatternChain *deepDupPatternChain(PatternChain *pc)
 {
 	PatternChain *ret = dupPatternChain(pc);
 	for (uint8_t i = 0; i < pc->c; i++)
@@ -83,7 +83,7 @@ Pattern *dupPattern(Pattern *p, uint16_t newlen)
 
 static PatternChain *_addPattern(PatternChain *pc, uint8_t index)
 {
-	if (pc->i[index] != PATTERN_VOID) return pc; /* pattern already exists, don't try to add it */
+	if (index == PATTERN_VOID || pc->i[index] != PATTERN_VOID) return pc; /* pattern already exists, don't try to add it */
 
 	pc->c++;
 	pc = reallocPatternChain(pc);
@@ -248,6 +248,18 @@ int _setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 
 	return cutindex;
 }
+static void cb_setPatternOrder(Event *e)
+{
+	int cutindex = (int)(size_t)e->callbackarg;
+
+	if (cutindex >= 0)
+		free(((PatternChain*)e->src)->v[cutindex]);
+
+	free(e->src);
+
+	regenSongLength();
+	p->redraw = 1;
+}
 void setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 {
 	PatternChain *newchain = dupPatternChain(*pc);
@@ -258,15 +270,11 @@ void setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)pc;
 	e.src = newchain;
-	switch (cutindex)
-	{
-		case -2: e.callback = NULL;          break;
-		case -1: e.callback = cb_addPattern; break;
-		default: e.callback = cb_delPattern; break;
-	}
+	e.callback = cb_setPatternOrder;
 	e.callbackarg = (void*)(size_t)cutindex;
 	pushEvent(&e);
 }
+
 /* push a hex digit into the playback order */
 void pushPatternOrder(PatternChain **pc, uint8_t index, char value)
 {
@@ -286,12 +294,7 @@ void pushPatternOrder(PatternChain **pc, uint8_t index, char value)
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)pc;
 	e.src = newchain;
-	switch (cutindex)
-	{
-		case -2: e.callback = NULL;          break;
-		case -1: e.callback = cb_addPattern; break;
-		default: e.callback = cb_delPattern; break;
-	}
+	e.callback = cb_setPatternOrder;
 	e.callbackarg = (void*)(size_t)cutindex;
 	pushEvent(&e);
 }
@@ -397,4 +400,16 @@ PatternChain *deserializePatternChain(struct json_object *jso)
 		ret->v[i] = deserializePattern(json_object_array_get_idx(json_object_object_get(jso, "data"), i));
 
 	return ret;
+}
+
+void regenSongLength(void)
+{
+	uint8_t slen = 0;
+	uint8_t i, j;
+	for (i = 0; i < s->track->c; i++)
+		for (j = 0; j < PATTERN_VOID; j++)
+			if (s->track->v[i]->pattern->order[j] != PATTERN_VOID)
+				slen = MAX(slen, j);
+
+	s->slen = slen;
 }

@@ -45,8 +45,8 @@ typedef struct PatternChain
 
 PatternChain *newPatternChain(void);
 void freePatternChain(PatternChain*);
-PatternChain *dupPatternChain(PatternChain*);
-PatternChain *deepDupPatternChain(PatternChain*);
+// PatternChain *dupPatternChain(PatternChain*);
+// PatternChain *deepDupPatternChain(PatternChain*);
 
 uint8_t getPatternLength(void); /* TODO: this function is kinda stupid lol, should probably get rid of it */
 uint8_t getPatternChainIndex(uint16_t index);
@@ -81,3 +81,5 @@ struct json_object *serializePattern(Pattern*);
 Pattern *deserializePattern(struct json_object*);
 struct json_object *serializePatternChain(PatternChain*);
 PatternChain *deserializePatternChain(struct json_object*);
+
+void regenSongLength(void);

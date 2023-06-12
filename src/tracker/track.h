@@ -69,7 +69,6 @@ void _delTrack(struct Song *cs, Track *cv);
 void delTrack(uint8_t index, uint16_t count);
 void copyTrack(Track *dest, Track *src); /* NOT atomic */
 Row *getTrackRow(PatternChain *pc, uint16_t index, bool createifmissing);
-void regenGlobalRowc(struct Song *cs);
 
 void applyTrackMutes(void);
 void toggleTrackMute(uint8_t track);
@@ -77,3 +76,5 @@ void toggleTrackSolo(uint8_t track);
 
 struct json_object *serializeTrackChain(TrackChain*);
 TrackChain *deserializeTrackChain(struct json_object*);
+
+void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, uint8_t value);
