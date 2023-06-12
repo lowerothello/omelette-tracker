@@ -1,11 +1,9 @@
 /* clamps within range and loop, returns output samples */
 static void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint8_t decimate, InstSamplerState *s, uint8_t stereotrack, short *output)
 {
-	InstSamplerPlaybackState *ps = cv->inststate;
-
 	if (loop)
 	{ /* if there is a loop range */
-		if ((*s->sample)[ps->sampleslot]->pingpong)
+		if (s->sample->pingpong)
 		{ /* ping-pong loop */
 			if (ptr > length)
 			{
@@ -14,13 +12,13 @@ static void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint
 				else            /* walking backwards */ ptr = length - ptr;
 			}
 
-			if ((*s->sample)[ps->sampleslot]->channels == 1)
-				getSample(ptr+(*s->sample)[ps->sampleslot]->trimstart, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+			if (s->sample->channels == 1)
+				getSample(ptr+s->sample->trimstart, s->interpolate, decimate, s->bitredux, s->sample, output);
 			else
-				getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+				getSample((ptr+s->sample->trimstart)*s->sample->channels + stereotrack, s->interpolate, decimate, s->bitredux, s->sample, output);
 		} else
 		{ /* crossfaded forwards loop */
-			uint32_t looprampmax = MIN(samplerate/1000 * LOOP_RAMP_MS, (loop>>1)) * ((*s->sample)[ps->sampleslot]->loopramp/255);
+			uint32_t looprampmax = MIN(samplerate/1000 * LOOP_RAMP_MS, (loop>>1)) * (s->sample->loopramp/255);
 			if (ptr > length)
 				ptr = (length - loop) + looprampmax + fmodf(ptr - length, loop - looprampmax);
 
@@ -28,26 +26,26 @@ static void trimloop(double ptr, uint32_t length, uint32_t loop, Track *cv, uint
 			{
 				float lerp = (ptr - length + looprampmax) / (float)looprampmax;
 				float ramppointer = (ptr - (loop - looprampmax));
-				if ((*s->sample)[ps->sampleslot]->channels == 1)
-					getSampleLoopRamp(ptr+(*s->sample)[ps->sampleslot]->trimstart, ramppointer, lerp, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+				if (s->sample->channels == 1)
+					getSampleLoopRamp(ptr+s->sample->trimstart, ramppointer, lerp, s->interpolate, decimate, s->bitredux, s->sample, output);
 				else
-					getSampleLoopRamp((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, ramppointer*(*s->sample)[ps->sampleslot]->channels + stereotrack, lerp, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+					getSampleLoopRamp((ptr+s->sample->trimstart)*s->sample->channels + stereotrack, ramppointer*s->sample->channels + stereotrack, lerp, s->interpolate, decimate, s->bitredux, s->sample, output);
 			} else
 			{
-				if ((*s->sample)[ps->sampleslot]->channels == 1)
-					getSample(ptr+(*s->sample)[ps->sampleslot]->trimstart, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+				if (s->sample->channels == 1)
+					getSample(ptr+s->sample->trimstart, s->interpolate, decimate, s->bitredux, s->sample, output);
 				else
-					getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+					getSample((ptr+s->sample->trimstart)*s->sample->channels + stereotrack, s->interpolate, decimate, s->bitredux, s->sample, output);
 			}
 		}
 	} else
 	{
 		if (ptr < length)
 		{
-			if ((*s->sample)[ps->sampleslot]->channels == 1)
-				getSample(ptr+(*s->sample)[ps->sampleslot]->trimstart, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+			if (s->sample->channels == 1)
+				getSample(ptr+s->sample->trimstart, s->interpolate, decimate, s->bitredux, s->sample, output);
 			else
-				getSample((ptr+(*s->sample)[ps->sampleslot]->trimstart)*(*s->sample)[ps->sampleslot]->channels + stereotrack, s->interpolate, decimate, s->bitredux, (*s->sample)[ps->sampleslot], output);
+				getSample((ptr+s->sample->trimstart)*s->sample->channels + stereotrack, s->interpolate, decimate, s->bitredux, s->sample, output);
 		}
 	}
 }
@@ -57,7 +55,7 @@ static void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, floa
 	InstSamplerState *s = iv->state;
 	InstSamplerPlaybackState *ps = cv->inststate;
 
-	if (!(*s->sample)[ps->sampleslot] || !(*s->sample)[ps->sampleslot]->length) return;
+	if (!s->sample || !s->sample->length) return;
 
 	Envelope env;
 	env.adsr = s->envelope; if (ps->localenvelope != -1) env.adsr = ps->localenvelope;
@@ -69,8 +67,8 @@ static void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, floa
 	if (envelope(&env)) return;
 	ps->envgain = env.output;
 
-	uint32_t length = MIN((*s->sample)[ps->sampleslot]->trimlength, (*s->sample)[ps->sampleslot]->length-1 - (*s->sample)[ps->sampleslot]->trimstart);
-	uint32_t loop   = MIN((*s->sample)[ps->sampleslot]->looplength, length);
+	uint32_t length = MIN(s->sample->trimlength, s->sample->length-1 - s->sample->trimstart);
+	uint32_t loop   = MIN(s->sample->looplength, length);
 
 	float f;
 	int localpitchshift;
@@ -98,7 +96,7 @@ static void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, floa
 	float calcshiftr = powf(2.0f, +(s->formantstereo*DIV1024))*calcshift;
 
 	float calctime = semitoneShortToMultiplier(s->timestretch);
-	float calcrate = (float)(*s->sample)[ps->sampleslot]->rate / (float)samplerate;
+	float calcrate = (float)s->sample->rate / (float)samplerate;
 
 	float framegrainoffset;
 	double frameptr, nextframeptr;
@@ -187,7 +185,7 @@ static void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, floa
 		default: break;
 	}
 
-	if ((*s->sample)[ps->sampleslot]->invert)
+	if (s->sample->invert)
 	{
 		*l *= -1;
 		*r *= -1;

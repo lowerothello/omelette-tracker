@@ -86,14 +86,9 @@ void reparentSample(Inst *iv, Sample *sample) /* TODO: remove */
 {
 	InstSamplerState *s = iv->state; /* TODO: TEMPORARY!! */
 
-	short index = getEmptySampleIndex(s->sample);
-	if (index == -1)
-	{
-		free(sample);
-		return;
-	}
-
-	(*s->sample)[index] = sample;
+	if (s->sample)
+		free(s->sample);
+	s->sample = sample;
 }
 
 void toggleRecording(uint8_t inst, char cue)

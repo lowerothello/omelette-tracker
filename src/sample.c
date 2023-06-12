@@ -46,51 +46,15 @@ loadSample_end:
 	return ret;
 }
 
-short getEmptySampleIndex(SampleChain *chain)
+void copySample(Sample **dest, Sample *src)
 {
-	for (uint8_t i = 0; i < SAMPLE_MAX; i++)
-		if (!(*chain)[i])
-			return i;
-	return -1;
-}
-
-static void cb_attachSample(Event *e)
-{
-	if (e->callbackarg) free(e->callbackarg);
-	if (e->src) free(e->src);
-}
-
-/* .sample == NULL to detach */
-void attachSample(SampleChain **oldchain, Sample *sample, uint8_t index)
-{
-	SampleChain *newchain = malloc(sizeof(SampleChain));
-	memcpy(newchain, *oldchain, sizeof(SampleChain));
-	(*newchain)[index] = sample;
-
-	Event e;
-	e.sem = M_SEM_SWAP_REQ;
-	e.dest = (void**)oldchain;
-	e.src = newchain;
-	e.callback = cb_attachSample;
-	e.callbackarg = (**oldchain)[index];
-	pushEvent(&e);
-}
-
-void copySampleChain(SampleChain *dest, SampleChain *src)
-{
-	size_t size;
-	FOR_SAMPLECHAIN(i, src)
-	{
-		size = sizeof(Sample) + sizeof(short) * (*src)[i]->length * (*src)[i]->channels;
-		(*dest)[i] = malloc(size);
-		memcpy((*dest)[i], (*src)[i], size);
-	}
+	size_t size = sizeof(Sample) + sizeof(short) * src->length * src->channels;
+	(*dest) = malloc(size);
+	memcpy((*dest), src, size);
 }
 
 struct json_object *serializeSample(Sample *s, size_t *dataoffset)
 {
-	if (!s) return NULL;
-
 	struct json_object *ret = json_object_new_object();
 	json_object_object_add(ret, "length", json_object_new_uint64(s->length));
 	json_object_object_add(ret, "channels", json_object_new_int(s->channels));
@@ -111,17 +75,12 @@ struct json_object *serializeSample(Sample *s, size_t *dataoffset)
 
 void serializeSampleData(FILE *fp, Sample *s, size_t *dataoffset)
 {
-	if (!s) return;
-
 	fwrite(s->data, sizeof(short), s->length * s->channels, fp);
 	*dataoffset += sizeof(short) * s->length * s->channels;
 }
 
 Sample *deserializeSample(struct json_object *jso, void *data, double ratemultiplier)
 {
-	if (json_object_is_type(jso, json_type_null))
-		return NULL;
-
 	Sample *ret = calloc(1, sizeof(Sample) + sizeof(short)
 			* json_object_get_uint64(json_object_object_get(jso, "length"))
 			* json_object_get_int(json_object_object_get(jso, "channels")));

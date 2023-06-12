@@ -222,7 +222,7 @@ static void sampleLoadCallbackOverload(char *path)
 	Inst *iv = &s->inst->v[s->inst->i[w->instrument]];
 	Sample *newsample = loadSample(path);
 	if (newsample)
-		attachSample(&((InstSamplerState*)iv->state)->sample, newsample, w->sample);
+		reparentSample(iv, newsample);
 	else
 		strcpy(w->command.error, "failed to load sample, out of memory");
 

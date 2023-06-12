@@ -1,27 +1,26 @@
 static void instUISampleCallback(short x, short y, Inst *iv, uint8_t index)
 {
 	InstSamplerState *s = iv->state;
-	Sample *sample = (*s->sample)[w->sample];
-	if (!sample) return;
+	if (!s->sample) return;
 
 	switch (index)
 	{
 		case 0:
 			printf("\033[%d;%dHrate:", y, x);
-			addControlInt(x+8, y, &sample->rate, 8, 0x0, 0xffffffff, sample->defrate, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+8, y, &s->sample->rate, 8, 0x0, 0xffffffff, s->sample->defrate, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 		case 1:
 			printf("\033[%d;%dHgain:", y, x);
-			addControlInt(x+11, y, &sample->invert, 0,    0,   1,    0, 0, 0, (void(*)(void*))instControlCallback, NULL);
-			addControlInt(x+14, y, &sample->gain,   2,    0x0, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+11, y, &s->sample->invert, 0,    0,   1,    0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+14, y, &s->sample->gain,   2,    0x0, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
-		case 2: printf("\033[%d;%dHstart:", y, x); addControlInt(x+8, y, &sample->trimstart,  8, 0, sample->length-1, 0,                0, 0, (void(*)(void*))instControlCallback, NULL); break;
-		case 3: printf("\033[%d;%dHdelta:", y, x); addControlInt(x+8, y, &sample->trimlength, 8, 0, sample->length-1, sample->length-1, 0, 0, (void(*)(void*))instControlCallback, NULL); break;
-		case 4: printf("\033[%d;%dHloop:", y, x);  addControlInt(x+8, y, &sample->looplength, 8, 0, sample->length-1, 0,                0, 0, (void(*)(void*))instControlCallback, NULL); break;
+		case 2: printf("\033[%d;%dHstart:", y, x); addControlInt(x+8, y, &s->sample->trimstart,  8, 0, s->sample->length-1, 0,                0, 0, (void(*)(void*))instControlCallback, NULL); break;
+		case 3: printf("\033[%d;%dHdelta:", y, x); addControlInt(x+8, y, &s->sample->trimlength, 8, 0, s->sample->length-1, s->sample->length-1, 0, 0, (void(*)(void*))instControlCallback, NULL); break;
+		case 4: printf("\033[%d;%dHloop:", y, x);  addControlInt(x+8, y, &s->sample->looplength, 8, 0, s->sample->length-1, 0,                0, 0, (void(*)(void*))instControlCallback, NULL); break;
 		case 5:
 			printf("\033[%d;%dHpp/ramp:", y, x);
-			addControlInt(x+11, y, &sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
-			addControlInt(x+14, y, &sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+11, y, &s->sample->pingpong, 0,   0,    1, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
+			addControlInt(x+14, y, &s->sample->loopramp, 2, 0x0, 0xff, 0, 0, 0, (void(*)(void*))instControlCallback, NULL);
 			break;
 	}
 }
@@ -107,25 +106,15 @@ static void samplerDraw(Inst *iv, short x, short y, short width, short height, s
 
 	short sample_rows = getInstUIRows(&sampleInstUI, getMaxInstUICols(&sampleInstUI, width - 5));
 
-	/* multisample indices */
-	char buffer[5];
-	for (uint8_t i = 0; i < SAMPLE_MAX; i++)
-	{
-		if (i == w->sample+w->fxoffset) printf("\033[1;7m");
-		if ((*s->sample)[i]) snprintf(buffer, 5, " %01x ", i);
-		else                 snprintf(buffer, 5, " . ");
-		printCulling(buffer, x + ((width - 3)>>1) + (i - w->sample)*5, y+1, x+1, x + width-1);
-		printf("\033[22;27m");
-	}
 
-	if ((*s->sample)[w->sample])
+	if (s->sample)
 	{
-		drawWaveform((*s->sample)[w->sample], x+1, y+2, width-1, wh - sample_rows - 3);
+		drawWaveform(s->sample, x+1, y+1, width-1, wh - sample_rows - 2);
 		drawInstUI(&sampleInstUI, iv, x+1, width-2, y + wh - sample_rows - 1, 0, sample_rows);
 		drawInstUI(&cyclicInstUI, iv, x, width, y + wh, 0, rows);
 	} else
 	{
-		resizeBrowser(fbstate, x + 3, y + 2, width - 3, wh - 3);
+		resizeBrowser(fbstate, x + 3, y + 1, width - 3, wh - 2);
 		drawBrowser(fbstate);
 	}
 }

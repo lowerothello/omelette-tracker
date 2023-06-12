@@ -1,5 +1,3 @@
-#define SAMPLE_MAX 16
-
 /* TODO: sample destructive operations:
  *  gain
  *  rate/bit redux
@@ -24,22 +22,9 @@ typedef struct Sample
 	short    data[];
 } Sample;
 
-typedef Sample *SampleChain[SAMPLE_MAX];
-
 Sample *loadSample(char *path);
-
-/* gets the first free sample slot, or -1 if none are free */
-short getEmptySampleIndex(SampleChain *chain);
-
-/* .sample == NULL to detach */
-void attachSample(SampleChain **oldchain, Sample *sample, uint8_t index);
-void copySampleChain(SampleChain *dest, SampleChain *src);
+void copySample(Sample **dest, Sample *src);
 
 struct json_object *serializeSample(Sample*, size_t *dataoffset);
 void serializeSampleData(FILE *fp, Sample*, size_t *dataoffset);
 Sample *deserializeSample(struct json_object*, void *data, double ratemultiplier);
-
-/* iterate over allocated samples in a (SampleChain*) */
-#define FOR_SAMPLECHAIN(iter, samplechain) \
-	for (uint8_t iter = 0; iter < SAMPLE_MAX; iter++) \
-		if ((*samplechain)[iter])

@@ -18,8 +18,7 @@ const char *SampleChannelsString[SAMPLE_CHANNELS_MAX] =
 
 typedef struct InstSamplerState
 {
-	SampleChain *sample;
-	uint8_t samplemap[NOTE_MAX];
+	Sample *sample;
 
 	SampleChannels channelmode;
 
@@ -75,7 +74,6 @@ typedef struct InstSamplerPlaybackState
 	MacroState rateredux;
 	int localcyclelength;
 	uint16_t grainrampindex; /* progress through the grain ramp buffer */
-	uint8_t sampleslot;
 } InstSamplerPlaybackState;
 
 

@@ -1,7 +1,6 @@
 static void *samplerInit(void)
 {
 	InstSamplerState *ret = calloc(1, sizeof(InstSamplerState));
-	ret->sample = calloc(1, sizeof(SampleChain));
 
 	ret->rateredux = 0xff;
 	ret->bitredux = 0xf;
@@ -18,9 +17,7 @@ static void samplerFree(Inst *iv)
 	freeWaveform();
 
 	InstSamplerState *s = iv->state;
-	FOR_SAMPLECHAIN(i, s->sample)
-		free((*s->sample)[i]);
-	free(s->sample);
+	if (s->sample) free(s->sample);
 	free(s);
 }
 
@@ -28,57 +25,35 @@ static void samplerFree(Inst *iv)
 static void samplerCopy(Inst *dest, Inst *src)
 {
 	dest->type = INST_TYPE_SAMPLER;
-	InstSamplerState *s = dest->state = calloc(1, sizeof(InstSamplerState));
+	InstSamplerState *ds = dest->state = calloc(1, sizeof(InstSamplerState));
+	InstSamplerState *ss = src->state;
 
-	memcpy(dest->state, src->state, sizeof(InstSamplerState));
+	memcpy(ds, ss, sizeof(InstSamplerState));
 
-	s->sample = calloc(1, sizeof(SampleChain));
-	copySampleChain(s->sample, ((InstSamplerState*)src->state)->sample);
+	if (ss->sample)
+		copySample(&ds->sample, ss->sample);
 }
 
 static void samplerGetIndexInfo(Inst *iv, char *buffer)
 {
-	uint32_t samplesize = 0;
 	InstSamplerState *s = iv->state;
-	FOR_SAMPLECHAIN(i, s->sample)
-		samplesize +=
-				(*s->sample)[i]->length *
-				(*s->sample)[i]->channels;
-	humanReadableSize(samplesize, buffer);
+	humanReadableSize(s->sample->length * s->sample->channels, buffer);
 }
 
 static void samplerTriggerNote(uint32_t fptr, Inst *iv, Track *cv, float oldnote, float note, short inst)
 {
-	InstSamplerState *s = iv->state;
 	InstSamplerPlaybackState *ps = cv->inststate;
 	ps->pitchedpointer = 0; /* TODO: skip resetting this if legato */
-	ps->sampleslot = s->samplemap[(int)cv->r.note];
 	ps->transattackfollower = 0.0f;
 }
 
 static struct json_object *samplerSerialize(void *state, size_t *dataoffset)
 {
-	int i;
 	InstSamplerState *s = state;
 	struct json_object *ret = json_object_new_object();
 
-	struct json_object *array;
-
-	array = json_object_new_array_ext(SAMPLE_MAX);
-	for (i = 0; i < SAMPLE_MAX; i++)
-		json_object_array_add(array, serializeSample((*s->sample)[i], dataoffset));
-
-	json_object_object_add(ret, "sample", array);
-	array = NULL;
-
-	array = json_object_new_array_ext(NOTE_MAX);
-	for (i = 0; i < NOTE_MAX; i++)
-		json_object_array_add(array, json_object_new_int(s->samplemap[i]));
-	json_object_object_add(ret, "samplemap", array);
-	array = NULL;
-
+	json_object_object_add(ret, "sample", serializeSample(s->sample, dataoffset));
 	json_object_object_add(ret, "channelmode", json_object_new_string(SampleChannelsString[s->channelmode]));
-
 	json_object_object_add(ret, "rateredux", json_object_new_int(s->rateredux));
 	json_object_object_add(ret, "bitredux", json_object_new_int(s->bitredux));
 	json_object_object_add(ret, "interpolate", json_object_new_boolean(s->interpolate));
@@ -103,9 +78,7 @@ static struct json_object *samplerSerialize(void *state, size_t *dataoffset)
 void samplerSerializeData(FILE *fp, void *state, size_t *dataoffset)
 {
 	InstSamplerState *s = state;
-
-	for (int i = 0; i < SAMPLE_MAX; i++)
-		serializeSampleData(fp, (*s->sample)[i], dataoffset);
+	serializeSampleData(fp, s->sample, dataoffset);
 }
 
 static void *samplerDeserialize(struct json_object *jso, void *data, double ratemultiplier)
@@ -113,11 +86,7 @@ static void *samplerDeserialize(struct json_object *jso, void *data, double rate
 	int i;
 	InstSamplerState *ret = samplerInit();
 
-	for (i = 0; i < SAMPLE_MAX; i++)
-		(*ret->sample)[i] = deserializeSample(json_object_array_get_idx(json_object_object_get(jso, "sample"), i), data, ratemultiplier);
-
-	for (i = 0; i < NOTE_MAX; i++)
-		ret->samplemap[i] = json_object_get_int(json_object_array_get_idx(json_object_object_get(jso, "samplemap"), i));
+	ret->sample = deserializeSample(json_object_object_get(jso, "sample"), data, ratemultiplier);
 
 	const char *string = json_object_get_string(json_object_object_get(jso, "channelmode"));
 	for (i = 0; i < SAMPLE_CHANNELS_MAX; i++)
