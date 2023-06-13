@@ -1,4 +1,4 @@
-#define RULER_WIDTH 19
+#define RULER_WIDTH 21
 
 /* globals instead of static to the mouse function so they can be checked against in the draw code */
 int staging_octave = 0; bool reset_octave = 0;
@@ -51,6 +51,8 @@ static void drawRuler(void)
 		printf("\033[%d;%dH", ws.ws_row, ws.ws_col - RULER_WIDTH);
 
 		if (staging_play) printf(STAGING_FORMAT);
+		if (w->loop) printf(";");
+		else         printf(" ");
 		if (w->follow) printf(">");
 		else           printf(" ");
 
@@ -59,6 +61,8 @@ static void drawRuler(void)
 
 		if (w->follow) printf(">");
 		else           printf(" ");
+		if (w->loop) printf(";");
+		else         printf(" ");
 		printf("\033[m ");
 
 		if (reset_octave) printf(RESET_FORMAT);

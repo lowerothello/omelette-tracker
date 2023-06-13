@@ -16,8 +16,7 @@ static void leaveSpecialModes(void)
 void startPlayback(void)
 {
 	leaveSpecialModes();
-	/* TODO: toggle song follow, or smth related to it */
-	w->playfy = 0;
+	w->playfy = w->trackerfy - (w->trackerfy % (s->plen+1));
 	w->sprp = 0;
 	if (w->follow)
 		w->trackerfy = w->playfy;
@@ -37,12 +36,11 @@ void stopPlayback(void)
 		Event ev;
 		ev.sem = M_SEM_PLAYING_STOP;
 		pushEvent(&ev);
-	} else
-	{
-		/* TODO: toggle song follow, or smth related to it */
+	} else if (!(w->trackerfy % (s->plen+1)))
 		w->trackerfy = 0;
-	}
+	else
+		w->trackerfy -= w->trackerfy % (s->plen+1);
 
-	w->mode = 0; /* always go to mode 0 on stop */
+	w->mode = MODE_NORMAL;
 	p->redraw = 1;
 }

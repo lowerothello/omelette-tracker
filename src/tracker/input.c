@@ -99,6 +99,11 @@ void toggleSongFollow(void)
 		w->trackerfy = w->playfy;
 	p->redraw = 1;
 }
+void togglePatternLoop(void)
+{
+	w->loop = !w->loop;
+	p->redraw = 1;
+}
 
 static void muteCurrentTrack(void)
 {
@@ -1047,6 +1052,7 @@ void initTrackerInput(void)
 					addTooltipBind("put"                   , 0                   , XK_p         , TT_DRAW        , (void(*)(void*))putPartPattern            , (void*)1 );
 					addTooltipBind("mix put"               , 0                   , XK_P         , 0              , (void(*)(void*))mixPutPartPattern         , (void*)0 );
 					addTooltipBind("toggle song follow"    , 0                   , XK_f         , TT_DRAW        , (void(*)(void*))toggleSongFollow          , NULL     );
+					addTooltipBind("toggle pattern loop"   , 0                   , XK_semicolon , TT_DRAW        , (void(*)(void*))togglePatternLoop         , NULL     );
 					addTooltipBind("clear cell"            , 0                   , XK_x         , TT_DRAW        , (void(*)(void*))clearCell                 , NULL     );
 					addTooltipBind("clear cell"            , 0                   , XK_BackSpace , 0              , (void(*)(void*))clearCell                 , NULL     );
 					// addTooltipBind("jump loop points"      , 0                   , XK_percent   , TT_DRAW        , (void(*)(void*))swapLoopPoint             , NULL     );

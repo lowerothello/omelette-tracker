@@ -98,10 +98,11 @@ typedef struct UI
 	short           *recbuffer; /* disallow removing an instrument while recording to it */
 	uint32_t         recptr;
 
-	uint16_t  playfy;      /* analogous to window->trackerfy                                 */
-	uint16_t  spr;         /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
-	uint16_t  sprp;        /* samples per row progress                                       */
-	bool      playing;     /* true if the sequencer is running                               */
+	uint16_t  playfy;  /* analogous to window->trackerfy                                 */
+	uint16_t  spr;     /* samples per row (samplerate * (60 / bpm) / (rowhighlight * 2)) */
+	uint16_t  sprp;    /* samples per row progress                                       */
+	bool      playing; /* true if the sequencer is running                               */
+	bool      loop;    /* true if the current order index is looping                     */
 } UI;
 UI *w;
 

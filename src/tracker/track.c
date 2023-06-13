@@ -334,7 +334,8 @@ void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, uint8_t va
 		for (j = y1; j <= y2; j++)
 		{
 			cutindex = _setPatternOrder(&newtrack->v[i]->pattern, j, value);
-			if (cutindex >= 0)
+			VALGRIND_PRINTF("%d\n", cutindex);
+			if (cutindex >= 0 && cutindex != NOTE_VOID)
 				freeindex[++freeindexlen] = s->track->v[i]->pattern->v[cutindex];
 		}
 	}
