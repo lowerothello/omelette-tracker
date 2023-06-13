@@ -45,14 +45,14 @@ void setCommand(
 
 	strcpy(w->command.prompt, prompt);
 	strcpy(w->command.historyv[w->command.historyc], startvalue);
-	w->command.commandptr = strlen(startvalue);
+	w->command.commandoffset = strlen(startvalue);
 }
 
 void drawCommand(void)
 {
 	if (w->mode == MODE_COMMAND) /* command mode */
 	{
-		printf("\033[?25h\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, w->command.prompt, w->command.historyv[w->command.historyc], ws.ws_row, (w->command.commandptr + (unsigned short)strlen(w->command.prompt) + 1) % ws.ws_col);
+		printf("\033[?25h\033[%d;0H%s%s\033[%d;%dH", ws.ws_row, w->command.prompt, w->command.historyv[w->command.historyc], ws.ws_row, (w->command.commandoffset + (unsigned short)strlen(w->command.prompt) + 1) % ws.ws_col);
 		w->command.error[0] = '\0';
 	} else if (strlen(w->command.error))
 		printf("\033[s\033[%d;0H%s\033[u", ws.ws_row, w->command.error);
@@ -63,7 +63,7 @@ static void previousHistory(void *arg)
 	if (w->command.history < 0) return;
 	w->command.history = MIN((w->command.history + 1) % COMMAND_HISTORY_LENGTH, w->command.historyc);
 	strcpy(w->command.historyv[w->command.historyc], w->command.historyv[w->command.historyc - w->command.history]);
-	w->command.commandptr = strlen(w->command.historyv[w->command.historyc]);
+	w->command.commandoffset = strlen(w->command.historyv[w->command.historyc]);
 	p->redraw = 1;
 }
 static void nextHistory(void *arg)
@@ -71,47 +71,47 @@ static void nextHistory(void *arg)
 	if (w->command.history < 0) return;
 	w->command.history = MAX(w->command.history - 1, 0);
 	strcpy(w->command.historyv[w->command.historyc], w->command.historyv[w->command.historyc - w->command.history]);
-	w->command.commandptr = strlen(w->command.historyv[w->command.historyc]);
+	w->command.commandoffset = strlen(w->command.historyv[w->command.historyc]);
 	p->redraw = 1;
 }
 static void cursorLeft (void *arg)
 {
-	if (w->command.commandptr) w->command.commandptr--;
+	if (w->command.commandoffset) w->command.commandoffset--;
 	p->redraw = 1;
 }
 static void cursorRight(void *arg)
 {
-	if (w->command.commandptr < strlen(w->command.historyv[w->command.historyc]))
-		w->command.commandptr++;
+	if (w->command.commandoffset < strlen(w->command.historyv[w->command.historyc]))
+		w->command.commandoffset++;
 	p->redraw = 1;
 }
 static void cursorHome (void *arg)
 {
-	w->command.commandptr = 0;
+	w->command.commandoffset = 0;
 	p->redraw = 1;
 }
 static void cursorEnd  (void *arg)
 {
-	w->command.commandptr = strlen(w->command.historyv[w->command.historyc]);
+	w->command.commandoffset = strlen(w->command.historyv[w->command.historyc]);
 	p->redraw = 1;
 }
 
 static void commandAutocomplete(void *arg)
 {
 	if (w->command.tabcallback) w->command.tabcallback(w->command.historyv[w->command.historyc], w->command.arg);
-	w->command.commandptr = strlen(w->command.historyv[w->command.historyc]);
+	w->command.commandoffset = strlen(w->command.historyv[w->command.historyc]);
 	p->redraw = 1;
 }
 static void commandBackspace(void *arg)
 {
-	if (w->command.commandptr > 0)
+	if (w->command.commandoffset > 0)
 	{
 		char *s = w->command.historyv[w->command.historyc];
 		size_t slen = strlen(s);
 		for (int i = 0; i < slen; i++)
-			if (s[i] != '\0' && i > w->command.commandptr - 2)
+			if (s[i] != '\0' && i > w->command.commandoffset - 2)
 				s[i] = s[i + 1];
-		w->command.commandptr--;
+		w->command.commandoffset--;
 		if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	}
 	p->redraw = 1;
@@ -119,15 +119,15 @@ static void commandBackspace(void *arg)
 static void commandCtrlU(void *arg)
 {
 	char *s = w->command.historyv[w->command.historyc];
-	memcpy(s, s + w->command.commandptr, COMMAND_LENGTH - w->command.commandptr);
-	w->command.commandptr = 0;
+	memcpy(s, s + w->command.commandoffset, COMMAND_LENGTH - w->command.commandoffset);
+	w->command.commandoffset = 0;
 	if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	p->redraw = 1;
 }
 static void commandCtrlK(void *arg)
 {
 	char *s = w->command.historyv[w->command.historyc];
-	s[w->command.commandptr] = '\0';
+	s[w->command.commandoffset] = '\0';
 	if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	p->redraw = 1;
 }
@@ -164,11 +164,11 @@ static void commandInputKey(void *key)
 	char *s = w->command.historyv[w->command.historyc];
 	s[strlen(s) + 1] = '\0'; /* ensure that the nullbyte at the end of the string is safe to overwrite by putting another one after it */
 	for (int i = strlen(s); i > 0; i--)
-		if (i > w->command.commandptr - 1) s[i + 1] = s[i];
+		if (i > w->command.commandoffset - 1) s[i + 1] = s[i];
 		else break;
 
-	s[w->command.commandptr] = (char)(size_t)key;
-	w->command.commandptr++;
+	s[w->command.commandoffset] = (char)(size_t)key;
+	w->command.commandoffset++;
 	if (w->command.keycallback) w->command.keycallback(s, w->command.arg);
 	p->redraw = 1;
 }

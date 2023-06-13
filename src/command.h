@@ -6,7 +6,7 @@ typedef struct {
 	char historyv[COMMAND_HISTORY_LENGTH][COMMAND_LENGTH + 1]; /* history entries */
 
 	short          history;
-	unsigned short commandptr;
+	unsigned short commandoffset;
 	char           error[COMMAND_LENGTH + 1];
 	char           prompt[COMMAND_LENGTH + 1];
 	void          *arg;
