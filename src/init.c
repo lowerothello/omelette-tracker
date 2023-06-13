@@ -37,6 +37,7 @@ void cleanup(int ret)
 	VALGRIND_PRINTF("audio backend pre-close\n");
 	if (audio_api.clean)
 		audio_api.clean();
+	killProcThreads();
 	VALGRIND_PRINTF("audio backend post-close\n");
 
 	freeWaveform();
@@ -76,6 +77,7 @@ void init(int argc, char *argv[])
 	fbstate = initFileBrowser(SAMPLES_DIR);
 	pbstate = initPluginBrowser();
 
+	spawnProcThreads();
 	audio_api.start();
 
 	if (argc > 1)

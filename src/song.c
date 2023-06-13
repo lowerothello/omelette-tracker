@@ -4,7 +4,6 @@ Song *addSong(void)
 	if (!cs) return NULL;
 
 	cs->master = newEffectChain();
-	cs->send   = newEffectChain();
 
 	cs->rowhighlight = 4;
 	cs->songbpm = DEF_BPM;
@@ -30,7 +29,6 @@ void freeSong(Song *cs)
 	if (!cs) return;
 
 	freeEffectChain(cs->master);
-	freeEffectChain(cs->send);
 
 	for (int i = 0; i < cs->track->c; i++)
 	{
@@ -65,7 +63,6 @@ void serializeSong(FILE *fp, Song *cs)
 	json_object_object_add(jso, "songbpm", json_object_new_int(cs->songbpm));
 
 	json_object_object_add(jso, "master", serializeEffectChain(cs->master));
-	json_object_object_add(jso, "send", serializeEffectChain(cs->send));
 
 	json_object_object_add(jso, "inst", serializeInstChain(cs->inst));
 	json_object_object_add(jso, "track", serializeTrackChain(cs->track));
@@ -99,7 +96,6 @@ Song *deserializeSong(FILE *fp)
 	ret->songbpm = json_object_get_int(json_object_object_get(jso, "songbpm"));
 
 	ret->master = deserializeEffectChain(json_object_object_get(jso, "master"));
-	ret->send = deserializeEffectChain(json_object_object_get(jso, "send"));
 
 	ret->inst = deserializeInstChain(json_object_object_get(jso, "inst"), (void*)((size_t)buffer + strlen(buffer)+1), ratemultiplier);
 	ret->track = deserializeTrackChain(json_object_object_get(jso, "track"));

@@ -1,9 +1,12 @@
-#ifndef NO_MULTITHREADING
-bool preview_thread_running[PREVIEW_TRACKS];
-pthread_t preview_thread_ids[PREVIEW_TRACKS];
-bool thread_running[TRACK_MAX];
-pthread_t thread_ids[TRACK_MAX]; /* index 0 is the preview track */
-#endif
+typedef struct Thread
+{
+	pthread_t id;
+	bool running;
+} Thread;
+
+int threadcount;
+Thread  *thread;
+
 
 void setBpm(uint16_t *spr, uint8_t newbpm)
 { *spr = samplerate * (60.f / newbpm) / p->s->rowhighlight; }
@@ -332,66 +335,65 @@ void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 	}
 }
 
-static void _trackThreadRoutine(Track *cv, uint16_t *spr, uint16_t *sprp, uint16_t *playfy, bool readrows)
+static int walkSongPointer(uint32_t bufsize, uint16_t *spr, uint16_t *sprp, uint16_t *playfy, bool readrows)
+{
+	(*sprp) += bufsize;
+
+	int ret = 0;
+	while (*sprp > *spr)
+	{
+		*sprp -= *spr;
+		if (readrows && p->w->playing)
+		{
+			/* walk the pointer and loop */
+			(*playfy)++;
+			if (p->w->loop && !(*playfy % (p->s->plen+1))) { *playfy -= p->s->plen + 1; ret = MAX(ret, 2); }
+			if (*playfy >= (p->s->slen+1) * (p->s->plen+1)) { *playfy = 0; ret = MAX(ret, 2); }
+
+			ret = MAX(ret, 1);
+		}
+	}
+	return ret;
+}
+
+static void _trackThreadRoutine(Track *cv, bool readrows)
 {
 	Row *r;
+	uint16_t spr = p->w->spr;
+	uint16_t sprp = p->w->sprp;
+	uint16_t playfy = p->w->playfy;
+
 	for (uint32_t fptr = 0; fptr < buffersize; fptr++) /* TODO: probably shouldn't rely on buffersize here */
 	{
-		playTrack(fptr, spr, *sprp, cv);
+		playTrack(fptr, &spr, sprp, cv);
 
-		/* next row */
-		if ((*sprp)++ > *spr)
+		switch (walkSongPointer(1, &spr, &sprp, &playfy, readrows))
 		{
-			*sprp = 0;
-			if (readrows && p->w->playing)
-			{
-				/* walk the pointer and loop */
-				(*playfy)++;
-				if (p->w->loop && !(*playfy % (p->s->plen+1)))
+			case 2:
+				lookback(fptr, &spr, playfy, cv);
+				switch (p->w->instrecv)
 				{
-					*playfy -= p->s->plen + 1;
-					lookback(fptr, spr, *playfy, cv);
-					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
-					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
+					case INST_REC_LOCK_CUE_CONT:
+						p->w->instrecv = INST_REC_LOCK_END;
+						break;
+					case INST_REC_LOCK_CUE_START:
+						p->w->instrecv = INST_REC_LOCK_CUE_CONT;
+						break;
+					default: break;
 				}
-				if (*playfy >= (p->s->slen+1) * (p->s->plen+1))
-				{
-					*playfy = 0;
-					lookback(fptr, spr, *playfy, cv);
-					if (p->w->instrecv == INST_REC_LOCK_CUE_CONT) p->w->instrecv = INST_REC_LOCK_END;
-					if (p->w->instrecv == INST_REC_LOCK_CUE_START) p->w->instrecv = INST_REC_LOCK_CUE_CONT;
-				}
-
-				/* preprocess track */
-				r = getTrackRow(cv->pattern, *playfy, 0);
+				/* fall through */
+			case 1:
 				/* TODO: proper implementation of master track macros, including bpm */
-				// if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, spr, p->w->bpmcache[*playfy], cv, r);
-				if (r)
-					processRow(fptr, spr, 1, cv, r);
-			}
+				// if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, &spr, p->w->bpmcache[*playfy], cv, r);
+				if ((r = getTrackRow(cv->pattern, playfy, 0)))
+					processRow(fptr, &spr, 1, cv, r);
+				break;
 		}
 	}
 
 	/* track insert effects */
 	if (cv->effect) /* previewtrack doesn't have any effects so this check is required */
 		runEffectChain(buffersize, cv->effect);
-}
-
-static void *trackThreadRoutine(void *arg) /* wrapper for some temp variables */
-{
-	uint16_t spr = p->w->spr;
-	uint16_t sprp = p->w->sprp;
-	uint16_t playfy = p->w->playfy;
-	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 1);
-	return NULL;
-}
-static void *previewTrackThreadRoutine(void *arg) /* don't try to read rows that don't exist */
-{
-	uint16_t spr = p->w->spr;
-	uint16_t sprp = p->w->sprp;
-	uint16_t playfy = p->w->playfy;
-	_trackThreadRoutine(arg, &spr, &sprp, &playfy, 0);
-	return NULL;
 }
 
 static void triggerFlash(PlaybackInfo *p)
@@ -420,33 +422,22 @@ static void triggerFlash(PlaybackInfo *p)
 	}
 }
 
-void joinProcessThreads(void)
-{
-#ifndef NO_MULTITHREADING
-	if (!RUNNING_ON_VALGRIND)
-	{
-		/* join with the track threads */
-		for (uint8_t i = 1; i < p->s->track->c; i++)
-		{
-			if (thread_running[i])
-				pthread_join(thread_ids[i], NULL);
-			thread_running[i] = 0;
-		}
-
-		/* join with the prevew threads */
-		for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
-		{
-			if (preview_thread_running[i])
-				pthread_join(preview_thread_ids[i], NULL);
-			preview_thread_running[i] = 0;
-		}
-	}
-#endif
-}
-
 void processOutput(uint32_t nfptr)
 {
-	Track *cv;
+	/* wait for every work thread to be done */
+	struct timespec ts;
+pollThreads:
+	for (int i = 0; i < threadcount; i++)
+	{
+		if (thread[i].running)
+		{
+			ts.tv_sec = 0;
+			ts.tv_nsec = 1;
+			nanosleep(&ts, NULL);
+			goto pollThreads;
+		}
+	}
+
 
 	if (processM_SEM())
 	{
@@ -466,79 +457,22 @@ void processOutput(uint32_t nfptr)
 		p->redraw = 1;
 	}
 
-	/*                        MULTITHREADING                         */
-	/* isn't strictly realtime-safe, but *should* be ok (maybe)      */
-	/* honestly half this file probably isn't strictly realtime-safe */
 
-	/* handle the preview tracks first */
-	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
-	{
-		cv = p->w->previewtrack[i];
-		preview_thread_running[i] = 0;
-		if (cv->r.note != NOTE_VOID
-				&& cv->r.inst != INST_VOID)
-		{
-#ifdef NO_MULTITHREADING
-			previewTrackThreadRoutine(cv);
-#else
-			if (RUNNING_ON_VALGRIND)
-				previewTrackThreadRoutine(cv);
-			else
-			{
-				if (audio_api.realtimeThread(&preview_thread_ids[i], previewTrackThreadRoutine, cv))
-					previewTrackThreadRoutine(cv);
-				else
-					preview_thread_running[i] = 1;
-			}
-#endif
-		}
-	}
-
-	/* spawn threads for each track except for track 0 */
-	for (uint8_t i = 1; i < p->s->track->c; i++)
-	{
-		thread_running[i] = 0;
-		cv = p->s->track->v[i];
-#ifdef NO_MULTITHREADING
-		trackThreadRoutine(cv);
-#else
-		if (RUNNING_ON_VALGRIND)
-			trackThreadRoutine(cv);
-		else
-		{
-			if (audio_api.realtimeThread(&thread_ids[i], trackThreadRoutine, cv))
-				trackThreadRoutine(cv);
-			else
-				thread_running[i] = 1;
-		}
-#endif
-	}
-
-	/* run track 0 in this thread */
-	uint16_t c0spr = p->w->spr;
-	uint16_t c0sprp = p->w->sprp;
-	uint16_t c0playfy = p->w->playfy;
-	if (p->s->track->c)
-		_trackThreadRoutine(p->s->track->v[0], &c0spr, &c0sprp, &c0playfy, 1);
-
-	joinProcessThreads();
-
-	/* apply the new sprp and playfy track0 calculated */
-	if (c0playfy != p->w->playfy)
-	{
-		if (p->w->follow) p->w->trackerfy = c0playfy;
+	if (walkSongPointer(nfptr, &p->w->spr, &p->w->sprp, &p->w->playfy, 1))
 		p->redraw = 1;
-	}
-	p->w->playfy = c0playfy;
-	p->w->sprp = c0sprp;
-	p->w->spr = c0spr;
 
-	/* clear the master and send chain ports */
+	if (p->w->follow && p->w->trackerfy != p->w->playfy)
+	{
+		p->w->trackerfy = p->w->playfy;
+		p->redraw = 1; /* set redraw high AGAIN just to make sure it catches the trackerfy change */
+	}
+
+
+	/* clear the master ports */
 	memset(p->s->master->input[0], 0, nfptr * sizeof(float));
 	memset(p->s->master->input[1], 0, nfptr * sizeof(float));
-	memset(p->s->send->input[0], 0, nfptr * sizeof(float));
-	memset(p->s->send->input[1], 0, nfptr * sizeof(float));
 
+	Track *cv;
 	/* sum the output from each track thread */
 	for (uint8_t i = 0; i < p->s->track->c; i++)
 	{
@@ -551,14 +485,6 @@ void processOutput(uint32_t nfptr)
 			}
 	}
 
-	runEffectChain(nfptr, p->s->send);
-	/* mix the send chain output into the master input */
-	for (uint32_t fptr = 0; fptr < nfptr; fptr++)
-	{
-		p->s->master->input[0][fptr] += p->s->send->input[0][fptr];
-		p->s->master->input[1][fptr] += p->s->send->input[1][fptr];
-	}
-
 	for (uint8_t i = 0; i < PREVIEW_TRACKS; i++)
 	{
 		for (uint32_t fptr = 0; fptr < nfptr; fptr++)
@@ -567,6 +493,10 @@ void processOutput(uint32_t nfptr)
 			p->s->master->input[1][fptr] += p->w->previewtrack[i]->effect->input[1][fptr];
 		}
 	}
+
+	/* start up the next batch of work */
+	for (int i = 0; i < threadcount; i++)
+		thread[i].running = 1;
 
 	runEffectChain(nfptr, p->s->master);
 
@@ -602,4 +532,63 @@ void processInput(uint32_t nfptr)
 			}
 		}
 	}
+}
+
+
+void *procThreadRoutine(void *arg)
+{
+	size_t i = (size_t)arg;
+	struct timespec ts;
+
+	uint8_t trackcount, j;
+
+	/* PREVIEW_TRACKS is constant */
+	uint8_t previewtrackcount = PREVIEW_TRACKS / threadcount;
+	if (PREVIEW_TRACKS % threadcount > i)
+		previewtrackcount++;
+
+	while (1)
+	{
+		if (thread[i].running)
+		{
+			/* recalculate every time in case trackc has changed */
+			trackcount = p->s->track->c / threadcount;
+			if (p->s->track->c % threadcount > i)
+				trackcount++;
+
+			for (j = 0; j < trackcount; j++)
+				_trackThreadRoutine(p->s->track->v[(j*threadcount) + i], 1);
+
+			for (j = 0; j < previewtrackcount; j++)
+				_trackThreadRoutine(p->w->previewtrack[(j*threadcount) + i], 0);
+
+			thread[i].running = 0;
+		}
+
+		/* give time back to the system */
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1;
+		nanosleep(&ts, NULL);
+	}
+}
+
+void spawnProcThreads(void)
+{
+	threadcount = get_nprocs(); /* TODO: linux-specific */
+	thread = malloc(sizeof(Thread) * threadcount);
+	for (int i = 0; i < threadcount; i++)
+	{
+		thread[i].running = 0;
+		pthread_create(&thread[i].id, NULL, procThreadRoutine, (void*)(size_t)i);
+	}
+}
+void killProcThreads(void)
+{
+	for (int i = 0; i < threadcount; i++)
+	{
+		pthread_cancel(thread[i].id);
+		pthread_join(thread[i].id, NULL);
+	}
+
+	free(thread);
 }

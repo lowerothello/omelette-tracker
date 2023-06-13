@@ -5,7 +5,6 @@ typedef struct Song
 
 	/* effect chains */
 	EffectChain *master;
-	EffectChain *send;
 
 	/* misc. state */
 	uint8_t plen; /* rows in each pattern */
