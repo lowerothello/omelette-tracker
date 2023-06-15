@@ -41,6 +41,8 @@ mainM_SEM_pop: /* allow for processing and popping off the stack in one go */
 				p->eventc--;
 				goto mainM_SEM_start;
 
+			case M_SEM_QUEUE_SWAP_REQ:
+				p->event[0].sem = M_SEM_SWAP_REQ;
 			case M_SEM_RELOAD_REQ:
 			case M_SEM_SWAP_REQ:
 				return 1;
@@ -168,7 +170,7 @@ bool processM_SEM(void)
 					triggerNote(0, cv, cv->r.note, NOTE_OFF, cv->r.inst);
 
 					lookback(0, &p->w->spr, p->w->playfy, cv);
-					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv->pattern, p->w->playfy, 0));
+					processRow(0, &p->w->spr, 1, cv, getTrackRow(cv, p->w->playfy, 0));
 				}
 
 

@@ -1,6 +1,9 @@
 /* returns true if the pattern is populated */
 static bool patternPopulated(PatternChain *pc, uint8_t index)
 {
+	if (index == PATTERN_VOID)
+		return 0;
+
 	Pattern *p = pc->v[pc->i[index]];
 	for (uint16_t i = 0; i <= p->length; i++)
 	{
@@ -12,12 +15,6 @@ static bool patternPopulated(PatternChain *pc, uint8_t index)
 				return 1;
 	}
 	return 0;
-}
-
-/* unsafe unless called atomically */
-static PatternChain *reallocPatternChain(PatternChain *pc)
-{
-	return realloc(pc, sizeof(PatternChain) + pc->c * sizeof(Pattern*));
 }
 
 PatternChain *newPatternChain(void)
@@ -81,15 +78,16 @@ Pattern *dupPattern(Pattern *p, uint16_t newlen)
 	return ret;
 }
 
-static PatternChain *_addPattern(PatternChain *pc, uint8_t index)
+/* dup can be NULL */
+static PatternChain *_addPattern(PatternChain *pc, uint8_t index, Pattern *dup)
 {
 	if (index == PATTERN_VOID || pc->i[index] != PATTERN_VOID) return pc; /* pattern already exists, don't try to add it */
 
 	pc->c++;
-	pc = reallocPatternChain(pc);
+	pc = realloc(pc, sizeof(PatternChain) + pc->c * sizeof(Pattern*));
 
 	pc->i[index] = pc->c-1;
-	pc->v[pc->c-1] = dupPattern(NULL, getPatternLength());
+	pc->v[pc->c-1] = dupPattern(dup, getPatternLength());
 	return pc;
 }
 static void cb_addPattern(Event *e)
@@ -105,45 +103,45 @@ bool addPattern(PatternChain **pc, uint8_t index)
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)pc;
-	e.src = _addPattern(dupPatternChain(*pc), index);
+	e.src = _addPattern(dupPatternChain(*pc), index, NULL);
 	e.callback = cb_addPattern;
 	pushEvent(&e);
 	return 0;
 }
 
-/* returns the pattern removed, or -1 if no patterns were removed */
-int _delPattern(PatternChain **pc, uint8_t index)
+/* returns a pointer to the pattern removed, or NULL if no patterns were removed */
+Pattern *_delPattern(PatternChain **pc, uint8_t index)
 {
 	if ((*pc)->i[index] == PATTERN_VOID)
-		return -1; /* index not occupied */
+		return NULL; /* index not occupied */
 
 	int cutindex = (*pc)->i[index];
+	Pattern *ret = (*pc)->v[(*pc)->i[index]];
 
 	(*pc)->i[index] = PATTERN_VOID;
 	(*pc)->c--;
 	memmove(&(*pc)->v[cutindex], &(*pc)->v[cutindex+1], ((*pc)->c - cutindex)*sizeof(Pattern*));
-	*pc = reallocPatternChain(*pc);
+	*pc = realloc(*pc, sizeof(PatternChain) + (*pc)->c * sizeof(Pattern*));
 
 	for (int i = 0; i < PATTERN_VOID; i++)
 		if ((*pc)->i[i] > cutindex && (*pc)->i[i] != PATTERN_VOID)
 			(*pc)->i[i]--;
 
-	return cutindex;
+	return ret;
 }
 static void cb_delPattern(Event *e)
 {
-	int cutindex = (int)(size_t)e->callbackarg;
-
-	free(((PatternChain*)e->src)->v[cutindex]);
+	free(e->callbackarg); /* safe to call on NULL */
 	free(e->src);
+	regenSongLength(); /* for setPatternOrder */
 	p->redraw = 1;
 }
 bool delPattern(PatternChain **pc, uint8_t index)
 { /* fully atomic */
 	PatternChain *newchain = dupPatternChain(*pc);
-	int cutindex = _delPattern(&newchain, index);
+	Pattern *cutpattern = _delPattern(&newchain, index);
 
-	if (cutindex == -1)
+	if (!cutpattern)
 	{
 		free(newchain);
 		return 1;
@@ -154,7 +152,7 @@ bool delPattern(PatternChain **pc, uint8_t index)
 	e.dest = (void**)pc;
 	e.src = newchain;
 	e.callback = cb_delPattern;
-	e.callbackarg = (void*)(size_t)cutindex;
+	e.callbackarg = (void*)cutpattern;
 	pushEvent(&e);
 	return 0;
 }
@@ -164,23 +162,20 @@ Row *getPatternRow(Pattern *pc, uint8_t index)
 	return &pc->row[index];
 }
 
-/* returns the pattern removed, or: */
-/*    -1: pattern doesn't exist     */
-/*    -2: pattern is populated      */
-/* returns the pattern removed, or -1 if no patterns were removed */
-int _prunePattern(PatternChain **pc, uint8_t index)
+/* returns a pointer to the pattern removed, or NULL if no patterns were removed */
+Pattern *_prunePattern(PatternChain **pc, uint8_t index)
 {
 	if (index == PATTERN_VOID || (*pc)->i[index] == PATTERN_VOID)
-		return -1;
+		return NULL;
 
 	/* fail if the pattern is still referenced */
 	for (int i = 0; i < PATTERN_VOID; i++)
 		if ((*pc)->order[i] == index)
-			return -2;
+			return NULL;
 
 	/* fail if the pattern is populated */
 	if (patternPopulated(*pc, index))
-		return -2;
+		return NULL;
 
 	return _delPattern(pc, index);
 }
@@ -188,9 +183,9 @@ int _prunePattern(PatternChain **pc, uint8_t index)
 bool prunePattern(PatternChain **pc, uint8_t index)
 { /* fully atomic */
 	PatternChain *newchain = dupPatternChain(*pc);
-	int cutindex = _prunePattern(&newchain, index);
+	Pattern *cutpattern = _prunePattern(&newchain, index);
 
-	if (cutindex < 0)
+	if (!cutpattern)
 	{
 		free(newchain);
 		return 1;
@@ -201,7 +196,7 @@ bool prunePattern(PatternChain **pc, uint8_t index)
 	e.dest = (void**)pc;
 	e.src = newchain;
 	e.callback = cb_delPattern; /* reuse the delete callback */
-	e.callbackarg = (void*)(size_t)cutindex;
+	e.callbackarg = (void*)cutpattern;
 	pushEvent(&e);
 	return 0;
 }
@@ -215,64 +210,83 @@ uint8_t getFreePatternIndex(PatternChain *pc, uint8_t fallbackindex)
 	return fallbackindex;
 }
 
-/* NOTE: gonna put this here cos i always forget:
- *       this function should give an empty pattern if applied to an unpopulated index,
- *       however it should duplicate the index into a new slot for a populated index!
- *       that's why it's written like it is, and why .fallbackindex is passed. */
-uint8_t dupFreePatternIndex(PatternChain *pc, uint8_t fallbackindex)
-{
-	for (int i = 0; i < PATTERN_VOID; i++)
-	{
-		if (pc->i[i] == PATTERN_VOID)
-		{
-			if (fallbackindex != PATTERN_VOID && patternPopulated(pc, fallbackindex))
-			{ /* duplicate the fallback index if it's populated */
-				pc->i[i] = pc->c;
-				pc->v[pc->c] = dupPattern(pc->v[pc->i[fallbackindex]], pc->v[pc->i[fallbackindex]]->length);
-				pc->c++;
-			} return i;
-		}
-	} return fallbackindex;
-}
+// /* NOTE: gonna put this here cos i always forget:
+//  *       this function should give an empty pattern if applied to an unpopulated index,
+//  *       however it should duplicate the index into a new slot for a populated index!
+//  *       that's why it's written like it is, and why .fallbackindex is passed. */
+// uint8_t dupFreePatternIndex(PatternChain *pc, uint8_t fallbackindex)
+// {
+// 	uint8_t index = getFreePatternIndex(pc, fallbackindex);
+// 	if (index != fallbackindex)
+// 	{
+// 		if (fallbackindex != PATTERN_VOID && patternPopulated(pc, fallbackindex))
+// 		{ /* duplicate the fallback index if it's populated */
+// 			pc->i[index] = pc->c;
+// 			pc->v[pc->c] = dupPattern(pc->v[pc->i[fallbackindex]], pc->v[pc->i[fallbackindex]]->length);
+// 			pc->c++;
+// 		} return index;
+// 	} return fallbackindex;
+// }
 
 /* set the playback order directly */
-int _setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
+/* .value == -1 to duplicate the index in place */
+Pattern *_setPatternOrder(PatternChain **pc, uint8_t index, short value)
 {
 	uint8_t oldindex = (*pc)->order[index];
 
+	Pattern *dup = NULL;
+	if (value == -1)
+	{
+		value = oldindex;
+		uint8_t index = getFreePatternIndex(*pc, value);
+		if (index != value)
+		{
+			/* duplicate the fallback index if it's populated */
+			if (patternPopulated(*pc, value))
+				dup = (*pc)->v[(*pc)->i[value]];
+			value = index;
+		}
+	}
+
 	(*pc)->order[index] = value;
 
-	int cutindex = _prunePattern(pc, oldindex);
+	Pattern *cutpattern = _prunePattern(pc, oldindex);
 
-	*pc = _addPattern(*pc, (*pc)->order[index]);
+	*pc = _addPattern(*pc, (*pc)->order[index], dup);
 
-	return cutindex;
+	return cutpattern;
 }
-static void cb_setPatternOrder(Event *e)
-{
-	int cutindex = (int)(size_t)e->callbackarg;
 
-	if (cutindex >= 0)
-		free(((PatternChain*)e->src)->v[cutindex]);
-
-	free(e->src);
-
-	regenSongLength();
-	p->redraw = 1;
-}
-void setPatternOrder(PatternChain **pc, uint8_t index, uint8_t value)
+/* .pc is NOT allowed to be a pointer to a local variable :3 */
+void setPatternOrder(PatternChain **pc, uint8_t index, short value)
 {
 	PatternChain *newchain = dupPatternChain(*pc);
-
-	int cutindex = _setPatternOrder(&newchain, index, value);
+	Pattern *cutpattern = _setPatternOrder(&newchain, index, value);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)pc;
 	e.src = newchain;
-	e.callback = cb_setPatternOrder;
-	e.callbackarg = (void*)(size_t)cutindex;
+	e.callback = cb_delPattern;
+	e.callbackarg = (void*)cutpattern;
 	pushEvent(&e);
+}
+/* setPatternOrder, but with immediate access to newchain    */
+/* be careful using, has a tendancy to smash the event queue */
+PatternChain *setPatternOrderPeek(PatternChain **pc, uint8_t index, short value)
+{
+	PatternChain *newchain = dupPatternChain(*pc);
+	Pattern *cutpattern = _setPatternOrder(&newchain, index, value);
+
+	Event e;
+	e.sem = M_SEM_QUEUE_SWAP_REQ;
+	e.dest = (void**)pc;
+	e.src = newchain;
+	e.callback = cb_delPattern;
+	e.callbackarg = (void*)cutpattern;
+	pushEvent(&e);
+
+	return newchain;
 }
 
 /* push a hex digit into the playback order */
@@ -288,14 +302,14 @@ void pushPatternOrder(PatternChain **pc, uint8_t index, char value)
 	newindex <<= 4;
 	newindex += value;
 
-	int cutindex = _setPatternOrder(&newchain, index, newindex);
+	Pattern *cutpattern = _setPatternOrder(&newchain, index, newindex);
 
 	Event e;
 	e.sem = M_SEM_SWAP_REQ;
 	e.dest = (void**)pc;
 	e.src = newchain;
-	e.callback = cb_setPatternOrder;
-	e.callbackarg = (void*)(size_t)cutindex;
+	e.callback = cb_delPattern;
+	e.callbackarg = (void*)cutpattern;
 	pushEvent(&e);
 }
 

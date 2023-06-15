@@ -37,9 +37,14 @@ void stopPlayback(void)
 		ev.sem = M_SEM_PLAYING_STOP;
 		pushEvent(&ev);
 	} else if (!(w->trackerfy % (s->plen+1)))
+	{
+		w->follow = 0;
 		w->trackerfy = 0;
-	else
+	} else
+	{
+		w->follow = 0;
 		w->trackerfy -= w->trackerfy % (s->plen+1);
+	}
 
 	w->mode = MODE_NORMAL;
 	p->redraw = 1;

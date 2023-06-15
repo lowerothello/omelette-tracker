@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-warnings='-Wall'
+warnings='-Wall -Wfatal-errors'
 
 missing_optional() { echo "optional '$1' not found"; }
 missing_required() { echo "required '$1' not found, exiting!"; exit 1; }

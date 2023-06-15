@@ -214,9 +214,7 @@ static void addEmptyPattern(void)
 {
 	Track *cv = s->track->v[w->track];
 	uint8_t pindex = getPatternChainIndex(w->trackerfy);
-	uint8_t freefallbackindex = cv->pattern->order[pindex];
-	uint8_t freeindex = dupFreePatternIndex(cv->pattern, freefallbackindex);
-	setPatternOrder(&cv->pattern, pindex, freeindex);
+	setPatternOrder(&cv->pattern, pindex, -1);
 	p->redraw = 1;
 }
 /* returns true to force disable step */
@@ -443,11 +441,11 @@ static bool setNote(size_t note, Row **r)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				*r = getTrackRow(cv->pattern, i, 1);
+				*r = getTrackRow(cv, i, 1);
 				(*r)->note = note;
 			} step = 0; break;
 		default:
-			*r = getTrackRow(cv->pattern, w->trackerfy, 1);
+			*r = getTrackRow(cv, w->trackerfy, 1);
 			(*r)->note = note;
 			(*r)->inst = w->instrument;
 			step = 1; break;
@@ -480,12 +478,12 @@ static void setNoteOctave(size_t octave)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv->pattern, i, 0);
+				r = getTrackRow(cv, i, 0);
 				if (r)
 					r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			} step = 0; break;
 		default:
-			r = getTrackRow(cv->pattern, w->trackerfy, 0);
+			r = getTrackRow(cv, w->trackerfy, 0);
 			if (r)
 				r->note = octave*12 + fmodf(r->note-NOTE_MIN, 12) + NOTE_MIN;
 			step = 1; break;
@@ -507,11 +505,11 @@ static void imposeInst(void)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv->pattern, i, 1);
+				r = getTrackRow(cv, i, 1);
 				r->inst = w->instrument;
 			} break;
 		default:
-			r = getTrackRow(cv->pattern, w->trackerfy, 1);
+			r = getTrackRow(cv, w->trackerfy, 1);
 			r->inst = w->instrument;
 			break;
 	}
@@ -528,13 +526,13 @@ static void pushInst(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv->pattern, i, 1);
+				r = getTrackRow(cv, i, 1);
 				if (r->inst == INST_VOID) r->inst++;
 				r->inst <<= 4;
 				r->inst += (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(cv->pattern, w->trackerfy, 1);
+			r = getTrackRow(cv, w->trackerfy, 1);
 			if (r->inst == INST_VOID) r->inst++;
 			r->inst <<= 4;
 			r->inst += (size_t)arg;
@@ -570,10 +568,10 @@ static void pushMacrov(void *arg)
 	{
 		case MODE_VISUALREPLACE:
 			for (short i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				_pushMacrov(getTrackRow(cv->pattern, i, 1), (size_t)arg);
+				_pushMacrov(getTrackRow(cv, i, 1), (size_t)arg);
 			break;
 		default:
-			_pushMacrov(getTrackRow(cv->pattern, w->trackerfy, 1), (size_t)arg);
+			_pushMacrov(getTrackRow(cv, w->trackerfy, 1), (size_t)arg);
 			break;
 	}
 	p->redraw = 1;
@@ -589,11 +587,11 @@ static void pushMacroc(void *arg)
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
-				r = getTrackRow(cv->pattern, i, 1);
+				r = getTrackRow(cv, i, 1);
 				r->macro[macro].c = (size_t)arg;
 			} break;
 		default:
-			r = getTrackRow(cv->pattern, w->trackerfy, 1);
+			r = getTrackRow(cv, w->trackerfy, 1);
 			r->macro[macro].c = (size_t)arg;
 			break;
 	}
@@ -603,15 +601,15 @@ static void pushMacroc(void *arg)
 
 static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(cv->pattern, w->trackerfy, 1);
+	Row *r = getTrackRow(cv, w->trackerfy, 1);
 	short macro;
 	switch (w->page)
 	{
 		case PAGE_PATTERN:
 			if (!w->playing)
 			{
-				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]-16);
-				else                 setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]-1);
+				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), cv->pattern->order[w->trackerfy/(s->plen+1)]-16);
+				else                 setPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), cv->pattern->order[w->trackerfy/(s->plen+1)]-1);
 			} break;
 		case PAGE_VARIANT:
 			switch (w->trackerfx)
@@ -635,15 +633,15 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 }
 static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 {
-	Row *r = getTrackRow(cv->pattern, w->trackerfy, 1);
+	Row *r = getTrackRow(cv, w->trackerfy, 1);
 	short macro;
 	switch (w->page)
 	{
 		case PAGE_PATTERN:
 			if (!w->playing)
 			{
-				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]+16);
-				else                 setPatternOrder(&cv->pattern, w->trackerfy, cv->pattern->order[w->trackerfy]+1);
+				if (w->fieldpointer) setPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), cv->pattern->order[w->trackerfy/(s->plen+1)]+16);
+				else                 setPatternOrder(&cv->pattern, w->trackerfy/(s->plen+1), cv->pattern->order[w->trackerfy/(s->plen+1)]+1);
 			} break;
 		case PAGE_VARIANT:
 			switch (w->trackerfx)

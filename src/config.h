@@ -12,7 +12,7 @@
  *   running under gdb without stalling jackd.
  *
  *   pretty janky, but good enough for some debugging. */
-#define DEBUG_DISABLE_AUDIO_OUTPUT 1
+// #define DEBUG_DISABLE_AUDIO_OUTPUT 1
 
 /* DISABLE_RAW_INPUT
  *   only parse stdin, don't try to aquire raw events
@@ -34,7 +34,7 @@
  *   how often to poll for input. since omelette needs to be able
  *   to refresh the screen arbitrarily it can't block waiting for
  *   input. in nanoseconds, one million nanoseconds per milisecond. */
-#define UPDATE_DELAY 10000000 /* max: 100fps */
+#define UPDATE_DELAY 1000000 /* max: 1000fps */
 
 #define WAVEFORM_BLOCK_SIZE 8192
 #define WAVEFORM_THREADS 2

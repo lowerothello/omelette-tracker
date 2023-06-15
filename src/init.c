@@ -71,8 +71,9 @@ void init(int argc, char *argv[])
 
 	s = addSong();
 	if (!s) { puts("out of memory"); common_cleanup(1); }
-	initSong(s);
 	p->s = s;
+
+	setBpm(&w->spr, s->songbpm); /* ensure that spr is set before starting the audio thread, for sanity reasons */
 
 	fbstate = initFileBrowser(SAMPLES_DIR);
 	pbstate = initPluginBrowser();

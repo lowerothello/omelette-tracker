@@ -326,7 +326,7 @@ void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 	Row *r;
 	for (uint16_t i = 0; i < playfy; i++)
 	{
-		r = getTrackRow(cv->pattern, i, 0);
+		r = getTrackRow(cv, i, 0);
 		/* TODO: proper implementation of master track macros, including bpm */
 		// if (p->w->bpmcachelen > i && p->w->bpmcache[i] != -1) macroBpm(fptr, spr, p->w->bpmcache[i], cv, r);
 		if (r)
@@ -337,6 +337,8 @@ void lookback(uint32_t fptr, uint16_t *spr, uint16_t playfy, Track *cv)
 
 static int walkSongPointer(uint32_t bufsize, uint16_t *spr, uint16_t *sprp, uint16_t *playfy, bool readrows)
 {
+	if (!(*spr)) return 0; /* don't try to iterate over a NULL'd spr */
+
 	(*sprp) += bufsize;
 
 	int ret = 0;
@@ -356,6 +358,33 @@ static int walkSongPointer(uint32_t bufsize, uint16_t *spr, uint16_t *sprp, uint
 	return ret;
 }
 
+static void triggerFlash(PlaybackInfo *p)
+{
+	/* triggerflash animations */
+	Inst *iv;
+	for (int i = 0; i < p->s->inst->c; i++)
+	{
+		iv = &p->s->inst->v[i];
+		if (iv->triggerflash)
+		{
+			if (iv->triggerflash == 1) p->redraw = 1;
+			iv->triggerflash--;
+		}
+	}
+
+	Track *cv;
+	for (int i = 0; i < p->s->track->c; i++)
+	{
+		cv = p->s->track->v[i];
+		if (cv->triggerflash)
+		{
+			if (cv->triggerflash == 1) p->redraw = 1;
+			cv->triggerflash--;
+		}
+	}
+}
+
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 static void _trackThreadRoutine(Track *cv, bool readrows)
 {
 	Row *r;
@@ -385,7 +414,7 @@ static void _trackThreadRoutine(Track *cv, bool readrows)
 			case 1:
 				/* TODO: proper implementation of master track macros, including bpm */
 				// if (p->w->bpmcachelen > *playfy && p->w->bpmcache[*playfy] != -1) macroBpm(fptr, &spr, p->w->bpmcache[*playfy], cv, r);
-				if ((r = getTrackRow(cv->pattern, playfy, 0)))
+				if ((r = getTrackRow(cv, playfy, 0)))
 					processRow(fptr, &spr, 1, cv, r);
 				break;
 		}
@@ -396,47 +425,69 @@ static void _trackThreadRoutine(Track *cv, bool readrows)
 		runEffectChain(buffersize, cv->effect);
 }
 
-static void triggerFlash(PlaybackInfo *p)
+static void procThreadTrack(size_t threadcount, size_t threadindex, uint8_t previewtrackcount)
 {
-	/* triggerflash animations */
-	Inst *iv;
-	for (int i = 0; i < p->s->inst->c; i++)
-	{
-		iv = &p->s->inst->v[i];
-		if (iv->triggerflash)
-		{
-			if (iv->triggerflash == 1) p->redraw = 1;
-			iv->triggerflash--;
-		}
-	}
+	uint8_t i, trackcount;
 
-	Track *cv;
-	for (int i = 0; i < p->s->track->c; i++)
-	{
-		cv = p->s->track->v[i];
-		if (cv->triggerflash)
-		{
-			if (cv->triggerflash == 1) p->redraw = 1;
-			cv->triggerflash--;
-		}
-	}
+	/* recalculate every time in case trackc has changed */
+	trackcount = p->s->track->c / threadcount;
+	if (p->s->track->c % threadcount > threadcount)
+		trackcount++;
+
+	for (i = 0; i < trackcount; i++)
+		_trackThreadRoutine(p->s->track->v[(i*threadcount) + threadindex], 1);
+
+	for (i = 0; i < previewtrackcount; i++)
+		_trackThreadRoutine(p->w->previewtrack[(i*threadcount) + threadindex], 0);
 }
+
+static void *procThreadRoutine(void *arg)
+{
+	size_t i = (size_t)arg;
+	struct timespec ts;
+
+	/* PREVIEW_TRACKS is constant */
+	uint8_t previewtrackcount = PREVIEW_TRACKS / threadcount;
+	if (PREVIEW_TRACKS % threadcount > i)
+		previewtrackcount++;
+
+	while (1)
+	{
+		if (thread[i].running)
+		{
+			procThreadTrack(threadcount, i, previewtrackcount);
+			thread[i].running = 0;
+		}
+
+		/* give time back to the system */
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1;
+		nanosleep(&ts, NULL);
+	}
+	return NULL;
+}
+#endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
 
 void processOutput(uint32_t nfptr)
 {
 	/* wait for every work thread to be done */
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
 	struct timespec ts;
-pollThreads:
-	for (int i = 0; i < threadcount; i++)
+	if (!RUNNING_ON_VALGRIND)
 	{
-		if (thread[i].running)
+pollThreads:
+		for (int i = 0; i < threadcount; i++)
 		{
-			ts.tv_sec = 0;
-			ts.tv_nsec = 1;
-			nanosleep(&ts, NULL);
-			goto pollThreads;
+			if (thread[i].running)
+			{
+				ts.tv_sec = 0;
+				ts.tv_nsec = 1;
+				nanosleep(&ts, NULL);
+				goto pollThreads;
+			}
 		}
 	}
+#endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
 
 
 	if (processM_SEM())
@@ -494,9 +545,15 @@ pollThreads:
 		}
 	}
 
-	/* start up the next batch of work */
-	for (int i = 0; i < threadcount; i++)
-		thread[i].running = 1;
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
+	if (!RUNNING_ON_VALGRIND)
+	{
+		/* start up the next batch of work */
+		for (int i = 0; i < threadcount; i++)
+			thread[i].running = 1;
+	} else
+		procThreadTrack(1, 0, PREVIEW_TRACKS);
+#endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
 
 	runEffectChain(nfptr, p->s->master);
 
@@ -534,61 +591,33 @@ void processInput(uint32_t nfptr)
 	}
 }
 
-
-void *procThreadRoutine(void *arg)
-{
-	size_t i = (size_t)arg;
-	struct timespec ts;
-
-	uint8_t trackcount, j;
-
-	/* PREVIEW_TRACKS is constant */
-	uint8_t previewtrackcount = PREVIEW_TRACKS / threadcount;
-	if (PREVIEW_TRACKS % threadcount > i)
-		previewtrackcount++;
-
-	while (1)
-	{
-		if (thread[i].running)
-		{
-			/* recalculate every time in case trackc has changed */
-			trackcount = p->s->track->c / threadcount;
-			if (p->s->track->c % threadcount > i)
-				trackcount++;
-
-			for (j = 0; j < trackcount; j++)
-				_trackThreadRoutine(p->s->track->v[(j*threadcount) + i], 1);
-
-			for (j = 0; j < previewtrackcount; j++)
-				_trackThreadRoutine(p->w->previewtrack[(j*threadcount) + i], 0);
-
-			thread[i].running = 0;
-		}
-
-		/* give time back to the system */
-		ts.tv_sec = 0;
-		ts.tv_nsec = 1;
-		nanosleep(&ts, NULL);
-	}
-}
-
 void spawnProcThreads(void)
 {
-	threadcount = get_nprocs(); /* TODO: linux-specific */
-	thread = malloc(sizeof(Thread) * threadcount);
-	for (int i = 0; i < threadcount; i++)
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
+	if (!RUNNING_ON_VALGRIND)
 	{
-		thread[i].running = 0;
-		pthread_create(&thread[i].id, NULL, procThreadRoutine, (void*)(size_t)i);
+		threadcount = get_nprocs(); /* TODO: linux-specific */
+		thread = malloc(sizeof(Thread) * threadcount);
+		for (int i = 0; i < threadcount; i++)
+		{
+			thread[i].running = 0;
+			pthread_create(&thread[i].id, NULL, procThreadRoutine, (void*)(size_t)i);
+		}
 	}
+#endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
 }
 void killProcThreads(void)
 {
-	for (int i = 0; i < threadcount; i++)
+#ifndef DEBUG_DISABLE_AUDIO_OUTPUT
+	if (!RUNNING_ON_VALGRIND)
 	{
-		pthread_cancel(thread[i].id);
-		pthread_join(thread[i].id, NULL);
-	}
+		for (int i = 0; i < threadcount; i++)
+		{
+			pthread_cancel(thread[i].id);
+			pthread_join(thread[i].id, NULL);
+		}
 
-	free(thread);
+		free(thread);
+	}
+#endif /* DEBUG_DISABLE_AUDIO_OUTPUT */
 }

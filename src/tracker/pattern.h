@@ -64,14 +64,16 @@ bool prunePattern(PatternChain**, uint8_t index);
 
 /* returns the first free pattern slot, or .fallbackindex if there are no free slots */
 uint8_t getFreePatternIndex(PatternChain*, uint8_t fallbackindex);
-/* duplicates a pattern into a new slot if there's space for it */
-uint8_t dupFreePatternIndex(PatternChain*, uint8_t fallbackindex);
 
 /* push a hex digit into the playback order */
 void pushPatternOrder(PatternChain**, uint8_t orderindex, char value);
 /* set the playback order directly */
-int _setPatternOrder(PatternChain**, uint8_t orderindex, uint8_t index);
-void setPatternOrder(PatternChain**, uint8_t orderindex, uint8_t index);
+Pattern *_setPatternOrder(PatternChain**, uint8_t index, short value);
+void setPatternOrder(PatternChain**, uint8_t index, short value);
+
+/* setPatternOrder, but with immediate access to newchain    */
+/* be careful using, has a tendancy to smash the event queue */
+PatternChain *setPatternOrderPeek(PatternChain**, uint8_t index, short value);
 
 struct json_object *serializeMacro(Macro*);
 Macro deserializeMacro(struct json_object*);

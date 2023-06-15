@@ -197,13 +197,14 @@ void copyTrack(Track *dest, Track *src) /* NOT atomic */
 	copyEffectChain(&dest->effect, src->effect);
 }
 
-Row *getTrackRow(PatternChain *pc, uint16_t index, bool createifmissing)
+Row *getTrackRow(Track *cv, uint16_t index, bool createifmissing)
 {
 	uint8_t pindex = getPatternChainIndex(index);
-	if (pc->order[pindex] == PATTERN_VOID)
+	PatternChain *pc = cv->pattern;
+	if (cv->pattern->order[pindex] == PATTERN_VOID)
 	{
 		if (createifmissing)
-			_setPatternOrder(&pc, pindex, dupFreePatternIndex(pc, pc->order[pindex]));
+			pc = setPatternOrderPeek(&cv->pattern, pindex, -1);
 		else return NULL;
 	}
 
@@ -314,7 +315,7 @@ static void cb_setPatternOrderBlock(Event *e)
 	regenSongLength();
 	p->redraw = 1;
 }
-void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, uint8_t value)
+void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, short value)
 {
 	TrackChain *newtrack = malloc(sizeof(TrackChain));
 	newtrack->c = s->track->c;
@@ -326,18 +327,12 @@ void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, uint8_t va
 
 	uint8_t i;
 	short j;
-	int cutindex;
 	for (i = c1; i <= c2; i++)
 	{
 		freeindex[++freeindexlen] = newtrack->v[i]->pattern;
 		newtrack->v[i]->pattern = dupPatternChain(newtrack->v[i]->pattern);
 		for (j = y1; j <= y2; j++)
-		{
-			cutindex = _setPatternOrder(&newtrack->v[i]->pattern, j, value);
-			VALGRIND_PRINTF("%d\n", cutindex);
-			if (cutindex >= 0 && cutindex != NOTE_VOID)
-				freeindex[++freeindexlen] = s->track->v[i]->pattern->v[cutindex];
-		}
+			freeindex[++freeindexlen] = _setPatternOrder(&newtrack->v[i]->pattern, j, value);
 	}
 
 	freeindex[0] = (void*)freeindexlen;

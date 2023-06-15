@@ -9,11 +9,6 @@ Song *addSong(void)
 	cs->songbpm = DEF_BPM;
 	cs->plen = DEFAULT_PATTERN_LENGTH;
 
-	return cs;
-}
-
-void initSong(Song *cs)
-{
 	cs->inst = calloc(1, sizeof(InstChain));
 	memset(cs->inst->i, INSTRUMENT_VOID, sizeof(uint8_t) * INSTRUMENT_MAX);
 
@@ -22,6 +17,8 @@ void initSong(Song *cs)
 	cs->track->c = STARTING_TRACKC;
 	for (uint8_t i = 0; i < STARTING_TRACKC; i++)
 		cs->track->v[i] = allocTrack(cs, NULL);
+
+	return cs;
 }
 
 void freeSong(Song *cs)
