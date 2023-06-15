@@ -566,7 +566,7 @@ void drawTracker(bool patternlist)
 		short x = TRACK_LINENO_COLS + 3 + sfx + offset;
 		short xpartition = MAX(offset, MAX(sfx, 0) + offset);
 		short smallsfx = genConstSfx(3, offset);
-		short smallx, y, smallsx;
+		short smallx, y, smallsx = 0;
 		int j;
 		char smallbuffer[4];
 		for (uint8_t i = 0; i < s->track->c; i++)

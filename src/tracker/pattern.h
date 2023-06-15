@@ -53,7 +53,6 @@ uint8_t getPatternChainIndex(uint16_t index);
 uint8_t getPatternIndex(uint16_t index);
 Pattern *getPatternChainPattern(PatternChain*, uint16_t index);
 
-Pattern *dupPattern(Pattern*, uint16_t newlen);
 bool addPattern(PatternChain**, uint8_t index);
 bool delPattern(PatternChain**, uint8_t index);
 

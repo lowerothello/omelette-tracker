@@ -35,6 +35,23 @@ void freePatternChain(PatternChain *pc)
 	free(pc);
 }
 
+static Pattern *dupPattern(Pattern *p, uint16_t newlen)
+{
+	Pattern *ret = calloc(1, sizeof(Pattern) + (newlen+1)*sizeof(Row));
+
+	for (int i = 0; i <= newlen; i++)
+	{
+		ret->row[i].note = NOTE_VOID;
+		ret->row[i].inst = INST_VOID;
+	}
+	ret->length = newlen;
+
+	if (p)
+		memcpy(ret->row, p->row, (MIN(ret->length, newlen) + 1) * sizeof(Row));
+
+	return ret;
+}
+
 /* doesn't duplicate pc's children, use deepDupPatternChain to also copy children */
 static PatternChain *dupPatternChain(PatternChain *pc)
 {
@@ -61,27 +78,11 @@ Pattern *getPatternChainPattern(PatternChain *pc, uint16_t index)
 	return pc->v[pc->i[pc->order[pindex]]];
 }
 
-Pattern *dupPattern(Pattern *p, uint16_t newlen)
-{
-	Pattern *ret = calloc(1, sizeof(Pattern) + (newlen+1)*sizeof(Row));
-
-	for (int i = 0; i <= newlen; i++)
-	{
-		ret->row[i].note = NOTE_VOID;
-		ret->row[i].inst = INST_VOID;
-	}
-	ret->length = newlen;
-
-	if (p)
-		memcpy(ret->row, p->row, (MIN(ret->length, newlen) + 1) * sizeof(Row));
-
-	return ret;
-}
-
 /* dup can be NULL */
 static PatternChain *_addPattern(PatternChain *pc, uint8_t index, Pattern *dup)
 {
-	if (index == PATTERN_VOID || pc->i[index] != PATTERN_VOID) return pc; /* pattern already exists, don't try to add it */
+	if (index == PATTERN_VOID || pc->i[index] != PATTERN_VOID)
+		return pc; /* pattern already exists, don't try to add it */
 
 	pc->c++;
 	pc = realloc(pc, sizeof(PatternChain) + pc->c * sizeof(Pattern*));
