@@ -345,3 +345,34 @@ void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, short valu
 	e.callbackarg = freeindex;
 	pushEvent(&e);
 }
+
+void addPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, signed char value)
+{
+	TrackChain *newtrack = malloc(sizeof(TrackChain));
+	newtrack->c = s->track->c;
+	newtrack->v = calloc(s->track->c, sizeof(Track*));
+	memcpy(newtrack->v, s->track->v, s->track->c * sizeof(Track*));
+
+	void **freeindex = malloc(sizeof(void*) * (((y2-y1) + 1) * ((c2-c1) + 1) + 2 + (c2-c1)));
+	size_t freeindexlen = 0;
+
+	uint8_t i;
+	short j;
+	for (i = c1; i <= c2; i++)
+	{
+		freeindex[++freeindexlen] = newtrack->v[i]->pattern;
+		newtrack->v[i]->pattern = dupPatternChain(newtrack->v[i]->pattern);
+		for (j = y1; j <= y2; j++)
+			freeindex[++freeindexlen] = _setPatternOrder(&newtrack->v[i]->pattern, j, (uint8_t)(newtrack->v[i]->pattern->order[j] + value));
+	}
+
+	freeindex[0] = (void*)freeindexlen;
+
+	Event e;
+	e.sem = M_SEM_SWAP_REQ;
+	e.dest = (void**)&s->track;
+	e.src = newtrack;
+	e.callback = cb_setPatternOrderBlock;
+	e.callbackarg = freeindex;
+	pushEvent(&e);
+}

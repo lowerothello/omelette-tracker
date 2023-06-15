@@ -210,14 +210,6 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 }
 void delPartPatternOrder(short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	// for (i = c1; i <= c2; i++)
-	// {
-	// 	if (i >= s->track->c) break;
-	//
-	// 	for (j = y1; j <= y2; j++)
-	// 		// _setPatternOrder(&s->track->v[i]->pattern, j, PATTERN_VOID); /* TODO: can't be atomic cos it would overflow the queue pretty badly */
-	// 		setPatternOrder(&s->track->v[i]->pattern, j, PATTERN_VOID);
-	// }
 	setPatternOrderBlock(y1, y2, c1, c2, PATTERN_VOID);
 	p->redraw = 1;
 }
@@ -248,17 +240,7 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 }
 void addPartPatternOrder(signed char value, short y1, short y2, uint8_t c1, uint8_t c2)
 {
-	uint8_t i, j;
-	PatternChain *pc;
-
-	for (i = c1; i <= c2; i++)
-	{
-		if (i >= s->track->c) break;
-		pc = s->track->v[i]->pattern;
-
-		for (j = y1; j <= y2; j++)
-			_setPatternOrder(&s->track->v[i]->pattern, j, (uint8_t)(pc->order[j] + value)); /* TODO: can't be atomic cos it would overflow the queue pretty badly */
-	}
+	addPatternOrderBlock(y1, y2, c1, c2, value);
 	p->redraw = 1;
 }
 /* block toggle case */

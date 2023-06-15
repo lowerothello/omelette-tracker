@@ -78,3 +78,4 @@ struct json_object *serializeTrackChain(TrackChain*);
 TrackChain *deserializeTrackChain(struct json_object*);
 
 void setPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, short value);
+void addPatternOrderBlock(short y1, short y2, uint8_t c1, uint8_t c2, signed char value);
