@@ -65,7 +65,7 @@ MacroAPI global_macro_callbacks[] =
 {
 	{ NULL, macroBpmPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },
 	{ macroRowClear, macroRowPreTrig, NULL, NULL, macroRowSampleRow, NULL, NULL, NULL, sizeof(MacroRowState) },
-	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, NULL, sizeof(MacroState) },
+	{ macroGainClear, macroGainPreTrig, NULL, NULL, NULL, NULL, NULL, macroGainPostSampler, sizeof(MacroState) },
 	{ NULL, macroPitchPreTrig, NULL, macroPitchTriggerNote, NULL, macroPitchPersistent, macroPitchVolatile, NULL, sizeof(MacroPitchState) },
 	// { macroRetrigClear, NULL, macroRetrigPostTrig, macroRetrigTriggerNote, NULL, NULL, macroRetrigVolatile, NULL, sizeof(MacroRetrigState) },
 	{ NULL, macroChancePreTrig, NULL, NULL, NULL, NULL, NULL, NULL, 0 },

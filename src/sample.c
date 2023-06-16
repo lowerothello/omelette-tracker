@@ -62,6 +62,7 @@ struct json_object *serializeSample(Sample *s, size_t *dataoffset)
 	json_object_object_add(ret, "defrate", json_object_new_uint64(s->defrate));
 	json_object_object_add(ret, "gain", json_object_new_int(s->gain));
 	json_object_object_add(ret, "invert", json_object_new_boolean(s->invert));
+
 	json_object_object_add(ret, "trimstart", json_object_new_uint64(s->trimstart));
 	json_object_object_add(ret, "trimlength", json_object_new_uint64(s->trimlength));
 	json_object_object_add(ret, "looplength", json_object_new_uint64(s->looplength));

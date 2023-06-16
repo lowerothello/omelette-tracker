@@ -199,15 +199,8 @@ void postSampler(uint32_t fptr, Track *cv, float rp, float lf, float rf)
 	macroCallbackPostSampler(fptr, cv, rp, &lf, &rf);
 
 	/* main track clipping */
-	lf = hardclip(lf);
-	rf = hardclip(rf);
-
-	/* gain multipliers */
-	float lm, rm;
-	macroStateGetStereo(cv->macrostate[MACRO_GAIN], rp, &lm, &rm);
-
-	cv->effect->input[0][fptr] = lf*lm;
-	cv->effect->input[1][fptr] = rf*rm;
+	cv->effect->input[0][fptr] = hardclip(lf);
+	cv->effect->input[1][fptr] = hardclip(rf);
 }
 
 void playTrackLookback(uint32_t fptr, uint16_t *spr, Track *cv)
@@ -349,8 +342,22 @@ static int walkSongPointer(uint32_t bufsize, uint16_t *spr, uint16_t *sprp, uint
 		{
 			/* walk the pointer and loop */
 			(*playfy)++;
-			if (p->w->loop && !(*playfy % (p->s->plen+1))) { *playfy -= p->s->plen + 1; ret = MAX(ret, 2); }
-			if (*playfy >= (p->s->slen+1) * (p->s->plen+1)) { *playfy = 0; ret = MAX(ret, 2); }
+
+			if (!(*playfy % (p->s->plen+1))) /* new pattern */
+			{
+				if (p->w->queue != -1)
+					*playfy = p->w->queue * (p->s->plen+1);
+				else if (p->w->loop)
+					*playfy -= p->s->plen+1;
+
+				ret = MAX(ret, 2);
+			}
+
+			if (*playfy >= (p->s->slen+1) * (p->s->plen+1))
+			{
+				*playfy = 0;
+				ret = MAX(ret, 2);
+			}
 
 			ret = MAX(ret, 1);
 		}
@@ -509,8 +516,25 @@ pollThreads:
 	}
 
 
-	if (walkSongPointer(nfptr, &p->w->spr, &p->w->sprp, &p->w->playfy, 1))
-		p->redraw = 1;
+	switch (walkSongPointer(nfptr, &p->w->spr, &p->w->sprp, &p->w->playfy, 1))
+	{
+		case 2:
+			switch (p->w->instrecv)
+			{
+				case INST_REC_LOCK_CUE_CONT:
+					p->w->instrecv = INST_REC_LOCK_END;
+					break;
+				case INST_REC_LOCK_CUE_START:
+					p->w->instrecv = INST_REC_LOCK_CUE_CONT;
+					break;
+				default: break;
+			}
+			p->w->queue = -1;
+			/* fall through */
+		case 1:
+			p->redraw = 1;
+			break;
+	}
 
 	if (p->w->follow && p->w->trackerfy != p->w->playfy)
 	{

@@ -24,3 +24,11 @@ void macroGainPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *sta
 		}
 	}
 }
+
+void macroGainPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state)
+{
+	float lm = 0.0f, rm = 0.0f;
+	macroStateGetStereo(state, rp, &lm, &rm);
+	*lf *= lm;
+	*rf *= rm;
+}

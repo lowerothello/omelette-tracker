@@ -42,6 +42,7 @@ UI *allocWindow(void)
 
 	ret->octave = DEF_OCTAVE;
 	ret->step = DEF_STEP;
+	ret->queue = -1;
 
 	ret->trackerfy = 0;
 	ret->playfy = 0;

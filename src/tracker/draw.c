@@ -97,11 +97,11 @@ short genConstSfx(short trackw, short viewportwidth)
 	return ret;
 }
 
-static void setRowIntensity(bool mute, int i)
+static void setRowIntensity(bool mute, bool pattern, int i)
 {
-	if (mute
-	|| (getPatternChainIndex(w->trackerfy) != getPatternChainIndex(i))
-	)
+	if (mute)
+		printf("\033[2m");
+	else if (pattern && getPatternChainIndex(w->trackerfy) != getPatternChainIndex(i))
 		printf("\033[2m");
 	else if (w->playing && w->playfy == i)
 		printf("\033[1m");
@@ -118,7 +118,7 @@ static void drawLineNumbers(short x, short minx, short maxx)
 		if (getPatternChainIndex(w->trackerfy) == getPatternChainIndex(i))
 		{
 			snprintf(buffer, 5, "%02x", getPatternIndex(i));
-			setRowIntensity(0, i);
+			setRowIntensity(0, 1, i);
 			printCulling(buffer, x, y, minx, maxx);
 			printf("\033[22m");
 		}
@@ -275,10 +275,12 @@ static void drawStarColumn(short x, short minx, short maxx)
 	{
 		i = y - (w->centre - w->trackerfy);
 		if (i < 0) continue;
+		if (i >= (s->plen+1)*PATTERN_VOID) break;
+
 		if (w->playing && w->playfy == i)                   strcpy(buffer, "-");
 		else if (s->rowhighlight && !(i % s->rowhighlight)) strcpy(buffer, "*");
 		else                                                strcpy(buffer, " ");
-		setRowIntensity(0, i);
+		setRowIntensity(0, 1, i);
 		printCulling(buffer, x, w->centre - w->trackerfy + i, minx, maxx);
 		printf("\033[22m");
 	}
@@ -342,6 +344,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 		{
 			i = y - (w->centre - w->trackerfy);
 			if (i < 0) continue;
+			if (i >= (s->plen+1)*PATTERN_VOID) break;
 			x = bx;
 			// lineno = getVariantChainVariant(NULL, cv->variant, i);
 
@@ -373,7 +376,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 			x++;
 
 			r = getTrackRow(cv, i, 0);
-			setRowIntensity(cv->mute, i);
+			setRowIntensity(cv->mute, 1, i);
 			if (ifVisual(track, i, 0)) printf("\033[2;7m");
 
 			if (x <= maxx)
@@ -402,7 +405,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 					printCulling(buffer, x, y, minx, maxx);
 				}
 				stopVisual(track, i, 0);
-				setRowIntensity(cv->mute, i);
+				setRowIntensity(cv->mute, 1, i);
 			}
 
 			x+=3;
@@ -418,7 +421,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						if (ifVisual(track, i, 1))
 						{
 							printf("\033[22m");
-							setRowIntensity(cv->mute, i);
+							setRowIntensity(cv->mute, 1, i);
 						}
 						if (instSafe(s->inst, r->inst)) printf("\033[3%dm", r->inst%6 + 1);
 						else                            printf("\033[37m");
@@ -432,7 +435,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 					printCulling(buffer, x, y, minx, maxx);
 				}
 				stopVisual(track, i, 1);
-				setRowIntensity(cv->mute, i);
+				setRowIntensity(cv->mute, 1, i);
 			}
 
 			x+=3;
@@ -447,7 +450,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						if (ifVisual(track, i, 2+j))
 						{
 							printf("\033[22m");
-							setRowIntensity(cv->mute, i);
+							setRowIntensity(cv->mute, 1, i);
 						}
 
 						snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
@@ -482,7 +485,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 						printCulling(buffer, x, y, minx, maxx);
 					}
 					stopVisual(track, i, 2+j);
-					setRowIntensity(cv->mute, i);
+					setRowIntensity(cv->mute, 1, i);
 				}
 				x += 4;
 			}
@@ -518,7 +521,9 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 		{
 			i = y - (w->centre - w->trackerfy);
 			if (i < 0) continue;
-			setRowIntensity(0, i);
+			if (i >= (s->plen+1)*PATTERN_VOID) break;
+
+			setRowIntensity(0, 1, i);
 			printf("\033[%d;%dH^\033[22m", y, minx+TRACK_LINENO_COLS+2);
 		}
 	}
@@ -528,7 +533,9 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 		{
 			i = y - (w->centre - w->trackerfy);
 			if (i < 0) continue;
-			setRowIntensity(0, i);
+			if (i >= (s->plen+1)*PATTERN_VOID) break;
+
+			setRowIntensity(0, 1, i);
 			printf("\033[%d;%dH$\033[22m", y, maxx);
 		}
 	}
@@ -536,6 +543,7 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 	return ret;
 }
 
+#define PATTERN_GUTTER 4
 void drawTracker(bool patternlist)
 {
 	if (w->page == PAGE_EFFECT)
@@ -561,25 +569,25 @@ void drawTracker(bool patternlist)
 		drawControls();
 	} else
 	{
-		short offset = MIN(s->track->c * 3, ws.ws_col>>2) + 1;
+		short offset = MIN(s->track->c * 3, ws.ws_col>>2)+PATTERN_GUTTER;
 		short sfx = genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset));
 		short x = TRACK_LINENO_COLS + 3 + sfx + offset;
 		short xpartition = MAX(offset, MAX(sfx, 0) + offset);
-		short smallsfx = genConstSfx(3, offset);
+		short smallsfx = genConstSfx(3, offset-PATTERN_GUTTER);
 		short smallx, y, smallsx = 0;
 		int j;
 		char smallbuffer[4];
 		for (uint8_t i = 0; i < s->track->c; i++)
 		{
-			smallx = xpartition - TRACK_LINENO_COLS - offset + (i+1)*3 + smallsfx;
+			smallx = xpartition - TRACK_LINENO_COLS - (offset-PATTERN_GUTTER) + (i+1)*3 + smallsfx - 1;
 
 			if (i == w->track + w->trackoffset)
 				smallsx = smallx;
 
-			drawTrackSmallHeader(i, smallx, 1, xpartition - TRACK_LINENO_COLS + 1);
+			drawTrackSmallHeader(i, smallx, PATTERN_GUTTER, xpartition - TRACK_LINENO_COLS);
 			for (j = 0; j < PATTERN_VOID; j++)
 			{
-				y = w->centre - (w->trackerfy/(s->plen+1)) + j;
+				y = w->centre - w->trackerfy/(s->plen+1) + j;
 				if (y >= ws.ws_row) break;
 				if (y > TRACK_ROW)
 				{
@@ -595,13 +603,52 @@ void drawTracker(bool patternlist)
 
 					if (ifVisualOrder(i, j))
 						printf(VISUAL_ON);
-					printCulling(smallbuffer, smallx, y, 1, xpartition - TRACK_LINENO_COLS + 1);
+					printCulling(smallbuffer, smallx, y, PATTERN_GUTTER, xpartition - TRACK_LINENO_COLS);
 					printf(VISUAL_OFF);
 				}
 			}
 
 			drawTrackHeader(i, x + 1, getTrackWidth(s->track->v[i]) - 3, xpartition + 4, ws.ws_col);
 			x += getTrackWidth(s->track->v[i]);
+		}
+
+		if (smallsfx < 0)
+		{
+			for (y = TRACK_ROW+1; y < ws.ws_row; y++)
+			{
+				j = y - (w->centre - w->trackerfy/(s->plen+1));
+				if (j < 0) continue;
+				if (j >= PATTERN_VOID) break;
+
+				setRowIntensity(0, 0, j);
+				printf("\033[%d;%dH^\033[22m", y, PATTERN_GUTTER);
+			}
+		}
+		if (smallsfx + (s->track->c+1)*3 + 1 > offset)
+		{
+			for (y = TRACK_ROW+1; y < ws.ws_row; y++)
+			{
+				j = y - (w->centre - w->trackerfy/(s->plen+1));
+				if (j < 0) continue;
+				if (j >= PATTERN_VOID) break;
+
+				setRowIntensity(0, 0, j);
+				printf("\033[%d;%dH$\033[22m", y, xpartition - TRACK_LINENO_COLS);
+			}
+		}
+
+		/* pointers */
+		if (w->playing)
+		{
+			y = w->centre - (w->trackerfy/(s->plen+1)) + (w->playfy/(s->plen+1));
+			if (y > TRACK_ROW && y < ws.ws_row)
+				printf("\033[%d;%dH>", y, xpartition - TRACK_LINENO_COLS - offset);
+		}
+		if (w->queue != -1)
+		{
+			y = w->centre - (w->trackerfy/(s->plen+1)) + w->queue;
+			if (y > TRACK_ROW && y < ws.ws_row)
+				printf("\033[%d;%dHQ", y, xpartition - TRACK_LINENO_COLS - offset + 1);
 		}
 
 		short sx = drawTrackerBody(sfx, offset + 1, offset, ws.ws_col);

@@ -103,6 +103,7 @@ typedef struct UI
 	uint16_t  sprp;    /* samples per row progress                                       */
 	bool      playing; /* true if the sequencer is running                               */
 	bool      loop;    /* true if the current order index is looping                     */
+	short     queue;   /* next order index to play, -1 for next index                    */
 } UI;
 UI *w;
 

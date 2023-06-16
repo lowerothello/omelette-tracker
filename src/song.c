@@ -56,6 +56,7 @@ void serializeSong(FILE *fp, Song *cs)
 	json_object_object_add(jso, "version", json_object_new_int(version));
 	json_object_object_add(jso, "samplerate", json_object_new_int(samplerate));
 	json_object_object_add(jso, "plen", json_object_new_int(cs->plen));
+	json_object_object_add(jso, "slen", json_object_new_int(cs->slen));
 	json_object_object_add(jso, "rowhighlight", json_object_new_int(cs->rowhighlight));
 	json_object_object_add(jso, "songbpm", json_object_new_int(cs->songbpm));
 
@@ -89,6 +90,7 @@ Song *deserializeSong(FILE *fp)
 
 	Song *ret = calloc(1, sizeof(Song));
 	ret->plen = json_object_get_int(json_object_object_get(jso, "plen"));
+	ret->slen = json_object_get_int(json_object_object_get(jso, "slen"));
 	ret->rowhighlight = json_object_get_int(json_object_object_get(jso, "rowhighlight"));
 	ret->songbpm = json_object_get_int(json_object_object_get(jso, "songbpm"));
 
