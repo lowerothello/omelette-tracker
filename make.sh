@@ -21,7 +21,6 @@ check_required() {
 
 check_optional valgrind 1
 check_optional jack
-# check_optional libpulse
 check_optional x11
 check_required json-c
 check_required sndfile
@@ -31,7 +30,7 @@ check_optional lilv-0
 [ "$1" = "pg" ] && {
 	set -x
 	time gcc -o omelette -O0 \
-		$valgrind $jack $libpulse $sndfile $lilv_0 $ladspa $x11 $json_c \
+		$valgrind $jack $sndfile $lilv_0 $ladspa $x11 $json_c \
 		-lm $warnings -g -pg \
 		src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
 	# time gcc -o omuLADSPA -O0 \
@@ -48,7 +47,7 @@ check_optional lilv-0
 [ "$1" ] && {
 	set -x
 	time ${CC:-gcc} -o omelette -O$1 \
-		$valgrind $jack $libpulse $sndfile $lilv_0 $ladspa $x11 $json_c \
+		$valgrind $jack $sndfile $lilv_0 $ladspa $x11 $json_c \
 		-lm $warnings -g \
 		src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
 	# time ${CC:-gcc} -o omuLADSPA -O$1 \
@@ -64,7 +63,7 @@ check_optional lilv-0
 
 set -x
 time ${CC:-tcc} -o omelette -O0 \
-	$valgrind $jack $libpulse $sndfile $lilv_0 $ladspa $x11 $json_c \
+	$valgrind $jack $sndfile $lilv_0 $ladspa $x11 $json_c \
 	-lm $warnings -g \
 	src/main.c lib/libdrawille/src/liblibdrawille.a 2>&1
 # time ${CC:-tcc} -o omuLADSPA -O0 \
