@@ -8,7 +8,7 @@ void drawCentreText(short x, short y, short w, const char *text)
 }
 
 #ifndef OMELETTE_EFFECT_NO_STRUCTS
-short getEffectHeight(Effect *e)
+static short getEffectHeight(Effect *e)
 {
 	if (!e) return 0;
 
@@ -58,7 +58,7 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 	return ret;
 }
 
-void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, short y)
+static void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, short y)
 {
 	short focusindex;
 	if (track == w->track) focusindex = getEffectFromCursor(track, chain, cc.cursor);
@@ -194,4 +194,30 @@ void drawAutogenPluginLine(short x, short y, short w,
 				printf("\033[%d;%dH%.*s", y, x, controloffset-x, name-x);
 		}
 	} else addControlDummy(0, 0);
+}
+
+void drawEffect(void)
+{
+	
+	if (cc.mouseadjust || cc.keyadjust)
+	{
+		printf("\033[%d;0H\033[1m-- ADJUST --\033[m", ws.ws_row);
+		w->command.error[0] = '\0';
+	}
+
+	clearControls();
+	short x = genConstSfx(EFFECT_WIDTH, ws.ws_col);
+	for (uint8_t i = 0; i < s->track->c; i++)
+	{
+		drawTrackHeader(i, x+1, EFFECT_WIDTH,
+				1, ws.ws_col);
+
+		drawEffectChain(i, s->track->v[i]->effect,
+				x + 2,
+				EFFECT_WIDTH - 2,
+				TRACK_ROW + 2);
+
+		x += EFFECT_WIDTH;
+	}
+	drawControls();
 }

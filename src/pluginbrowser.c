@@ -107,19 +107,9 @@ static void pluginBrowserMouse(enum Button button, int x, int y)
 	p->redraw = 1;
 }
 
-static void pluginBrowserUpArrow  (void *count) { browserUpArrow  (pbstate, (size_t)count); }
-static void pluginBrowserDownArrow(void *count) { browserDownArrow(pbstate, (size_t)count); }
-static void pluginBrowserPgUp(void *count) { browserUpArrow  (pbstate, (size_t)count * (ws.ws_row>>1)); }
-static void pluginBrowserPgDn(void *count) { browserDownArrow(pbstate, (size_t)count * (ws.ws_row>>1)); }
-
 static void pluginBrowserEscape(void *arg)
 {
 	w->page = w->oldpage;
-	p->redraw = 1;
-}
-static void pluginBrowserCommitBind(void *arg) /* TODO: shitty disambiguation */
-{
-	pluginBrowserCommit(pbstate);
 	p->redraw = 1;
 }
 
@@ -127,17 +117,9 @@ void initPluginEffectBrowserInput(void)
 {
 	setTooltipTitle("pluginbrowser");
 	setTooltipMouseCallback(pluginBrowserMouse);
-	addTooltipBind("cursor up"   , 0, XK_Up       , 0, pluginBrowserUpArrow                 , (void*)1);
-	addTooltipBind("cursor down" , 0, XK_Down     , 0, pluginBrowserDownArrow               , (void*)1);
-	addTooltipBind("cursor home" , 0, XK_Home     , 0, (void(*)(void*))browserHome          , pbstate );
-	addTooltipBind("cursor end"  , 0, XK_End      , 0, (void(*)(void*))browserEnd           , pbstate );
-	addTooltipBind("cursor pgup" , 0, XK_Page_Up  , 0, pluginBrowserPgUp                    , (void*)1);
-	addTooltipBind("cursor pgdn" , 0, XK_Page_Down, 0, pluginBrowserPgDn                    , (void*)1);
-	addTooltipBind("return"      , 0, XK_Escape   , 0, pluginBrowserEscape                  , NULL    );
-	addTooltipBind("commit"      , 0, XK_Return   , 0, pluginBrowserCommitBind              , NULL    );
-	addTooltipBind("search start", 0, XK_slash    , 0, (void(*)(void*))browserSearchStart   , pbstate );
-	addTooltipBind("search next" , 0, XK_n        , 0, (void(*)(void*))browserSearchNextBind, pbstate );
-	addTooltipBind("search prev" , 0, XK_N        , 0, (void(*)(void*))browserSearchPrevBind, pbstate );
+	addBrowserBinds(pbstate);
+	addBrowserSearchBinds(pbstate);
+	addTooltipBind("return", 0, XK_Escape   , 0, pluginBrowserEscape, NULL);
 }
 
 BrowserState *initPluginBrowser(void)
@@ -154,9 +136,4 @@ BrowserState *initPluginBrowser(void)
 	ret->data = calloc(1, sizeof(struct PluginBrowserData));
 
 	return ret;
-}
-
-void freePluginBrowser(BrowserState *b)
-{
-	browserFree(b);
 }

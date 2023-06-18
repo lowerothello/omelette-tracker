@@ -12,16 +12,6 @@ static void instrumentEscape(void *arg)
 #include "chord/add.c"
 
 
-static void instrumentUpArrow(size_t count) { browserUpArrow  (fbstate, count); }
-static void instrumentDnArrow(size_t count) { browserDownArrow(fbstate, count); }
-static void instrumentHome(void) { browserHome(fbstate); }
-static void instrumentEnd (void) { browserEnd (fbstate); }
-static void instrumentPgUp(void) { instrumentUpArrow((ws.ws_row>>1)); }
-static void instrumentPgDn(void) { instrumentDnArrow((ws.ws_row>>1)); }
-static void instrumentSearchStart(void) { browserSearchStart(fbstate);    }
-static void instrumentSearchNext (void) { browserSearchNext (fbstate, 0); }
-static void instrumentSearchPrev (void) { browserSearchPrev (fbstate, 0); }
-
 static void instrumentSetIndex(short inst)
 {
 	if (inst >= 0 && inst <= 254)
@@ -35,7 +25,6 @@ static void instrumentSetIndex(short inst)
 static void instrumentCtrlUpArrow  (void *count) { instrumentSetIndex(w->instrument - (size_t)count * MAX(1, w->count)); }
 static void instrumentCtrlDownArrow(void *count) { instrumentSetIndex(w->instrument + (size_t)count * MAX(1, w->count)); }
 
-static void instrumentSampleReturn(void) { fbstate->commit(fbstate); }
 static void instrumentSampleBackspace(void) { fileBrowserBackspace(fbstate); }
 static void instrumentSamplePressPreview(size_t note) { fileBrowserPreview(fbstate, note, 0); }
 static void instrumentSampleReleasePreview(size_t note) { fileBrowserPreview(fbstate, note, 1); }
@@ -136,31 +125,24 @@ void initInstrumentInput(void)
 	}
 
 	setTooltipMouseCallback(instrumentMouse);
-	addTooltipBind("cursor up"     , 0          , XK_Up       , 0      , (void(*)(void*))instrumentUpArrow        , (void*)1);
-	addTooltipBind("cursor down"   , 0          , XK_Down     , 0      , (void(*)(void*))instrumentDnArrow        , (void*)1);
-	addTooltipBind("cursor home"   , 0          , XK_Home     , 0      , (void(*)(void*))instrumentHome           , NULL    );
-	addTooltipBind("cursor end"    , 0          , XK_End      , 0      , (void(*)(void*))instrumentEnd            , NULL    );
-	addTooltipBind("cursor pgup"   , 0          , XK_Page_Up  , 0      , (void(*)(void*))instrumentPgUp           , NULL    );
-	addTooltipBind("cursor pgdn"   , 0          , XK_Page_Down, 0      , (void(*)(void*))instrumentPgDn           , NULL    );
+	addBrowserBinds(fbstate);
+
+	addTooltipBind("revert"        , 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))instrumentSampleBackspace, NULL    );
 	addTooltipBind("previous index", ControlMask, XK_Up       , TT_DRAW, instrumentCtrlUpArrow                    , (void*)1);
 	addTooltipBind("next index"    , ControlMask, XK_Down     , TT_DRAW, instrumentCtrlDownArrow                  , (void*)1);
 	addTooltipBind("return"        , 0          , XK_Escape   , 0      , instrumentEscape                         , NULL    );
-	addTooltipBind("commit"        , 0          , XK_Return   , TT_DRAW, (void(*)(void*))instrumentSampleReturn   , NULL    );
-	addTooltipBind("revert"        , 0          , XK_BackSpace, TT_DRAW, (void(*)(void*))instrumentSampleBackspace, NULL    );
 	switch (w->mode)
 	{
 		case MODE_NORMAL:
 			addCountBinds(0);
 			addRulerBinds();
+			addBrowserSearchBinds(fbstate);
 			addTooltipBind("record sample"    , 0          , XK_r    , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRecord       , NULL);
 			addTooltipBind("empty instrument" , 0          , XK_e    , TT_DRAW        , (void(*)(void*))emptyInstrumentIndex , NULL);
 			addTooltipBind("yank instrument"  , ControlMask, XK_y    , TT_DRAW        , (void(*)(void*))yankInstrumentInput  , NULL);
 			addTooltipBind("put instrument"   , ControlMask, XK_p    , TT_DRAW        , (void(*)(void*))putInstrumentInput   , NULL);
 			addTooltipBind("delete instrument", ControlMask, XK_d    , TT_DRAW        , (void(*)(void*))deleteInstrumentInput, NULL);
 			addTooltipBind("enter insert mode", 0          , XK_i    , TT_DRAW        , instrumentEnterInsertMode            , NULL);
-			addTooltipBind("search start"     , 0          , XK_slash, TT_DRAW        , (void(*)(void*))instrumentSearchStart, NULL);
-			addTooltipBind("search next"      , 0          , XK_n    , TT_DRAW        , (void(*)(void*))instrumentSearchNext , NULL);
-			addTooltipBind("search prev"      , 0          , XK_N    , TT_DRAW        , (void(*)(void*))instrumentSearchPrev , NULL);
 			break;
 		case MODE_INSERT:
 			addDecimalBinds("set octave", 0, setInsertOctave);

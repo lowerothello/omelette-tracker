@@ -30,8 +30,18 @@ void showInstrument(void)
 
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
-
 	freePreviewSample();
+	p->redraw = 1;
+}
+void showEffect(void)
+{
+	if (input_api.autorepeaton)
+		input_api.autorepeaton();
+
+	w->page = PAGE_EFFECT;
+	w->mode = MODE_NORMAL;
+	freePreviewSample();
+	cc.cursor = getCursorFromEffectTrack(w->track);
 	p->redraw = 1;
 }
 

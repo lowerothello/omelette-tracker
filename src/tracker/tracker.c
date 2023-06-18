@@ -28,17 +28,10 @@ uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
 void trackerUpArrow(size_t count)
 {
 	count *= MAX(1, w->count);
-	size_t min;
-	int mincount;
 
 	w->follow = 0;
 	switch (w->page)
 	{
-		case PAGE_EFFECT:
-			min = getCursorFromEffectTrack(w->track);
-			mincount = cc.cursor - min;
-			decControlCursor(MIN(mincount, count));
-			break;
 		case PAGE_VARIANT:
 			if (count > w->trackerfy)
 				w->trackerfy = 0;
@@ -59,17 +52,10 @@ void trackerUpArrow(size_t count)
 void trackerDownArrow(size_t count)
 {
 	count *= MAX(1, w->count);
-	size_t max;
-	int maxcount;
 
 	w->follow = 0;
 	switch (w->page)
 	{
-		case PAGE_EFFECT:
-			max = getCursorFromEffectTrack(w->track + 1) - 1;
-			maxcount = max - cc.cursor;
-			incControlCursor(MIN(maxcount, count));
-			break;
 		case PAGE_VARIANT:
 			w->trackerfy = MIN(w->trackerfy + count, getPatternLength()*255 - 1);
 			break;
@@ -110,10 +96,6 @@ void trackerLeftArrow(size_t count)
 	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
 	switch (w->page)
 	{
-		case PAGE_EFFECT:
-			for (i = 0; i < count; i++)
-				incControlFieldpointer();
-			break;
 		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
@@ -146,10 +128,6 @@ void trackerRightArrow(size_t count)
 	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
 	switch (w->page)
 	{
-		case PAGE_EFFECT:
-			for (i = 0; i < count; i++)
-				decControlFieldpointer();
-			break;
 		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
@@ -180,7 +158,6 @@ void trackerHome(void)
 	w->follow = 0;
 	switch (w->page)
 	{
-		case PAGE_EFFECT: cc.cursor = getCursorFromEffectTrack(w->track); break;
 		case PAGE_VARIANT: w->trackerfy = getPatternChainIndex(w->trackerfy) * getPatternLength(); break;
 		case PAGE_PATTERN: w->trackerfy = getPatternIndex(w->trackerfy); break;
 		default: break;
@@ -192,7 +169,6 @@ void trackerEnd(void)
 	w->follow = 0;
 	switch (w->page)
 	{
-		case PAGE_EFFECT: cc.cursor = getCursorFromEffectTrack(w->track + 1) - 1; break;
 		case PAGE_VARIANT: w->trackerfy = (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1; break;
 		case PAGE_PATTERN: w->trackerfy = 255 * getPatternLength() + getPatternIndex(w->trackerfy); break;
 		default: break;
@@ -256,30 +232,10 @@ void cycleDown(void)
 
 void trackerPgUp(void)
 {
-	EffectChain *ec;
-	switch (w->page)
-	{
-		case PAGE_EFFECT:
-			ec = s->track->v[w->track]->effect;
-			cc.cursor = getCursorFromEffect(w->track, ec, MAX(0, getEffectFromCursor(w->track, ec, cc.cursor) - (int)MAX(1, w->count)));
-			p->redraw = 1; break;
-		default:
-			trackerUpArrow(s->rowhighlight);
-			break;
-	}
+	trackerUpArrow(s->rowhighlight);
 }
 
 void trackerPgDn(void)
 {
-	EffectChain *ec;
-	switch (w->page)
-	{
-		case PAGE_EFFECT:
-			ec = s->track->v[w->track]->effect;
-			cc.cursor = getCursorFromEffect(w->track, ec, MIN(ec->c-1, getEffectFromCursor(w->track, ec, cc.cursor) + MAX(1, w->count)));
-			p->redraw = 1; break;
-		default:
-			trackerDownArrow(s->rowhighlight);
-			break;
-	}
+	trackerDownArrow(s->rowhighlight);
 }

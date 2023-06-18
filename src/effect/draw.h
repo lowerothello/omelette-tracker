@@ -3,13 +3,6 @@
 #define NULL_EFFECT_HEIGHT 3
 #define NULL_EFFECT_TEXT "NO EFFECTS"
 
-#ifndef OMELETTE_EFFECT_NO_STRUCTS
-short getEffectHeight(Effect*);
-
-/* draw a single effect chain */
-void drawEffectChain(uint8_t track, EffectChain*, short x, short width, short y);
-#endif
-
 /* draw the full effect page */
 void drawEffect(void);
 

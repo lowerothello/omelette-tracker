@@ -141,6 +141,7 @@ void resetInput(void)
 
 	addTooltipBind("show tracker"   , 0          , XK_F1   , 0, (void(*)(void*))showTracker   , NULL);
 	addTooltipBind("show instrument", 0          , XK_F2   , 0, (void(*)(void*))showInstrument, NULL);
+	addTooltipBind("show mixer"     , 0          , XK_F3   , 0, (void(*)(void*))showEffect    , NULL);
 
 	addTooltipBind("start playback" , 0          , XK_F5   , 0, (void(*)(void*))startPlayback , NULL);
 	addTooltipBind("stop playback"  , 0          , XK_F6   , 0, (void(*)(void*))stopPlayback  , NULL);
@@ -153,7 +154,7 @@ void resetInput(void)
 			addTooltipBind("hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
 			switch (w->page)
 			{
-				case PAGE_EFFECT:
+				case PAGE_EFFECT:        initEffectInput();              break;
 				case PAGE_PATTERN:
 				case PAGE_VARIANT:       initTrackerInput();             break;
 				case PAGE_INSTRUMENT:    initInstrumentInput();          break;

@@ -9,8 +9,8 @@ static void common_cleanup(int ret)
 	clearControls();
 	clearTooltip();
 
-	if (fbstate) freeFileBrowser(fbstate);
-	if (pbstate) freePluginBrowser(pbstate);
+	if (fbstate) browserFree(fbstate);
+	if (pbstate) browserFree(pbstate);
 
 	freeEffectDB();
 

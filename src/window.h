@@ -117,6 +117,7 @@ void decStep(void) { addStep(-1); }
 
 void showTracker(void);
 void showInstrument(void);
+void showEffect(void);
 
 UI *allocWindow(void);
 void freeWindow(UI*);

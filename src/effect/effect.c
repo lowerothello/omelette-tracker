@@ -392,4 +392,6 @@ EffectChain *deserializeEffectChain(struct json_object *jso)
 	return ret;
 }
 
+
 #include "draw.c"
+#include "input.c"

@@ -107,4 +107,5 @@ void deserializeEffect(EffectChain *ec, uint8_t index, struct json_object *jso);
 struct json_object *serializeEffectChain(EffectChain*);
 EffectChain *deserializeEffectChain(struct json_object*);
 
+void initEffectInput(void);
 #include "draw.h"

@@ -546,138 +546,114 @@ static short drawTrackerBody(short sfx, short x, short minx, short maxx)
 #define PATTERN_GUTTER 4
 void drawTracker(bool patternlist)
 {
-	if (w->page == PAGE_EFFECT)
+	short offset = MIN(s->track->c * 3, ws.ws_col>>2)+PATTERN_GUTTER;
+	short sfx = genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset));
+	short x = TRACK_LINENO_COLS + 3 + sfx + offset;
+	short xpartition = MAX(offset, MAX(sfx, 0) + offset);
+	short smallsfx = genConstSfx(3, offset-PATTERN_GUTTER);
+	short smallx, y, smallsx = 0;
+	int j;
+	char smallbuffer[4];
+	for (uint8_t i = 0; i < s->track->c; i++)
 	{
-		if (cc.mouseadjust || cc.keyadjust) printf("\033[%d;0H\033[1m-- EFFECT ADJUST --\033[m", ws.ws_row);
-		else                                printf("\033[%d;0H\033[1m-- EFFECT --\033[m"       , ws.ws_row);
-		w->command.error[0] = '\0';
+		smallx = xpartition - TRACK_LINENO_COLS - (offset-PATTERN_GUTTER) + (i+1)*3 + smallsfx - 1;
 
-		clearControls();
-		short x = genConstSfx(EFFECT_WIDTH, ws.ws_col);
-		for (uint8_t i = 0; i < s->track->c; i++)
+		if (i == w->track + w->trackoffset)
+			smallsx = smallx;
+
+		drawTrackSmallHeader(i, smallx, PATTERN_GUTTER, xpartition - TRACK_LINENO_COLS);
+		for (j = 0; j < PATTERN_VOID; j++)
 		{
-			drawTrackHeader(i, x+1, EFFECT_WIDTH,
-					1, ws.ws_col);
-
-			drawEffectChain(i, s->track->v[i]->effect,
-					x + 2,
-					EFFECT_WIDTH - 2,
-					TRACK_ROW + 2);
-
-			x += EFFECT_WIDTH;
-		}
-		drawControls();
-	} else
-	{
-		short offset = MIN(s->track->c * 3, ws.ws_col>>2)+PATTERN_GUTTER;
-		short sfx = genSfx(ws.ws_col - ((TRACK_LINENO_COLS<<1) + offset));
-		short x = TRACK_LINENO_COLS + 3 + sfx + offset;
-		short xpartition = MAX(offset, MAX(sfx, 0) + offset);
-		short smallsfx = genConstSfx(3, offset-PATTERN_GUTTER);
-		short smallx, y, smallsx = 0;
-		int j;
-		char smallbuffer[4];
-		for (uint8_t i = 0; i < s->track->c; i++)
-		{
-			smallx = xpartition - TRACK_LINENO_COLS - (offset-PATTERN_GUTTER) + (i+1)*3 + smallsfx - 1;
-
-			if (i == w->track + w->trackoffset)
-				smallsx = smallx;
-
-			drawTrackSmallHeader(i, smallx, PATTERN_GUTTER, xpartition - TRACK_LINENO_COLS);
-			for (j = 0; j < PATTERN_VOID; j++)
+			y = w->centre - w->trackerfy/(s->plen+1) + j;
+			if (y >= ws.ws_row) break;
+			if (y > TRACK_ROW)
 			{
-				y = w->centre - w->trackerfy/(s->plen+1) + j;
-				if (y >= ws.ws_row) break;
-				if (y > TRACK_ROW)
-				{
-					if (s->track->v[i]->pattern->order[j] == PATTERN_VOID)
-						strcpy(smallbuffer, "-- ");
-					else
-						snprintf(smallbuffer, 4, "%02x ", s->track->v[i]->pattern->order[j]);
+				if (s->track->v[i]->pattern->order[j] == PATTERN_VOID)
+					strcpy(smallbuffer, "-- ");
+				else
+					snprintf(smallbuffer, 4, "%02x ", s->track->v[i]->pattern->order[j]);
 
-					if (s->track->v[i]->mute || j > s->slen)
-						printf("\033[2m");
-					else if (w->playing && getPatternChainIndex(w->playfy) == j)
-						printf("\033[1m");
+				if (s->track->v[i]->mute || j > s->slen)
+					printf("\033[2m");
+				else if (w->playing && getPatternChainIndex(w->playfy) == j)
+					printf("\033[1m");
 
-					if (ifVisualOrder(i, j))
-						printf(VISUAL_ON);
-					printCulling(smallbuffer, smallx, y, PATTERN_GUTTER, xpartition - TRACK_LINENO_COLS);
-					printf(VISUAL_OFF);
-				}
-			}
-
-			drawTrackHeader(i, x + 1, getTrackWidth(s->track->v[i]) - 3, xpartition + 4, ws.ws_col);
-			x += getTrackWidth(s->track->v[i]);
-		}
-
-		if (smallsfx < 0)
-		{
-			for (y = TRACK_ROW+1; y < ws.ws_row; y++)
-			{
-				j = y - (w->centre - w->trackerfy/(s->plen+1));
-				if (j < 0) continue;
-				if (j >= PATTERN_VOID) break;
-
-				setRowIntensity(0, 0, j);
-				printf("\033[%d;%dH^\033[22m", y, PATTERN_GUTTER);
-			}
-		}
-		if (smallsfx + (s->track->c+1)*3 + 1 > offset)
-		{
-			for (y = TRACK_ROW+1; y < ws.ws_row; y++)
-			{
-				j = y - (w->centre - w->trackerfy/(s->plen+1));
-				if (j < 0) continue;
-				if (j >= PATTERN_VOID) break;
-
-				setRowIntensity(0, 0, j);
-				printf("\033[%d;%dH$\033[22m", y, xpartition - TRACK_LINENO_COLS);
+				if (ifVisualOrder(i, j))
+					printf(VISUAL_ON);
+				printCulling(smallbuffer, smallx, y, PATTERN_GUTTER, xpartition - TRACK_LINENO_COLS);
+				printf(VISUAL_OFF);
 			}
 		}
 
-		/* pointers */
-		if (w->playing)
-		{
-			y = w->centre - (w->trackerfy/(s->plen+1)) + (w->playfy/(s->plen+1));
-			if (y > TRACK_ROW && y < ws.ws_row)
-				printf("\033[%d;%dH>", y, xpartition - TRACK_LINENO_COLS - offset);
-		}
-		if (w->queue != -1)
-		{
-			y = w->centre - (w->trackerfy/(s->plen+1)) + w->queue;
-			if (y > TRACK_ROW && y < ws.ws_row)
-				printf("\033[%d;%dHQ", y, xpartition - TRACK_LINENO_COLS - offset + 1);
-		}
-
-		short sx = drawTrackerBody(sfx, offset + 1, offset, ws.ws_col);
-
-		switch (w->mode)
-		{
-			case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->command.error[0] = '\0'; break;
-			case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->command.error[0] = '\0'; break;
-			case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
-			case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
-			case MODE_INSERT:        printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",         ws.ws_row); w->command.error[0] = '\0'; break;
-			default: break;
-		}
-
-		/* position the tracker cursor */
-		short macro;
-		y = w->centre + w->fyoffset;
-		if (patternlist)
-			printf("\033[%d;%dH", y, smallsx + 1 - w->fieldpointer);
-		else
-			switch (w->trackerfx)
-			{
-				case  0: printf("\033[%d;%dH", y, sx+sfx + 1); break;
-				case  1: printf("\033[%d;%dH", y, sx+sfx + 6 - w->fieldpointer); break;
-				default: /* macro columns */
-					macro = (w->trackerfx - 2)>>1;
-					if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 8  + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4);
-					else                       printf("\033[%d;%dH", y, sx+sfx + 10 + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4 - w->fieldpointer);
-					break;
-			}
+		drawTrackHeader(i, x + 1, getTrackWidth(s->track->v[i]) - 3, xpartition + 4, ws.ws_col);
+		x += getTrackWidth(s->track->v[i]);
 	}
+
+	if (smallsfx < 0)
+	{
+		for (y = TRACK_ROW+1; y < ws.ws_row; y++)
+		{
+			j = y - (w->centre - w->trackerfy/(s->plen+1));
+			if (j < 0) continue;
+			if (j >= PATTERN_VOID) break;
+
+			setRowIntensity(0, 0, j);
+			printf("\033[%d;%dH^\033[22m", y, PATTERN_GUTTER);
+		}
+	}
+	if (smallsfx + (s->track->c+1)*3 + 1 > offset)
+	{
+		for (y = TRACK_ROW+1; y < ws.ws_row; y++)
+		{
+			j = y - (w->centre - w->trackerfy/(s->plen+1));
+			if (j < 0) continue;
+			if (j >= PATTERN_VOID) break;
+
+			setRowIntensity(0, 0, j);
+			printf("\033[%d;%dH$\033[22m", y, xpartition - TRACK_LINENO_COLS);
+		}
+	}
+
+	/* pointers */
+	if (w->playing)
+	{
+		y = w->centre - (w->trackerfy/(s->plen+1)) + (w->playfy/(s->plen+1));
+		if (y > TRACK_ROW && y < ws.ws_row)
+			printf("\033[%d;%dH>", y, xpartition - TRACK_LINENO_COLS - offset);
+	}
+	if (w->queue != -1)
+	{
+		y = w->centre - (w->trackerfy/(s->plen+1)) + w->queue;
+		if (y > TRACK_ROW && y < ws.ws_row)
+			printf("\033[%d;%dHQ", y, xpartition - TRACK_LINENO_COLS - offset + 1);
+	}
+
+	short sx = drawTrackerBody(sfx, offset + 1, offset, ws.ws_col);
+
+	switch (w->mode)
+	{
+		case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->command.error[0] = '\0'; break;
+		case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->command.error[0] = '\0'; break;
+		case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
+		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
+		case MODE_INSERT:        printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",         ws.ws_row); w->command.error[0] = '\0'; break;
+		default: break;
+	}
+
+	/* position the tracker cursor */
+	short macro;
+	y = w->centre + w->fyoffset;
+	if (patternlist)
+		printf("\033[%d;%dH", y, smallsx + 1 - w->fieldpointer);
+	else
+		switch (w->trackerfx)
+		{
+			case  0: printf("\033[%d;%dH", y, sx+sfx + 1); break;
+			case  1: printf("\033[%d;%dH", y, sx+sfx + 6 - w->fieldpointer); break;
+			default: /* macro columns */
+				macro = (w->trackerfx - 2)>>1;
+				if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 8  + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4);
+				else                       printf("\033[%d;%dH", y, sx+sfx + 10 + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4 - w->fieldpointer);
+				break;
+		}
 }

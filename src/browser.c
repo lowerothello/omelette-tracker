@@ -6,6 +6,13 @@ void resizeBrowser(BrowserState *b, short x, short y, short w, short h)
 	b->h = h;
 }
 
+void browserFree(BrowserState *b)
+{
+	if (b->data) free(b->data);
+	if (b->search) free(b->search);
+	free(b);
+}
+
 static char *tolowerString(char *s, size_t slen)
 {
 	for (size_t i = 0; i < slen; i++)
@@ -58,7 +65,7 @@ void drawBrowser(BrowserState *b)
 	printf("\033[%d;%dH", b->y + (b->h>>1) + b->fyoffset, b->x);
 }
 
-void browserUpArrow(BrowserState *b, size_t count)
+static void _browserUpArrow(BrowserState *b, int count)
 {
 	count *= MAX(1, w->count);
 	if (b->cursor < count) b->cursor = 0;
@@ -66,7 +73,7 @@ void browserUpArrow(BrowserState *b, size_t count)
 	if (b->cursorCB) b->cursorCB(b->data);
 	p->redraw = 1;
 }
-void browserDownArrow(BrowserState *b, size_t count)
+static void _browserDownArrow(BrowserState *b, int count)
 {
 	count *= MAX(1, w->count);
 	b->cursor += count;
@@ -75,13 +82,18 @@ void browserDownArrow(BrowserState *b, size_t count)
 	if (b->cursorCB) b->cursorCB(b->data);
 	p->redraw = 1;
 }
-void browserHome(BrowserState *b)
+static void browserUpArrow  (BrowserState *b) { _browserUpArrow  (b, 1); }
+static void browserDownArrow(BrowserState *b) { _browserDownArrow(b, 1); }
+static void browserPgUp(BrowserState *b) { _browserUpArrow  (b, ws.ws_row>>1); }
+static void browserPgDn(BrowserState *b) { _browserDownArrow(b, ws.ws_row>>1); }
+
+static void browserHome(BrowserState *b)
 {
 	b->cursor = 0;
 	if (b->cursorCB) b->cursorCB(b->data);
 	p->redraw = 1;
 }
-void browserEnd(BrowserState *b)
+static void browserEnd(BrowserState *b)
 {
 	b->cursor = b->getLineCount(b->data) - 1;
 	if (b->cursorCB) b->cursorCB(b->data);
@@ -92,16 +104,21 @@ static void browserApplyFyoffset(BrowserState *b)
 {
 	if (!b->fyoffset) return;
 
-	if (b->fyoffset < 0) browserUpArrow  (b, -b->fyoffset);
-	else                 browserDownArrow(b,  b->fyoffset);
+	if (b->fyoffset < 0) _browserUpArrow  (b, -b->fyoffset);
+	else                 _browserDownArrow(b,  b->fyoffset);
 	b->fyoffset = 0;
+}
+static void browserCommit(BrowserState *b)
+{
+	b->commit(b);
+	p->redraw = 1;
 }
 void browserMouse(BrowserState *b, enum Button button, int x, int y)
 {
 	switch (button)
 	{
-		case WHEEL_UP: case WHEEL_UP_CTRL:             /* scroll up     */ browserUpArrow  (b, WHEEL_SPEED); break;
-		case WHEEL_DOWN: case WHEEL_DOWN_CTRL:         /* scroll down   */ browserDownArrow(b, WHEEL_SPEED); break;
+		case WHEEL_UP: case WHEEL_UP_CTRL:             /* scroll up     */ _browserUpArrow  (b, WHEEL_SPEED); break;
+		case WHEEL_DOWN: case WHEEL_DOWN_CTRL:         /* scroll down   */ _browserDownArrow(b, WHEEL_SPEED); break;
 		case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL: /* release click */ browserApplyFyoffset(b); break;
 
 		case BUTTON1:      case BUTTON3:
@@ -114,31 +131,13 @@ void browserMouse(BrowserState *b, enum Button button, int x, int y)
 			if (button == BUTTON3 || button == BUTTON3_CTRL)
 			{
 				browserApplyFyoffset(b);
-				b->commit(b);
+				browserCommit(b);
 			} break;
 		default: break;
 	}
 }
 
-static void browserSearchKeyCallback(char *command, void *arg)
-{
-	BrowserState *b = arg;
-
-	if (b->search) free(b->search);
-	b->search = strdup(command);
-	browserSearchNext(b, 1);
-	p->redraw = 1;
-}
-
-void browserSearchStart(BrowserState *b)
-{
-	if (b->search) { free(b->search); b->search = NULL; }
-	setCommand(NULL, browserSearchKeyCallback, NULL, b, 0, "/", "");
-	w->mode = MODE_COMMAND;
-	p->redraw = 1;
-}
-
-void browserSearchNext(BrowserState *b, bool includecurrent)
+static void browserSearchNext(BrowserState *b, bool includecurrent)
 {
 	free(b->getTitle(b->data)); /* TODO: redundant alloc */
 
@@ -154,8 +153,9 @@ void browserSearchNext(BrowserState *b, bool includecurrent)
 	}
 	/* TODO: needs to loop */
 }
+static void browserSearchNextBind(BrowserState *b) { browserSearchNext(b, 0); p->redraw = 1; }
 
-void browserSearchPrev(BrowserState *b, bool includecurrent)
+static void browserSearchPrev(BrowserState *b, bool includecurrent)
 {
 	free(b->getTitle(b->data)); /* TODO: redundant alloc */
 
@@ -179,10 +179,40 @@ void browserSearchPrev(BrowserState *b, bool includecurrent)
 		i++;
 	}
 }
+static void browserSearchPrevBind(BrowserState *b) { browserSearchPrev(b, 0); p->redraw = 1; }
 
-void browserFree(BrowserState *b)
+static void browserSearchKeyCallback(char *command, void *arg)
 {
-	if (b->data) free(b->data);
+	BrowserState *b = arg;
+
 	if (b->search) free(b->search);
-	free(b);
+	b->search = strdup(command);
+	browserSearchNext(b, 1);
+	p->redraw = 1;
+}
+
+void browserSearchStart(BrowserState *b)
+{
+	if (b->search) { free(b->search); b->search = NULL; }
+	setCommand(NULL, browserSearchKeyCallback, NULL, b, 0, "/", "");
+	w->mode = MODE_COMMAND;
+	p->redraw = 1;
+}
+
+void addBrowserBinds(BrowserState *b)
+{
+	addTooltipBind("cursor up"   , 0, XK_Up       , 0, (void(*)(void*))browserUpArrow       , b);
+	addTooltipBind("cursor down" , 0, XK_Down     , 0, (void(*)(void*))browserDownArrow     , b);
+	addTooltipBind("cursor home" , 0, XK_Home     , 0, (void(*)(void*))browserHome          , b);
+	addTooltipBind("cursor end"  , 0, XK_End      , 0, (void(*)(void*))browserEnd           , b);
+	addTooltipBind("cursor pgup" , 0, XK_Page_Up  , 0, (void(*)(void*))browserPgUp          , b);
+	addTooltipBind("cursor pgdn" , 0, XK_Page_Down, 0, (void(*)(void*))browserPgDn          , b);
+	// addTooltipBind("return"      , 0, XK_Escape   , 0, pluginBrowserEscape                  , NULL    );
+	addTooltipBind("commit"      , 0, XK_Return   , 0, (void(*)(void*))browserCommit        , b);
+}
+void addBrowserSearchBinds(BrowserState *b)
+{
+	addTooltipBind("search start", 0, XK_slash    , 0, (void(*)(void*))browserSearchStart   , b);
+	addTooltipBind("search next" , 0, XK_n        , 0, (void(*)(void*))browserSearchNextBind, b);
+	addTooltipBind("search prev" , 0, XK_N        , 0, (void(*)(void*))browserSearchPrevBind, b);
 }

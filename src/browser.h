@@ -15,19 +15,20 @@ typedef struct _BrowserState {
 } BrowserState;
 
 void resizeBrowser(BrowserState*, short x, short y, short w, short h);
-void drawBrowser(BrowserState*);
-void browserUpArrow(BrowserState*, size_t count);
-void browserDownArrow(BrowserState*, size_t count);
-void browserHome(BrowserState*);
-void browserEnd(BrowserState*);
-void browserMouse(BrowserState*, enum Button button, int x, int y);
-
-void browserSearchStart(BrowserState*);
-void browserSearchNext(BrowserState*, bool includecurrent);
-void browserSearchPrev(BrowserState*, bool includecurrent);
-void browserSearchNextBind(BrowserState *b) { browserSearchNext(b, 0); p->redraw = 1; }
-void browserSearchPrevBind(BrowserState *b) { browserSearchPrev(b, 0); p->redraw = 1; }
-
 void browserFree(BrowserState*);
+
+void drawBrowser(BrowserState*);
+// void browserUpArrow(BrowserState*, size_t count);
+// void browserDownArrow(BrowserState*, size_t count);
+// void browserHome(BrowserState*);
+// void browserEnd(BrowserState*);
+
+void browserMouse(BrowserState*, enum Button button, int x, int y);
+void addBrowserBinds(BrowserState*);
+void addBrowserSearchBinds(BrowserState*);
+
+// void browserSearchStart(BrowserState*);
+// void browserSearchNext(BrowserState*, bool includecurrent);
+// void browserSearchPrev(BrowserState*, bool includecurrent);
 
 #include "browser.c"
