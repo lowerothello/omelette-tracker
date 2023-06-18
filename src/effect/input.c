@@ -91,11 +91,11 @@ static void pasteEffectAbove(void)
 
 static void delChainEffect(void)
 {
-	EffectChain *ec = s->track->v[w->track]->effect;
-	if (!ec->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
-	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&ec->v[selectedindex]));
-	delEffect(&ec, selectedindex);
+	EffectChain **ec = &s->track->v[w->track]->effect;
+	if (!(*ec)->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
+	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&(*ec)->v[selectedindex]));
+	delEffect(ec, selectedindex);
 	p->redraw = 1;
 }
 
@@ -110,20 +110,20 @@ static void copyChainEffect(void)
 
 static void slideEffectUp(void)
 {
-	EffectChain *ec = s->track->v[w->track]->effect;
-	if (!ec->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
+	EffectChain **ec = &s->track->v[w->track]->effect;
+	if (!(*ec)->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
 	if (selectedindex)
-		swapEffect(&ec, selectedindex, selectedindex - 1);
+		swapEffect(ec, selectedindex, selectedindex - 1);
 }
 
 static void slideEffectDown(void)
 {
-	EffectChain *ec = s->track->v[w->track]->effect;
-	if (!ec->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
-	if (selectedindex < ec->c - 1)
-		swapEffect(&ec, selectedindex, selectedindex + 1);
+	EffectChain **ec = &s->track->v[w->track]->effect;
+	if (!(*ec)->c) return;
+	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
+	if (selectedindex < (*ec)->c - 1)
+		swapEffect(ec, selectedindex, selectedindex + 1);
 }
 
 static void effectMouse(enum Button button, int x, int y)

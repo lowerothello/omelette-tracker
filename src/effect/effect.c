@@ -113,20 +113,19 @@ static EffectChain *_addEffect(EffectChain *chain, EffectType type, uint32_t src
 				(chain->c - destindex) * sizeof(Effect));
 
 	if (srcindex == (uint32_t)-1) /* paste effect */
-	{
 		copyEffect(&ret->v[destindex], &w->effectbuffer, chain->input, chain->output);
-		return ret;
-	}
-
-	ret->v[destindex].type = type;
-	if (effect_api[type].init && effect_api[type].db_line)
+	else
 	{
-		/* only care about line.data */
-		EffectBrowserLine line = effect_api[type].db_line(srcindex);
-		free(line.name);
-		free(line.maker);
+		ret->v[destindex].type = type;
+		if (effect_api[type].init && effect_api[type].db_line)
+		{
+			/* only care about line.data */
+			EffectBrowserLine line = effect_api[type].db_line(srcindex);
+			free(line.name);
+			free(line.maker);
 
-		ret->v[destindex].state = effect_api[type].init(line.data, ret->input, ret->output);
+			ret->v[destindex].state = effect_api[type].init(line.data, ret->input, ret->output);
+		}
 	}
 
 	return ret;
@@ -134,7 +133,7 @@ static EffectChain *_addEffect(EffectChain *chain, EffectType type, uint32_t src
 static void cb_addEffect(Event *e)
 {
 	cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
-	free(e->src); e->src = NULL;
+	free(e->src);
 	p->redraw = 1;
 }
 /* .srcindex == ((uint32_t)-1) to paste */
