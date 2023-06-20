@@ -40,5 +40,5 @@ void setChordTrack(void)
 	addTooltipBind("paste track ", 0, XK_p     , TT_DRAW, (void(*)(void*))chordPasteTrack , NULL);
 	addTooltipBind("paste before", 0, XK_P     , TT_DRAW, (void(*)(void*))chordPasteBefore, NULL);
 	addTooltipBind("return"      , 0, XK_Escape, 0      , NULL            , NULL);
-	w->chord = 'c'; p->redraw = 1;
+	w->chord = 't'; p->redraw = 1;
 }

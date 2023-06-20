@@ -41,7 +41,7 @@ void showEffect(void)
 	w->page = PAGE_EFFECT;
 	w->mode = MODE_NORMAL;
 	freePreviewSample();
-	cc.cursor = getCursorFromEffectTrack(w->track);
+	cc.cursor = getCursorFromEffectTrack(w->track) + s->track->v[w->track]->effect->cursor;
 	p->redraw = 1;
 }
 

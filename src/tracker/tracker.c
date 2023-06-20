@@ -69,8 +69,7 @@ void trackSet(uint8_t track)
 	switch (w->page)
 	{
 		case PAGE_EFFECT:
-			if (!(cc.cursor > getCursorFromEffectTrack(w->track) && cc.cursor < getCursorFromEffectTrack(w->track + 1)))
-				cc.cursor = getCursorFromEffectTrack(w->track);
+			cc.cursor = getCursorFromEffectTrack(w->track) + cv->effect->cursor;
 			break;
 		default: break;
 	}

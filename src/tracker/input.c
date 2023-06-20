@@ -17,9 +17,6 @@ static void swapFocusPane(void)
 	p->redraw = 1;
 }
 
-// static void trackHome (void) { trackSet(0); }
-// static void trackEnd  (void) { trackSet(s->track->c-1); }
-
 static void setStep(void *step)
 {
 	w->step = (size_t)step;
@@ -925,8 +922,8 @@ void initTrackerInput(void)
 			addTooltipBind("enter visual line mode", 0          , XK_V         , 0              , (void(*)(void*))trackerEnterVisualLineMode, NULL    );
 			addTooltipBind("delete"                , 0          , XK_d         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordDeleteRow         , NULL    );
 			addTooltipBind("yank"                  , 0          , XK_y         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordYankRow           , NULL    );
-			addTooltipBind("track"                 , 0          , XK_c         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack             , NULL    );
-			addTooltipBind("command"                 , 0          , XK_m         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordCommand             , NULL    );
+			addTooltipBind("track"                 , 0          , XK_t         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack             , NULL    );
+			addTooltipBind("command"               , 0          , XK_c         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordCommand           , NULL    );
 			// addTooltipBind("row"                   , 0          , XK_r         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL    );
 			// addTooltipBind("loop"                  , 0          , XK_semicolon , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL    );
 			addTooltipBind("put"                   , 0          , XK_p         , TT_DRAW        , (void(*)(void*))putPartPattern            , (void*)1);
@@ -953,12 +950,11 @@ void initTrackerInput(void)
 		case MODE_INSERT:
 		case MODE_VISUALREPLACE:
 			addTrackerNavBinds();
-			addTooltipBind("mute current track"   , 0                   , XK_Return   , 0      , (void(*)(void*))muteCurrentTrack, NULL     );
-			addTooltipBind("increment cell"       , ControlMask         , XK_A        , TT_DRAW, trackerInc                      , (void*)1 );
-			addTooltipBind("decrement cell"       , ControlMask         , XK_X        , TT_DRAW, trackerDec                      , (void*)1 );
-			addTooltipBind("octave increment cell", ControlMask|Mod1Mask, XK_A        , TT_DRAW, trackerInc                      , (void*)12);
-			addTooltipBind("octave decrement cell", ControlMask|Mod1Mask, XK_X        , TT_DRAW, trackerDec                      , (void*)12);
-			addTooltipBind("clear cell"           , 0                   , XK_BackSpace, 0      , (void(*)(void*))clearCell       , NULL     );
+			addTooltipBind("increment cell"       , ControlMask         , XK_A        , TT_DRAW, trackerInc               , (void*)1 );
+			addTooltipBind("decrement cell"       , ControlMask         , XK_X        , TT_DRAW, trackerDec               , (void*)1 );
+			addTooltipBind("octave increment cell", ControlMask|Mod1Mask, XK_A        , TT_DRAW, trackerInc               , (void*)12);
+			addTooltipBind("octave decrement cell", ControlMask|Mod1Mask, XK_X        , TT_DRAW, trackerDec               , (void*)12);
+			addTooltipBind("clear cell"           , 0                   , XK_BackSpace, 0      , (void(*)(void*))clearCell, NULL     );
 			switch (w->page)
 			{
 				case PAGE_VARIANT:

@@ -40,6 +40,6 @@ void setChordCommand(void)
 	addTooltipBind("increment command columns   ", 0, XK_a     , TT_DRAW, (void(*)(void*))chordAddCommand, NULL);
 	addTooltipBind("decrement command columns   ", 0, XK_d     , TT_DRAW, (void(*)(void*))chordDelCommand, NULL);
 	addTooltipBind("set command columns to count", 0, XK_m     , TT_DRAW, (void(*)(void*))chordSetCommand, NULL);
-	addTooltipBind("return"                    , 0, XK_Escape, 0      , NULL                         , NULL);
-	w->chord = 'm'; p->redraw = 1;
+	addTooltipBind("return"                      , 0, XK_Escape, 0      , NULL                           , NULL);
+	w->chord = 'c'; p->redraw = 1;
 }

@@ -23,9 +23,9 @@ typedef struct Track
 
 
 	/* runtime */
-	unsigned reverse : 1;
-	unsigned release : 1;
-	unsigned file    : 1;
+	bool reverse;
+	bool release;
+	bool file;
 
 	void **commandstate;
 	void  *inststate;

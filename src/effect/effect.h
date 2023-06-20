@@ -75,6 +75,10 @@ typedef struct EffectChain
 {
 	float  *input [2];
 	float  *output[2];
+
+	uint16_t cursor; /* cursor is saved per effect chain so that scrolling is saved per effect instead of being volatile */
+
+	/* main fader */
 	uint8_t volume;
 	int8_t  panning;
 
@@ -102,8 +106,7 @@ void swapEffect(EffectChain**, uint8_t s1, uint8_t s2);
 EffectChain *_delEffect(EffectChain*, uint8_t index);
 void delEffect(EffectChain**, uint8_t index);
 
-/* cursor is (ControlState).cursor compatible */
-uint8_t getEffectFromCursor(uint8_t track, EffectChain*, size_t cursor);
+uint8_t getEffectFromCursor(uint8_t track, EffectChain*);
 size_t getCursorFromEffect(uint8_t track, EffectChain*, uint8_t index);
 size_t getCursorFromEffectTrack(uint8_t track);
 

@@ -1,33 +1,45 @@
 #include "chord/send.c"
 
-static void effectUpArrow(size_t count)
+static void effectUpArrow(void)
 {
 	w->follow = 0;
-	size_t min = getCursorFromEffectTrack(w->track);
-	int mincount = cc.cursor - min;
-	decControlCursor(MIN(mincount, count*MAX(1, w->count)));
+	EffectChain *ec = s->track->v[w->track]->effect;
+
+	int count = MAX(1, w->count);
+	if (ec->cursor > count)
+		ec->cursor -= MAX(1, count);
+	else
+		ec->cursor = 0;
+
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	p->redraw = 1;
 }
-static void effectDownArrow(size_t count)
+static void effectDownArrow(void)
 {
 	w->follow = 0;
-	size_t max = getCursorFromEffectTrack(w->track + 1) - 1;
-	int maxcount = max - cc.cursor;
-	incControlCursor(MIN(maxcount, count*MAX(1, w->count)));
+	EffectChain *ec = s->track->v[w->track]->effect;
+
+	int count = MAX(1, w->count);
+	if (ec->cursor < getEffectChainControlCount(ec) - count)
+		ec->cursor += count;
+	else
+		ec->cursor = getEffectChainControlCount(ec);
+
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	p->redraw = 1;
 }
 
-static void effectLeftArrow(size_t count)
+static void effectLeftArrow(void)
 {
-	count *= MAX(1, w->count);
+	int count = MAX(1, w->count);
 	for (int i = 0; i < count; i++)
 		incControlFieldpointer();
 	p->redraw = 1;
 }
 
-static void effectRightArrow(size_t count)
+static void effectRightArrow(void)
 {
-	count *= MAX(1, w->count);
+	int count = MAX(1, w->count);
 	for (int i = 0; i < count; i++)
 		decControlFieldpointer();
 	p->redraw = 1;
@@ -36,28 +48,34 @@ static void effectRightArrow(size_t count)
 static void effectHome(void)
 {
 	w->follow = 0;
-	cc.cursor = getCursorFromEffectTrack(w->track);
+	EffectChain *ec = s->track->v[w->track]->effect;
+	ec->cursor = 0;
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	p->redraw = 1;
 }
 
 static void effectEnd(void)
 {
 	w->follow = 0;
-	cc.cursor = getCursorFromEffectTrack(w->track + 1) - 1;
+	EffectChain *ec = s->track->v[w->track]->effect;
+	ec->cursor = getEffectChainControlCount(ec);
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	p->redraw = 1;
 }
 
 static void effectPgUp(void)
 {
 	EffectChain *ec = s->track->v[w->track]->effect;
-	cc.cursor = getCursorFromEffect(w->track, ec, MAX(0, getEffectFromCursor(w->track, ec, cc.cursor) - (int)MAX(1, w->count)));
+	ec->cursor = getCursorFromEffect(w->track, ec, MAX(0, getEffectFromCursor(w->track, ec) - (int)MAX(1, w->count)));
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	p->redraw = 1;
 }
 
 static void effectPgDn(void)
 {
 	EffectChain *ec = s->track->v[w->track]->effect;
-	cc.cursor = getCursorFromEffect(w->track, ec, MIN(ec->c-1, getEffectFromCursor(w->track, ec, cc.cursor) + MAX(1, w->count)));
+	ec->cursor = getCursorFromEffect(w->track, ec, MIN(ec->c-1, getEffectFromCursor(w->track, ec) + MAX(1, w->count)));
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	p->redraw = 1;
 }
 
@@ -80,14 +98,14 @@ static void addEffectAbove(void)
 static void pasteEffectBelow(void)
 {
 	if (w->effectbuffer.type != EFFECT_TYPE_DUMMY)
-		addEffect(&s->track->v[w->track]->effect, EFFECT_TYPE_DUMMY, -1, MIN(getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor)+1, s->track->v[w->track]->effect->c));
+		addEffect(&s->track->v[w->track]->effect, EFFECT_TYPE_DUMMY, -1, MIN(getEffectFromCursor(w->track, s->track->v[w->track]->effect)+1, s->track->v[w->track]->effect->c));
 	p->redraw = 1;
 }
 
 static void pasteEffectAbove(void)
 {
 	if (w->effectbuffer.type != EFFECT_TYPE_DUMMY)
-		addEffect(&s->track->v[w->track]->effect, EFFECT_TYPE_DUMMY, -1, getEffectFromCursor(w->track, s->track->v[w->track]->effect, cc.cursor));
+		addEffect(&s->track->v[w->track]->effect, EFFECT_TYPE_DUMMY, -1, getEffectFromCursor(w->track, s->track->v[w->track]->effect));
 	p->redraw = 1;
 }
 
@@ -95,7 +113,7 @@ static void delChainEffect(void)
 {
 	EffectChain **ec = &s->track->v[w->track]->effect;
 	if (!(*ec)->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
+	uint8_t selectedindex = getEffectFromCursor(w->track, *ec);
 	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(*ec, selectedindex));
 	delEffect(ec, selectedindex);
 	p->redraw = 1;
@@ -105,7 +123,7 @@ static void copyChainEffect(void)
 {
 	EffectChain *ec = s->track->v[w->track]->effect;
 	if (!ec->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, ec, cc.cursor);
+	uint8_t selectedindex = getEffectFromCursor(w->track, ec);
 	copyEffect(&w->effectbuffer, &ec->v[selectedindex], NULL, NULL);
 	p->redraw = 1;
 }
@@ -114,7 +132,7 @@ static void slideEffectUp(void)
 {
 	EffectChain **ec = &s->track->v[w->track]->effect;
 	if (!(*ec)->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
+	uint8_t selectedindex = getEffectFromCursor(w->track, *ec);
 	if (selectedindex)
 		swapEffect(ec, selectedindex, selectedindex - 1);
 }
@@ -123,7 +141,7 @@ static void slideEffectDown(void)
 {
 	EffectChain **ec = &s->track->v[w->track]->effect;
 	if (!(*ec)->c) return;
-	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
+	uint8_t selectedindex = getEffectFromCursor(w->track, *ec);
 	if (selectedindex < (*ec)->c - 1)
 		swapEffect(ec, selectedindex, selectedindex + 1);
 }
@@ -145,8 +163,8 @@ static void effectMouse(enum Button button, int x, int y)
 		case BUTTON_RELEASE: case BUTTON_RELEASE_CTRL:
 			if (w->trackoffset) trackSet(w->track + w->trackoffset);
 
-			if      (w->fyoffset < 0) { w->count = -w->fyoffset; effectUpArrow  (1); }
-			else if (w->fyoffset > 0) { w->count =  w->fyoffset; effectDownArrow(1); }
+			if      (w->fyoffset < 0) { w->count = -w->fyoffset; effectUpArrow(); }
+			else if (w->fyoffset > 0) { w->count =  w->fyoffset; effectDownArrow(); }
 
 			w->count = 0;
 			w->fyoffset = w->shiftoffset = w->trackoffset = w->fieldpointer = 0;
@@ -159,11 +177,11 @@ static void effectMouse(enum Button button, int x, int y)
 			{
 				case WHEEL_UP: case WHEEL_UP_CTRL:
 					w->count = WHEEL_SPEED;
-					effectUpArrow(1);
+					effectUpArrow();
 					w->count = 0; break;
 				case WHEEL_DOWN: case WHEEL_DOWN_CTRL:
 					w->count = WHEEL_SPEED;
-					effectDownArrow(1);
+					effectDownArrow();
 					w->count = 0; break;
 				default:
 					tx = 1 + genConstSfx(EFFECT_WIDTH, ws.ws_col);
@@ -232,6 +250,6 @@ void initEffectInput(void)
 	addTooltipBind("copy effect"             , 0          , XK_y        , 0              , (void(*)(void*))copyChainEffect , NULL);
 	addTooltipBind("increment"               , ControlMask, XK_A        , 0              , (void(*)(void*))incControlValue , NULL);
 	addTooltipBind("decrement"               , ControlMask, XK_X        , 0              , (void(*)(void*))decControlValue , NULL);
-	addTooltipBind("track"                   , 0          , XK_c        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack   , NULL);
+	addTooltipBind("track"                   , 0          , XK_t        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack   , NULL);
 	addTooltipBind("send"                    , 0          , XK_e        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordSend    , NULL);
 }

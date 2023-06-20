@@ -98,6 +98,17 @@ uint32_t getEffectControlCount(EffectChain *ec, uint8_t index)
 	}
 	return EFFECT_IMPLIED_CONTROLS;
 }
+uint32_t getEffectChainControlCount(EffectChain *ec)
+{
+	uint32_t ret = 0;
+	if (ec->c)
+		for (uint8_t j = 0; j < ec->c; j++)
+			ret += getEffectControlCount(ec, j);
+	else
+		ret++;
+	ret += EFFECT_FOOTER_CONTROLS;
+	return ret - 1;
+}
 
 static void copyEffectChainBuffers(EffectChain *dest, EffectChain *src)
 {
@@ -141,7 +152,10 @@ static EffectChain *_addEffect(EffectChain *chain, EffectType type, uint32_t src
 }
 static void cb_addEffect(Event *e)
 {
-	cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
+
+	EffectChain *ec = s->track->v[w->track]->effect;
+	ec->cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	free(e->src);
 	p->redraw = 1;
 }
@@ -205,7 +219,9 @@ EffectChain *_delEffect(EffectChain *chain, uint8_t index)
 static void cb_delEffect(Event *e)
 {
 	freeEffect(&((EffectChain *)e->src)->v[(size_t)e->callbackarg]);
-	cc.cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
+	EffectChain *ec = s->track->v[w->track]->effect;
+	ec->cursor = getCursorFromEffect(w->track, s->track->v[w->track]->effect, (uint8_t)(size_t)e->callbackarg);
+	cc.cursor = getCursorFromEffectTrack(w->track) + ec->cursor;
 	free(e->src); e->src = NULL;
 	p->redraw = 1;
 }
@@ -227,36 +243,27 @@ void delEffect(EffectChain **chain, uint8_t index)
 size_t getCursorFromEffectTrack(uint8_t track)
 {
 	size_t ret = 0;
-	EffectChain *ec;
 	for (uint8_t i = 0; i < track; i++)
-	{
-		ec = s->track->v[i]->effect;
-		if (ec->c)
-			for (uint8_t j = 0; j < ec->c; j++)
-				ret += getEffectControlCount(ec, j);
-		else
-			ret++;
-		ret += EFFECT_FOOTER_CONTROLS;
-	}
+		ret += getEffectChainControlCount(s->track->v[i]->effect) + 1;
 
 	return ret;
 }
 
 /* cursor is (ControlState).cursor compatible */
-uint8_t getEffectFromCursor(uint8_t track, EffectChain *chain, size_t cursor)
+uint8_t getEffectFromCursor(uint8_t track, EffectChain *ec)
 {
-	size_t offset = getCursorFromEffectTrack(track);
-	for (int i = 0; i < chain->c; i++)
+	size_t offset = 0;
+	for (int i = 0; i < ec->c; i++)
 	{
-		offset += getEffectControlCount(chain, i);
-		if (offset > cursor) return i;
+		offset += getEffectControlCount(ec, i);
+		if (offset > ec->cursor) return i;
 	}
-	return chain->c - 1; /* fallback */
+	return ec->c - 1; /* fallback */
 }
 
 size_t getCursorFromEffect(uint8_t track, EffectChain *chain, uint8_t index)
 {
-	size_t offset = getCursorFromEffectTrack(track);
+	size_t offset = 0;
 	for (int i = 0; i < MIN(index, chain->c - 1); i++)
 		offset += getEffectControlCount(chain, i);
 	return offset;

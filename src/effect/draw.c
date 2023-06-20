@@ -68,7 +68,7 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 static void drawEffectChain(uint8_t track, EffectChain *chain, short x, short width, short y)
 {
 	short focusindex;
-	if (track == w->track) focusindex = getEffectFromCursor(track, chain, cc.cursor);
+	if (track == w->track) focusindex = getEffectFromCursor(track, chain);
 	else                   focusindex = -1;
 
 	short bottom = (ws.ws_row - 4) - chain->sendc;
@@ -95,7 +95,7 @@ static void drawEffectChain(uint8_t track, EffectChain *chain, short x, short wi
 			width--;
 			if (focusindex > -1)
 			{
-				drawVerticalScrollbar(x + width + 1, y, bottom - y, chaincontrolc, MIN(chaincontrolc, cc.cursor - getCursorFromEffectTrack(track)));
+				drawVerticalScrollbar(x + width + 1, y, bottom - y, chaincontrolc, chain->cursor);
 				ty = MIN(y, bottom - focusheight);
 			} else
 				drawVerticalScrollbar(x + width + 1, y, bottom - y, chaincontrolc, 0);
@@ -224,6 +224,7 @@ void drawEffect(void)
 
 	clearControls();
 	short x = genConstSfx(EFFECT_WIDTH, ws.ws_col);
+	short origx = x;
 	for (uint8_t i = 0; i < s->track->c; i++)
 	{
 		drawTrackHeader(i, x+1, EFFECT_WIDTH,
@@ -236,5 +237,8 @@ void drawEffect(void)
 
 		x += EFFECT_WIDTH;
 	}
+
+	if (origx < 0)     for (short y = TRACK_ROW+1; y < ws.ws_row; y++) printf("\033[%d;%dH^", y, 1);
+	if (x > ws.ws_col) for (short y = TRACK_ROW+1; y < ws.ws_row; y++) printf("\033[%d;%dH$", y, ws.ws_col);
 	drawControls();
 }
