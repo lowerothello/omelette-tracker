@@ -47,8 +47,15 @@ static short _drawEffect(Effect *e, bool selected, short x, short width, short y
 	}
 	printf("\033[27;37;40m");
 
-	addControlInt(x + width - 8, y-1, &e->bypass,    0,    0,   1, 0, 0, 0, NULL, NULL);
-	addControlInt(x + width - 5, y-1, &e->inputgain, 3, -127, 127, 0, 0, 0, NULL, NULL);
+	if (ymin <= y-1 && ymax >= y-1)
+	{
+		addControlInt(x + width - 8, y-1, &e->bypass,    0,    0,   1, 0, 0, 0, NULL, NULL);
+		addControlInt(x + width - 5, y-1, &e->inputgain, 3, -127, 127, 0, 0, 0, NULL, NULL);
+	} else
+	{
+		addControlDummy(0, 0);
+		addControlDummy(0, 0);
+	}
 
 	if (effect_api[e->type].draw)
 		effect_api[e->type].draw(e->state, x, width, y, ymin, ymax);
@@ -64,7 +71,7 @@ static void drawEffectChain(uint8_t track, EffectChain *chain, short x, short wi
 	if (track == w->track) focusindex = getEffectFromCursor(track, chain, cc.cursor);
 	else                   focusindex = -1;
 
-	short bottom = (ws.ws_row - 1) - 3;
+	short bottom = (ws.ws_row - 4) - chain->sendc;
 	short origwidth = width;
 
 	if (chain->c)
@@ -83,7 +90,7 @@ static void drawEffectChain(uint8_t track, EffectChain *chain, short x, short wi
 		{
 			size_t chaincontrolc = 0;
 			for (int i = 0; i < chain->c; i++)
-				chaincontrolc += getEffectControlCount(&chain->v[i]);
+				chaincontrolc += getEffectControlCount(chain, i);
 
 			width--;
 			if (focusindex > -1)
@@ -109,8 +116,18 @@ static void drawEffectChain(uint8_t track, EffectChain *chain, short x, short wi
 		printCulling(NULL_EFFECT_TEXT, x+((width - (short)strlen(NULL_EFFECT_TEXT))>>1), y+1, 1, ws.ws_col);
 	}
 
-	printCulling("fader:",   x, bottom+2, 1, ws.ws_col); addControlInt(x + origwidth - 3, bottom+2, &chain->fader,  2,    0, 255, 255, 0, 0, NULL, NULL);
-	printCulling("panning:", x, bottom+3, 1, ws.ws_col); addControlInt(x + origwidth - 4, bottom+3, &chain->panner, 3, -127, 127,   0, 0, 0, NULL, NULL);
+	drawHorizontalLine(x, bottom+1, origwidth-1, 1, ws.ws_col, 1, ws.ws_row);
+
+	for (uint8_t i = 0; i < chain->sendc; i++)
+	{
+		printCulling("TRACK      ->  ", x + 4, (ws.ws_row - 3) - i, 1, ws.ws_col);
+		addControlInt(x + 10, bottom+2 + i, &chain->sendv[i].target,    2,    0, s->track->c - 1, 0, 0, 0, NULL, NULL);
+		addControlInt(x + 20, bottom+2 + i, &chain->sendv[i].inputgain, 3, -128,             127, 0, 0, 0, NULL, NULL);
+	}
+
+	printCulling("MASTER  >  ", x + 4, ws.ws_row - 2, 1, ws.ws_col);
+	addControlInt(x + 16, ws.ws_row - 2, &chain->panning, 3, -127, 127,   0, 0, 0, NULL, NULL);
+	addControlInt(x + 21, ws.ws_row - 2, &chain->volume,  2,    0, 255, 255, 0, 0, NULL, NULL);
 }
 #endif
 
@@ -202,7 +219,7 @@ void drawEffect(void)
 	if (cc.mouseadjust || cc.keyadjust)
 	{
 		printf("\033[%d;0H\033[1m-- ADJUST --\033[m", ws.ws_row);
-		w->command.error[0] = '\0';
+		w->repl.error[0] = '\0';
 	}
 
 	clearControls();

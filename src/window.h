@@ -27,7 +27,7 @@ enum Mode {
 	MODE_VISUAL,
 	MODE_VISUALLINE,
 	MODE_VISUALREPLACE,
-	MODE_COMMAND,
+	MODE_REPL,
 };
 
 
@@ -54,10 +54,10 @@ typedef struct UI
 	Track  trackbuffer;  /* track paste buffer      */
 	Effect effectbuffer; /* effect paste buffer     */
 
-	char filepath[COMMAND_LENGTH];
+	char filepath[REPL_LENGTH];
 
 	void         (*filebrowserCallback)(char *); /* arg is the selected path */
-	Command        command;
+	Repl           repl;
 	enum Page      page, oldpage;
 	enum Mode      mode, oldmode;
 	unsigned short centre;

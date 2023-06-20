@@ -1,4 +1,4 @@
-typedef struct MacroRetrigState
+typedef struct CommandRetrigState
 {
 	uint16_t rtrigsamples;               /* samples per retrigger */
 	uint32_t rtrigpointer;               /* clock reference */
@@ -8,9 +8,9 @@ typedef struct MacroRetrigState
 	int8_t   rtrigblocksize;             /* number of rows block extends to */
 
 	bool rtrig_rev;
-} MacroRetrigState;
+} CommandRetrigState;
 
-static void _macroTickRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r, MacroRetrigState *ms)
+static void _commandTickRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r, CommandRetrigState *ms)
 {
 	if (m)
 	{
@@ -23,7 +23,7 @@ static void _macroTickRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row
 		ms->rtrigsamples = *spr*DIV256 * m;
 	}
 }
-static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r, MacroRetrigState *ms)
+static void _commandBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Row *r, CommandRetrigState *ms)
 {
 	ms->rtrigpointer = ms->rtrigcurrentpointer = cv->pointer;
 	ms->rtrigpitchedpointer = ms->rtrigcurrentpitchedpointer = cv->pitchedpointer;
@@ -34,21 +34,21 @@ static void _macroBlockRetrig(uint32_t fptr, uint16_t *spr, int m, Track *cv, Ro
 
 
 
-#define MACRO_TICK_RETRIG          'Q'
-#define MACRO_REVERSE_TICK_RETRIG  'q'
-#define MACRO_BLOCK_RETRIG         'R'
-#define MACRO_REVERSE_BLOCK_RETRIG 'r'
+#define COMMAND_TICK_RETRIG          'Q'
+#define COMMAND_REVERSE_TICK_RETRIG  'q'
+#define COMMAND_BLOCK_RETRIG         'R'
+#define COMMAND_REVERSE_BLOCK_RETRIG 'r'
 
-void macroRetrigClear(Track *cv, void *state)
+void commandRetrigClear(Track *cv, void *state)
 {
-	MacroRetrigState *ms = state;
+	CommandRetrigState *ms = state;
 	ms->rtrigsamples = 0;
 	ms->rtrig_rev = 0;
 }
 
-void macroRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
+void commandRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
 {
-	MacroRetrigState *ms = state;
+	CommandRetrigState *ms = state;
 
 	if (ms->rtrigsamples)
 	{
@@ -61,18 +61,18 @@ void macroRetrigPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *
 		}
 	}
 
-	FOR_ROW_MACROS(i, cv)
+	FOR_ROW_COMMANDS(i, cv)
 	{
-		switch (r->macro[i].c)
+		switch (r->command[i].c)
 		{
-			case MACRO_TICK_RETRIG:          ms->rtrig_rev = 0; _macroTickRetrig (fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
-			case MACRO_REVERSE_TICK_RETRIG:  ms->rtrig_rev = 1; _macroTickRetrig (fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
-			case MACRO_BLOCK_RETRIG:         ms->rtrig_rev = 0; _macroBlockRetrig(fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
-			case MACRO_REVERSE_BLOCK_RETRIG: ms->rtrig_rev = 1; _macroBlockRetrig(fptr, spr, r->macro[i].v, cv, r, state); goto macroRetrigEnd;
+			case COMMAND_TICK_RETRIG:          ms->rtrig_rev = 0; _commandTickRetrig (fptr, spr, r->command[i].v, cv, r, state); goto commandRetrigEnd;
+			case COMMAND_REVERSE_TICK_RETRIG:  ms->rtrig_rev = 1; _commandTickRetrig (fptr, spr, r->command[i].v, cv, r, state); goto commandRetrigEnd;
+			case COMMAND_BLOCK_RETRIG:         ms->rtrig_rev = 0; _commandBlockRetrig(fptr, spr, r->command[i].v, cv, r, state); goto commandRetrigEnd;
+			case COMMAND_REVERSE_BLOCK_RETRIG: ms->rtrig_rev = 1; _commandBlockRetrig(fptr, spr, r->command[i].v, cv, r, state); goto commandRetrigEnd;
 		}
 	}
 
-macroRetrigEnd:
+commandRetrigEnd:
 	if (ms->rtrigsamples && ms->rtrigblocksize == -2)
 	{ /* clean up if the last row had an altRxx and this row doesn't */
 		ms->rtrig_rev = 0;
@@ -80,9 +80,9 @@ macroRetrigEnd:
 	}
 }
 
-void macroRetrigTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state)
+void commandRetrigTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst, void *state)
 {
-	MacroRetrigState *ms = state;
+	CommandRetrigState *ms = state;
 
 	/* must stop retriggers cos pointers are no longer guaranteed to be valid */
 	ms->rtrigblocksize = 0;
@@ -91,9 +91,9 @@ void macroRetrigTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note,
 }
 
 /* TODO: should the persistent pointer be the informant? */
-void macroRetrigVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state)
+void commandRetrigVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *finetune, uint32_t *pointer, uint32_t *pitchedpointer, void *state)
 {
-	MacroRetrigState *ms = state;
+	CommandRetrigState *ms = state;
 	Inst *iv;
 	const InstAPI *api;
 

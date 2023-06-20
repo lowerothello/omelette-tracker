@@ -117,7 +117,7 @@ static void *samplerDeserialize(struct json_object *jso, void *data, double rate
 	return ret;
 }
 
-#include "macros.c"
+#include "commands.c"
 #include "draw.c"
 #include "input.c" /* depends on "draw.c", TODO: kinda dumb dependancy */
 #include "process.c"

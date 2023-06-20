@@ -182,7 +182,7 @@ void redraw(void)
 		case PAGE_PLUGINBROWSER: drawBrowser(pbstate); break;
 	}
 
-	drawCommand();
+	drawRepl();
 
 	if (w->showtooltip) drawTooltip();
 

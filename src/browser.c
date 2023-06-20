@@ -181,21 +181,21 @@ static void browserSearchPrev(BrowserState *b, bool includecurrent)
 }
 static void browserSearchPrevBind(BrowserState *b) { browserSearchPrev(b, 0); p->redraw = 1; }
 
-static void browserSearchKeyCallback(char *command, void *arg)
+static void browserSearchKeyCallback(char *repl, void *arg)
 {
 	BrowserState *b = arg;
 
 	if (b->search) free(b->search);
-	b->search = strdup(command);
+	b->search = strdup(repl);
 	browserSearchNext(b, 1);
 	p->redraw = 1;
 }
 
-void browserSearchStart(BrowserState *b)
+static void browserSearchStart(BrowserState *b)
 {
 	if (b->search) { free(b->search); b->search = NULL; }
-	setCommand(NULL, browserSearchKeyCallback, NULL, b, 0, "/", "");
-	w->mode = MODE_COMMAND;
+	setRepl(NULL, browserSearchKeyCallback, NULL, b, 0, "/", "");
+	w->mode = MODE_REPL;
 	p->redraw = 1;
 }
 

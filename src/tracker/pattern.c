@@ -10,8 +10,8 @@ static bool patternPopulated(PatternChain *pc, uint8_t index)
 		if (p->row[i].note != NOTE_VOID)
 			return 1;
 
-		for (uint8_t j = 0; j <= pc->macroc; j++)
-			if (p->row[i].macro[j].c)
+		for (uint8_t j = 0; j <= pc->commandc; j++)
+			if (p->row[i].command[j].c)
 				return 1;
 	}
 	return 0;
@@ -22,7 +22,7 @@ PatternChain *newPatternChain(void)
 	PatternChain *ret = calloc(1, sizeof(PatternChain));
 	memset(ret->order, PATTERN_VOID, PATTERN_VOID);
 	memset(ret->i, PATTERN_VOID, PATTERN_VOID);
-	ret->macroc = 1;
+	ret->commandc = 1;
 	return ret;
 }
 
@@ -314,7 +314,7 @@ void pushPatternOrder(PatternChain **pc, uint8_t index, char value)
 	pushEvent(&e);
 }
 
-struct json_object *serializeMacro(Macro *m)
+struct json_object *serializeCommand(Command *m)
 {
 	struct json_object *ret = json_object_new_object();
 	json_object_object_add(ret, "c", json_object_new_int(m->c));
@@ -322,9 +322,9 @@ struct json_object *serializeMacro(Macro *m)
 	json_object_object_add(ret, "t", json_object_new_int(m->t));
 	return ret;
 }
-Macro deserializeMacro(struct json_object *jso)
+Command deserializeCommand(struct json_object *jso)
 {
-	Macro m;
+	Command m;
 	m.c = json_object_get_int(json_object_object_get(jso, "c"));
 	m.v = json_object_get_int(json_object_object_get(jso, "v"));
 	m.t = json_object_get_int(json_object_object_get(jso, "t"));
@@ -339,8 +339,8 @@ struct json_object *serializeRow(Row *r)
 
 	struct json_object *array = json_object_new_array_ext(8);
 	for (int i = 0; i < 8; i++)
-		json_object_array_add(array, serializeMacro(&r->macro[i]));
-	json_object_object_add(ret, "macro", array);
+		json_object_array_add(array, serializeCommand(&r->command[i]));
+	json_object_object_add(ret, "command", array);
 
 	return ret;
 }
@@ -351,7 +351,7 @@ Row deserializeRow(struct json_object *jso)
 	r.inst = json_object_get_int(json_object_object_get(jso, "inst"));
 
 	for (int i = 0; i < 8; i++)
-		r.macro[i] = deserializeMacro(json_object_array_get_idx(json_object_object_get(jso, "macro"), i));
+		r.command[i] = deserializeCommand(json_object_array_get_idx(json_object_object_get(jso, "command"), i));
 	return r;
 }
 
@@ -377,7 +377,7 @@ struct json_object *serializePatternChain(PatternChain *pc)
 	int i;
 	struct json_object *array;
 	struct json_object *ret = json_object_new_object();
-	json_object_object_add(ret, "macroc", json_object_new_int(pc->macroc));
+	json_object_object_add(ret, "commandc", json_object_new_int(pc->commandc));
 
 	array = json_object_new_array_ext(PATTERN_VOID);
 	for (i = 0; i < PATTERN_VOID; i++)
@@ -401,7 +401,7 @@ PatternChain *deserializePatternChain(struct json_object *jso)
 	int i;
 	uint8_t c = json_object_array_length(json_object_object_get(jso, "data"));
 	PatternChain *ret = calloc(1, sizeof(PatternChain) + sizeof(Pattern*) * c);
-	ret->macroc = json_object_get_int(json_object_object_get(jso, "macroc"));
+	ret->commandc = json_object_get_int(json_object_object_get(jso, "commandc"));
 
 	for (i = 0; i < PATTERN_VOID; i++)
 		ret->order[i] = json_object_get_int(json_object_array_get_idx(json_object_object_get(jso, "order"), i));

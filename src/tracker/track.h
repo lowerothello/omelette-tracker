@@ -1,6 +1,6 @@
 #define SONG_MAX 65535
 
-typedef struct MacroState
+typedef struct CommandState
 {
 	short    base;            /* unsigned nibble per track                            */
 	short    rand;            /* .base override for jitter                            */
@@ -8,7 +8,7 @@ typedef struct MacroState
 	uint8_t  lfospeed;        /* how many lfo cycles per row                          */
 	unsigned target_rand : 1; /* .target should be commited to .rand but NOT to .base */
 	unsigned lfo_stereo  : 1; /* .lfospeed should be stereo                           */
-} MacroState;
+} CommandState;
 
 #define NAME_LEN 32
 typedef struct Track
@@ -27,7 +27,7 @@ typedef struct Track
 	unsigned release : 1;
 	unsigned file    : 1;
 
-	void **macrostate;
+	void **commandstate;
 	void  *inststate;
 
 	uint32_t pointer; /* clock */

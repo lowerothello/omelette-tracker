@@ -25,19 +25,19 @@ typedef struct EffectBrowserLine
 typedef struct EffectAPI
 {
 	const char *name;
-	void                  (*init_db)(void);
-	void                  (*free_db)(void);
-	uint32_t             (*db_count)(void); /* get how many plugins */
-	EffectBrowserLine     (*db_line)(uint32_t index); /* get a plugin out of the database */
-	void*                    (*init)(const void *data, float **i, float **o); /* returns a new state, initialized against .data */
-	void                     (*free)(void *state); /* frees .state */
-	void*                    (*copy)(void *src, float **i, float **o); /* duplicates .src */
-	void                      (*run)(void *state, uint32_t bufsize, float **i, float **o); /* process .bufsize samples from .i to .o */
-	uint32_t             (*controlc)(void *state); /* get how many controls .state has */
-	short                  (*height)(void *state); /* get the height in rows .state wants */
-	void                     (*draw)(void *state, short x, short w, short y, short ymin, short ymax);
-	struct json_object* (*serialize)(void *state);
-	void*             (*deserialize)(struct json_object *jso, float **i, float **o);
+	void                    (*init_db)(void);
+	void                    (*free_db)(void);
+	uint32_t               (*db_count)(void); /* get how many plugins */
+	EffectBrowserLine       (*db_line)(uint32_t index); /* get a plugin out of the database */
+	void*                      (*init)(const void *data, float **i, float **o); /* returns a new state, initialized against .data */
+	void                       (*free)(void *state); /* frees .state */
+	void*                      (*copy)(void *src, float **i, float **o); /* duplicates .src */
+	void                        (*run)(void *state, uint32_t bufsize, float **i, float **o); /* process .bufsize samples from .i to .o */
+	uint32_t               (*controlc)(void *state); /* get how many controls .state has */
+	short                    (*height)(void *state); /* get the height in rows .state wants */
+	void                       (*draw)(void *state, short x, short w, short y, short ymin, short ymax);
+	struct json_object*   (*serialize)(void *state);
+	void*               (*deserialize)(struct json_object *jso, float **i, float **o);
 } EffectAPI;
 
 #include "dummy.h"
@@ -63,13 +63,24 @@ typedef struct Effect
 	void      *state;
 } Effect;
 
+#define SEND_COUNT 15
+typedef struct Send
+{
+	uint8_t target;
+	int8_t  inputgain;
+} Send;
+
 #define EFFECT_CHAIN_LEN 16
 typedef struct EffectChain
 {
 	float  *input [2];
 	float  *output[2];
-	uint8_t fader;
-	int8_t  panner;
+	uint8_t volume;
+	int8_t  panning;
+
+	uint8_t sendc;
+	Send    sendv[SEND_COUNT];
+
 	uint8_t c;
 	Effect  v[];
 } EffectChain;
@@ -81,7 +92,7 @@ EffectChain *newEffectChain(void);
 /* NOTE: NOT thread safe */
 void clearEffectChain(EffectChain*);
 void freeEffectChain(EffectChain*);
-uint32_t getEffectControlCount(Effect*);
+uint32_t getEffectControlCount(EffectChain*, uint8_t index);
 
 /* .srcindex == ((uint32_t)-1) to paste */
 void addEffect(EffectChain**, EffectType type, uint32_t srcindex, uint8_t destindex);

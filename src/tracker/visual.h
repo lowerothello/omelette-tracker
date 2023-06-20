@@ -5,7 +5,7 @@ short vfxToVmo(Track *cv, short vfx);
 short vfxVmoMin(short x1, short x2);
 short vfxVmoMax(short x1, short x2);
 
-/* returns true if (x >= min && x <= max) in visual macro order */
+/* returns true if (x >= min && x <= max) in visual command order */
 bool vfxVmoRangeIncl(short min, short max, short x);
 
 void yankPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_t c2);

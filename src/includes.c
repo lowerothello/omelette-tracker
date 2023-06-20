@@ -36,7 +36,7 @@ enum WaveShape {
 #include "tracker/tracker.h"
 #include "instrument/instrument.h"
 
-#include "command.h"
+#include "repl.h"
 
 #include "song.h"
 #include "window.h"
@@ -48,7 +48,7 @@ enum WaveShape {
 #include "pluginbrowser.h"
 
 #include "process.h"
-#include "macros/macros.h"
+#include "commands/commands.h"
 
 #include "input/input.h"
 
@@ -66,9 +66,9 @@ enum WaveShape {
 
 #include "filebrowser.c"
 #include "pluginbrowser.c"
-#include "command.c"
+#include "repl.c"
 
-#include "macros/macros.c"
+#include "commands/commands.c"
 #include "process.c"
 
 #include "redraw.c"

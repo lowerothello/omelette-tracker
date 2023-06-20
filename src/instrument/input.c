@@ -1,4 +1,9 @@
-static void instrumentEscape(void *arg)
+void instrumentEscape(void *arg); /* funny lil prototype, TODO: get rid of :3 */
+
+#include "chord/add.c"
+
+
+void instrumentEscape(void *arg)
 {
 	if (input_api.autorepeatoff)
 		input_api.autorepeatoff();
@@ -7,9 +12,6 @@ static void instrumentEscape(void *arg)
 	cc.mouseadjust = cc.keyadjust = 0;
 	w->mode = MODE_NORMAL;
 }
-
-
-#include "chord/add.c"
 
 
 static void instrumentSetIndex(short inst)

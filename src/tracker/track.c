@@ -5,7 +5,7 @@ void clearTrackRuntime(Track *cv)
 	cv->r.inst = INST_VOID;
 	cv->file = 0;
 
-	macroCallbackClear(cv);
+	commandCallbackClear(cv);
 	memset(cv->inststate, 0, instGetPlaybackStateSize());
 }
 
@@ -32,10 +32,10 @@ void addTrackRuntime(Track *cv)
 	cv->rampindex = rampmax;
 	cv->rampbuffer = calloc(rampmax * 2, sizeof(float)); /* *2 for stereo */
 	cv->inststate = malloc(instGetPlaybackStateSize());
-	cv->macrostate = calloc(sizeof(void*), MACRO_CALLBACK_MAX);
-	for (int i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].statesize) /* calloc is ambiguous as to whether it will return a null pointer or an illegal pointer if either arg is 0, so explicitly check */
-			cv->macrostate[i] = calloc(1, global_macro_callbacks[i].statesize);
+	cv->commandstate = calloc(sizeof(void*), COMMAND_CALLBACK_MAX);
+	for (int i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].statesize) /* calloc is ambiguous as to whether it will return a null pointer or an illegal pointer if either arg is 0, so explicitly check */
+			cv->commandstate[i] = calloc(1, global_command_callbacks[i].statesize);
 	clearTrackRuntime(cv);
 }
 
@@ -122,12 +122,12 @@ void _delTrack(Song *cs, Track *cv)
 	freeEffectChain(cv->effect);
 	if (cv->rampbuffer) free(cv->rampbuffer);
 	if (cv->inststate) free(cv->inststate);
-	if (cv->macrostate)
+	if (cv->commandstate)
 	{
-		for (int i = 0; i < MACRO_CALLBACK_MAX; i++)
-			if (cv->macrostate[i])
-				free(cv->macrostate[i]);
-		free(cv->macrostate);
+		for (int i = 0; i < COMMAND_CALLBACK_MAX; i++)
+			if (cv->commandstate[i])
+				free(cv->commandstate[i]);
+		free(cv->commandstate);
 	}
 }
 

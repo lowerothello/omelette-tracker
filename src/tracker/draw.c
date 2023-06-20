@@ -50,7 +50,7 @@ static void noteToString(short note, char *buffer)
 	snprintf(buffer, 5, "%s%1x", strnote, (note%NOTE_MAX) / 12);
 }
 
-short getTrackWidth(Track *cv) { return 9 + 4*(cv->pattern->macroc+1); }
+short getTrackWidth(Track *cv) { return 9 + 4*(cv->pattern->commandc+1); }
 
 /* generate sfx using dynamic width tracks */
 short genSfx(short viewport)
@@ -237,7 +237,7 @@ static bool ifVisual(uint8_t track, int i, int8_t fieldpointer)
 						{
 							if (vfxVmoRangeIncl(
 									w->visualtrack == track ? w->visualfx : tfxToVfx(w->trackerfx),
-									1 + s->track->v[track]->pattern->macroc,
+									1 + s->track->v[track]->pattern->commandc,
 									fieldpointer))
 								return 1;
 						} else if (track == MAX(w->visualtrack, w->track+w->trackoffset)) /* last track */
@@ -440,12 +440,12 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 
 			x+=3;
 
-			for (int j = cv->pattern->macroc; j >= 0; j--)
+			for (int j = cv->pattern->commandc; j >= 0; j--)
 			{
 				if (x <= maxx)
 				{
 					startVisual(track, i, 2+j);
-					if (r && r->macro[j].c)
+					if (r && r->command[j].c)
 					{
 						if (ifVisual(track, i, 2+j))
 						{
@@ -453,15 +453,15 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							setRowIntensity(cv->mute, 1, i);
 						}
 
-						snprintf(buffer, 5, " %c%02x", r->macro[j].c, r->macro[j].v);
-						switch (r->macro[j].t>>4)
+						snprintf(buffer, 5, " %c%02x", r->command[j].c, r->command[j].v);
+						switch (r->command[j].t>>4)
 						{
 							case 1: buffer[2] = '~'; break;
 							case 2: buffer[2] = '+'; break;
 							case 3: buffer[2] = '-'; break;
 							case 4: buffer[2] = '%'; break;
 						}
-						switch (r->macro[j].t&15)
+						switch (r->command[j].t&15)
 						{
 							case 1: buffer[3] = '~'; break;
 							case 2: buffer[3] = '+'; break;
@@ -473,7 +473,7 @@ static short drawTrack(uint8_t track, short bx, short minx, short maxx)
 							printCulling(buffer, x, y, minx, maxx);
 						else
 						{
-							printf("\033[3%dm", MACRO_COLOUR(r->macro[j].c) + 1);
+							printf("\033[3%dm", COMMAND_COLOUR(r->command[j].c) + 1);
 							printCulling(buffer, x, y, minx, maxx);
 						}
 
@@ -632,16 +632,16 @@ void drawTracker(bool patternlist)
 
 	switch (w->mode)
 	{
-		case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->command.error[0] = '\0'; break;
-		case MODE_INSERT:        printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",         ws.ws_row); w->command.error[0] = '\0'; break;
+		case MODE_VISUAL:        printf("\033[%d;0H\033[1m-- VISUAL --\033[m",                 ws.ws_row); w->repl.error[0] = '\0'; break;
+		case MODE_VISUALLINE:    printf("\033[%d;0H\033[1m-- VISUAL LINE --\033[m\033[4 q",    ws.ws_row); w->repl.error[0] = '\0'; break;
+		case MODE_VISUALREPLACE: printf("\033[%d;0H\033[1m-- VISUAL REPLACE --\033[m\033[4 q", ws.ws_row); w->repl.error[0] = '\0'; break;
+		case MODE_MOUSEADJUST:   printf("\033[%d;0H\033[1m-- ADJUST --\033[m\033[4 q",         ws.ws_row); w->repl.error[0] = '\0'; break;
+		case MODE_INSERT:        printf("\033[%d;0H\033[1m-- INSERT --\033[m\033[6 q",         ws.ws_row); w->repl.error[0] = '\0'; break;
 		default: break;
 	}
 
 	/* position the tracker cursor */
-	short macro;
+	short command;
 	y = w->centre + w->fyoffset;
 	if (patternlist)
 		printf("\033[%d;%dH", y, smallsx + 1 - w->fieldpointer);
@@ -650,10 +650,10 @@ void drawTracker(bool patternlist)
 		{
 			case  0: printf("\033[%d;%dH", y, sx+sfx + 1); break;
 			case  1: printf("\033[%d;%dH", y, sx+sfx + 6 - w->fieldpointer); break;
-			default: /* macro columns */
-				macro = (w->trackerfx - 2)>>1;
-				if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 8  + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4);
-				else                       printf("\033[%d;%dH", y, sx+sfx + 10 + (s->track->v[w->track+w->trackoffset]->pattern->macroc - macro)*4 - w->fieldpointer);
+			default: /* command columns */
+				command = (w->trackerfx - 2)>>1;
+				if (w->trackerfx % 2 == 0) printf("\033[%d;%dH", y, sx+sfx + 8  + (s->track->v[w->track+w->trackoffset]->pattern->commandc - command)*4);
+				else                       printf("\033[%d;%dH", y, sx+sfx + 10 + (s->track->v[w->track+w->trackoffset]->pattern->commandc - command)*4 - w->fieldpointer);
 				break;
 		}
 }

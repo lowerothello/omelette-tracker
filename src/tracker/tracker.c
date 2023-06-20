@@ -4,14 +4,6 @@
 #include "pattern.c"
 #include "track.c"
 
-// #include "chord/row.c"
-#include "chord/track.c"
-#include "chord/macro.c"
-// #include "chord/loop.c"
-#include "chord/yank.c"
-#include "chord/delete.c"
-#include "chord/graphic.c"
-
 #include "input.c"
 
 uint8_t changeNoteOctave(uint8_t octave, uint8_t note)
@@ -71,8 +63,8 @@ void trackSet(uint8_t track)
 {
 	w->track = track;
 	Track *cv = s->track->v[w->track];
-	if (w->trackerfx > 3 + cv->pattern->macroc * 2)
-		w->trackerfx = 3 + cv->pattern->macroc * 2;
+	if (w->trackerfx > 3 + cv->pattern->commandc * 2)
+		w->trackerfx = 3 + cv->pattern->commandc * 2;
 
 	switch (w->page)
 	{
@@ -93,13 +85,13 @@ void trackerLeftArrow(size_t count)
 {
 	int i;
 	count *= MAX(1, w->count);
-	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
+	uint8_t commandc = s->track->v[w->track]->pattern->commandc;
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
-				if      (w->trackerfx == 2 + (macroc<<1)) w->trackerfx = 1;
+				if      (w->trackerfx == 2 + (commandc<<1)) w->trackerfx = 1;
 				else if (!w->trackerfx)
 				{
 					if (w->track > 0)
@@ -125,13 +117,13 @@ void trackerRightArrow(size_t count)
 {
 	int i;
 	count *= MAX(1, w->count);
-	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
+	uint8_t commandc = s->track->v[w->track]->pattern->commandc;
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
 			for (i = 0; i < count; i++)
 			{
-				if      (w->trackerfx == 1) w->trackerfx = 2 + macroc * 2;
+				if      (w->trackerfx == 1) w->trackerfx = 2 + commandc * 2;
 				else if (w->trackerfx == 3)
 				{
 					if (w->track < s->track->c-1)
@@ -178,20 +170,20 @@ void trackerEnd(void)
 void cycleUp(void)
 {
 	size_t count = MAX(1, w->count);
-	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
+	uint8_t commandc = s->track->v[w->track]->pattern->commandc;
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
 			switch (w->mode)
 			{
 				case MODE_NORMAL: case MODE_INSERT:
-					cycleUpPartPattern(count, 0, 2+macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
+					cycleUpPartPattern(count, 0, 2+commandc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
 					break;
 				case MODE_VISUAL: case MODE_VISUALREPLACE:
 					cycleUpPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				case MODE_VISUALLINE:
-					cycleUpPartPattern(count, 0, 2+macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleUpPartPattern(count, 0, 2+commandc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				default: break;
 			} break;
@@ -205,7 +197,7 @@ void cycleUp(void)
 void cycleDown(void)
 {
 	size_t count = MAX(1, w->count);
-	uint8_t macroc = s->track->v[w->track]->pattern->macroc;
+	uint8_t commandc = s->track->v[w->track]->pattern->commandc;
 	switch (w->page)
 	{
 		case PAGE_VARIANT:
@@ -213,13 +205,13 @@ void cycleDown(void)
 			{
 				/* TODO: variant trig mode and variant trig visual mode handling */
 				case MODE_NORMAL: case MODE_INSERT:
-					cycleDownPartPattern(count, 0, 2+macroc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
+					cycleDownPartPattern(count, 0, 2+commandc, w->trackerfy, (getPatternChainIndex(w->trackerfy)+1) * getPatternLength() - 1, w->track, w->track);
 					break;
 				case MODE_VISUAL: case MODE_VISUALREPLACE:
 					cycleDownPartPattern(count, MIN(tfxToVfx(w->trackerfx), w->visualfx), MAX(tfxToVfx(w->trackerfx), w->visualfx), MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				case MODE_VISUALLINE:
-					cycleDownPartPattern(count, 0, 2+macroc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
+					cycleDownPartPattern(count, 0, 2+commandc, MIN(w->trackerfy, w->visualfy), MAX(w->trackerfy, w->visualfy), MIN(w->track, w->visualtrack), MAX(w->track, w->visualtrack));
 					break;
 				default: break;
 			} break;

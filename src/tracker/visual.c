@@ -5,7 +5,7 @@
 	{\
 		cv = s->track->v[w->track+iter];\
 		xstart = 0;\
-		xend = cv->pattern->macroc+3;\
+		xend = cv->pattern->commandc+3;\
 		if (iter == 0) xstart = w->pbfx[0];\
 		if (iter == w->pbtrackc-1) xend = w->pbfx[1];
 	//}
@@ -19,7 +19,7 @@
 		if (iter >= s->track->c) break;\
 		cv = s->track->v[iter];\
 		xstart = 0;\
-		xend = cv->pattern->macroc+3;\
+		xend = cv->pattern->commandc+3;\
 		if (iter == c1) xstart = x1;\
 		if (iter == c2) xend = x2;
 	//}
@@ -27,43 +27,43 @@
 short tfxToVfx(int8_t tfx) { if (tfx > 1) return 2 + (tfx - 2) / 2; return tfx; }
 short vfxToTfx(int8_t vfx) { if (vfx > 1) return 2 + (vfx - 2) * 2; return vfx; }
 
-/* VMO: visual macro order */
+/* VMO: visual command order */
 short tfxToVmo(Track *cv, short tfx)
 {
 	if (tfx < 2) return tfx; /* no change for note and inst columns */
-	if (tfx&0x1) /* macrov */ return (4 + (cv->pattern->macroc<<1)) - tfx;
-	else         /* macroc */ return (2 + (cv->pattern->macroc<<1)) - tfx;
+	if (tfx&0x1) /* commandv */ return (4 + (cv->pattern->commandc<<1)) - tfx;
+	else         /* commandc */ return (2 + (cv->pattern->commandc<<1)) - tfx;
 }
 short vfxToVmo(Track *cv, short vfx)
 {
 	if (vfx < 2) return vfx; /* no change for note and inst columns */
-	return (2 + (cv->pattern->macroc<<1)) - vfx;
+	return (2 + (cv->pattern->commandc<<1)) - vfx;
 }
 
 short vfxVmoMin(short x1, short x2)
 {
-	if (x1 < 2 || x2 < 2) return MIN(x1, x2); /* either is not a macro */
-	return MAX(x1, x2); /* both are macros */
+	if (x1 < 2 || x2 < 2) return MIN(x1, x2); /* either is not a command */
+	return MAX(x1, x2); /* both are commands */
 }
 short vfxVmoMax(short x1, short x2)
 {
-	if (x1 < 2 || x2 < 2) return MAX(x1, x2); /* either is not a macro */
-	return MIN(x1, x2); /* both are macros */
+	if (x1 < 2 || x2 < 2) return MAX(x1, x2); /* either is not a command */
+	return MIN(x1, x2); /* both are commands */
 }
 
-/* returns true if (x >= min && x <= max) in visual macro order */
+/* returns true if (x >= min && x <= max) in visual command order */
 bool vfxVmoRangeIncl(short min, short max, short x)
 {
-	if (min > 1) /* range is all macros */
+	if (min > 1) /* range is all commands */
 		return (x <= min && x >= max); /* fully inverted */
 
-	if (max > 1) /* range goes from non-macro to macro */
+	if (max > 1) /* range goes from non-command to command */
 	{
-		if (x > 1) /* x is in the macro part     */ return (x >= max);
-		else       /* x is in the non-macro part */ return (x >= min);
+		if (x > 1) /* x is in the command part     */ return (x >= max);
+		else       /* x is in the non-command part */ return (x >= min);
 	}
 
-	/* range goes from non-macro to non-macro */
+	/* range goes from non-command to non-command */
 	return (x >= min && x <= max); /* not inverted */
 }
 
@@ -101,16 +101,16 @@ void putPartPattern(bool step) /* TODO: count */
 	// uint8_t j;
 	// int k;
 	// Row *dest, *src;
-	// char targetmacro;
+	// char targetcommand;
 	//
 	// if (!w->pbtrackc) return;
 	// FOR_BUFFER_TRACKS(i, cv, xstart, xend) // {
-	// 	if (xstart > 1 && xend > 1) /* just macro columns */
+	// 	if (xstart > 1 && xend > 1) /* just command columns */
 	// 	{
-	// 		if (w->trackerfx < 2) targetmacro = 0;
-	// 		else                  targetmacro = tfxToVfx(w->trackerfx)-2;
+	// 		if (w->trackerfx < 2) targetcommand = 0;
+	// 		else                  targetcommand = tfxToVfx(w->trackerfx)-2;
 	//
-	// 		targetmacro -= xend - xstart;
+	// 		targetcommand -= xend - xstart;
 	//
 	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 	// 		{
@@ -118,8 +118,8 @@ void putPartPattern(bool step) /* TODO: count */
 	// 			src = getVariantRow(w->pbvariantv[0], j);
 	// 			for (k = 0; k <= xend - xstart; k++)
 	// 			{
-	// 				if (targetmacro+k < 0) continue;
-	// 				memcpy(&dest->macro[targetmacro+k], &src->macro[xstart-2+k], sizeof(Macro));
+	// 				if (targetcommand+k < 0) continue;
+	// 				memcpy(&dest->command[targetcommand+k], &src->command[xstart-2+k], sizeof(Command));
 	// 			}
 	// 		}
 	// 	} else
@@ -130,9 +130,9 @@ void putPartPattern(bool step) /* TODO: count */
 	// 			src = getVariantRow(w->pbvariantv[0], j);
 	// 			if (xstart <= 0 && xend >= 0) dest->note = src->note;
 	// 			if (xstart <= 1 && xend >= 1) dest->inst = src->inst;
-	// 			for (k = 0; k <= cv->pattern->macroc; k++)
+	// 			for (k = 0; k <= cv->pattern->commandc; k++)
 	// 				if (xstart <= k+2 && xend >= k+2)
-	// 					memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
+	// 					memcpy(&dest->command[k], &src->command[k], sizeof(Command));
 	// 		}
 	// 	}
 	// }
@@ -147,16 +147,16 @@ void mixPutPartPattern(bool step) /* TODO: count */
 	// uint8_t j;
 	// int k;
 	// Row *dest, *src;
-	// char targetmacro;
+	// char targetcommand;
 	//
 	// if (!w->pbtrackc) return;
 	// FOR_BUFFER_TRACKS(i, cv, xstart, xend) // {
-	// 	if (xstart > 1 && xend > 1) /* just macro columns */
+	// 	if (xstart > 1 && xend > 1) /* just command columns */
 	// 	{
-	// 		if (w->trackerfx < 2) targetmacro = 0;
-	// 		else                  targetmacro = tfxToVfx(w->trackerfx)-2;
+	// 		if (w->trackerfx < 2) targetcommand = 0;
+	// 		else                  targetcommand = tfxToVfx(w->trackerfx)-2;
 	//
-	// 		targetmacro -= xend - xstart;
+	// 		targetcommand -= xend - xstart;
 	//
 	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
 	// 		{
@@ -164,11 +164,11 @@ void mixPutPartPattern(bool step) /* TODO: count */
 	// 			src = getVariantRow(w->pbvariantv[0], j);
 	// 			for (k = 0; k <= xend - xstart; k++)
 	// 			{
-	// 				if (targetmacro+k < 0) continue;
-	// 				if (src->macro[xstart-2+k].c)
-	// 					memcpy(&dest->macro[targetmacro+k], &src->macro[xstart-2+k], sizeof(Macro));
+	// 				if (targetcommand+k < 0) continue;
+	// 				if (src->command[xstart-2+k].c)
+	// 					memcpy(&dest->command[targetcommand+k], &src->command[xstart-2+k], sizeof(Command));
 	// 			}
-	// 		} w->trackerfx = vfxToTfx(targetmacro+(xend - xstart)+2);
+	// 		} w->trackerfx = vfxToTfx(targetcommand+(xend - xstart)+2);
 	// 	} else
 	// 	{
 	// 		for (j = 0; j < w->pbvariantv[0]->rowc; j++)
@@ -177,9 +177,9 @@ void mixPutPartPattern(bool step) /* TODO: count */
 	// 			src = getVariantRow(w->pbvariantv[0], j);
 	// 			if (xstart <= 0 && xend >= 0 && src->note != NOTE_VOID) dest->note = src->note;
 	// 			if (xstart <= 1 && xend >= 1 && src->inst != INST_VOID) dest->inst = src->inst;
-	// 			for (k = 0; k <= cv->pattern->macroc; k++)
-	// 				if (xstart <= k+2 && xend >= k+2 && src->macro[k].c)
-	// 					memcpy(&dest->macro[k], &src->macro[k], sizeof(Macro));
+	// 			for (k = 0; k <= cv->pattern->commandc; k++)
+	// 				if (xstart <= k+2 && xend >= k+2 && src->command[k].c)
+	// 					memcpy(&dest->command[k], &src->command[k], sizeof(Command));
 	// 		} w->trackerfx = vfxToTfx(xstart);
 	// 	}
 	// }
@@ -202,8 +202,8 @@ void delPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8_
 			if (!r) continue;
 			if (xstart <= 0 && xend >= 0) r->note = NOTE_VOID;
 			if (xstart <= 1 && xend >= 1) r->inst = INST_VOID;
-			for (k = 0; k <= cv->pattern->macroc; k++)
-				if (xstart <= k+2 && xend >= k+2) memset(&r->macro[k], 0, sizeof(Macro));
+			for (k = 0; k <= cv->pattern->commandc; k++)
+				if (xstart <= k+2 && xend >= k+2) memset(&r->command[k], 0, sizeof(Command));
 		}
 	}
 	p->redraw = 1;
@@ -228,11 +228,11 @@ void addPartPattern(signed char value, int8_t x1, int8_t x2, short y1, short y2,
 			if (xstart <= 0 && xend >= 0 && r->note != NOTE_VOID && r->note != NOTE_OFF) r->note = r->note + value;
 		if (noteonly) continue;
 			if (xstart <= 1 && xend >= 1 && r->inst != INST_VOID) r->inst += value;
-			for (k = 0; k <= cv->pattern->macroc; k++)
+			for (k = 0; k <= cv->pattern->commandc; k++)
 				if (xstart <= k+2 && xend >= k+2)
 				{
-					if (MACRO_STEREO(r->macro[k].c)) r->macro[k].v += value*16;
-					else                             r->macro[k].v += value;
+					if (COMMAND_STEREO(r->command[k].c)) r->command[k].v += value*16;
+					else                             r->command[k].v += value;
 				}
 		}
 	}
@@ -262,9 +262,9 @@ void tildePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint
 				else if (r->note >= NOTE_MIN+NOTE_SMOOTH_OFFSET && r->note <= NOTE_MAX+NOTE_SMOOTH_OFFSET)
 					r->note -= NOTE_SMOOTH_OFFSET;
 			}
-			for (k = 0; k <= cv->pattern->macroc; k++)
-				if (xstart <= k+2 && xend >= k+2 && isalpha(r->macro[k].c))
-					changeMacro(r->macro[k].c, &r->macro[k].c);
+			for (k = 0; k <= cv->pattern->commandc; k++)
+				if (xstart <= k+2 && xend >= k+2 && isalpha(r->command[k].c))
+					changeCommand(r->command[k].c, &r->command[k].c);
 		}
 	}
 	p->redraw = 1;
@@ -296,11 +296,11 @@ void interpolatePartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1
 				else if (r2->inst == INST_VOID) r->inst = r1->inst;
 				else r->inst = r1->inst + ((r2->inst - r1->inst) / (float)(y2-y1)) * (j-y1);
 			}
-			for (k = 0; k <= cv->pattern->macroc; k++)
+			for (k = 0; k <= cv->pattern->commandc; k++)
 				if (xstart <= k+2 && xend >= k+2)
 				{
-					r->macro[k].c = (r1->macro[k].c) ?  r1->macro[k].c : r2->macro[k].c;
-					r->macro[k].v =  r1->macro[k].v + ((r2->macro[k].v - r1->macro[k].v) / (float)(y2-y1)) * (j-y1);
+					r->command[k].c = (r1->command[k].c) ?  r1->command[k].c : r2->command[k].c;
+					r->command[k].v =  r1->command[k].v + ((r2->command[k].v - r1->command[k].v) / (float)(y2-y1)) * (j-y1);
 				}
 		}
 	}
@@ -325,9 +325,9 @@ void randPartPattern(int8_t x1, int8_t x2, short y1, short y2, uint8_t c1, uint8
 				for (k = 0; k < INSTRUMENT_MAX; k++)
 					if (s->inst->i[k] == randinst) { r->inst = k; break; }
 			}
-			for (k = 0; k <= cv->pattern->macroc; k++)
-				if (xstart <= k+2 && xend >= k+2 && r->macro[k].c)
-					r->macro[k].v = rand()%256;
+			for (k = 0; k <= cv->pattern->commandc; k++)
+				if (xstart <= k+2 && xend >= k+2 && r->command[k].c)
+					r->command[k].v = rand()%256;
 		}
 	}
 	p->redraw = 1;
@@ -363,16 +363,16 @@ void cycleUpPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y2,
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= cv->pattern->macroc; k++)
+			for (k = 0; k <= cv->pattern->commandc; k++)
 				if (xstart <= k+2 && xend >= k+2)
 				{
 					for (j = y1; j < y2; j++)
 					{
 						if (!(r0 = getTrackRow(cv, j+0, 0))) continue;
 						if (!(r1 = getTrackRow(cv, j+1, 0))) continue;
-						memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
+						memcpy(&r0->command[k], &r1->command[k], sizeof(Command));
 					}
-					memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
+					memcpy(&r2->command[k], &hold.command[k], sizeof(Command));
 				}
 		}
 	}
@@ -410,16 +410,16 @@ void cycleDownPartPattern(uint8_t count, int8_t x1, int8_t x2, short y1, short y
 				}
 				r2->inst = hold.inst;
 			}
-			for (k = 0; k <= cv->pattern->macroc; k++)
+			for (k = 0; k <= cv->pattern->commandc; k++)
 				if (xstart <= k+2 && xend >= k+2)
 				{
 					for (j = y2-1; j >= y1; j--)
 					{
 						if (!(r0 = getTrackRow(cv, j+1, 0))) continue;
 						if (!(r1 = getTrackRow(cv, j+0, 0))) continue;
-						memcpy(&r0->macro[k], &r1->macro[k], sizeof(Macro));
+						memcpy(&r0->command[k], &r1->command[k], sizeof(Command));
 					}
-					memcpy(&r2->macro[k], &hold.macro[k], sizeof(Macro));
+					memcpy(&r2->command[k], &hold.command[k], sizeof(Command));
 				}
 		}
 	}
@@ -432,7 +432,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 	short inst = emptyInst(0);
 	if (inst == -1)
 	{
-		strcpy(w->command.error, "visual render failed, no empty inst slot");
+		strcpy(w->repl.error, "visual render failed, no empty inst slot");
 		return;
 	}
 
@@ -455,7 +455,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
 		{
 			cv = chain->v[chnl];
-			ifMacroCallback(0, &spr, cv, getTrackRow(cv, row, 0), 'B', macroBpm);
+			ifCommandCallback(0, &spr, cv, getTrackRow(cv, row, 0), 'B', commandBpm);
 		}
 	buflen = 0;
 	for (row = y1; row <= y2; row++)
@@ -463,7 +463,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 		for (chnl = 0; chnl <= c2-c1; chnl++)
 		{
 			cv = chain->v[chnl];
-			ifMacroCallback(0, &spr, cv, getTrackRow(cv, row, 0), 'B', macroBpm);
+			ifCommandCallback(0, &spr, cv, getTrackRow(cv, row, 0), 'B', commandBpm);
 		}
 		buflen += spr;
 	}
@@ -489,7 +489,7 @@ void bouncePartPattern(short y1, short y2, uint8_t c1, uint8_t c2)
 			r = getTrackRow(cv, row, 0);
 			if (r) processRow(0, &spr, 0, cv, r);
 		}
-		/* TODO: apply master track macros, such as bpm */
+		/* TODO: apply master track commands, such as bpm */
 
 		sprp = 0;
 		while (sprp < spr)

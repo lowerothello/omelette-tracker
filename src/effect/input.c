@@ -1,3 +1,5 @@
+#include "chord/send.c"
+
 static void effectUpArrow(size_t count)
 {
 	w->follow = 0;
@@ -94,7 +96,7 @@ static void delChainEffect(void)
 	EffectChain **ec = &s->track->v[w->track]->effect;
 	if (!(*ec)->c) return;
 	uint8_t selectedindex = getEffectFromCursor(w->track, *ec, cc.cursor);
-	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(&(*ec)->v[selectedindex]));
+	cc.cursor = MAX(0, cc.cursor - (short)getEffectControlCount(*ec, selectedindex));
 	delEffect(ec, selectedindex);
 	p->redraw = 1;
 }
@@ -231,4 +233,5 @@ void initEffectInput(void)
 	addTooltipBind("increment"               , ControlMask, XK_A        , 0              , (void(*)(void*))incControlValue , NULL);
 	addTooltipBind("decrement"               , ControlMask, XK_X        , 0              , (void(*)(void*))decControlValue , NULL);
 	addTooltipBind("track"                   , 0          , XK_c        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack   , NULL);
+	addTooltipBind("send"                    , 0          , XK_e        , TT_DEAD|TT_DRAW, (void(*)(void*))setChordSend    , NULL);
 }

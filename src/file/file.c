@@ -39,7 +39,7 @@ int writeSongJson(Song *cs, char *path)
 		free(pathext);
 		if (!strlen(w->filepath))
 		{
-			strcpy(w->command.error, "no file name");
+			strcpy(w->repl.error, "no file name");
 			p->redraw = 1;
 			return 1;
 		}
@@ -53,7 +53,7 @@ int writeSongJson(Song *cs, char *path)
 	if (!fp)
 	{
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-		snprintf(w->command.error, COMMAND_LENGTH, "failed to open file '%s' for writing", path);
+		snprintf(w->repl.error, REPL_LENGTH, "failed to open file '%s' for writing", path);
 		p->redraw = 1; return 1;
 	}
 
@@ -61,7 +61,7 @@ int writeSongJson(Song *cs, char *path)
 
 	fclose(fp);
 	fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-	snprintf(w->command.error, COMMAND_LENGTH, "'%s' written", pathext);
+	snprintf(w->repl.error, REPL_LENGTH, "'%s' written", pathext);
 	free(pathext);
 	p->redraw = 1;
 	return 0;
@@ -74,7 +74,7 @@ Song *readSongJson(char *path)
 	if (!fp)
 	{
 		fcntl(0, F_SETFL, O_NONBLOCK); /* non-blocking */
-		snprintf(w->command.error, COMMAND_LENGTH, "failed to open file '%s' for reading", path);
+		snprintf(w->repl.error, REPL_LENGTH, "failed to open file '%s' for reading", path);
 		p->redraw = 1;
 		return NULL;
 	}

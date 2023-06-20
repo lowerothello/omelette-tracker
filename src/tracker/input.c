@@ -1,3 +1,11 @@
+// #include "chord/row.c"
+#include "chord/track.c"
+#include "chord/command.c"
+// #include "chord/loop.c"
+#include "chord/yank.c"
+#include "chord/delete.c"
+#include "chord/graphic.c"
+
 static void swapFocusPane(void)
 {
 	switch (w->page)
@@ -222,7 +230,7 @@ static bool visualRange(int8_t *minx, int8_t *maxx, short *miny, short *maxy, ui
 		case MODE_VISUALLINE:
 			cv = s->track->v[MAX(w->track, w->visualtrack)];
 			*minx = TRACKERFX_VISUAL_MIN;
-			*maxx = 2+cv->pattern->macroc;
+			*maxx = 2+cv->pattern->commandc;
 			break;
 		case MODE_VISUAL:
 			if (w->track == w->visualtrack)
@@ -538,9 +546,9 @@ static void pushInst(void *arg)
 	p->redraw = 1;
 }
 
-static void _pushMacrov(Row *r, char nibble)
+static void _pushCommandv(Row *r, char nibble)
 {
-	Macro *m = &r->macro[(w->trackerfx - 2)>>1];
+	Command *m = &r->command[(w->trackerfx - 2)>>1];
 	m->v <<= 4;
 	m->t <<= 4;
 	switch (nibble)
@@ -555,38 +563,38 @@ static void _pushMacrov(Row *r, char nibble)
 		default: m->v += nibble; break;
 	}
 }
-static void pushMacrov(void *arg)
+static void pushCommandv(void *arg)
 {
 	Track *cv = s->track->v[w->track];
 	switch (w->mode)
 	{
 		case MODE_VISUALREPLACE:
 			for (short i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
-				_pushMacrov(getTrackRow(cv, i, 1), (size_t)arg);
+				_pushCommandv(getTrackRow(cv, i, 1), (size_t)arg);
 			break;
 		default:
-			_pushMacrov(getTrackRow(cv, w->trackerfy, 1), (size_t)arg);
+			_pushCommandv(getTrackRow(cv, w->trackerfy, 1), (size_t)arg);
 			break;
 	}
 	p->redraw = 1;
 }
-static void pushMacroc(void *arg)
+static void pushCommandc(void *arg)
 {
 	Track *cv = s->track->v[w->track];
 	Row *r;
 	short i;
-	short macro = (w->trackerfx - 2)>>1;
+	short command = (w->trackerfx - 2)>>1;
 	switch (w->mode)
 	{
 		case MODE_VISUALREPLACE:
 			for (i = MIN(w->trackerfy, w->visualfy); i <= MAX(w->trackerfy, w->visualfy); i++)
 			{
 				r = getTrackRow(cv, i, 1);
-				r->macro[macro].c = (size_t)arg;
+				r->command[command].c = (size_t)arg;
 			} break;
 		default:
 			r = getTrackRow(cv, w->trackerfy, 1);
-			r->macro[macro].c = (size_t)arg;
+			r->command[command].c = (size_t)arg;
 			break;
 	}
 	p->redraw = 1;
@@ -596,7 +604,7 @@ static void pushMacroc(void *arg)
 static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 {
 	Row *r = getTrackRow(cv, w->trackerfy, 1);
-	short macro;
+	short command;
 	switch (w->page)
 	{
 		case PAGE_PATTERN:
@@ -614,11 +622,11 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 					else                 r->inst--;
 					break;
 				default:
-					macro = (w->trackerfx - 2)>>1;
+					command = (w->trackerfx - 2)>>1;
 					if (w->trackerfx % 2 == 1)
 					{
-						if (w->fieldpointer) r->macro[macro].v-=16;
-						else                 r->macro[macro].v--;
+						if (w->fieldpointer) r->command[command].v-=16;
+						else                 r->command[command].v--;
 					} break;
 			} break;
 		default: break;
@@ -628,7 +636,7 @@ static void trackerAdjustLeft(Track *cv) /* mouse adjust only */
 static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 {
 	Row *r = getTrackRow(cv, w->trackerfy, 1);
-	short macro;
+	short command;
 	switch (w->page)
 	{
 		case PAGE_PATTERN:
@@ -646,11 +654,11 @@ static void trackerAdjustRight(Track *cv) /* mouse adjust only */
 					else                 r->inst++;
 					break;
 				default:
-					macro = (w->trackerfx - 2)>>1;
+					command = (w->trackerfx - 2)>>1;
 					if (w->trackerfx % 2 == 1)
 					{
-						if (w->fieldpointer) r->macro[macro].v+=16;
-						else                 r->macro[macro].v++;
+						if (w->fieldpointer) r->command[command].v+=16;
+						else                 r->command[command].v++;
 					} break;
 			} break;
 		default: break;
@@ -820,11 +828,11 @@ static void trackerMouse(enum Button button, int x, int y)
 							{
 								w->trackerfx = 3;
 								w->fieldpointer = 0;
-							} else /* macro column */
+							} else /* command column */
 							{
 								j = x-tx - 7;
-								if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i]->pattern->macroc - (j>>2))<<1)+0;
-								else            w->trackerfx = 3 + ((s->track->v[i]->pattern->macroc - (j>>2))<<1)-1;
+								if ((j>>1)&0x1) w->trackerfx = 3 + ((s->track->v[i]->pattern->commandc - (j>>2))<<1)+0;
+								else            w->trackerfx = 3 + ((s->track->v[i]->pattern->commandc - (j>>2))<<1)-1;
 								if (j&0x1) w->fieldpointer = 0;
 								else       w->fieldpointer = 1;
 							} break;
@@ -918,7 +926,7 @@ void initTrackerInput(void)
 			addTooltipBind("delete"                , 0          , XK_d         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordDeleteRow         , NULL    );
 			addTooltipBind("yank"                  , 0          , XK_y         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordYankRow           , NULL    );
 			addTooltipBind("track"                 , 0          , XK_c         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordTrack             , NULL    );
-			addTooltipBind("macro"                 , 0          , XK_m         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordMacro             , NULL    );
+			addTooltipBind("command"                 , 0          , XK_m         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordCommand             , NULL    );
 			// addTooltipBind("row"                   , 0          , XK_r         , TT_DEAD|TT_DRAW, (void(*)(void*))setChordRow               , NULL    );
 			// addTooltipBind("loop"                  , 0          , XK_semicolon , TT_DEAD|TT_DRAW, (void(*)(void*))setChordLoop              , NULL    );
 			addTooltipBind("put"                   , 0          , XK_p         , TT_DRAW        , (void(*)(void*))putPartPattern            , (void*)1);
@@ -965,16 +973,16 @@ void initTrackerInput(void)
 							addHexBinds("push cell", 0, pushInst);
 							addTooltipBind("impose state on cell", 0, XK_space, 0, (void(*)(void*))imposeInst, NULL);
 							break;
-						default: /* macro */
-							if (!(w->trackerfx&1)) /* macroc */
-								addMacroBinds("push cell", 0, pushMacroc);
-							else                   /* macrov */
+						default: /* command */
+							if (!(w->trackerfx&1)) /* commandc */
+								addCommandBinds("push cell", 0, pushCommandc);
+							else                   /* commandv */
 							{
-								addHexBinds("push cell", 0, pushMacrov);
-								addTooltipBind("push lfo token", 0, XK_asciitilde, 0, pushMacrov, (void*)'~');
-								addTooltipBind("push inc token", 0, XK_plus      , 0, pushMacrov, (void*)'+');
-								addTooltipBind("push dec token", 0, XK_minus     , 0, pushMacrov, (void*)'-');
-								addTooltipBind("push rng token", 0, XK_percent   , 0, pushMacrov, (void*)'%');
+								addHexBinds("push cell", 0, pushCommandv);
+								addTooltipBind("push lfo token", 0, XK_asciitilde, 0, pushCommandv, (void*)'~');
+								addTooltipBind("push inc token", 0, XK_plus      , 0, pushCommandv, (void*)'+');
+								addTooltipBind("push dec token", 0, XK_minus     , 0, pushCommandv, (void*)'-');
+								addTooltipBind("push rng token", 0, XK_percent   , 0, pushCommandv, (void*)'%');
 							} break;
 					} break;
 				case PAGE_PATTERN:

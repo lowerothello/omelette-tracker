@@ -1,85 +1,85 @@
-bool ifMacro(Track *cv, Row *r, char m)
+bool ifCommand(Track *cv, Row *r, char m)
 {
-	for (int i = 0; i <= cv->pattern->macroc; i++)
-		if (r->macro[i].c == m)
+	for (int i = 0; i <= cv->pattern->commandc; i++)
+		if (r->command[i].c == m)
 			return 1;
 	return 0;
 }
 
-/* ifMacro(), but run .triggercallback */
-void ifMacroCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*triggercallback)(uint32_t, uint16_t*, int, Track*, Row*))
+/* ifCommand(), but run .triggercallback */
+void ifCommandCallback(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, char m, void (*triggercallback)(uint32_t, uint16_t*, int, Track*, Row*))
 {
-	for (int i = 0; i <= cv->pattern->macroc; i++)
-		if (r->macro[i].c == m && MACRO_SET(r->macro[i].c))
+	for (int i = 0; i <= cv->pattern->commandc; i++)
+		if (r->command[i].c == m && COMMAND_SET(r->command[i].c))
 		{
-			triggercallback(fptr, spr, r->macro[i].v, cv, r);
+			triggercallback(fptr, spr, r->command[i].v, cv, r);
 			return;
 		}
 	triggercallback(fptr, spr, -1, cv, r);
 }
 
-/* if the row needs to be ramped in based on the macros present */
-bool ifMacroRamp(Track *cv, Row *r)
+/* if the row needs to be ramped in based on the commands present */
+bool ifCommandRamp(Track *cv, Row *r)
 {
-	for (int i = 0; i <= cv->pattern->macroc; i++)
-		if (MACRO_RAMP(r->macro[i].c)) return 1;
+	for (int i = 0; i <= cv->pattern->commandc; i++)
+		if (COMMAND_RAMP(r->command[i].c)) return 1;
 
 	return 0;
 }
 
-void macroCallbackClear(Track *cv)
+void commandCallbackClear(Track *cv)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].clear)
-			global_macro_callbacks[i].clear(cv, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].clear)
+			global_command_callbacks[i].clear(cv, cv->commandstate[i]);
 }
-void macroCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
+void commandCallbackPreTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].pretrig)
-			global_macro_callbacks[i].pretrig(fptr, spr, cv, r, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].pretrig)
+			global_command_callbacks[i].pretrig(fptr, spr, cv, r, cv->commandstate[i]);
 }
-void macroCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
+void commandCallbackPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].posttrig)
-			global_macro_callbacks[i].posttrig(fptr, spr, cv, r, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].posttrig)
+			global_command_callbacks[i].posttrig(fptr, spr, cv, r, cv->commandstate[i]);
 }
-void macroCallbackTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst)
+void commandCallbackTriggerNote(uint32_t fptr, Track *cv, float oldnote, float note, short inst)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].triggernote)
-			global_macro_callbacks[i].triggernote(fptr, cv, oldnote, note, inst, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].triggernote)
+			global_command_callbacks[i].triggernote(fptr, cv, oldnote, note, inst, cv->commandstate[i]);
 }
-float macroCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+float commandCallbackSampleRow(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
 	float tryret, ret = NOTE_VOID;
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].samplerow)
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].samplerow)
 		{
-			tryret = global_macro_callbacks[i].samplerow(fptr, count, spr, sprp, cv, cv->macrostate[i]);
+			tryret = global_command_callbacks[i].samplerow(fptr, count, spr, sprp, cv, cv->commandstate[i]);
 			if (tryret != NOTE_VOID)
 				ret = tryret;
 		}
 	return ret;
 }
-void macroCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
+void commandCallbackPersistent(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].persistenttune)
-			global_macro_callbacks[i].persistenttune(fptr, count, spr, sprp, cv, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].persistenttune)
+			global_command_callbacks[i].persistenttune(fptr, count, spr, sprp, cv, cv->commandstate[i]);
 }
-void macroCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *note)
+void commandCallbackVolatile(uint32_t fptr, uint16_t count, uint16_t *spr, uint16_t sprp, Track *cv, float *note)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].volatiletune)
-			global_macro_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, note, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].volatiletune)
+			global_command_callbacks[i].volatiletune(fptr, count, spr, sprp, cv, note, cv->commandstate[i]);
 }
-void macroCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf)
+void commandCallbackPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf)
 {
-	for (size_t i = 0; i < MACRO_CALLBACK_MAX; i++)
-		if (global_macro_callbacks[i].postsampler)
-			global_macro_callbacks[i].postsampler(fptr, cv, rp, lf, rf, cv->macrostate[i]);
+	for (size_t i = 0; i < COMMAND_CALLBACK_MAX; i++)
+		if (global_command_callbacks[i].postsampler)
+			global_command_callbacks[i].postsampler(fptr, cv, rp, lf, rf, cv->commandstate[i]);
 }
 
 static int swapCase(int x)
@@ -88,34 +88,34 @@ static int swapCase(int x)
 	else            return tolower(x);
 }
 
-bool changeMacro(int input, char *dest)
+bool changeCommand(int input, char *dest)
 {
 	/* use the current value if input is '\0' */
 	if (!input) input = *dest; /* dest is pre-swapped */
 	else        input = swapCase(input);
 
-	if (MACRO_SET(input))
+	if (COMMAND_SET(input))
 		*dest = input;
 
 	return 0;
 }
 
-void addMacroBinds(const char *prettyname, unsigned int state, void (*callback)(void*))
+void addCommandBinds(const char *prettyname, unsigned int state, void (*callback)(void*))
 {
-	addTooltipPrettyPrint(prettyname, state, "macro");
-	for (size_t i = 0; i < MACRO_MAX; i++)
-		if (MACRO_SET(i))
-			addTooltipBind(MACRO_PRETTYNAME(i), state, swapCase(i), 0, callback, (void*)i);
+	addTooltipPrettyPrint(prettyname, state, "command");
+	for (size_t i = 0; i < COMMAND_MAX; i++)
+		if (COMMAND_SET(i))
+			addTooltipBind(COMMAND_PRETTYNAME(i), state, swapCase(i), 0, callback, (void*)i);
 }
 
 
-void macroStateReset(MacroState *s)
+void commandStateReset(CommandState *s)
 {
 	s->base = -1;
 	s->rand = -1;
 	s->target = -1;
 }
-void macroStateSet(MacroState *s, Macro *m)
+void commandStateSet(CommandState *s, Command *m)
 {
 	uint8_t hold;
 	short oversample;
@@ -152,7 +152,7 @@ void macroStateSet(MacroState *s, Macro *m)
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(m->c))
+				if (COMMAND_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -195,7 +195,7 @@ void macroStateSet(MacroState *s, Macro *m)
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(m->c))
+				if (COMMAND_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -213,7 +213,7 @@ void macroStateSet(MacroState *s, Macro *m)
 		s->rand = m->v;
 	}
 }
-void macroStateSmooth(MacroState *s, Macro *m)
+void commandStateSmooth(CommandState *s, Command *m)
 {
 	uint8_t hold;
 	short oversample;
@@ -255,7 +255,7 @@ void macroStateSmooth(MacroState *s, Macro *m)
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(m->c))
+				if (COMMAND_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -303,7 +303,7 @@ void macroStateSmooth(MacroState *s, Macro *m)
 				if (!hold) hold = 1;
 				hold++;
 
-				if (MACRO_STEREO(m->c))
+				if (COMMAND_STEREO(m->c))
 				{
 					hold<<=4;
 					oversample = rand()%hold;
@@ -318,7 +318,7 @@ void macroStateSmooth(MacroState *s, Macro *m)
 	} else
 		s->target = m->v;
 }
-void macroStateApply(MacroState *s)
+void commandStateApply(CommandState *s)
 {
 	s->lfospeed = 0;
 	if (s->target != -1)
@@ -335,7 +335,7 @@ void macroStateApply(MacroState *s)
 		s->target = -1;
 	}
 }
-float macroStateGetMono(MacroState *s, float rp)
+float commandStateGetMono(CommandState *s, float rp)
 {
 	if (s->rand == -1)
 	{
@@ -360,7 +360,7 @@ float macroStateGetMono(MacroState *s, float rp)
 		return s->rand*DIV256;
 	}
 }
-void macroStateGetStereo(MacroState *s, float rp, float *l, float *r)
+void commandStateGetStereo(CommandState *s, float rp, float *l, float *r)
 {
 	if (s->rand == -1)
 		return;

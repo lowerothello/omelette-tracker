@@ -224,7 +224,7 @@ static void sampleLoadCallbackOverload(char *path)
 	if (newsample)
 		reparentSample(iv, newsample);
 	else
-		strcpy(w->command.error, "failed to load sample, out of memory");
+		strcpy(w->repl.error, "failed to load sample, out of memory");
 
 	w->page = PAGE_INSTRUMENT;
 	w->mode = MODE_NORMAL;
@@ -299,7 +299,7 @@ void fileBrowserPreview(BrowserState *b, size_t note, bool release)
 				e.callback = cb_freeSemargSample;
 				e.callbackarg = (void *)((size_t)note);
 				pushEvent(&e);
-			} else strcpy(w->command.error, "failed to preview sample, out of memory");
+			} else strcpy(w->repl.error, "failed to preview sample, out of memory");
 		} else previewFileNote(note, release);
 	} free(path);
 }

@@ -46,8 +46,6 @@ void freeEffectDB(void)
 }
 
 
-/* IMPORTANT NOTE: effects should not register any more than 16 controls, TODO: fix this, controls should be dynamically allocated */
-
 void freeEffect(Effect *e)
 {
 	if (!e) return;
@@ -59,12 +57,12 @@ void freeEffect(Effect *e)
 EffectChain *newEffectChain(void)
 {
 	EffectChain *ret = calloc(1, sizeof(EffectChain));
-	ret->input[0] = calloc(buffersize, sizeof(float));
-	ret->input[1] = calloc(buffersize, sizeof(float));
+	ret->input [0] = calloc(buffersize, sizeof(float));
+	ret->input [1] = calloc(buffersize, sizeof(float));
 	ret->output[0] = calloc(buffersize, sizeof(float));
 	ret->output[1] = calloc(buffersize, sizeof(float));
 
-	ret->fader = 0xff;
+	ret->volume = 0xff;
 
 	return ret;
 }
@@ -73,8 +71,8 @@ void freeEffectChain(EffectChain *chain)
 {
 	clearEffectChain(chain);
 
-	if (chain->input[0]) { free(chain->input[0]); chain->input[0] = NULL; }
-	if (chain->input[1]) { free(chain->input[1]); chain->input[1] = NULL; }
+	if (chain->input [0]) { free(chain->input [0]); chain->input [0] = NULL; }
+	if (chain->input [1]) { free(chain->input [1]); chain->input [1] = NULL; }
 	if (chain->output[0]) { free(chain->output[0]); chain->output[0] = NULL; }
 	if (chain->output[1]) { free(chain->output[1]); chain->output[1] = NULL; }
 
@@ -88,18 +86,29 @@ void clearEffectChain(EffectChain *chain)
 }
 
 #define EFFECT_IMPLIED_CONTROLS 2
-uint32_t getEffectControlCount(Effect *e)
+#define EFFECT_FOOTER_CONTROLS (2 + (ec->sendc<<1))
+uint32_t getEffectControlCount(EffectChain *ec, uint8_t index)
 {
-	if (e && effect_api[e->type].controlc)
-		return effect_api[e->type].controlc(e->state) + EFFECT_IMPLIED_CONTROLS;
+	Effect *e;
+	if (ec)
+	{
+		e = &ec->v[index];
+		if (e && effect_api[e->type].controlc)
+			return effect_api[e->type].controlc(e->state) + EFFECT_IMPLIED_CONTROLS;
+	}
 	return EFFECT_IMPLIED_CONTROLS;
+}
+
+static void copyEffectChainBuffers(EffectChain *dest, EffectChain *src)
+{
+	memcpy(&dest->input,  &src->input,  sizeof(float*) * 2);
+	memcpy(&dest->output, &src->output, sizeof(float*) * 2);
 }
 
 static EffectChain *_addEffect(EffectChain *chain, EffectType type, uint32_t srcindex, uint8_t destindex)
 {
 	EffectChain *ret = calloc(1, sizeof(EffectChain) + (chain->c+1)*sizeof(Effect));
-	memcpy(&ret->input,  &chain->input,  sizeof(float *)*2);
-	memcpy(&ret->output, &chain->output, sizeof(float *)*2);
+	copyEffectChainBuffers(ret, chain);
 	ret->c = chain->c + 1;
 
 	if (destindex)
@@ -178,7 +187,7 @@ void swapEffect(EffectChain **chain, uint8_t s1, uint8_t s2)
 EffectChain *_delEffect(EffectChain *chain, uint8_t index)
 {
 	EffectChain *ret = calloc(1, sizeof(EffectChain) + (chain->c-1) * sizeof(Effect));
-	memcpy(ret, chain, sizeof(float *) * 4); /* copy input and output */
+	copyEffectChainBuffers(ret, chain);
 	ret->c = chain->c - 1;
 
 	if (index)
@@ -224,10 +233,10 @@ size_t getCursorFromEffectTrack(uint8_t track)
 		ec = s->track->v[i]->effect;
 		if (ec->c)
 			for (uint8_t j = 0; j < ec->c; j++)
-				ret += getEffectControlCount(&ec->v[j]);
+				ret += getEffectControlCount(ec, j);
 		else
 			ret++;
-		ret += 2;
+		ret += EFFECT_FOOTER_CONTROLS;
 	}
 
 	return ret;
@@ -239,7 +248,7 @@ uint8_t getEffectFromCursor(uint8_t track, EffectChain *chain, size_t cursor)
 	size_t offset = getCursorFromEffectTrack(track);
 	for (int i = 0; i < chain->c; i++)
 	{
-		offset += getEffectControlCount(&chain->v[i]);
+		offset += getEffectControlCount(chain, i);
 		if (offset > cursor) return i;
 	}
 	return chain->c - 1; /* fallback */
@@ -249,7 +258,7 @@ size_t getCursorFromEffect(uint8_t track, EffectChain *chain, uint8_t index)
 {
 	size_t offset = getCursorFromEffectTrack(track);
 	for (int i = 0; i < MIN(index, chain->c - 1); i++)
-		offset += getEffectControlCount(&chain->v[i]);
+		offset += getEffectControlCount(chain, i);
 	return offset;
 }
 
@@ -271,10 +280,9 @@ void copyEffect(Effect *dest, Effect *src, float **input, float **output)
 void copyEffectChain(EffectChain **dest, EffectChain *src)
 { /* NOT atomic */
 	EffectChain *ret = calloc(1, sizeof(EffectChain) + src->c * sizeof(Effect));
-	memcpy(ret, *dest, sizeof(float*) * 4); /* copy input and output */
-	ret->c = src->c;
-	ret->fader = src->fader;
-	ret->panner = src->panner;
+	memcpy(ret, src, sizeof(EffectChain));
+
+	copyEffectChainBuffers(ret, *dest);
 
 	for (uint8_t i = 0; i < src->c; i++)
 		copyEffect(&ret->v[i], &src->v[i], NULL, NULL);
@@ -312,14 +320,14 @@ void runEffectChain(uint32_t samplecount, EffectChain *chain)
 	for (uint8_t i = 0; i < chain->c; i++)
 		runEffect(samplecount, chain, &chain->v[i]);
 
-	float volume = powf(chain->fader*DIV255, GAIN_STAGE_SLOPE);
-	float panning = chain->panner*DIV127;
-	float inputgainl = volume * (panning > 0.0f ? 1.0f - panning : 1.0f);
-	float inputgainr = volume * (panning < 0.0f ? 1.0f + panning : 1.0f);
+	float volume = powf(chain->volume*DIV255, GAIN_STAGE_SLOPE);
+	float panning = chain->panning*DIV127;
+	float l = volume * (panning > 0.0f ? 1.0f - panning : 1.0f);
+	float r = volume * (panning < 0.0f ? 1.0f + panning : 1.0f);
 	for (uint32_t i = 0; i < samplecount; i++)
 	{
-		chain->input[0][i] *= inputgainl;
-		chain->input[1][i] *= inputgainr;
+		chain->output[0][i] = chain->input[0][i] * l;
+		chain->output[1][i] = chain->input[1][i] * r;
 	}
 }
 
@@ -341,8 +349,8 @@ struct json_object *serializeEffect(Effect *e)
 struct json_object *serializeEffectChain(EffectChain *ec)
 {
 	struct json_object *ret = json_object_new_object();
-	json_object_object_add(ret, "fader", json_object_new_int(ec->fader));
-	json_object_object_add(ret, "panner", json_object_new_int(ec->panner));
+	json_object_object_add(ret, "volume",  json_object_new_int(ec->volume));
+	json_object_object_add(ret, "panning", json_object_new_int(ec->panning));
 
 	struct json_object *chain = json_object_new_array_ext(ec->c);
 	for (int i = 0; i < ec->c; i++)
@@ -378,8 +386,8 @@ void deserializeEffect(EffectChain *ec, uint8_t index, struct json_object *jso)
 EffectChain *deserializeEffectChain(struct json_object *jso)
 {
 	EffectChain *ret = newEffectChain();
-	ret->fader = json_object_get_int(json_object_object_get(jso, "fader"));
-	ret->panner = json_object_get_int(json_object_object_get(jso, "panner"));
+	ret->volume =  json_object_get_int(json_object_object_get(jso, "volume"));
+	ret->panning = json_object_get_int(json_object_object_get(jso, "panning"));
 
 	struct json_object *chain = json_object_object_get(jso, "chain");
 	ret->c = json_object_array_length(chain);

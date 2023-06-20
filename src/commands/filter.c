@@ -1,22 +1,22 @@
-typedef struct MacroFilterState
+typedef struct CommandFilterState
 {
 	SVFilter fl[2], fr[2];
-	int8_t mode[2], targetmode[2]; /* TODO: should be a (MacroState) */
+	int8_t mode[2], targetmode[2]; /* TODO: should be a (CommandState) */
 
-	MacroState cut;
-	MacroState res;
-} MacroFilterState;
+	CommandState cut;
+	CommandState res;
+} CommandFilterState;
 
-#define MACRO_FILTER             'F'
-#define MACRO_SMOOTH_FILTER      'f'
-#define MACRO_RESONANCE          'Z'
-#define MACRO_SMOOTH_RESONANCE   'z'
-#define MACRO_FILTER_MODE        'M'
-#define MACRO_SMOOTH_FILTER_MODE 'm'
+#define COMMAND_FILTER             'F'
+#define COMMAND_SMOOTH_FILTER      'f'
+#define COMMAND_RESONANCE          'Z'
+#define COMMAND_SMOOTH_RESONANCE   'z'
+#define COMMAND_FILTER_MODE        'M'
+#define COMMAND_SMOOTH_FILTER_MODE 'm'
 
-void macroFilterClear(Track *cv, void *state)
+void commandFilterClear(Track *cv, void *state)
 {
-	MacroFilterState *ms = state;
+	CommandFilterState *ms = state;
 
 	ms->mode[0] = ms->mode[1] = 0;
 	ms->targetmode[0] = ms->targetmode[1] = -1;
@@ -30,28 +30,28 @@ void macroFilterClear(Track *cv, void *state)
 	ms->res.target_rand = 0;
 }
 
-void macroFilterPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
+void commandFilterPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
 {
-	MacroFilterState *ms = state;
+	CommandFilterState *ms = state;
 
-	macroStateApply(&ms->cut);
-	macroStateApply(&ms->res);
+	commandStateApply(&ms->cut);
+	commandStateApply(&ms->res);
 
-	Macro *m;
-	FOR_ROW_MACROS(i, cv)
+	Command *m;
+	FOR_ROW_COMMANDS(i, cv)
 	{
-		m = &r->macro[i];
+		m = &r->command[i];
 		switch (m->c)
 		{
-			case MACRO_FILTER:           macroStateSet   (&ms->cut, m); break;
-			case MACRO_SMOOTH_FILTER:    macroStateSmooth(&ms->cut, m); break;
-			case MACRO_RESONANCE:        macroStateSet   (&ms->res, m); break;
-			case MACRO_SMOOTH_RESONANCE: macroStateSmooth(&ms->res, m); break;
-			case MACRO_FILTER_MODE:
+			case COMMAND_FILTER:           commandStateSet   (&ms->cut, m); break;
+			case COMMAND_SMOOTH_FILTER:    commandStateSmooth(&ms->cut, m); break;
+			case COMMAND_RESONANCE:        commandStateSet   (&ms->res, m); break;
+			case COMMAND_SMOOTH_RESONANCE: commandStateSmooth(&ms->res, m); break;
+			case COMMAND_FILTER_MODE:
 				ms->mode[0] = (m->v&0x70)>>4; /* ignore the '8' bit */
 				ms->mode[1] =  m->v&0x07;     /* ignore the '8' bit */
 				break;
-			case MACRO_SMOOTH_FILTER_MODE:
+			case COMMAND_SMOOTH_FILTER_MODE:
 				if (ms->targetmode[0] != -1) { ms->mode[0] = ms->targetmode[0]; ms->targetmode[0] = -1; }
 				if (ms->targetmode[1] != -1) { ms->mode[1] = ms->targetmode[1]; ms->targetmode[1] = -1; }
 				ms->targetmode[0] = (m->v&0x70)>>4; /* ignore the '8' bit */
@@ -61,14 +61,14 @@ void macroFilterPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *
 	}
 }
 
-void macroFilterPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state)
+void commandFilterPostSampler(uint32_t fptr, Track *cv, float rp, float *lf, float *rf, void *state)
 {
-	MacroFilterState *ms = state;
+	CommandFilterState *ms = state;
 
 	float cutoff_l = 0.0f, cutoff_r = 0.0f;
 	float resonance_l = 0.0f, resonance_r = 0.0f;
-	macroStateGetStereo(&ms->cut, rp, &cutoff_l, &cutoff_r);
-	macroStateGetStereo(&ms->res, rp, &resonance_l, &resonance_r);
+	commandStateGetStereo(&ms->cut, rp, &cutoff_l, &cutoff_r);
+	commandStateGetStereo(&ms->res, rp, &resonance_l, &resonance_r);
 
 /* #define RUN_FILTER(CHANNEL, MODE, PASS) \
 	runSVFilter(&ms->f##CHANNEL[0], *CHANNEL##f, cutoff_##CHANNEL, resonance_##CHANNEL); \

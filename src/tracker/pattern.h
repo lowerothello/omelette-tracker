@@ -1,9 +1,9 @@
-typedef struct Macro
+typedef struct Command
 {
 	char    c; /* command        */
 	uint8_t v; /* argument       */
 	uint8_t t; /* special tokens */
-} Macro;
+} Command;
 
 #define NOTE_SMOOTH_OFFSET 120 /* offset from any note value to get it's legato variant */
 #define NOTE_C_OFFSET 3 /* offset to work based off of C */
@@ -18,13 +18,13 @@ enum Note
 	NOTE_OFF    = 0xff,
 };
 #define INST_VOID 255
-/* TODO: MACRO_VOID */
+/* TODO: COMMAND_VOID */
 
 typedef struct Row
 {
 	float   note; /* MIDI compatible  | NOTE_* declares */
 	uint8_t inst; /* instrument index | INST_* declares */
-	Macro   macro[8];
+	Command   command[8];
 } Row;
 
 typedef struct Pattern
@@ -36,7 +36,7 @@ typedef struct Pattern
 #define PATTERN_VOID 255
 typedef struct PatternChain
 {
-	uint8_t  macroc; /* TODO: should be addressable from the settings page */
+	uint8_t  commandc; /* TODO: should be addressable from the settings page */
 	uint8_t  order[PATTERN_VOID]; /* pattern playback order        */
 	uint8_t  c;                   /* pattern data length           */
 	uint8_t  i[PATTERN_VOID];     /* pattern data arrangement      */
@@ -74,8 +74,8 @@ void setPatternOrder(PatternChain**, uint8_t index, short value);
 /* be careful using, has a tendancy to smash the event queue */
 PatternChain *setPatternOrderPeek(PatternChain**, uint8_t index, short value);
 
-struct json_object *serializeMacro(Macro*);
-Macro deserializeMacro(struct json_object*);
+struct json_object *serializeCommand(Command*);
+Command deserializeCommand(struct json_object*);
 struct json_object *serializeRow(Row*);
 Row deserializeRow(struct json_object*);
 struct json_object *serializePattern(Pattern*);

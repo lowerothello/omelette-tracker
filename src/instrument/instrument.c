@@ -102,7 +102,7 @@ void toggleRecording(uint8_t inst, char cue)
 				w->recbuffer = malloc(sizeof(short) * RECORD_LENGTH * samplerate * 2);
 				if (!w->recbuffer)
 				{
-					strcpy(w->command.error, "failed to start recording, out of memory");
+					strcpy(w->repl.error, "failed to start recording, out of memory");
 					break;
 				}
 				w->recptr = 0;

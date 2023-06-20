@@ -1,18 +1,18 @@
 /* TODO: smooth variants */
 /* TODO: proper state, for every cc */
 
-#define MACRO_MIDI_PC ':'
+#define COMMAND_MIDI_PC ':'
 
-void macroMidiPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
+void commandMidiPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *state)
 {
 	/* TODO: need to get the midi channel from the instrument */
 	uint8_t midichannel = 0;
 
-	Macro *m;
-	FOR_ROW_MACROS(i, cv)
+	Command *m;
+	FOR_ROW_COMMANDS(i, cv)
 	{
-		m = &r->macro[i];
-		switch (r->macro[i].c)
+		m = &r->command[i];
+		switch (r->command[i].c)
 		{
 			case '0': midiCC(fptr, midichannel, 0x00 + (m->v>>4), m->v&0xf); break;
 			case '1': midiCC(fptr, midichannel, 0x10 + (m->v>>4), m->v&0xf); break;
@@ -22,7 +22,7 @@ void macroMidiPostTrig(uint32_t fptr, uint16_t *spr, Track *cv, Row *r, void *st
 			case '5': midiCC(fptr, midichannel, 0x50 + (m->v>>4), m->v&0xf); break;
 			case '6': midiCC(fptr, midichannel, 0x60 + (m->v>>4), m->v&0xf); break;
 			case '7': midiCC(fptr, midichannel, 0x70 + (m->v>>4), m->v&0xf); break;
-			case MACRO_MIDI_PC: midiPC(fptr, midichannel, m->v&0x7f); break;
+			case COMMAND_MIDI_PC: midiPC(fptr, midichannel, m->v&0x7f); break;
 		}
 	}
 }

@@ -72,13 +72,13 @@ static void samplerProcess(Inst *iv, Track *cv, float rp, uint32_t pointer, floa
 
 	float f;
 	int localpitchshift;
-	f = macroStateGetMono(&ps->pitchshift, rp);
+	f = commandStateGetMono(&ps->pitchshift, rp);
 	if (!isnan(f)) localpitchshift = (f - 0.5f) * (127<<9);
 	else           localpitchshift = s->pitchshift;
 	float pitchshift = semitoneShortToMultiplier(localpitchshift);
 
 	uint8_t localrateredux;
-	f = macroStateGetMono(&ps->rateredux, rp);
+	f = commandStateGetMono(&ps->rateredux, rp);
 	if (!isnan(f)) localrateredux = f*256;
 	else           localrateredux = s->rateredux;
 

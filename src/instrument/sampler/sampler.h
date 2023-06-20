@@ -70,8 +70,8 @@ typedef struct InstSamplerPlaybackState
 	float envgain;
 	short localenvelope;
 	short localsustain;
-	MacroState pitchshift;
-	MacroState rateredux;
+	CommandState pitchshift;
+	CommandState rateredux;
 	int localcyclelength;
 	uint16_t grainrampindex; /* progress through the grain ramp buffer */
 } InstSamplerPlaybackState;
@@ -109,4 +109,4 @@ const InstAPI samplerAPI =
 	sizeof(InstSamplerPlaybackState),
 };
 
-#include "macros.h"
+#include "commands.h"

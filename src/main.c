@@ -71,7 +71,7 @@ void filebrowserEditCallback(char *path)
 	free(buffer);
 } */
 
-static bool commandCallback(char *command, void *arg)
+static bool replCallback(char *command, void *arg)
 {
 	char buffer[strlen(command) + 1];
 	wordSplit(buffer, command, 0);
@@ -96,12 +96,12 @@ static bool commandCallback(char *command, void *arg)
 	p->redraw = 1;
 	return 0;
 }
-static void enterCommandMode(void *arg)
+static void enterReplMode(void *arg)
 {
 	if (input_api.autorepeaton)
 		input_api.autorepeaton();
 
-	setCommand(&commandCallback, NULL, NULL, NULL, 1, ":", "");
+	setRepl(&replCallback, NULL, NULL, NULL, 1, ":", "");
 	w->oldmode = w->mode;
 	switch (w->mode)
 	{
@@ -114,16 +114,16 @@ static void enterCommandMode(void *arg)
 			break;
 		default: break;
 	}
-	w->mode = MODE_COMMAND;
+	w->mode = MODE_REPL;
 	p->redraw = 1;
 }
 
 static void showFileInfo(void)
 {
 	if (strlen(w->filepath))
-		sprintf(w->command.error, "\"%.*s\"", COMMAND_LENGTH - 2, w->filepath);
+		sprintf(w->repl.error, "\"%.*s\"", REPL_LENGTH - 2, w->filepath);
 	else
-		strcpy(w->command.error, "No file loaded");
+		strcpy(w->repl.error, "No file loaded");
 	p->redraw = 1;
 }
 static void toggleTooltip(void)
@@ -148,9 +148,9 @@ void resetInput(void)
 
 	switch (w->mode)
 	{
-		case MODE_COMMAND: initCommandInput(); break;
+		case MODE_REPL: initReplInput(); break;
 		default:
-			addTooltipBind("command mode", 0, XK_colon   , 0, enterCommandMode             , NULL);
+			addTooltipBind("repl mode   ", 0, XK_colon   , 0, enterReplMode                , NULL);
 			addTooltipBind("hide tooltip", 0, XK_question, 0, (void(*)(void*))toggleTooltip, NULL);
 			switch (w->page)
 			{
